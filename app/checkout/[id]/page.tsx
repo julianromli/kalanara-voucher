@@ -220,14 +220,14 @@ export default function CheckoutPage({ params }: PageProps) {
       setIsSuccess(true);
 
       const deliveryMsg = data.deliveryMethod === DeliveryMethod.BOTH 
-        ? "via Email dan WhatsApp" 
+        ? "via Email and WhatsApp" 
         : data.deliveryMethod === DeliveryMethod.WHATSAPP 
           ? "via WhatsApp" 
           : "via Email";
-      showToast(`Pembayaran berhasil! Voucher dikirim ${deliveryMsg}.`, "success");
+      showToast(`Payment successful! Voucher sent ${deliveryMsg}.`, "success");
     } catch (error) {
       console.error("Checkout error:", error);
-      showToast("Gagal menyelesaikan pembelian. Silakan coba lagi.", "error");
+      showToast("Failed to complete purchase. Please try again.", "error");
     } finally {
       setIsProcessing(false);
     }
@@ -270,9 +270,9 @@ export default function CheckoutPage({ params }: PageProps) {
           expiryDate: successData.expiryDate,
         }),
       });
-      showToast("Email berhasil dikirim ulang!", "success");
+      showToast("Email resent successfully!", "success");
     } catch {
-      showToast("Gagal mengirim email. Silakan coba lagi.", "error");
+      showToast("Failed to send email. Please try again.", "error");
     }
   };
 
@@ -294,7 +294,7 @@ export default function CheckoutPage({ params }: PageProps) {
       downloadPDF(blob, `kalanara-voucher-${successData.voucherCode}.pdf`);
     } catch (error) {
       console.error("Failed to generate PDF:", error);
-      showToast("Gagal membuat PDF. Silakan coba lagi.", "error");
+      showToast("Failed to generate PDF. Please try again.", "error");
     }
   };
 
@@ -306,14 +306,14 @@ export default function CheckoutPage({ params }: PageProps) {
             <CheckCircle size={40} className="text-sage-700" />
           </div>
           <h1 className="font-serif text-3xl text-sage-900 mb-2">
-            Pembayaran Berhasil!
+            Payment Successful!
           </h1>
           <p className="text-sage-600 mb-8">
-            Voucher Anda telah dibuat dan dikirim ke penerima.
+            Your voucher has been created and sent to the recipient.
           </p>
 
           <div className="bg-sand-50 p-6 rounded-2xl mb-6">
-            <p className="text-sm text-sage-500 mb-2">Kode Voucher</p>
+            <p className="text-sm text-sage-500 mb-2">Voucher Code</p>
             <p className="font-mono text-2xl text-sage-900 font-bold tracking-wider">
               {successData.voucherCode}
             </p>
@@ -338,7 +338,7 @@ export default function CheckoutPage({ params }: PageProps) {
 
           {/* Resend Options */}
           <div className="bg-sage-50 p-4 rounded-xl mb-6">
-            <p className="text-sm text-sage-600 mb-3">Kirim Ulang Voucher</p>
+            <p className="text-sm text-sage-600 mb-3">Resend Voucher</p>
             <div className="flex gap-3">
               <Button
                 onClick={handleResendEmail}
@@ -364,14 +364,14 @@ export default function CheckoutPage({ params }: PageProps) {
               onClick={() => router.push("/")}
               className="w-full bg-sage-800 hover:bg-sage-700 text-white py-3"
             >
-              Kembali ke Beranda
+              Back to Home
             </Button>
             <Button
               onClick={() => router.push("/verify")}
               variant="outline"
               className="w-full border-sage-300 text-sage-700 py-3"
             >
-              Verifikasi Voucher Lain
+              Verify Another Voucher
             </Button>
           </div>
         </div>
@@ -436,22 +436,22 @@ export default function CheckoutPage({ params }: PageProps) {
               {/* Recipient Details */}
               <div className="bg-white p-6 rounded-2xl border border-sage-100">
                 <h2 className="font-semibold text-sage-900 mb-4 flex items-center gap-2">
-                  <Gift size={20} /> Detail Penerima
+                  <Gift size={20} /> Recipient Details
                 </h2>
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm text-sage-600 mb-1 block">
-                      Nama Penerima
+                      Recipient Name
                     </label>
                     <Input
                       {...register("recipientName", { required: true })}
-                      placeholder="Nama penerima voucher"
+                      placeholder="Voucher recipient's name"
                       className={errors.recipientName ? "border-red-500" : ""}
                     />
                   </div>
                   <div>
                     <label className="text-sm text-sage-600 mb-1 block">
-                      Email Penerima
+                      Recipient Email
                     </label>
                     <Input
                       {...register("recipientEmail", {
@@ -459,17 +459,17 @@ export default function CheckoutPage({ params }: PageProps) {
                         pattern: /^\S+@\S+$/i,
                       })}
                       type="email"
-                      placeholder="penerima@email.com"
+                      placeholder="recipient@email.com"
                       className={errors.recipientEmail ? "border-red-500" : ""}
                     />
                   </div>
                   <div>
                     <label className="text-sm text-sage-600 mb-1 block">
-                      Pesan (Opsional)
+                      Message (Optional)
                     </label>
                     <textarea
                       {...register("senderMessage")}
-                      placeholder="Tulis pesan pribadi..."
+                      placeholder="Write a personal message..."
                       rows={3}
                       className="w-full px-3 py-2 border border-sage-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sage-500 resize-none"
                     />
@@ -480,18 +480,18 @@ export default function CheckoutPage({ params }: PageProps) {
               {/* Delivery Options */}
               <div className="bg-white p-6 rounded-2xl border border-sage-100">
                 <h2 className="font-semibold text-sage-900 mb-4 flex items-center gap-2">
-                  <Send size={20} /> Opsi Pengiriman Voucher
+                  <Send size={20} /> Voucher Delivery Options
                 </h2>
                 <div className="space-y-4">
                   {/* Send To Toggle */}
                   <div>
                     <label className="text-sm text-sage-600 mb-2 block">
-                      Kirim Voucher Ke
+                      Send Voucher To
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                       {[
-                        { value: SendTo.RECIPIENT, label: "Langsung ke Penerima" },
-                        { value: SendTo.PURCHASER, label: "Kirim ke Saya" },
+                        { value: SendTo.RECIPIENT, label: "Direct to Recipient" },
+                        { value: SendTo.PURCHASER, label: "Send to Me" },
                       ].map((option) => (
                         <label
                           key={option.value}
@@ -516,7 +516,7 @@ export default function CheckoutPage({ params }: PageProps) {
                   {/* Delivery Method */}
                   <div>
                     <label className="text-sm text-sage-600 mb-2 block">
-                      Metode Pengiriman
+                      Delivery Method
                     </label>
                     <div className="space-y-2">
                       {[
@@ -565,7 +565,7 @@ export default function CheckoutPage({ params }: PageProps) {
                     <div>
                       <label className="text-sm text-sage-600 mb-1 block flex items-center gap-2">
                         <Phone size={16} />
-                        {sendTo === SendTo.PURCHASER ? "WhatsApp Anda" : "WhatsApp Penerima"}
+                        {sendTo === SendTo.PURCHASER ? "Your WhatsApp" : "Recipient's WhatsApp"}
                       </label>
                       <Input
                         {...register("recipientPhone", {
@@ -576,7 +576,7 @@ export default function CheckoutPage({ params }: PageProps) {
                         className={errors.recipientPhone ? "border-red-500" : ""}
                       />
                       <p className="text-xs text-sage-500 mt-1">
-                        Nomor WhatsApp untuk menerima voucher
+                        WhatsApp number to receive the voucher
                       </p>
                     </div>
                   )}
