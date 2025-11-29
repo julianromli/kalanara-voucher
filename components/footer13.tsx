@@ -1,3 +1,5 @@
+"use client";
+
 import {
   ArrowRight,
   Facebook,
@@ -8,6 +10,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useInView } from "@/hooks/useInView";
 
 const navigation = [
   {
@@ -52,25 +55,44 @@ const socialLinks = [
 ];
 
 const Footer13 = () => {
+  const [footerRef, isInView] = useInView<HTMLElement>({ threshold: 0.1 });
+
   return (
-    <section className="bg-primary text-primary-foreground py-4">
+    <section ref={footerRef} className="bg-background text-foreground py-16 md:py-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <footer>
-          <div className="bg-primary-foreground/5 mb-16 rounded-2xl p-8 backdrop-blur-sm md:p-12 lg:p-16">
+          {/* CTA Box - Primary background */}
+          <div
+            className={`bg-primary text-primary-foreground mb-16 rounded-2xl p-8 md:p-12 lg:p-16 ${
+              isInView ? "animate-scale-in" : "opacity-0"
+            }`}
+          >
             <div className="flex flex-col items-center text-center">
-              <h2 className="max-w-[800px] text-balance text-4xl font-semibold leading-tight tracking-tight md:text-5xl lg:text-6xl">
+              <h2
+                className={`max-w-[800px] text-balance text-4xl font-semibold leading-tight tracking-tight md:text-5xl lg:text-6xl ${
+                  isInView ? "animate-fade-slide-up animate-stagger-1" : "opacity-0"
+                }`}
+              >
                 Gift the Joy of
-                <span className="text-sand-600 relative inline-block ml-3">
+                <span className="text-accent relative inline-block ml-3">
                   Relaxation
-                  <span className="bg-sand-600/30 absolute bottom-1 left-0 h-1 w-full rounded-full"></span>
+                  <span className="bg-accent/30 absolute bottom-1 left-0 h-1 w-full rounded-full"></span>
                 </span>
               </h2>
-              <p className="text-primary-foreground/80 mt-4 max-w-[600px] text-lg">
+              <p
+                className={`text-primary-foreground/80 mt-4 max-w-[600px] text-lg ${
+                  isInView ? "animate-fade-slide-up animate-stagger-2" : "opacity-0"
+                }`}
+              >
                 Premium spa vouchers for someone special.
               </p>
-              <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-                <Button asChild variant="secondary" size="lg" className="group">
-                  <a href="/vouchers" className="flex items-center gap-2">
+              <div
+                className={`mt-8 flex flex-col gap-4 sm:flex-row ${
+                  isInView ? "animate-fade-slide-up animate-stagger-3" : "opacity-0"
+                }`}
+              >
+                <Button asChild size="lg" className="btn-hover-lift group bg-accent text-accent-foreground hover:bg-accent/90">
+                  <a href="/#services" className="flex items-center gap-2">
                     Shop Spa Vouchers Now
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </a>
@@ -80,13 +102,17 @@ const Footer13 = () => {
           </div>
 
           {/* Newsletter Section */}
-          <div className="border-sand-600/20 mb-14 border-b pb-14">
+          <div
+            className={`border-border mb-14 border-b pb-14 ${
+              isInView ? "animate-fade-slide-up animate-stagger-4" : "opacity-0"
+            }`}
+          >
             <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
               <div>
-                <h3 className="mb-2 text-2xl font-medium">
+                <h3 className="mb-2 text-2xl font-medium text-foreground">
                   Wellness Tips & Exclusive Offers
                 </h3>
-                <p className="text-primary-foreground/70 max-w-md">
+                <p className="text-muted-foreground max-w-md">
                   Subscribe for spa insights, seasonal promotions, and early
                   access to new treatment packages.
                 </p>
@@ -96,10 +122,10 @@ const Footer13 = () => {
                   <Input
                     type="email"
                     placeholder="Your email address"
-                    className="border-primary-foreground/20 bg-primary-foreground/10 h-12 pl-10"
+                    className="border-border bg-muted/50 h-12 pl-4"
                   />
                 </div>
-                <Button variant="secondary" type="submit" className="h-12 px-6">
+                <Button type="submit" className="btn-hover-lift h-12 px-6 bg-primary text-primary-foreground hover:bg-primary/90">
                   Subscribe
                 </Button>
               </div>
@@ -107,16 +133,20 @@ const Footer13 = () => {
           </div>
 
           {/* Navigation Section */}
-          <nav className="border-sand-600/20 grid grid-cols-2 gap-x-6 gap-y-10 border-b py-10 sm:grid-cols-4 lg:py-16">
-            {navigation.map((section) => (
-              <div key={section.title}>
-                <h3 className="mb-5 text-lg font-semibold">{section.title}</h3>
+          <nav className="border-border grid grid-cols-2 gap-x-6 gap-y-10 border-b py-10 sm:grid-cols-4 lg:py-16">
+            {navigation.map((section, index) => (
+              <div
+                key={section.title}
+                className={isInView ? "animate-fade-slide-up" : "opacity-0"}
+                style={{ animationDelay: isInView ? `${500 + index * 100}ms` : "0ms" }}
+              >
+                <h3 className="mb-5 text-lg font-semibold text-foreground">{section.title}</h3>
                 <ul className="space-y-4">
                   {section.links.map((link) => (
                     <li key={link.name}>
                       <a
                         href={link.href}
-                        className="text-primary-foreground/80 hover:text-primary-foreground inline-block transition-colors duration-200"
+                        className="text-muted-foreground hover:text-primary inline-block transition-colors duration-200 hover:translate-x-1 transform"
                       >
                         {link.name}
                       </a>
@@ -130,21 +160,29 @@ const Footer13 = () => {
           {/* Bottom Section */}
           <div className="mx-auto mt-4 py-8">
             <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-              <p className="text-primary-foreground/80 font-medium">
+              <p
+                className={`text-muted-foreground font-medium ${
+                  isInView ? "animate-fade-slide-up" : "opacity-0"
+                }`}
+                style={{ animationDelay: isInView ? "900ms" : "0ms" }}
+              >
                 © {new Date().getFullYear()} Kalanara Spa. Luxury wellness
                 experiences in Indonesia.
               </p>
               <div className="flex items-center gap-6">
-                {socialLinks.map((link) => (
+                {socialLinks.map((link, index) => (
                   <a
                     aria-label={link.label}
                     key={link.href}
                     href={link.href}
-                    className="text-primary-foreground/70 hover:text-primary-foreground/100 transition-colors"
+                    className={`text-muted-foreground hover:text-primary transition-all ${
+                      isInView ? "animate-scale-in" : "opacity-0"
+                    }`}
+                    style={{ animationDelay: isInView ? `${950 + index * 50}ms` : "0ms" }}
                   >
                     <link.icon
                       size={20}
-                      className="transition-transform hover:scale-110"
+                      className="transition-transform hover:scale-125"
                     />
                   </a>
                 ))}

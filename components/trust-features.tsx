@@ -1,4 +1,7 @@
+"use client";
+
 import { Zap, CalendarCheck, ShieldCheck, LucideIcon } from "lucide-react";
+import { useInView } from "@/hooks/useInView";
 
 interface FeatureItem {
   icon: LucideIcon;
@@ -26,8 +29,10 @@ const features: FeatureItem[] = [
 ];
 
 const TrustFeatures = () => {
+  const [sectionRef, isInView] = useInView<HTMLElement>({ threshold: 0.1 });
+
   return (
-    <section className="relative py-24 px-4 sm:px-6 lg:px-8 bg-primary text-primary-foreground overflow-hidden">
+    <section ref={sectionRef} className="relative py-24 px-4 sm:px-6 lg:px-8 bg-primary text-primary-foreground overflow-hidden">
       {/* Gradient Mesh - Soft organic shapes */}
       <div className="absolute inset-0 opacity-30">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl" />
@@ -39,7 +44,7 @@ const TrustFeatures = () => {
 
       {/* Content */}
       <div className="relative z-10 max-w-7xl mx-auto">
-        <div className="text-center mb-16">
+        <div className={`text-center mb-16 ${isInView ? "animate-fade-slide-up" : "opacity-0"}`}>
           <h2 className="font-sans font-semibold text-4xl mb-4">
             Why Choose Us
           </h2>
@@ -47,10 +52,13 @@ const TrustFeatures = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {features.map((feature) => (
+          {features.map((feature, index) => (
             <div
               key={feature.title}
-              className="group bg-primary-foreground/5 backdrop-blur-sm rounded-2xl p-8 border border-primary-foreground/10 hover:bg-primary-foreground/10 transition-all duration-300 text-center"
+              className={`group bg-primary-foreground/5 backdrop-blur-sm rounded-2xl p-8 border border-primary-foreground/10 hover:bg-primary-foreground/10 transition-all duration-300 text-center card-hover-lift ${
+                isInView ? "animate-fade-slide-up" : "opacity-0"
+              }`}
+              style={{ animationDelay: isInView ? `${(index + 1) * 100}ms` : "0ms" }}
             >
               <div className="w-20 h-20 mx-auto bg-primary-foreground/10 rounded-2xl flex items-center justify-center mb-6 text-primary-foreground/80 group-hover:scale-110 group-hover:bg-accent group-hover:text-accent-foreground transition-all duration-300 shadow-lg shadow-primary-foreground/5">
                 <feature.icon size={36} />

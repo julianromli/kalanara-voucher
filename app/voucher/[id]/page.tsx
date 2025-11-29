@@ -44,7 +44,7 @@ export default function VoucherDetailPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Back Button */}
-      <div className="max-w-7xl mx-auto px-4 pt-8">
+      <div className="max-w-7xl mx-auto px-4 pt-8 animate-slide-in-left">
         <button
           onClick={() => router.back()}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group"
@@ -61,7 +61,7 @@ export default function VoucherDetailPage({ params }: PageProps) {
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Image */}
-          <div className="relative rounded-2xl overflow-hidden shadow-spa-lg h-[400px] lg:h-[500px]">
+          <div className="animate-scale-in relative rounded-2xl overflow-hidden shadow-spa-lg h-[400px] lg:h-[500px]">
             <Image
               src={
                 service.image ||
@@ -83,19 +83,19 @@ export default function VoucherDetailPage({ params }: PageProps) {
 
           {/* Details */}
           <div className="flex flex-col">
-            <span className="text-muted-foreground uppercase tracking-wider text-sm mb-2">
+            <span className="animate-fade-slide-up text-muted-foreground uppercase tracking-wider text-sm mb-2">
               {service.category.replace("_", " ")}
             </span>
-            <h1 className="font-sans font-semibold text-4xl lg:text-5xl text-foreground mb-6">
+            <h1 className="animate-fade-slide-up animate-stagger-1 font-sans font-semibold text-4xl lg:text-5xl text-foreground mb-6">
               {service.name}
             </h1>
-            <p className="text-muted-foreground text-lg leading-relaxed mb-8">
+            <p className="animate-fade-slide-up animate-stagger-2 text-muted-foreground text-lg leading-relaxed mb-8">
               {service.description}
             </p>
 
             {/* Features */}
             <div className="grid grid-cols-2 gap-4 mb-8">
-              <div className="bg-card p-4 rounded-xl border border-border">
+              <div className="animate-scale-in animate-stagger-3 bg-card p-4 rounded-xl border border-border card-hover-lift">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
                     <Clock size={20} className="text-muted-foreground" />
@@ -108,7 +108,7 @@ export default function VoucherDetailPage({ params }: PageProps) {
                   </div>
                 </div>
               </div>
-              <div className="bg-card p-4 rounded-xl border border-border">
+              <div className="animate-scale-in animate-stagger-4 bg-card p-4 rounded-xl border border-border card-hover-lift">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
                     <Calendar size={20} className="text-muted-foreground" />
@@ -124,7 +124,7 @@ export default function VoucherDetailPage({ params }: PageProps) {
             </div>
 
             {/* Price & CTA */}
-            <div className="mt-auto bg-card p-6 rounded-2xl border border-border shadow-spa">
+            <div className="animate-fade-slide-up animate-stagger-5 mt-auto bg-card p-6 rounded-2xl border border-border shadow-spa">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">
@@ -142,7 +142,7 @@ export default function VoucherDetailPage({ params }: PageProps) {
               </div>
 
               <Link href={`/checkout/${service.id}`}>
-                <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg rounded-xl flex items-center justify-center gap-2">
+                <Button className="btn-hover-lift w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg flex items-center justify-center gap-2">
                   <Gift size={20} />
                   Purchase Voucher
                 </Button>

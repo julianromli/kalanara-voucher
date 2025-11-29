@@ -42,14 +42,14 @@ export default function AdminError({
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               onClick={reset}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
             >
               <RefreshCw size={18} />
               Retry
             </button>
             <Link
               href="/admin/dashboard"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border text-muted-foreground rounded-full hover:bg-accent transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border text-muted-foreground rounded-lg hover:bg-accent transition-colors"
             >
               <LayoutDashboard size={18} />
               Dashboard

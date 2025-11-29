@@ -121,10 +121,10 @@ export default function VerifyPage() {
       {/* Hero */}
       <div className="bg-primary py-20 px-4">
         <div className="max-w-2xl mx-auto text-center">
-          <h1 className="font-sans font-semibold text-4xl md:text-5xl text-primary-foreground mb-4">
+          <h1 className="animate-fade-slide-up font-sans font-semibold text-4xl md:text-5xl text-primary-foreground mb-4">
             Verify Your Voucher
           </h1>
-          <p className="text-primary-foreground/70 text-lg">
+          <p className="animate-fade-slide-up animate-stagger-1 text-primary-foreground/70 text-lg">
             Enter your voucher code to check its validity and details
           </p>
         </div>
@@ -132,7 +132,7 @@ export default function VerifyPage() {
 
       {/* Input Mode Tabs */}
       <div className="max-w-xl mx-auto px-4 -mt-8">
-        <div className="bg-card rounded-2xl shadow-spa-lg overflow-hidden">
+        <div className="animate-scale-in bg-card rounded-2xl shadow-spa-lg overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-border">
             <button

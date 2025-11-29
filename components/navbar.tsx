@@ -9,10 +9,14 @@ import { useAuth } from "@/context/AuthContext";
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
   const { isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
+    // Trigger mount animation after a small delay for smooth reveal
+    const mountTimer = setTimeout(() => setIsMounted(true), 100);
+
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
@@ -21,17 +25,33 @@ export default function Navbar() {
     handleScroll();
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      clearTimeout(mountTimer);
+    };
   }, []);
 
   // Hide navbar on checkout, voucher detail, and admin pages
-  if (pathname.startsWith("/checkout") || pathname.startsWith("/voucher") || pathname.startsWith("/admin")) {
+  if (
+    pathname.startsWith("/checkout") ||
+    pathname.startsWith("/voucher") ||
+    pathname.startsWith("/admin")
+  ) {
     return null;
   }
+
+  // Nav items for staggered animation
+  const navItems = [
+    { href: "/", label: "Home" },
+    { href: "/#services", label: "Treatments" },
+    { href: "/verify", label: "Verify", icon: ShieldCheck },
+  ];
 
   return (
     <nav
       className={`fixed top-0 z-50 w-full transition-all duration-500 ease-out ${
+        isMounted ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
+      } ${
         isScrolled
           ? "bg-background/80 backdrop-blur-md border-b border-border shadow-sm text-foreground"
           : "bg-transparent border-b border-transparent text-primary-foreground"
@@ -40,7 +60,13 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-20 items-center">
           {/* Logo */}
-          <Link href="/" className="flex items-center">
+          <Link
+            href="/"
+            className={`flex items-center transition-all duration-500 ${
+              isMounted ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"
+            }`}
+            style={{ transitionDelay: isMounted ? "200ms" : "0ms" }}
+          >
             <span
               className={`font-sans text-2xl tracking-wider font-bold transition-colors duration-500 ${
                 isScrolled ? "text-foreground" : "text-primary-foreground"
@@ -52,56 +78,49 @@ export default function Navbar() {
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link
-              href="/"
-              className={`font-medium transition-colors duration-500 ${
-                isScrolled
-                  ? "text-foreground hover:text-muted-foreground"
-                  : "text-primary-foreground/90 hover:text-primary-foreground"
-              }`}
-            >
-              Home
-            </Link>
-            <Link
-              href="/#services"
-              className={`font-medium transition-colors duration-500 ${
-                isScrolled
-                  ? "text-foreground hover:text-muted-foreground"
-                  : "text-primary-foreground/90 hover:text-primary-foreground"
-              }`}
-            >
-              Treatments
-            </Link>
-            <Link
-              href="/verify"
-              className={`font-medium transition-colors duration-500 flex items-center gap-1 ${
-                isScrolled
-                  ? "text-foreground hover:text-muted-foreground"
-                  : "text-primary-foreground/90 hover:text-primary-foreground"
-              }`}
-            >
-              <ShieldCheck size={16} /> Verify
-            </Link>
+            {navItems.map((item, index) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`font-medium transition-all duration-500 flex items-center gap-1 ${
+                  isMounted ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
+                } ${
+                  isScrolled
+                    ? "text-foreground hover:text-muted-foreground"
+                    : "text-primary-foreground/90 hover:text-primary-foreground"
+                }`}
+                style={{ transitionDelay: isMounted ? `${300 + index * 75}ms` : "0ms" }}
+              >
+                {item.icon && <item.icon size={16} />}
+                {item.label}
+              </Link>
+            ))}
 
             {isAuthenticated && !isLoading ? (
               <Link
                 href="/admin/dashboard"
-                className={`text-sm font-semibold transition-colors duration-500 ${
+                className={`text-sm font-semibold transition-all duration-500 ${
+                  isMounted ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
+                } ${
                   isScrolled
                     ? "text-foreground hover:text-muted-foreground"
                     : "text-primary-foreground hover:text-primary-foreground/80"
                 }`}
+                style={{ transitionDelay: isMounted ? "525ms" : "0ms" }}
               >
                 Dashboard
               </Link>
             ) : !isLoading ? (
               <Link
                 href="/admin/login"
-                className={`text-sm transition-colors duration-500 ${
+                className={`text-sm transition-all duration-500 ${
+                  isMounted ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
+                } ${
                   isScrolled
                     ? "text-muted-foreground hover:text-foreground"
                     : "text-primary-foreground/70 hover:text-primary-foreground"
                 }`}
+                style={{ transitionDelay: isMounted ? "525ms" : "0ms" }}
               >
                 Staff Login
               </Link>
@@ -109,11 +128,14 @@ export default function Navbar() {
 
             <Link
               href="/#services"
-              className={`px-5 py-2 rounded-full transition-all duration-500 flex items-center gap-2 ${
+              className={`btn-hover-lift px-5 py-2 rounded-lg transition-all duration-500 flex items-center gap-2 ${
+                isMounted ? "translate-y-0 opacity-100 scale-100" : "-translate-y-2 opacity-0 scale-95"
+              } ${
                 isScrolled
                   ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "bg-accent text-accent-foreground hover:bg-accent/90"
               }`}
+              style={{ transitionDelay: isMounted ? "600ms" : "0ms" }}
             >
               <ShoppingBag size={18} />
               <span>Buy Voucher</span>
@@ -121,7 +143,12 @@ export default function Navbar() {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center">
+          <div
+            className={`md:hidden flex items-center transition-all duration-500 ${
+              isMounted ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"
+            }`}
+            style={{ transitionDelay: isMounted ? "300ms" : "0ms" }}
+          >
             <button
               onClick={() => setIsOpen(!isOpen)}
               className={`p-2 transition-colors duration-500 ${
@@ -134,51 +161,52 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {isOpen && (
-        <div className="md:hidden absolute top-20 left-0 w-full p-4 shadow-lg bg-background text-foreground">
-          <div className="flex flex-col space-y-4">
+      {/* Mobile Menu with slide animation */}
+      <div
+        className={`md:hidden absolute top-20 left-0 w-full shadow-lg bg-background text-foreground overflow-hidden transition-all duration-300 ease-out ${
+          isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="p-4 flex flex-col space-y-4">
+          {navItems.map((item, index) => (
             <Link
-              href="/"
+              key={item.href}
+              href={item.href}
               onClick={() => setIsOpen(false)}
-              className="block py-2"
+              className={`block py-2 flex items-center gap-2 transition-all duration-300 ${
+                isOpen ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"
+              }`}
+              style={{ transitionDelay: isOpen ? `${index * 50}ms` : "0ms" }}
             >
-              Home
+              {item.icon && <item.icon size={16} />}
+              {item.label === "Verify" ? "Verify Voucher" : item.label}
             </Link>
+          ))}
+          {isAuthenticated && !isLoading ? (
             <Link
-              href="/#services"
+              href="/admin/dashboard"
               onClick={() => setIsOpen(false)}
-              className="block py-2"
+              className={`block py-2 font-bold transition-all duration-300 ${
+                isOpen ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"
+              }`}
+              style={{ transitionDelay: isOpen ? "150ms" : "0ms" }}
             >
-              Treatments
+              Dashboard
             </Link>
+          ) : !isLoading ? (
             <Link
-              href="/verify"
+              href="/admin/login"
               onClick={() => setIsOpen(false)}
-              className="block py-2 flex items-center gap-2"
+              className={`block py-2 text-sm opacity-70 transition-all duration-300 ${
+                isOpen ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"
+              }`}
+              style={{ transitionDelay: isOpen ? "150ms" : "0ms" }}
             >
-              <ShieldCheck size={16} /> Verify Voucher
+              Staff Login
             </Link>
-            {isAuthenticated && !isLoading ? (
-              <Link
-                href="/admin/dashboard"
-                onClick={() => setIsOpen(false)}
-                className="block py-2 font-bold"
-              >
-                Dashboard
-              </Link>
-            ) : !isLoading ? (
-              <Link
-                href="/admin/login"
-                onClick={() => setIsOpen(false)}
-                className="block py-2 text-sm opacity-70"
-              >
-                Staff Login
-              </Link>
-            ) : null}
-          </div>
+          ) : null}
         </div>
-      )}
+      </div>
     </nav>
   );
 }

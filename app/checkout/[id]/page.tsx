@@ -302,8 +302,8 @@ export default function CheckoutPage({ params }: PageProps) {
   if (isSuccess && successData) {
     return (
       <div className="min-h-screen bg-primary flex items-center justify-center px-4">
-        <div className="bg-card rounded-3xl p-8 md:p-12 max-w-lg w-full text-center shadow-2xl">
-          <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+        <div className="animate-scale-in bg-card rounded-3xl p-8 md:p-12 max-w-lg w-full text-center shadow-2xl">
+          <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6 animate-checkmark-pop">
             <CheckCircle size={40} className="text-muted-foreground" />
           </div>
           <h1 className="font-sans font-semibold text-3xl text-foreground mb-2">
@@ -383,7 +383,7 @@ export default function CheckoutPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-background py-8">
       {/* Back Button */}
-      <div className="max-w-4xl mx-auto px-4 mb-6">
+      <div className="max-w-4xl mx-auto px-4 mb-6 animate-slide-in-left">
         <button
           onClick={() => router.back()}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group"
@@ -394,7 +394,7 @@ export default function CheckoutPage({ params }: PageProps) {
       </div>
 
       <div className="max-w-4xl mx-auto px-4">
-        <h1 className="font-sans font-semibold text-3xl text-foreground mb-8 text-center">
+        <h1 className="animate-fade-slide-up font-sans font-semibold text-3xl text-foreground mb-8 text-center">
           Complete Your Purchase
         </h1>
 
@@ -403,7 +403,7 @@ export default function CheckoutPage({ params }: PageProps) {
             {/* Left Column - Form */}
             <div className="space-y-6">
               {/* Customer Details */}
-              <div className="bg-card p-6 rounded-2xl border border-border">
+              <div className="animate-fade-slide-up animate-stagger-1 bg-card p-6 rounded-2xl border border-border">
                 <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                   <User size={20} /> Your Details
                 </h2>
@@ -446,7 +446,7 @@ export default function CheckoutPage({ params }: PageProps) {
               </div>
 
               {/* Recipient Details */}
-              <div className="bg-card p-6 rounded-2xl border border-border">
+              <div className="animate-fade-slide-up animate-stagger-2 bg-card p-6 rounded-2xl border border-border">
                 <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                   <Gift size={20} /> Recipient Details
                 </h2>
@@ -490,7 +490,7 @@ export default function CheckoutPage({ params }: PageProps) {
               </div>
 
               {/* Delivery Options */}
-              <div className="bg-card p-6 rounded-2xl border border-border">
+              <div className="animate-fade-slide-up animate-stagger-3 bg-card p-6 rounded-2xl border border-border">
                 <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                   <Send size={20} /> Voucher Delivery Options
                 </h2>
@@ -596,7 +596,7 @@ export default function CheckoutPage({ params }: PageProps) {
               </div>
 
               {/* Payment Method */}
-              <div className="bg-card p-6 rounded-2xl border border-border">
+              <div className="animate-fade-slide-up animate-stagger-4 bg-card p-6 rounded-2xl border border-border">
                 <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                   <CreditCard size={20} /> Payment Method
                 </h2>
@@ -657,7 +657,7 @@ export default function CheckoutPage({ params }: PageProps) {
 
             {/* Right Column - Order Summary */}
             <div>
-              <div className="bg-card p-6 rounded-2xl border border-border sticky top-24">
+              <div className="animate-scale-in bg-card p-6 rounded-2xl border border-border sticky top-24">
                 <h2 className="font-semibold text-foreground mb-4">
                   Order Summary
                 </h2>
@@ -700,7 +700,7 @@ export default function CheckoutPage({ params }: PageProps) {
                 <Button
                   type="submit"
                   disabled={isProcessing}
-                  className="w-full mt-6 bg-primary hover:bg-primary/90 text-primary-foreground py-4 rounded-xl text-lg"
+                  className="btn-hover-lift w-full mt-6 bg-primary hover:bg-primary/90 text-primary-foreground py-4 text-lg"
                 >
                   {isProcessing ? "Processing..." : "Complete Purchase"}
                 </Button>
