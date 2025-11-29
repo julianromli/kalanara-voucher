@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
-  Tag,
   Plus,
   Pencil,
   Trash2,
@@ -14,6 +13,7 @@ import {
   Loader2,
   Search,
   Filter,
+  Tag,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
@@ -33,8 +33,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DashboardHeader } from "@/components/admin/dashboard-header";
 import {
-  getServices,
   getAllServices,
   createService,
   updateService,
@@ -206,39 +206,26 @@ export default function AdminServicesPage() {
 
   if (authLoading || !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-primary flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center">
         <Loader2 className="animate-spin text-muted-foreground" size={32} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <div className="bg-primary py-8 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Tag size={24} className="text-muted-foreground" />
-              <h1 className="font-sans font-semibold text-2xl text-primary-foreground">
-                Service Management
-              </h1>
-            </div>
-            <Button
-              onClick={handleOpenCreate}
-              className="bg-accent hover:bg-accent/80 text-accent-foreground"
-            >
-              <Plus size={18} className="mr-2" />
-              Add Service
-            </Button>
-          </div>
-          <p className="text-muted-foreground mt-2">
+    <>
+      <DashboardHeader title="Service Management" showActions={false} />
+      <div className="w-full overflow-y-auto overflow-x-hidden p-4 md:p-6 h-full">
+        {/* Action Bar */}
+        <div className="flex items-center justify-between mb-6">
+          <p className="text-muted-foreground text-sm">
             Manage spa services, pricing, and availability
           </p>
+          <Button onClick={handleOpenCreate} size="sm">
+            <Plus size={16} className="mr-2" />
+            Add Service
+          </Button>
         </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Filters */}
         <div className="bg-card rounded-2xl shadow-spa border border-border p-4 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
@@ -531,6 +518,6 @@ export default function AdminServicesPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

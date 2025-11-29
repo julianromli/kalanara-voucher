@@ -11,7 +11,6 @@ import {
   XCircle,
   AlertCircle,
   Loader2,
-  MoreHorizontal,
   CalendarPlus,
   Ban,
   ScanLine,
@@ -37,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DashboardHeader } from "@/components/admin/dashboard-header";
 import {
   getVouchers,
   redeemVoucher,
@@ -180,7 +180,7 @@ export default function AdminVouchersPage() {
 
   if (authLoading || !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-primary flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center">
         <Loader2 className="animate-spin text-muted-foreground" size={32} />
       </div>
     );
@@ -194,23 +194,9 @@ export default function AdminVouchersPage() {
   };
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <div className="bg-primary py-8 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-3">
-            <Ticket size={24} className="text-muted-foreground" />
-            <h1 className="font-sans font-semibold text-2xl text-primary-foreground">
-              Voucher Management
-            </h1>
-          </div>
-          <p className="text-muted-foreground mt-2">
-            View and manage all vouchers, redeem, extend, or void them
-          </p>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <>
+      <DashboardHeader title="Voucher Management" showActions={false} />
+      <div className="w-full overflow-y-auto overflow-x-hidden p-4 md:p-6 h-full">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-card rounded-xl p-4 shadow-spa border border-border">
@@ -545,6 +531,6 @@ export default function AdminVouchersPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
