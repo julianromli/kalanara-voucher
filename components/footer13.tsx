@@ -11,33 +11,35 @@ import { Input } from "@/components/ui/input";
 
 const navigation = [
   {
-    title: "Product",
+    title: "Spa Vouchers",
     links: [
-      { name: "Home", href: "#" },
-      { name: "Feature1", href: "#" },
-      { name: "Feature2", href: "#" },
-      { name: "Feature3", href: "#" },
+      { name: "Gift Vouchers", href: "/vouchers" },
+      { name: "Massage Treatments", href: "/vouchers#massage" },
+      { name: "Body Treatments", href: "/vouchers#body" },
+      { name: "Facial Treatments", href: "/vouchers#facial" },
     ],
   },
   {
-    title: "Company",
+    title: "Kalanara Spa",
     links: [
-      { name: "About", href: "#" },
-      { name: "Pricing", href: "#" },
+      { name: "About Us", href: "/about" },
+      { name: "Our Treatments", href: "/treatments" },
+      { name: "Contact Us", href: "/contact" },
     ],
   },
   {
-    title: "Support",
+    title: "Help",
     links: [
-      { name: "FAQ", href: "#" },
-      { name: "Contact", href: "#" },
+      { name: "How It Works", href: "/how-it-works" },
+      { name: "FAQs", href: "/faq" },
+      { name: "Redeem Voucher", href: "/redeem" },
     ],
   },
   {
-    title: "Service",
+    title: "Legal",
     links: [
-      { name: "Terms of service", href: "#" },
-      { name: "Privacy policy", href: "#" },
+      { name: "Terms of Service", href: "/terms" },
+      { name: "Privacy Policy", href: "/privacy" },
     ],
   },
 ];
@@ -51,26 +53,25 @@ const socialLinks = [
 
 const Footer13 = () => {
   return (
-    <section className="bg-primary text-primary-foreground py-16 md:py-24 lg:py-32">
+    <section className="bg-primary text-primary-foreground py-4">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <footer>
           <div className="bg-primary-foreground/5 mb-16 rounded-2xl p-8 backdrop-blur-sm md:p-12 lg:p-16">
             <div className="flex flex-col items-center text-center">
               <h2 className="max-w-[800px] text-balance text-4xl font-semibold leading-tight tracking-tight md:text-5xl lg:text-6xl">
-                Start your free trial today.
-                <span className="text-sand-600 relative inline-block">
-                  Your future won&apos;t wait.
+                Gift the Joy of
+                <span className="text-sand-600 relative inline-block ml-3">
+                  Relaxation
                   <span className="bg-sand-600/30 absolute bottom-1 left-0 h-1 w-full rounded-full"></span>
                 </span>
               </h2>
               <p className="text-primary-foreground/80 mt-4 max-w-[600px] text-lg">
-                Join thousands of users already leveraging our platform to
-                achieve more.
+                Premium spa vouchers for someone special.
               </p>
               <div className="mt-8 flex flex-col gap-4 sm:flex-row">
                 <Button asChild variant="secondary" size="lg" className="group">
-                  <a href="/get-started" className="flex items-center gap-2">
-                    Get started with 7 days free
+                  <a href="/vouchers" className="flex items-center gap-2">
+                    Shop Spa Vouchers Now
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </a>
                 </Button>
@@ -82,10 +83,12 @@ const Footer13 = () => {
           <div className="border-sand-600/20 mb-14 border-b pb-14">
             <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
               <div>
-                <h3 className="mb-2 text-2xl font-medium">Stay connected</h3>
+                <h3 className="mb-2 text-2xl font-medium">
+                  Wellness Tips & Exclusive Offers
+                </h3>
                 <p className="text-primary-foreground/70 max-w-md">
-                  Subscribe to our newsletter for the latest updates, resources,
-                  and exclusive offers.
+                  Subscribe for spa insights, seasonal promotions, and early
+                  access to new treatment packages.
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -128,14 +131,8 @@ const Footer13 = () => {
           <div className="mx-auto mt-4 py-8">
             <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
               <p className="text-primary-foreground/80 font-medium">
-                © {new Date().getFullYear()} Streamline -{" "}
-                <a
-                  href="https://shadcnblocks.com"
-                  className="hover:text-primary-foreground underline transition-colors"
-                  target="_blank"
-                >
-                  Shadcnblocks.com
-                </a>
+                © {new Date().getFullYear()} Kalanara Spa. Luxury wellness
+                experiences in Indonesia.
               </p>
               <div className="flex items-center gap-6">
                 {socialLinks.map((link) => (
