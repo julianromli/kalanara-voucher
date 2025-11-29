@@ -95,14 +95,44 @@ export async function POST(request: NextRequest) {
 ## Key Files
 | File | Purpose |
 |------|---------|
-| `layout.tsx` | Providers: Auth, Store, Toast |
-| `page.tsx` | Landing with service catalog |
-| `globals.css` | Tailwind config + custom colors |
+| `layout.tsx` | Providers: Auth, Store, Toast, ThemeProvider |
+| `page.tsx` | Landing with service catalog + animations |
+| `globals.css` | Tailwind + animation keyframes + utility classes |
 | `checkout/[id]/page.tsx` | Full checkout with delivery options |
 | `verify/page.tsx` | QR scanner + voucher verification |
+
+## Animation System
+Defined in `globals.css`:
+
+### Keyframes
+- `fadeSlideUp`, `fadeSlideDown` - Content reveals
+- `scaleIn` - Modal/card entrances
+- `slideInLeft` - Back button animations
+- `pulse`, `checkmarkPop` - Success indicators
+
+### Utility Classes
+```css
+.animate-fade-slide-up     /* Fade + slide up */
+.animate-scale-in          /* Scale entrance */
+.animate-stagger-1 to -6   /* Stagger delays 100-600ms */
+.btn-hover-lift            /* Button hover effect */
+.card-hover-lift           /* Card hover effect */
+.img-hover-zoom            /* Image zoom on hover */
+```
+
+### Usage Pattern
+```tsx
+const [ref, isInView] = useInView();
+
+<div ref={ref} className={isInView ? "animate-fade-slide-up" : "opacity-0"}>
+  Content
+</div>
+```
 
 ## Common Gotchas
 - `params` is async in Next.js 16 - use `use(params)` or `await params`
 - Admin routes need both middleware check AND client-side auth check
 - Use `@/` imports, not relative `../../../`
 - Images: Use `next/image` with proper `width`/`height` or `fill`
+- Animations: Always set initial `opacity-0` before `isInView` triggers
+- `prefers-reduced-motion` is respected via media query in globals.css

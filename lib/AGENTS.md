@@ -129,16 +129,19 @@ generateVoucherPDF(voucher)  // Returns jspdf document
 ## JIT Index
 ```bash
 # Find type definition
-rg -n "export (interface|type|enum) Name" lib/types.ts
+rg -n "export (interface|type|enum)" lib/types.ts
 
 # Find server action
 rg -n "export async function" lib/actions/
 
 # Find Supabase table query
-rg -n "\.from\(['\"]tablename" lib/
+rg -n "\.from\(" lib/
 
 # Find constant
 rg -n "export const" lib/constants.ts
+
+# Find utility function
+rg -n "export function" lib/utils/
 ```
 
 ## Common Gotchas
@@ -146,3 +149,5 @@ rg -n "export const" lib/constants.ts
 - Use `createServerClient()` for admin operations (service role key)
 - Database types in `database.types.ts` are auto-generated - don't edit manually
 - Always handle Supabase errors: `if (error) throw error`
+- Phone numbers: Use `formatPhoneNumber()` to normalize to +62 format
+- Currency: Use `formatCurrency()` for IDR display (Rp xxx.xxx)

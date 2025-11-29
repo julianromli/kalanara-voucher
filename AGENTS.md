@@ -18,10 +18,12 @@ bunx tsc --noEmit    # TypeScript check (use this, NOT bun run build)
 - **Framework**: Next.js 16 (App Router), React 19, TypeScript
 - **Styling**: TailwindCSS 4, shadcn/ui components
 - **Database**: Supabase (PostgreSQL + Auth)
+- **State**: Zustand (client state), React Context (auth, toast)
 - **Email**: Resend API
 - **PDF**: jspdf + qrcode
 - **Forms**: react-hook-form
 - **Charts**: Recharts (admin dashboard)
+- **Animations**: CSS keyframes + Intersection Observer (see `globals.css`)
 
 ## Universal Conventions
 
@@ -36,6 +38,13 @@ bunx tsc --noEmit    # TypeScript check (use this, NOT bun run build)
 - Use `"use client"` directive only when needed (hooks, events, browser APIs)
 - Server Components by default
 - Props interfaces named `{Component}Props`
+
+### Animation Patterns
+- Use CSS keyframes defined in `globals.css` (fadeSlideUp, scaleIn, etc.)
+- Scroll-triggered: `useInView` hook from `hooks/useInView.ts`
+- Stagger delays: `animate-stagger-1` through `animate-stagger-6`
+- Hover effects: `btn-hover-lift`, `card-hover-lift`, `img-hover-zoom`
+- Always respect `prefers-reduced-motion`
 
 ### Git & Commits
 - Branch: `feature/`, `fix/`, `chore/` prefixes
@@ -56,12 +65,13 @@ bunx tsc --noEmit    # TypeScript check (use this, NOT bun run build)
 | `app/` | Pages & API routes | [app/AGENTS.md](app/AGENTS.md) |
 | `lib/` | Utils, types, actions | [lib/AGENTS.md](lib/AGENTS.md) |
 | `components/` | UI components | [components/AGENTS.md](components/AGENTS.md) |
-| `context/` | React contexts | Auth, Store, Toast providers |
+| `context/` | React contexts | [context/AGENTS.md](context/AGENTS.md) |
+| `hooks/` | Custom React hooks | [hooks/AGENTS.md](hooks/AGENTS.md) |
 
 ### Quick Find Commands
 ```bash
 # Find component
-rg -n "export.*function.*Component" components/
+rg -n "export.*function" components/
 
 # Find server action
 rg -n "use server" lib/actions/
@@ -74,6 +84,12 @@ rg -n "export (interface|type|enum)" lib/types.ts
 
 # Find Supabase query
 rg -n "supabase\.(from|rpc)" lib/
+
+# Find hook
+rg -n "export function use" hooks/
+
+# Find context usage
+rg -n "useContext|createContext" context/
 ```
 
 ## Environment Variables
