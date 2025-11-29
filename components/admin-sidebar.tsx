@@ -42,11 +42,11 @@ export function AdminSidebar() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <aside className="fixed left-0 top-0 z-40 flex h-screen w-16 flex-col border-r border-sage-200/60 bg-white/80 backdrop-blur-sm">
+      <aside className="fixed left-0 top-0 z-40 flex h-screen w-16 flex-col border-r border-sidebar-border/60 bg-sidebar/80 backdrop-blur-sm">
         {/* Logo */}
-        <div className="flex h-16 items-center justify-center border-b border-sage-200/60">
+        <div className="flex h-16 items-center justify-center border-b border-sidebar-border/60">
           <Link href="/admin/dashboard" className="group">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-sage-800 text-sand-100 transition-all duration-300 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-sage-800/20">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground transition-all duration-300 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-primary/20">
               <Leaf className="size-5" />
             </div>
           </Link>
@@ -64,13 +64,13 @@ export function AdminSidebar() {
                     className={cn(
                       "group relative flex size-11 items-center justify-center rounded-xl transition-all duration-200",
                       isActive
-                        ? "bg-sage-100 text-sage-800 shadow-sm"
-                        : "text-sage-500 hover:bg-sage-50 hover:text-sage-700"
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                        : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
                     )}
                   >
                     {/* Active indicator */}
                     {isActive && (
-                      <span className="absolute -left-2 h-6 w-1 rounded-full bg-sage-600" />
+                      <span className="absolute -left-2 h-6 w-1 rounded-full bg-sidebar-primary" />
                     )}
                     <item.icon
                       className={cn(
@@ -82,7 +82,7 @@ export function AdminSidebar() {
                 </TooltipTrigger>
                 <TooltipContent
                   side="right"
-                  className="border-sage-200 bg-sage-900 px-3 py-1.5 text-sm font-medium text-sand-100"
+                  className="border-border bg-popover px-3 py-1.5 font-sans text-sm font-medium text-popover-foreground"
                 >
                   {item.label}
                 </TooltipContent>
@@ -92,19 +92,19 @@ export function AdminSidebar() {
         </nav>
 
         {/* Logout */}
-        <div className="border-t border-sage-200/60 p-2">
+        <div className="border-t border-sidebar-border/60 p-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 onClick={handleLogout}
-                className="group flex size-11 w-full items-center justify-center rounded-xl text-sage-500 transition-all duration-200 hover:bg-red-50 hover:text-red-600"
+                className="group flex size-11 w-full items-center justify-center rounded-xl text-sidebar-foreground transition-all duration-200 hover:bg-destructive/10 hover:text-destructive"
               >
                 <LogOut className="size-5 transition-transform duration-200 group-hover:scale-110" />
               </button>
             </TooltipTrigger>
             <TooltipContent
               side="right"
-              className="border-red-200 bg-red-600 px-3 py-1.5 text-sm font-medium text-white"
+              className="border-destructive/20 bg-destructive px-3 py-1.5 font-sans text-sm font-medium text-destructive-foreground"
             >
               Logout
             </TooltipContent>
