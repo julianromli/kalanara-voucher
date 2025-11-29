@@ -15,7 +15,10 @@ import {
   MessageCircle,
   Send,
   Phone,
+  Download,
 } from "lucide-react";
+import QRCode from "react-qr-code";
+import { generateVoucherPDF, downloadPDF } from "@/lib/pdf";
 import { useStore } from "@/context/StoreContext";
 import { useToast } from "@/context/ToastContext";
 import { formatCurrency, APP_CONFIG } from "@/lib/constants";
@@ -273,6 +276,28 @@ export default function CheckoutPage({ params }: PageProps) {
     }
   };
 
+  const handleDownloadPDF = async () => {
+    if (!successData || !service) return;
+    try {
+      const blob = await generateVoucherPDF({
+        code: successData.voucherCode,
+        serviceName: successData.serviceName,
+        serviceDescription: service.description,
+        duration: successData.serviceDuration,
+        amount: successData.amount,
+        recipientName: successData.recipientName,
+        senderName: successData.senderName,
+        senderMessage: successData.senderMessage || undefined,
+        expiryDate: successData.expiryDate,
+        purchaseDate: new Date().toISOString(),
+      });
+      downloadPDF(blob, `kalanara-voucher-${successData.voucherCode}.pdf`);
+    } catch (error) {
+      console.error("Failed to generate PDF:", error);
+      showToast("Gagal membuat PDF. Silakan coba lagi.", "error");
+    }
+  };
+
   if (isSuccess && successData) {
     return (
       <div className="min-h-screen bg-sage-800 flex items-center justify-center px-4">
@@ -293,6 +318,23 @@ export default function CheckoutPage({ params }: PageProps) {
               {successData.voucherCode}
             </p>
           </div>
+
+          {/* QR Code */}
+          <div className="flex justify-center mb-6">
+            <div className="bg-white p-4 rounded-xl border border-sage-200">
+              <QRCode value={successData.voucherCode} size={150} />
+            </div>
+          </div>
+
+          {/* Download PDF */}
+          <Button
+            onClick={handleDownloadPDF}
+            variant="outline"
+            className="w-full border-sage-300 text-sage-700 gap-2 mb-6"
+          >
+            <Download size={18} />
+            Download Voucher PDF
+          </Button>
 
           {/* Resend Options */}
           <div className="bg-sage-50 p-4 rounded-xl mb-6">
