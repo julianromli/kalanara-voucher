@@ -105,7 +105,7 @@ Update the file after completing each sub-task, not just after completing an ent
 - [x] 6.0 Verify and commit changes
   - [x] 6.1 Run `bunx tsc --noEmit` for final TypeScript verification
   - [x] 6.2 Run `bun run lint` to check for linting errors (warnings only, no new errors)
-  - [ ] 6.3 Start dev server and visually verify all pages render correctly
-  - [ ] 6.4 Test dark mode toggle (if implemented) to verify theme switching works
+  - [x] 6.3 Start dev server and visually verify all pages render correctly
+  - [x] 6.4 Test dark mode toggle (if implemented) to verify theme switching works
   - [x] 6.5 Commit changes with message `refactor: migrate to semantic color tokens for theming support`
-  - [ ] 6.6 Push branch and create PR (optional)
+  - [x] 6.6 Push branch and create PR (optional)

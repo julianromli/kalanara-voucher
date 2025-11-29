@@ -32,15 +32,39 @@ interface ChartCardProps {
   title?: string;
 }
 
+// Theme-aware colors using Kalanara's sage palette
+const CHART_COLORS = {
+  light: {
+    bar: "#5d7048",      // sage-600
+    barHover: "#4a5a3b", // sage-700
+    label: "#5d4a3b",    // sand-900
+    grid: "#e8ebe3",     // sage-100
+    tooltip: {
+      bg: "#ffffff",
+      border: "#d2d9c8", // sage-200
+      text: "#343f2c",   // sage-900
+    },
+  },
+  dark: {
+    bar: "#94a67a",      // sage-400
+    barHover: "#b3c0a1", // sage-300
+    label: "#d5c6b1",    // sand-300
+    grid: "#343f2c",     // sage-900
+    tooltip: {
+      bg: "#1a2115",     // sage-950
+      border: "#3d4932", // sage-800
+      text: "#f3efe8",   // sand-100
+    },
+  },
+};
+
 export function ChartCard({ data, title = "Revenue (Last 7 Days)" }: ChartCardProps) {
   const { resolvedTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<Date | undefined>(undefined);
 
   const isDark = resolvedTheme === "dark";
-  const barColor = isDark ? "#94a67a" : "#5d7048";
-  const labelColor = isDark ? "#B4B4B4" : "#95979d";
-  const gridColor = isDark ? "#2A2A2A" : "#E8E9ED";
+  const colors = isDark ? CHART_COLORS.dark : CHART_COLORS.light;
 
   const formatDateRange = (date: Date | undefined) => {
     if (!date) return "This Week";
@@ -86,7 +110,7 @@ export function ChartCard({ data, title = "Revenue (Last 7 Days)" }: ChartCardPr
         <div className="flex items-center gap-1.5">
           <div
             className="size-3 rounded-full"
-            style={{ backgroundColor: barColor }}
+            style={{ backgroundColor: colors.bar }}
           />
           <span className="text-xs font-medium text-muted-foreground">
             Revenue
@@ -103,15 +127,15 @@ export function ChartCard({ data, title = "Revenue (Last 7 Days)" }: ChartCardPr
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke={gridColor}
+              stroke={colors.grid}
               strokeWidth={1}
             />
             <XAxis
               dataKey="day"
               tick={{
-                fill: labelColor,
+                fill: colors.label,
                 fontSize: 12,
-                fontWeight: 400,
+                fontWeight: 500,
               }}
               axisLine={false}
               tickLine={false}
@@ -119,9 +143,9 @@ export function ChartCard({ data, title = "Revenue (Last 7 Days)" }: ChartCardPr
             />
             <YAxis
               tick={{
-                fill: labelColor,
+                fill: colors.label,
                 fontSize: 12,
-                fontWeight: 400,
+                fontWeight: 500,
               }}
               axisLine={false}
               tickLine={false}
@@ -130,22 +154,23 @@ export function ChartCard({ data, title = "Revenue (Last 7 Days)" }: ChartCardPr
                 if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
                 return value.toString();
               }}
-              width={45}
+              width={50}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: isDark ? "#1a2115" : "#fff",
-                border: `1px solid ${gridColor}`,
-                borderRadius: 8,
+                backgroundColor: colors.tooltip.bg,
+                border: `1px solid ${colors.tooltip.border}`,
+                borderRadius: 10,
+                boxShadow: "0 4px 20px -2px rgba(93, 112, 72, 0.12)",
               }}
               formatter={(value: number) => [formatCurrency(value), "Revenue"]}
-              labelStyle={{ color: isDark ? "#fff" : "#000" }}
+              labelStyle={{ color: colors.tooltip.text, fontWeight: 500 }}
             />
             <Bar
               dataKey="revenue"
-              fill={barColor}
-              radius={[4, 4, 0, 0]}
-              barSize={40}
+              fill={colors.bar}
+              radius={[6, 6, 0, 0]}
+              barSize={36}
             />
           </BarChart>
         </ResponsiveContainer>

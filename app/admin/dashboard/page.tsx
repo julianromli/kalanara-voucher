@@ -14,7 +14,7 @@ import { VoucherSummary } from "@/components/admin/voucher-summary";
 
 export default function AdminDashboardPage() {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { services, vouchers, orders, reviews, isLoading: dataLoading } = useStore();
 
   useEffect(() => {
@@ -23,7 +23,8 @@ export default function AdminDashboardPage() {
     }
   }, [authLoading, isAuthenticated, router]);
 
-  if (authLoading || !isAuthenticated) {
+  // Show loading while auth or data is loading
+  if (authLoading || dataLoading || !isAuthenticated) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <Loader2 className="animate-spin text-muted-foreground" size={32} />
