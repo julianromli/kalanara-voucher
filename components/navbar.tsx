@@ -22,7 +22,7 @@ export default function Navbar() {
         <div className="flex justify-between h-20 items-center">
           {/* Logo */}
           <Link href="/" className="flex items-center">
-            <span className="font-serif text-2xl tracking-wider font-semibold text-sage-800">
+            <span className="font-sans text-2xl tracking-wider font-bold text-sage-800">
               KALANARA
             </span>
           </Link>

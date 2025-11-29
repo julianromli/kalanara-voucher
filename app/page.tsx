@@ -37,7 +37,7 @@ export default function LandingPage() {
           <span className="text-sand-300 tracking-[0.2em] text-sm md:text-base uppercase mb-4 block animate-fade-in">
             Welcome to Kalanara
           </span>
-          <h1 className="font-serif text-5xl md:text-7xl text-sand-50 mb-6 leading-tight">
+          <h1 className="font-sans font-semibold text-5xl md:text-7xl text-sand-50 mb-6 leading-tight">
             Rejuvenate Your <br />
             <span className="italic text-sand-400">Body & Soul</span>
           </h1>
@@ -58,7 +58,7 @@ export default function LandingPage() {
       <section id="services" className="py-24 px-4 sm:px-6 lg:px-8 bg-sand-100">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="font-serif text-4xl text-sage-900 mb-4">
+            <h2 className="font-sans font-semibold text-4xl text-sage-900 mb-4">
               Curated Packages
             </h2>
             <div className="h-1 w-20 bg-sand-500 mx-auto rounded-full"></div>
@@ -89,7 +89,7 @@ export default function LandingPage() {
                   </div>
 
                   <div className="p-6">
-                    <h3 className="font-serif text-2xl text-sage-900 mb-2 group-hover:text-sage-700 transition-colors">
+                    <h3 className="font-sans font-semibold text-2xl text-sage-900 mb-2 group-hover:text-sage-700 transition-colors">
                       {service.name}
                     </h3>
                     <p className="text-sage-600 text-sm mb-6 line-clamp-2">
@@ -124,7 +124,7 @@ export default function LandingPage() {
         <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
-              <h2 className="font-serif text-4xl text-sage-900 mb-4">
+              <h2 className="font-sans font-semibold text-4xl text-sage-900 mb-4">
                 Guest Experiences
               </h2>
               <div className="h-1 w-20 bg-sand-500 mx-auto rounded-full"></div>
@@ -178,7 +178,7 @@ export default function LandingPage() {
             <div className="w-16 h-16 mx-auto bg-sage-700 rounded-full flex items-center justify-center mb-4 text-sand-400">
               <Clock size={32} />
             </div>
-            <h3 className="font-serif text-xl mb-2">Instant Delivery</h3>
+            <h3 className="font-sans font-semibold text-xl mb-2">Instant Delivery</h3>
             <p className="text-sage-300 text-sm">
               Vouchers are sent automatically via WhatsApp & Email immediately
               after purchase.
@@ -188,7 +188,7 @@ export default function LandingPage() {
             <div className="w-16 h-16 mx-auto bg-sage-700 rounded-full flex items-center justify-center mb-4 text-sand-400">
               <Star size={32} />
             </div>
-            <h3 className="font-serif text-xl mb-2">Valid for 12 Months</h3>
+            <h3 className="font-sans font-semibold text-xl mb-2">Valid for 12 Months</h3>
             <p className="text-sage-300 text-sm">
               Flexible redemption period to suit your schedule.
             </p>
@@ -197,7 +197,7 @@ export default function LandingPage() {
             <div className="w-16 h-16 mx-auto bg-sage-700 rounded-full flex items-center justify-center mb-4 text-sand-400">
               <Quote size={32} />
             </div>
-            <h3 className="font-serif text-xl mb-2">Secure Payment</h3>
+            <h3 className="font-sans font-semibold text-xl mb-2">Secure Payment</h3>
             <p className="text-sage-300 text-sm">
               Trusted payments via QRIS, Bank Transfer, and Credit Cards.
             </p>
@@ -208,7 +208,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="bg-sage-900 text-sand-200 py-12">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <h2 className="font-serif text-2xl text-sand-100 mb-2">KALANARA</h2>
+          <h2 className="font-sans font-semibold text-2xl text-sand-100 mb-2">KALANARA</h2>
           <p className="text-sage-400 text-sm mb-6">Harmony in Every Touch</p>
           <p className="text-sage-500 text-xs">
             © {new Date().getFullYear()} Kalanara Spa. All rights reserved.

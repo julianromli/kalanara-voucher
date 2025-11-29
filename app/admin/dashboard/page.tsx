@@ -106,7 +106,7 @@ export default function AdminDashboardPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-3 mb-2">
             <LayoutDashboard size={24} className="text-sand-400" />
-            <h1 className="font-serif text-2xl text-sand-100">Dashboard</h1>
+            <h1 className="font-sans font-semibold text-2xl text-sand-100">Dashboard</h1>
           </div>
           <p className="text-sage-400">
             Welcome back, {user?.name}. Here&apos;s your overview.
@@ -127,7 +127,7 @@ export default function AdminDashboardPage() {
               </span>
             </div>
             <p className="text-sm text-sage-500 mb-1">Total Revenue</p>
-            <p className="font-serif text-2xl text-sage-900">
+            <p className="font-sans font-semibold text-2xl text-sage-900">
               {formatCurrency(totalRevenue)}
             </p>
           </div>
@@ -142,7 +142,7 @@ export default function AdminDashboardPage() {
               </span>
             </div>
             <p className="text-sm text-sage-500 mb-1">Active Vouchers</p>
-            <p className="font-serif text-2xl text-sage-900">{activeVouchers}</p>
+            <p className="font-sans font-semibold text-2xl text-sage-900">{activeVouchers}</p>
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-spa border border-sage-100">
@@ -155,7 +155,7 @@ export default function AdminDashboardPage() {
               </span>
             </div>
             <p className="text-sm text-sage-500 mb-1">Total Orders</p>
-            <p className="font-serif text-2xl text-sage-900">{orders.length}</p>
+            <p className="font-sans font-semibold text-2xl text-sage-900">{orders.length}</p>
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-spa border border-sage-100">
@@ -168,7 +168,7 @@ export default function AdminDashboardPage() {
               </span>
             </div>
             <p className="text-sm text-sage-500 mb-1">Customer Rating</p>
-            <p className="font-serif text-2xl text-sage-900">{avgRating} / 5</p>
+            <p className="font-sans font-semibold text-2xl text-sage-900">{avgRating} / 5</p>
           </div>
         </div>
 

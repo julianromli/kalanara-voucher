@@ -58,7 +58,7 @@ export default function ReviewPage({ params }: PageProps) {
           <div className="w-20 h-20 bg-sage-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle size={40} className="text-sage-700" />
           </div>
-          <h1 className="font-serif text-3xl text-sage-900 mb-2">
+          <h1 className="font-sans font-semibold text-3xl text-sage-900 mb-2">
             Thank You!
           </h1>
           <p className="text-sage-600 mb-8">
@@ -79,7 +79,7 @@ export default function ReviewPage({ params }: PageProps) {
     <div className="min-h-screen bg-gradient-to-b from-sage-50 to-sand-100 py-12">
       <div className="max-w-xl mx-auto px-4">
         <div className="text-center mb-8">
-          <h1 className="font-serif text-4xl text-sage-900 mb-2">
+          <h1 className="font-sans font-semibold text-4xl text-sage-900 mb-2">
             Share Your Experience
           </h1>
           <p className="text-sage-600">

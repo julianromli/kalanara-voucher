@@ -121,7 +121,7 @@ export default function VerifyPage() {
       {/* Hero */}
       <div className="bg-sage-800 py-20 px-4">
         <div className="max-w-2xl mx-auto text-center">
-          <h1 className="font-serif text-4xl md:text-5xl text-sand-50 mb-4">
+          <h1 className="font-sans font-semibold text-4xl md:text-5xl text-sand-50 mb-4">
             Verify Your Voucher
           </h1>
           <p className="text-sage-300 text-lg">
@@ -228,7 +228,7 @@ export default function VerifyPage() {
                       className="w-24 h-24 object-cover rounded-xl"
                     />
                     <div>
-                      <h2 className="font-serif text-2xl text-sage-900">
+                      <h2 className="font-sans font-semibold text-2xl text-sage-900">
                         {searchResult.voucher.service.name}
                       </h2>
                       <p className="text-sage-500 flex items-center gap-2 mt-1">
@@ -292,7 +292,7 @@ export default function VerifyPage() {
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <XCircle size={32} className="text-red-600" />
                 </div>
-                <h2 className="font-serif text-2xl text-sage-900 mb-2">
+                <h2 className="font-sans font-semibold text-2xl text-sage-900 mb-2">
                   Voucher Not Found
                 </h2>
                 <p className="text-sage-600">

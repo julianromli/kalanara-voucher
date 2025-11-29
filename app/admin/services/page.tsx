@@ -220,7 +220,7 @@ export default function AdminServicesPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Tag size={24} className="text-sand-400" />
-              <h1 className="font-serif text-2xl text-sand-100">
+              <h1 className="font-sans font-semibold text-2xl text-sand-100">
                 Service Management
               </h1>
             </div>
@@ -336,7 +336,7 @@ export default function AdminServicesPage() {
                 </div>
 
                 <div className="p-5">
-                  <h3 className="font-serif text-xl text-sage-900 mb-1">
+                  <h3 className="font-sans font-semibold text-xl text-sage-900 mb-1">
                     {service.name}
                   </h3>
                   <p className="text-sm text-sage-500 line-clamp-2 mb-4 min-h-[40px]">
@@ -388,7 +388,7 @@ export default function AdminServicesPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-serif text-xl">
+            <DialogTitle className="font-sans font-semibold text-xl">
               {isEditing ? "Edit Service" : "Create New Service"}
             </DialogTitle>
           </DialogHeader>

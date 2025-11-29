@@ -200,7 +200,7 @@ export default function AdminVouchersPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-3">
             <Ticket size={24} className="text-sand-400" />
-            <h1 className="font-serif text-2xl text-sand-100">
+            <h1 className="font-sans font-semibold text-2xl text-sand-100">
               Voucher Management
             </h1>
           </div>
@@ -215,25 +215,25 @@ export default function AdminVouchersPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 shadow-spa border border-sage-100">
             <p className="text-sm text-sage-500">Total</p>
-            <p className="text-2xl font-serif text-sage-900">{stats.total}</p>
+            <p className="text-2xl font-sans font-semibold text-sage-900">{stats.total}</p>
           </div>
           <div className="bg-white rounded-xl p-4 shadow-spa border border-sage-100">
             <p className="text-sm text-emerald-600 flex items-center gap-1">
               <Clock size={14} /> Active
             </p>
-            <p className="text-2xl font-serif text-sage-900">{stats.active}</p>
+            <p className="text-2xl font-sans font-semibold text-sage-900">{stats.active}</p>
           </div>
           <div className="bg-white rounded-xl p-4 shadow-spa border border-sage-100">
             <p className="text-sm text-blue-600 flex items-center gap-1">
               <CheckCircle size={14} /> Redeemed
             </p>
-            <p className="text-2xl font-serif text-sage-900">{stats.redeemed}</p>
+            <p className="text-2xl font-sans font-semibold text-sage-900">{stats.redeemed}</p>
           </div>
           <div className="bg-white rounded-xl p-4 shadow-spa border border-sage-100">
             <p className="text-sm text-red-600 flex items-center gap-1">
               <XCircle size={14} /> Expired
             </p>
-            <p className="text-2xl font-serif text-sage-900">{stats.expired}</p>
+            <p className="text-2xl font-sans font-semibold text-sage-900">{stats.expired}</p>
           </div>
         </div>
 
@@ -428,7 +428,7 @@ export default function AdminVouchersPage() {
       <Dialog open={!!actionType} onOpenChange={() => closeActionDialog()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-serif text-xl flex items-center gap-2">
+            <DialogTitle className="font-sans font-semibold text-xl flex items-center gap-2">
               {actionType === "redeem" && (
                 <>
                   <ScanLine size={20} className="text-emerald-600" />

@@ -24,7 +24,7 @@ export default function VoucherDetailPage({ params }: PageProps) {
     return (
       <div className="min-h-screen bg-sand-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="font-serif text-3xl text-sage-900 mb-4">
+          <h1 className="font-sans font-semibold text-3xl text-sage-900 mb-4">
             Service Not Found
           </h1>
           <p className="text-sage-600 mb-6">
@@ -79,7 +79,7 @@ export default function VoucherDetailPage({ params }: PageProps) {
             <span className="text-sand-600 uppercase tracking-wider text-sm mb-2">
               {service.category.replace("_", " ")}
             </span>
-            <h1 className="font-serif text-4xl lg:text-5xl text-sage-900 mb-6">
+            <h1 className="font-sans font-semibold text-4xl lg:text-5xl text-sage-900 mb-6">
               {service.name}
             </h1>
             <p className="text-sage-600 text-lg leading-relaxed mb-8">
@@ -121,7 +121,7 @@ export default function VoucherDetailPage({ params }: PageProps) {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <p className="text-sm text-sage-500 mb-1">Voucher Price</p>
-                  <p className="font-serif text-3xl text-sage-900">
+                  <p className="font-sans font-semibold text-3xl text-sage-900">
                     {formatCurrency(service.price)}
                   </p>
                 </div>

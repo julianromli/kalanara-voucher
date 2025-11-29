@@ -305,7 +305,7 @@ export default function CheckoutPage({ params }: PageProps) {
           <div className="w-20 h-20 bg-sage-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle size={40} className="text-sage-700" />
           </div>
-          <h1 className="font-serif text-3xl text-sage-900 mb-2">
+          <h1 className="font-sans font-semibold text-3xl text-sage-900 mb-2">
             Payment Successful!
           </h1>
           <p className="text-sage-600 mb-8">
@@ -382,7 +382,7 @@ export default function CheckoutPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-sand-50 py-12">
       <div className="max-w-4xl mx-auto px-4">
-        <h1 className="font-serif text-3xl text-sage-900 mb-8 text-center">
+        <h1 className="font-sans font-semibold text-3xl text-sage-900 mb-8 text-center">
           Complete Your Purchase
         </h1>
 

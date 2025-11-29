@@ -63,7 +63,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="font-serif text-3xl text-sand-100 mb-2">KALANARA</h1>
+          <h1 className="font-sans font-semibold text-3xl text-sand-100 mb-2">KALANARA</h1>
           <p className="text-sage-400 text-sm">Staff Portal</p>
         </div>
 
@@ -72,7 +72,7 @@ export default function AdminLoginPage() {
           onSubmit={handleSubmit}
           className="bg-white rounded-2xl p-8 shadow-2xl"
         >
-          <h2 className="font-serif text-2xl text-sage-900 mb-6 text-center">
+          <h2 className="font-sans font-semibold text-2xl text-sage-900 mb-6 text-center">
             Sign In
           </h2>
 
