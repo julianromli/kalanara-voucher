@@ -16,7 +16,9 @@ import {
   Send,
   Phone,
   Download,
+  ArrowLeft,
 } from "lucide-react";
+import Link from "next/link";
 import QRCode from "react-qr-code";
 import { generateVoucherPDF, downloadPDF } from "@/lib/pdf";
 import { useStore } from "@/context/StoreContext";
@@ -382,6 +384,15 @@ export default function CheckoutPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-background py-12">
       <div className="max-w-4xl mx-auto px-4">
+        {/* Back Button */}
+        <Link
+          href={`/voucher/${id}`}
+          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6"
+        >
+          <ArrowLeft size={18} />
+          <span>Back to voucher details</span>
+        </Link>
+
         <h1 className="font-sans font-semibold text-3xl text-foreground mb-8 text-center">
           Complete Your Purchase
         </h1>
