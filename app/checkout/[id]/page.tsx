@@ -93,8 +93,8 @@ export default function CheckoutPage({ params }: PageProps) {
 
   if (!service) {
     return (
-      <div className="min-h-screen bg-sand-50 flex items-center justify-center">
-        <p className="text-sage-600">Service not found</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Service not found</p>
       </div>
     );
   }
@@ -220,14 +220,14 @@ export default function CheckoutPage({ params }: PageProps) {
       setIsSuccess(true);
 
       const deliveryMsg = data.deliveryMethod === DeliveryMethod.BOTH 
-        ? "via Email dan WhatsApp" 
+        ? "via Email and WhatsApp" 
         : data.deliveryMethod === DeliveryMethod.WHATSAPP 
           ? "via WhatsApp" 
           : "via Email";
-      showToast(`Pembayaran berhasil! Voucher dikirim ${deliveryMsg}.`, "success");
+      showToast(`Payment successful! Voucher sent ${deliveryMsg}.`, "success");
     } catch (error) {
       console.error("Checkout error:", error);
-      showToast("Gagal menyelesaikan pembelian. Silakan coba lagi.", "error");
+      showToast("Failed to complete purchase. Please try again.", "error");
     } finally {
       setIsProcessing(false);
     }
@@ -270,9 +270,9 @@ export default function CheckoutPage({ params }: PageProps) {
           expiryDate: successData.expiryDate,
         }),
       });
-      showToast("Email berhasil dikirim ulang!", "success");
+      showToast("Email resent successfully!", "success");
     } catch {
-      showToast("Gagal mengirim email. Silakan coba lagi.", "error");
+      showToast("Failed to send email. Please try again.", "error");
     }
   };
 
@@ -294,34 +294,34 @@ export default function CheckoutPage({ params }: PageProps) {
       downloadPDF(blob, `kalanara-voucher-${successData.voucherCode}.pdf`);
     } catch (error) {
       console.error("Failed to generate PDF:", error);
-      showToast("Gagal membuat PDF. Silakan coba lagi.", "error");
+      showToast("Failed to generate PDF. Please try again.", "error");
     }
   };
 
   if (isSuccess && successData) {
     return (
-      <div className="min-h-screen bg-sage-800 flex items-center justify-center px-4">
-        <div className="bg-white rounded-3xl p-8 md:p-12 max-w-lg w-full text-center shadow-2xl">
-          <div className="w-20 h-20 bg-sage-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle size={40} className="text-sage-700" />
+      <div className="min-h-screen bg-primary flex items-center justify-center px-4">
+        <div className="bg-card rounded-3xl p-8 md:p-12 max-w-lg w-full text-center shadow-2xl">
+          <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle size={40} className="text-muted-foreground" />
           </div>
-          <h1 className="font-serif text-3xl text-sage-900 mb-2">
-            Pembayaran Berhasil!
+          <h1 className="font-sans font-semibold text-3xl text-foreground mb-2">
+            Payment Successful!
           </h1>
-          <p className="text-sage-600 mb-8">
-            Voucher Anda telah dibuat dan dikirim ke penerima.
+          <p className="text-muted-foreground mb-8">
+            Your voucher has been created and sent to the recipient.
           </p>
 
-          <div className="bg-sand-50 p-6 rounded-2xl mb-6">
-            <p className="text-sm text-sage-500 mb-2">Kode Voucher</p>
-            <p className="font-mono text-2xl text-sage-900 font-bold tracking-wider">
+          <div className="bg-background p-6 rounded-2xl mb-6">
+            <p className="text-sm text-muted-foreground mb-2">Voucher Code</p>
+            <p className="font-mono text-2xl text-foreground font-bold tracking-wider">
               {successData.voucherCode}
             </p>
           </div>
 
           {/* QR Code */}
           <div className="flex justify-center mb-6">
-            <div className="bg-white p-4 rounded-xl border border-sage-200">
+            <div className="bg-card p-4 rounded-xl border border-border">
               <QRCode value={successData.voucherCode} size={150} />
             </div>
           </div>
@@ -330,20 +330,20 @@ export default function CheckoutPage({ params }: PageProps) {
           <Button
             onClick={handleDownloadPDF}
             variant="outline"
-            className="w-full border-sage-300 text-sage-700 gap-2 mb-6"
+            className="w-full border-border text-muted-foreground gap-2 mb-6"
           >
             <Download size={18} />
             Download Voucher PDF
           </Button>
 
           {/* Resend Options */}
-          <div className="bg-sage-50 p-4 rounded-xl mb-6">
-            <p className="text-sm text-sage-600 mb-3">Kirim Ulang Voucher</p>
+          <div className="bg-muted p-4 rounded-xl mb-6">
+            <p className="text-sm text-muted-foreground mb-3">Resend Voucher</p>
             <div className="flex gap-3">
               <Button
                 onClick={handleResendEmail}
                 variant="outline"
-                className="flex-1 border-sage-300 text-sage-700 gap-2"
+                className="flex-1 border-border text-muted-foreground gap-2"
               >
                 <Mail size={18} />
                 Email
@@ -351,7 +351,7 @@ export default function CheckoutPage({ params }: PageProps) {
               <Button
                 onClick={handleResendWhatsApp}
                 variant="outline"
-                className="flex-1 border-green-500 text-green-700 hover:bg-green-50 gap-2"
+                className="flex-1 border-success text-success hover:bg-success/10 gap-2"
               >
                 <MessageCircle size={18} />
                 WhatsApp
@@ -362,16 +362,16 @@ export default function CheckoutPage({ params }: PageProps) {
           <div className="space-y-3">
             <Button
               onClick={() => router.push("/")}
-              className="w-full bg-sage-800 hover:bg-sage-700 text-white py-3"
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3"
             >
-              Kembali ke Beranda
+              Back to Home
             </Button>
             <Button
               onClick={() => router.push("/verify")}
               variant="outline"
-              className="w-full border-sage-300 text-sage-700 py-3"
+              className="w-full border-border text-muted-foreground py-3"
             >
-              Verifikasi Voucher Lain
+              Verify Another Voucher
             </Button>
           </div>
         </div>
@@ -380,9 +380,9 @@ export default function CheckoutPage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-sand-50 py-12">
+    <div className="min-h-screen bg-background py-12">
       <div className="max-w-4xl mx-auto px-4">
-        <h1 className="font-serif text-3xl text-sage-900 mb-8 text-center">
+        <h1 className="font-sans font-semibold text-3xl text-foreground mb-8 text-center">
           Complete Your Purchase
         </h1>
 
@@ -391,23 +391,23 @@ export default function CheckoutPage({ params }: PageProps) {
             {/* Left Column - Form */}
             <div className="space-y-6">
               {/* Customer Details */}
-              <div className="bg-white p-6 rounded-2xl border border-sage-100">
-                <h2 className="font-semibold text-sage-900 mb-4 flex items-center gap-2">
+              <div className="bg-card p-6 rounded-2xl border border-border">
+                <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                   <User size={20} /> Your Details
                 </h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm text-sage-600 mb-1 block">
+                    <label className="text-sm text-muted-foreground mb-1 block">
                       Full Name
                     </label>
                     <Input
                       {...register("customerName", { required: true })}
                       placeholder="Your name"
-                      className={errors.customerName ? "border-red-500" : ""}
+                      className={errors.customerName ? "border-destructive" : ""}
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-sage-600 mb-1 block">
+                    <label className="text-sm text-muted-foreground mb-1 block">
                       Email
                     </label>
                     <Input
@@ -417,41 +417,41 @@ export default function CheckoutPage({ params }: PageProps) {
                       })}
                       type="email"
                       placeholder="your@email.com"
-                      className={errors.customerEmail ? "border-red-500" : ""}
+                      className={errors.customerEmail ? "border-destructive" : ""}
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-sage-600 mb-1 block">
+                    <label className="text-sm text-muted-foreground mb-1 block">
                       Phone
                     </label>
                     <Input
                       {...register("customerPhone", { required: true })}
                       placeholder="+62 xxx xxxx xxxx"
-                      className={errors.customerPhone ? "border-red-500" : ""}
+                      className={errors.customerPhone ? "border-destructive" : ""}
                     />
                   </div>
                 </div>
               </div>
 
               {/* Recipient Details */}
-              <div className="bg-white p-6 rounded-2xl border border-sage-100">
-                <h2 className="font-semibold text-sage-900 mb-4 flex items-center gap-2">
-                  <Gift size={20} /> Detail Penerima
+              <div className="bg-card p-6 rounded-2xl border border-border">
+                <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                  <Gift size={20} /> Recipient Details
                 </h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm text-sage-600 mb-1 block">
-                      Nama Penerima
+                    <label className="text-sm text-muted-foreground mb-1 block">
+                      Recipient Name
                     </label>
                     <Input
                       {...register("recipientName", { required: true })}
-                      placeholder="Nama penerima voucher"
-                      className={errors.recipientName ? "border-red-500" : ""}
+                      placeholder="Voucher recipient's name"
+                      className={errors.recipientName ? "border-destructive" : ""}
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-sage-600 mb-1 block">
-                      Email Penerima
+                    <label className="text-sm text-muted-foreground mb-1 block">
+                      Recipient Email
                     </label>
                     <Input
                       {...register("recipientEmail", {
@@ -459,46 +459,46 @@ export default function CheckoutPage({ params }: PageProps) {
                         pattern: /^\S+@\S+$/i,
                       })}
                       type="email"
-                      placeholder="penerima@email.com"
-                      className={errors.recipientEmail ? "border-red-500" : ""}
+                      placeholder="recipient@email.com"
+                      className={errors.recipientEmail ? "border-destructive" : ""}
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-sage-600 mb-1 block">
-                      Pesan (Opsional)
+                    <label className="text-sm text-muted-foreground mb-1 block">
+                      Message (Optional)
                     </label>
                     <textarea
                       {...register("senderMessage")}
-                      placeholder="Tulis pesan pribadi..."
+                      placeholder="Write a personal message..."
                       rows={3}
-                      className="w-full px-3 py-2 border border-sage-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sage-500 resize-none"
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Delivery Options */}
-              <div className="bg-white p-6 rounded-2xl border border-sage-100">
-                <h2 className="font-semibold text-sage-900 mb-4 flex items-center gap-2">
-                  <Send size={20} /> Opsi Pengiriman Voucher
+              <div className="bg-card p-6 rounded-2xl border border-border">
+                <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                  <Send size={20} /> Voucher Delivery Options
                 </h2>
                 <div className="space-y-4">
                   {/* Send To Toggle */}
                   <div>
-                    <label className="text-sm text-sage-600 mb-2 block">
-                      Kirim Voucher Ke
+                    <label className="text-sm text-muted-foreground mb-2 block">
+                      Send Voucher To
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                       {[
-                        { value: SendTo.RECIPIENT, label: "Langsung ke Penerima" },
-                        { value: SendTo.PURCHASER, label: "Kirim ke Saya" },
+                        { value: SendTo.RECIPIENT, label: "Direct to Recipient" },
+                        { value: SendTo.PURCHASER, label: "Send to Me" },
                       ].map((option) => (
                         <label
                           key={option.value}
                           className={`flex items-center justify-center p-3 border rounded-xl cursor-pointer transition-all text-sm ${
                             sendTo === option.value
-                              ? "border-sage-600 bg-sage-50 text-sage-900 font-medium"
-                              : "border-sage-200 hover:border-sage-400 text-sage-600"
+                              ? "border-primary bg-muted text-foreground font-medium"
+                              : "border-border hover:border-muted-foreground text-muted-foreground"
                           }`}
                         >
                           <input
@@ -515,8 +515,8 @@ export default function CheckoutPage({ params }: PageProps) {
 
                   {/* Delivery Method */}
                   <div>
-                    <label className="text-sm text-sage-600 mb-2 block">
-                      Metode Pengiriman
+                    <label className="text-sm text-muted-foreground mb-2 block">
+                      Delivery Method
                     </label>
                     <div className="space-y-2">
                       {[
@@ -528,8 +528,8 @@ export default function CheckoutPage({ params }: PageProps) {
                           key={method.value}
                           className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${
                             deliveryMethod === method.value
-                              ? "border-sage-600 bg-sage-50"
-                              : "border-sage-200 hover:border-sage-400"
+                              ? "border-primary bg-muted"
+                              : "border-border hover:border-muted-foreground"
                           }`}
                         >
                           <input
@@ -542,15 +542,15 @@ export default function CheckoutPage({ params }: PageProps) {
                             size={20}
                             className={
                               deliveryMethod === method.value
-                                ? "text-sage-700"
-                                : "text-sage-400"
+                                ? "text-muted-foreground"
+                                : "text-muted-foreground/50"
                             }
                           />
                           <span
                             className={
                               deliveryMethod === method.value
-                                ? "text-sage-900 font-medium"
-                                : "text-sage-600"
+                                ? "text-foreground font-medium"
+                                : "text-muted-foreground"
                             }
                           >
                             {method.label}
@@ -563,9 +563,9 @@ export default function CheckoutPage({ params }: PageProps) {
                   {/* Recipient Phone (conditional) */}
                   {needsRecipientPhone && (
                     <div>
-                      <label className="text-sm text-sage-600 mb-1 block flex items-center gap-2">
+                      <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-2">
                         <Phone size={16} />
-                        {sendTo === SendTo.PURCHASER ? "WhatsApp Anda" : "WhatsApp Penerima"}
+                        {sendTo === SendTo.PURCHASER ? "Your WhatsApp" : "Recipient's WhatsApp"}
                       </label>
                       <Input
                         {...register("recipientPhone", {
@@ -573,10 +573,10 @@ export default function CheckoutPage({ params }: PageProps) {
                           pattern: /^[\d\s+()-]+$/,
                         })}
                         placeholder="+62 812 3456 7890"
-                        className={errors.recipientPhone ? "border-red-500" : ""}
+                        className={errors.recipientPhone ? "border-destructive" : ""}
                       />
-                      <p className="text-xs text-sage-500 mt-1">
-                        Nomor WhatsApp untuk menerima voucher
+                      <p className="text-xs text-muted-foreground mt-1">
+                        WhatsApp number to receive the voucher
                       </p>
                     </div>
                   )}
@@ -584,8 +584,8 @@ export default function CheckoutPage({ params }: PageProps) {
               </div>
 
               {/* Payment Method */}
-              <div className="bg-white p-6 rounded-2xl border border-sage-100">
-                <h2 className="font-semibold text-sage-900 mb-4 flex items-center gap-2">
+              <div className="bg-card p-6 rounded-2xl border border-border">
+                <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                   <CreditCard size={20} /> Payment Method
                 </h2>
                 <div className="space-y-3">
@@ -610,8 +610,8 @@ export default function CheckoutPage({ params }: PageProps) {
                       key={method.value}
                       className={`flex items-center gap-4 p-4 border rounded-xl cursor-pointer transition-all ${
                         selectedPayment === method.value
-                          ? "border-sage-600 bg-sage-50"
-                          : "border-sage-200 hover:border-sage-400"
+                          ? "border-primary bg-muted"
+                          : "border-border hover:border-muted-foreground"
                       }`}
                     >
                       <input
@@ -624,15 +624,15 @@ export default function CheckoutPage({ params }: PageProps) {
                         size={24}
                         className={
                           selectedPayment === method.value
-                            ? "text-sage-700"
-                            : "text-sage-400"
+                            ? "text-muted-foreground"
+                            : "text-muted-foreground/50"
                         }
                       />
                       <span
                         className={
                           selectedPayment === method.value
-                            ? "text-sage-900 font-medium"
-                            : "text-sage-600"
+                            ? "text-foreground font-medium"
+                            : "text-muted-foreground"
                         }
                       >
                         {method.label}
@@ -645,8 +645,8 @@ export default function CheckoutPage({ params }: PageProps) {
 
             {/* Right Column - Order Summary */}
             <div>
-              <div className="bg-white p-6 rounded-2xl border border-sage-100 sticky top-24">
-                <h2 className="font-semibold text-sage-900 mb-4">
+              <div className="bg-card p-6 rounded-2xl border border-border sticky top-24">
+                <h2 className="font-semibold text-foreground mb-4">
                   Order Summary
                 </h2>
 
@@ -661,23 +661,23 @@ export default function CheckoutPage({ params }: PageProps) {
                     />
                   </div>
                   <div>
-                    <h3 className="font-medium text-sage-900">{service.name}</h3>
-                    <p className="text-sm text-sage-500">
+                    <h3 className="font-medium text-foreground">{service.name}</h3>
+                    <p className="text-sm text-muted-foreground">
                       {service.duration} minutes
                     </p>
                   </div>
                 </div>
 
-                <div className="border-t border-sage-100 pt-4 space-y-3">
-                  <div className="flex justify-between text-sage-600">
+                <div className="border-t border-border pt-4 space-y-3">
+                  <div className="flex justify-between text-muted-foreground">
                     <span>Subtotal</span>
                     <span>{formatCurrency(service.price)}</span>
                   </div>
-                  <div className="flex justify-between text-sage-600">
+                  <div className="flex justify-between text-muted-foreground">
                     <span>Service Fee</span>
                     <span>Free</span>
                   </div>
-                  <div className="border-t border-sage-100 pt-3 flex justify-between font-semibold text-sage-900">
+                  <div className="border-t border-border pt-3 flex justify-between font-semibold text-foreground">
                     <span>Total</span>
                     <span className="text-xl">
                       {formatCurrency(service.price)}
@@ -688,12 +688,12 @@ export default function CheckoutPage({ params }: PageProps) {
                 <Button
                   type="submit"
                   disabled={isProcessing}
-                  className="w-full mt-6 bg-sage-800 hover:bg-sage-700 text-white py-4 rounded-xl text-lg"
+                  className="w-full mt-6 bg-primary hover:bg-primary/90 text-primary-foreground py-4 rounded-xl text-lg"
                 >
                   {isProcessing ? "Processing..." : "Complete Purchase"}
                 </Button>
 
-                <p className="text-center text-sage-500 text-xs mt-4">
+                <p className="text-center text-muted-foreground text-xs mt-4">
                   By completing this purchase, you agree to our Terms of Service
                 </p>
               </div>

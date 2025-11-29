@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
           <tr>
             <td style="padding: 40px;">
               <p style="margin: 0 0 8px; color: #5d7048; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">A Special Gift For You</p>
-              <h2 style="margin: 0 0 20px; color: #343f2c; font-size: 32px; font-weight: 400; font-family: Georgia, serif;">Dear ${recipientName},</h2>
+              <h2 style="margin: 0 0 20px; color: #343f2c; font-size: 32px; font-weight: 400; font-family: 'Helvetica Neue', Arial, sans-serif;">Dear ${recipientName},</h2>
               <p style="margin: 0 0 24px; color: #5d4a3b; font-size: 16px; line-height: 1.6;">
                 ${senderName} has gifted you a luxurious spa experience at Kalanara Spa.
               </p>

@@ -38,22 +38,22 @@ const TOAST_STYLES: Record<
   { bg: string; border: string; text: string; icon: string }
 > = {
   success: {
-    bg: 'bg-sage-50',
-    border: 'border-sage-300',
-    text: 'text-sage-800',
-    icon: 'text-sage-600',
+    bg: 'bg-success/10',
+    border: 'border-success/30',
+    text: 'text-foreground',
+    icon: 'text-success',
   },
   error: {
-    bg: 'bg-red-50',
-    border: 'border-red-300',
-    text: 'text-red-800',
-    icon: 'text-red-600',
+    bg: 'bg-destructive/10',
+    border: 'border-destructive/30',
+    text: 'text-foreground',
+    icon: 'text-destructive',
   },
   info: {
-    bg: 'bg-blue-50',
-    border: 'border-blue-300',
-    text: 'text-blue-800',
-    icon: 'text-blue-600',
+    bg: 'bg-muted',
+    border: 'border-border',
+    text: 'text-foreground',
+    icon: 'text-muted-foreground',
   },
 };
 
@@ -106,7 +106,7 @@ function Toast({
         onClick={() => onDismiss(toast.id)}
         className={`
           rounded-md p-1 transition-colors hover:bg-black/5
-          focus:outline-none focus:ring-2 focus:ring-sage-500 focus:ring-offset-2
+          focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
         `}
         aria-label="Dismiss toast"
       >

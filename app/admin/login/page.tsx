@@ -29,8 +29,8 @@ export default function AdminLoginPage() {
   // Show loading while checking auth state
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-sage-900 flex items-center justify-center">
-        <Loader2 className="size-8 text-sand-100 animate-spin" />
+      <div className="min-h-screen bg-primary flex items-center justify-center">
+        <Loader2 className="size-8 text-primary-foreground animate-spin" />
       </div>
     );
   }
@@ -59,25 +59,25 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-sage-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-primary flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="font-serif text-3xl text-sand-100 mb-2">KALANARA</h1>
-          <p className="text-sage-400 text-sm">Staff Portal</p>
+          <h1 className="font-sans font-semibold text-3xl text-primary-foreground mb-2">KALANARA</h1>
+          <p className="text-muted-foreground text-sm">Staff Portal</p>
         </div>
 
         {/* Login Form */}
         <form
           onSubmit={handleSubmit}
-          className="bg-white rounded-2xl p-8 shadow-2xl"
+          className="bg-card rounded-2xl p-8 shadow-2xl"
         >
-          <h2 className="font-serif text-2xl text-sage-900 mb-6 text-center">
+          <h2 className="font-sans font-semibold text-2xl text-foreground mb-6 text-center">
             Sign In
           </h2>
 
           {error && (
-            <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">
+            <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg mb-6 text-sm">
               {error}
             </div>
           )}
@@ -85,7 +85,7 @@ export default function AdminLoginPage() {
           <div className="space-y-5">
             {/* Email */}
             <div>
-              <label className="block text-sage-700 text-sm mb-2">
+              <label className="block text-muted-foreground text-sm mb-2">
                 Email Address
               </label>
               <div className="relative">
@@ -101,14 +101,14 @@ export default function AdminLoginPage() {
                 />
                 <Mail
                   size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-sage-400"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                 />
               </div>
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-sage-700 text-sm mb-2">
+              <label className="block text-muted-foreground text-sm mb-2">
                 Password
               </label>
               <div className="relative">
@@ -124,12 +124,12 @@ export default function AdminLoginPage() {
                 />
                 <Lock
                   size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-sage-400"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sage-400 hover:text-sage-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   disabled={isSubmitting}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -141,7 +141,7 @@ export default function AdminLoginPage() {
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="w-full mt-8 bg-sage-800 hover:bg-sage-700 text-white py-3"
+            className="w-full mt-8 bg-primary hover:bg-primary/90 text-primary-foreground py-3"
           >
             {isSubmitting ? (
               <>

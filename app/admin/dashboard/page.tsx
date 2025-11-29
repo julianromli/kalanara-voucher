@@ -48,8 +48,8 @@ export default function AdminDashboardPage() {
 
   if (authLoading || !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-sage-900 flex items-center justify-center">
-        <Loader2 className="animate-spin text-sand-300" size={32} />
+      <div className="min-h-screen bg-primary flex items-center justify-center">
+        <Loader2 className="animate-spin text-muted-foreground" size={32} />
       </div>
     );
   }
@@ -100,15 +100,15 @@ export default function AdminDashboardPage() {
   }, [] as { name: string; value: number }[]);
 
   return (
-    <div className="min-h-screen bg-sage-50">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="bg-sage-900 py-8 px-4">
+      <div className="bg-primary py-8 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-3 mb-2">
-            <LayoutDashboard size={24} className="text-sand-400" />
-            <h1 className="font-serif text-2xl text-sand-100">Dashboard</h1>
+            <LayoutDashboard size={24} className="text-muted-foreground" />
+            <h1 className="font-sans font-semibold text-2xl text-primary-foreground">Dashboard</h1>
           </div>
-          <p className="text-sage-400">
+          <p className="text-muted-foreground">
             Welcome back, {user?.name}. Here&apos;s your overview.
           </p>
         </div>
@@ -117,89 +117,89 @@ export default function AdminDashboardPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-2xl shadow-spa border border-sage-100">
+          <div className="bg-card p-6 rounded-2xl shadow-spa border border-border">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                <TrendingUp size={24} className="text-emerald-600" />
+              <div className="w-12 h-12 bg-success/10 rounded-xl flex items-center justify-center">
+                <TrendingUp size={24} className="text-success" />
               </div>
-              <span className="text-xs text-sage-500 bg-sage-100 px-2 py-1 rounded">
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
                 All Time
               </span>
             </div>
-            <p className="text-sm text-sage-500 mb-1">Total Revenue</p>
-            <p className="font-serif text-2xl text-sage-900">
+            <p className="text-sm text-muted-foreground mb-1">Total Revenue</p>
+            <p className="font-sans font-semibold text-2xl text-foreground">
               {formatCurrency(totalRevenue)}
             </p>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl shadow-spa border border-sage-100">
+          <div className="bg-card p-6 rounded-2xl shadow-spa border border-border">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <Tag size={24} className="text-blue-600" />
+              <div className="w-12 h-12 bg-info/10 rounded-xl flex items-center justify-center">
+                <Tag size={24} className="text-info" />
               </div>
-              <span className="text-xs text-sage-500 bg-sage-100 px-2 py-1 rounded">
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
                 Active
               </span>
             </div>
-            <p className="text-sm text-sage-500 mb-1">Active Vouchers</p>
-            <p className="font-serif text-2xl text-sage-900">{activeVouchers}</p>
+            <p className="text-sm text-muted-foreground mb-1">Active Vouchers</p>
+            <p className="font-sans font-semibold text-2xl text-foreground">{activeVouchers}</p>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl shadow-spa border border-sage-100">
+          <div className="bg-card p-6 rounded-2xl shadow-spa border border-border">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                <ShoppingBag size={24} className="text-purple-600" />
+              <div className="w-12 h-12 bg-info/10 rounded-xl flex items-center justify-center">
+                <ShoppingBag size={24} className="text-info" />
               </div>
-              <span className="text-xs text-sage-500 bg-sage-100 px-2 py-1 rounded">
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
                 Total
               </span>
             </div>
-            <p className="text-sm text-sage-500 mb-1">Total Orders</p>
-            <p className="font-serif text-2xl text-sage-900">{orders.length}</p>
+            <p className="text-sm text-muted-foreground mb-1">Total Orders</p>
+            <p className="font-sans font-semibold text-2xl text-foreground">{orders.length}</p>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl shadow-spa border border-sage-100">
+          <div className="bg-card p-6 rounded-2xl shadow-spa border border-border">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
-                <Star size={24} className="text-amber-600" />
+              <div className="w-12 h-12 bg-warning/10 rounded-xl flex items-center justify-center">
+                <Star size={24} className="text-warning" />
               </div>
-              <span className="text-xs text-sage-500 bg-sage-100 px-2 py-1 rounded">
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
                 Average
               </span>
             </div>
-            <p className="text-sm text-sage-500 mb-1">Customer Rating</p>
-            <p className="font-serif text-2xl text-sage-900">{avgRating} / 5</p>
+            <p className="text-sm text-muted-foreground mb-1">Customer Rating</p>
+            <p className="font-sans font-semibold text-2xl text-foreground">{avgRating} / 5</p>
           </div>
         </div>
 
         {/* Quick Links */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <Link href="/admin/services">
-            <div className="bg-white p-4 rounded-xl shadow-spa border border-sage-100 flex items-center justify-between hover:shadow-spa-lg transition-shadow cursor-pointer group">
+            <div className="bg-card p-4 rounded-xl shadow-spa border border-border flex items-center justify-between hover:shadow-spa-lg transition-shadow cursor-pointer group">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-sage-100 rounded-lg flex items-center justify-center">
-                  <Tag size={20} className="text-sage-600" />
+                <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                  <Tag size={20} className="text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="font-medium text-sage-900">Manage Services</p>
-                  <p className="text-sm text-sage-500">{services.length} services</p>
+                  <p className="font-medium text-foreground">Manage Services</p>
+                  <p className="text-sm text-muted-foreground">{services.length} services</p>
                 </div>
               </div>
-              <ArrowRight size={20} className="text-sage-400 group-hover:text-sage-600 transition-colors" />
+              <ArrowRight size={20} className="text-muted-foreground group-hover:text-foreground transition-colors" />
             </div>
           </Link>
           <Link href="/admin/vouchers">
-            <div className="bg-white p-4 rounded-xl shadow-spa border border-sage-100 flex items-center justify-between hover:shadow-spa-lg transition-shadow cursor-pointer group">
+            <div className="bg-card p-4 rounded-xl shadow-spa border border-border flex items-center justify-between hover:shadow-spa-lg transition-shadow cursor-pointer group">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-sage-100 rounded-lg flex items-center justify-center">
-                  <Ticket size={20} className="text-sage-600" />
+                <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                  <Ticket size={20} className="text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="font-medium text-sage-900">Manage Vouchers</p>
-                  <p className="text-sm text-sage-500">{vouchers.length} vouchers</p>
+                  <p className="font-medium text-foreground">Manage Vouchers</p>
+                  <p className="text-sm text-muted-foreground">{vouchers.length} vouchers</p>
                 </div>
               </div>
-              <ArrowRight size={20} className="text-sage-400 group-hover:text-sage-600 transition-colors" />
+              <ArrowRight size={20} className="text-muted-foreground group-hover:text-foreground transition-colors" />
             </div>
           </Link>
         </div>
@@ -207,8 +207,8 @@ export default function AdminDashboardPage() {
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Revenue Chart */}
-          <div className="bg-white rounded-2xl shadow-spa border border-sage-100 p-6">
-            <h3 className="font-semibold text-sage-900 mb-4 flex items-center gap-2">
+          <div className="bg-card rounded-2xl shadow-spa border border-border p-6">
+            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
               <TrendingUp size={18} /> Revenue (Last 7 Days)
             </h3>
             <div className="h-[250px]">
@@ -234,8 +234,8 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Voucher Status Pie */}
-          <div className="bg-white rounded-2xl shadow-spa border border-sage-100 p-6">
-            <h3 className="font-semibold text-sage-900 mb-4 flex items-center gap-2">
+          <div className="bg-card rounded-2xl shadow-spa border border-border p-6">
+            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
               <Ticket size={18} /> Voucher Status
             </h3>
             <div className="h-[250px] flex items-center">
@@ -262,13 +262,13 @@ export default function AdminDashboardPage() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="w-full text-center text-sage-500">No voucher data</div>
+                <div className="w-full text-center text-muted-foreground">No voucher data</div>
               )}
               <div className="space-y-2">
                 {voucherPieData.map((item) => (
                   <div key={item.name} className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                    <span className="text-sm text-sage-600">{item.name}: {item.value}</span>
+                    <span className="text-sm text-muted-foreground">{item.name}: {item.value}</span>
                   </div>
                 ))}
               </div>
@@ -278,33 +278,33 @@ export default function AdminDashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Recent Orders */}
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-spa border border-sage-100 overflow-hidden">
-            <div className="p-6 border-b border-sage-100">
-              <h2 className="font-semibold text-sage-900 flex items-center gap-2">
+          <div className="lg:col-span-2 bg-card rounded-2xl shadow-spa border border-border overflow-hidden">
+            <div className="p-6 border-b border-border">
+              <h2 className="font-semibold text-foreground flex items-center gap-2">
                 <ShoppingBag size={20} /> Recent Orders
               </h2>
             </div>
-            <div className="divide-y divide-sage-100">
+            <div className="divide-y divide-border">
               {recentOrders.length > 0 ? (
                 recentOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="p-4 hover:bg-sage-50 transition-colors"
+                    className="p-4 hover:bg-accent transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium text-sage-900">
+                        <p className="font-medium text-foreground">
                           {order.customerName}
                         </p>
-                        <p className="text-sm text-sage-500">
+                        <p className="text-sm text-muted-foreground">
                           {order.voucher?.service?.name || "Service"}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold text-sage-900">
+                        <p className="font-semibold text-foreground">
                           {formatCurrency(order.totalAmount)}
                         </p>
-                        <p className="text-xs text-sage-400">
+                        <p className="text-xs text-muted-foreground">
                           {new Date(order.createdAt).toLocaleDateString()}
                         </p>
                       </div>
@@ -312,7 +312,7 @@ export default function AdminDashboardPage() {
                   </div>
                 ))
               ) : (
-                <div className="p-8 text-center text-sage-500">
+                <div className="p-8 text-center text-muted-foreground">
                   No orders yet
                 </div>
               )}
@@ -322,32 +322,32 @@ export default function AdminDashboardPage() {
           {/* Quick Stats */}
           <div className="space-y-6">
             {/* Voucher Stats */}
-            <div className="bg-white rounded-2xl shadow-spa border border-sage-100 p-6">
-              <h3 className="font-semibold text-sage-900 mb-4 flex items-center gap-2">
+            <div className="bg-card rounded-2xl shadow-spa border border-border p-6">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                 <Ticket size={18} /> Voucher Summary
               </h3>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sage-600 flex items-center gap-2">
-                    <Clock size={14} className="text-emerald-500" /> Active
+                  <span className="text-muted-foreground flex items-center gap-2">
+                    <Clock size={14} className="text-success" /> Active
                   </span>
-                  <span className="font-semibold text-sage-900">
+                  <span className="font-semibold text-foreground">
                     {activeVouchers}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sage-600 flex items-center gap-2">
-                    <CheckCircle size={14} className="text-blue-500" /> Redeemed
+                  <span className="text-muted-foreground flex items-center gap-2">
+                    <CheckCircle size={14} className="text-info" /> Redeemed
                   </span>
-                  <span className="font-semibold text-sage-900">
+                  <span className="font-semibold text-foreground">
                     {redeemedVouchers}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sage-600 flex items-center gap-2">
-                    <XCircle size={14} className="text-red-500" /> Expired
+                  <span className="text-muted-foreground flex items-center gap-2">
+                    <XCircle size={14} className="text-destructive" /> Expired
                   </span>
-                  <span className="font-semibold text-sage-900">
+                  <span className="font-semibold text-foreground">
                     {expiredVouchers}
                   </span>
                 </div>
@@ -355,8 +355,8 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Recent Reviews */}
-            <div className="bg-white rounded-2xl shadow-spa border border-sage-100 p-6">
-              <h3 className="font-semibold text-sage-900 mb-4 flex items-center gap-2">
+            <div className="bg-card rounded-2xl shadow-spa border border-border p-6">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                 <Star size={18} /> Recent Reviews
               </h3>
               {reviews.length > 0 ? (
@@ -364,7 +364,7 @@ export default function AdminDashboardPage() {
                   {reviews.slice(0, 3).map((review) => (
                     <div
                       key={review.id}
-                      className="text-sm border-l-2 border-sage-200 pl-3"
+                      className="text-sm border-l-2 border-border pl-3"
                     >
                       <div className="flex items-center gap-1 mb-1">
                         {[...Array(5)].map((_, i) => (
@@ -373,23 +373,23 @@ export default function AdminDashboardPage() {
                             size={12}
                             className={
                               i < review.rating
-                                ? "text-amber-500 fill-amber-500"
-                                : "text-gray-300"
+                                ? "text-warning fill-warning"
+                                : "text-muted-foreground"
                             }
                           />
                         ))}
                       </div>
-                      <p className="text-sage-700 line-clamp-1">
+                      <p className="text-muted-foreground line-clamp-1">
                         {review.comment || "No comment"}
                       </p>
-                      <p className="text-sage-400 text-xs mt-1">
+                      <p className="text-muted-foreground text-xs mt-1">
                         {review.customerName}
                       </p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sage-500 text-sm">No reviews yet</p>
+                <p className="text-muted-foreground text-sm">No reviews yet</p>
               )}
             </div>
           </div>

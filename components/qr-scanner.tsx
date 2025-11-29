@@ -116,7 +116,7 @@ export default function QRScanner({ onScan, onError }: QRScannerProps) {
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <div className="relative aspect-square bg-sage-900 rounded-2xl overflow-hidden">
+      <div className="relative aspect-square bg-primary rounded-2xl overflow-hidden">
         {isScanning ? (
           <>
             <video
@@ -131,15 +131,15 @@ export default function QRScanner({ onScan, onError }: QRScannerProps) {
             <div className="absolute inset-0 pointer-events-none">
               {/* Corner markers */}
               <div className="absolute inset-8">
-                <div className="absolute top-0 left-0 w-12 h-12 border-l-4 border-t-4 border-sand-400 rounded-tl-lg" />
-                <div className="absolute top-0 right-0 w-12 h-12 border-r-4 border-t-4 border-sand-400 rounded-tr-lg" />
-                <div className="absolute bottom-0 left-0 w-12 h-12 border-l-4 border-b-4 border-sand-400 rounded-bl-lg" />
-                <div className="absolute bottom-0 right-0 w-12 h-12 border-r-4 border-b-4 border-sand-400 rounded-br-lg" />
+                <div className="absolute top-0 left-0 w-12 h-12 border-l-4 border-t-4 border-border rounded-tl-lg" />
+                <div className="absolute top-0 right-0 w-12 h-12 border-r-4 border-t-4 border-border rounded-tr-lg" />
+                <div className="absolute bottom-0 left-0 w-12 h-12 border-l-4 border-b-4 border-border rounded-bl-lg" />
+                <div className="absolute bottom-0 right-0 w-12 h-12 border-r-4 border-b-4 border-border rounded-br-lg" />
               </div>
 
               {/* Scanning line animation */}
               <div className="absolute inset-8 overflow-hidden">
-                <div className="w-full h-1 bg-gradient-to-r from-transparent via-sage-400 to-transparent animate-pulse" 
+                <div className="w-full h-1 bg-gradient-to-r from-transparent via-muted-foreground to-transparent animate-pulse" 
                      style={{ animation: "scan 2s ease-in-out infinite" }} />
               </div>
             </div>
@@ -147,7 +147,7 @@ export default function QRScanner({ onScan, onError }: QRScannerProps) {
             {/* Stop button */}
             <button
               onClick={stopScanning}
-              className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-red-500/90 backdrop-blur text-white px-6 py-2 rounded-full flex items-center gap-2 hover:bg-red-600 transition-colors"
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-destructive/90 backdrop-blur text-destructive-foreground px-6 py-2 rounded-full flex items-center gap-2 hover:bg-destructive transition-colors"
             >
               <CameraOff size={18} />
               Stop Scanning
@@ -157,14 +157,14 @@ export default function QRScanner({ onScan, onError }: QRScannerProps) {
           <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center">
             {hasPermission === false ? (
               <>
-                <CameraOff size={48} className="text-sage-400 mb-4" />
-                <p className="text-sand-100 mb-2">Camera Access Denied</p>
-                <p className="text-sage-400 text-sm mb-6">
+                <CameraOff size={48} className="text-muted-foreground mb-4" />
+                <p className="text-primary-foreground mb-2">Camera Access Denied</p>
+                <p className="text-muted-foreground text-sm mb-6">
                   {errorMessage || "Please enable camera access in your browser settings."}
                 </p>
                 <Button
                   onClick={startScanning}
-                  className="bg-sage-700 hover:bg-sage-600 text-white"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   <RefreshCw size={18} className="mr-2" />
                   Try Again
@@ -172,14 +172,14 @@ export default function QRScanner({ onScan, onError }: QRScannerProps) {
               </>
             ) : (
               <>
-                <Camera size={48} className="text-sage-400 mb-4" />
-                <p className="text-sand-100 mb-2">Scan QR Code</p>
-                <p className="text-sage-400 text-sm mb-6">
+                <Camera size={48} className="text-muted-foreground mb-4" />
+                <p className="text-primary-foreground mb-2">Scan QR Code</p>
+                <p className="text-muted-foreground text-sm mb-6">
                   Point your camera at a voucher QR code to verify
                 </p>
                 <Button
                   onClick={startScanning}
-                  className="bg-sage-700 hover:bg-sage-600 text-white"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   <Camera size={18} className="mr-2" />
                   Start Scanning

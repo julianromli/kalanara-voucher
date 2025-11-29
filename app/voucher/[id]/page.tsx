@@ -22,17 +22,17 @@ export default function VoucherDetailPage({ params }: PageProps) {
 
   if (!service) {
     return (
-      <div className="min-h-screen bg-sand-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h1 className="font-serif text-3xl text-sage-900 mb-4">
+          <h1 className="font-sans font-semibold text-3xl text-foreground mb-4">
             Service Not Found
           </h1>
-          <p className="text-sage-600 mb-6">
+          <p className="text-muted-foreground mb-6">
             The service you&apos;re looking for doesn&apos;t exist.
           </p>
           <Link
             href="/"
-            className="text-sage-700 hover:text-sage-900 flex items-center gap-2 justify-center"
+            className="text-muted-foreground hover:text-foreground flex items-center gap-2 justify-center"
           >
             <ChevronLeft size={20} /> Back to Home
           </Link>
@@ -42,12 +42,12 @@ export default function VoucherDetailPage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-sand-50">
+    <div className="min-h-screen bg-background">
       {/* Back Button */}
       <div className="max-w-7xl mx-auto px-4 pt-8">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-sage-600 hover:text-sage-800 transition-colors"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronLeft size={20} /> Back
         </button>
@@ -66,9 +66,9 @@ export default function VoucherDetailPage({ params }: PageProps) {
               priority
               className="object-cover"
             />
-            <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-4 py-2 rounded-full flex items-center gap-2 shadow-sm">
-              <Clock size={16} className="text-sage-700" />
-              <span className="font-medium text-sage-900">
+            <div className="absolute top-4 right-4 bg-card/90 backdrop-blur px-4 py-2 rounded-full flex items-center gap-2 shadow-sm">
+              <Clock size={16} className="text-muted-foreground" />
+              <span className="font-medium text-foreground">
                 {service.duration} minutes
               </span>
             </div>
@@ -76,39 +76,39 @@ export default function VoucherDetailPage({ params }: PageProps) {
 
           {/* Details */}
           <div className="flex flex-col">
-            <span className="text-sand-600 uppercase tracking-wider text-sm mb-2">
+            <span className="text-muted-foreground uppercase tracking-wider text-sm mb-2">
               {service.category.replace("_", " ")}
             </span>
-            <h1 className="font-serif text-4xl lg:text-5xl text-sage-900 mb-6">
+            <h1 className="font-sans font-semibold text-4xl lg:text-5xl text-foreground mb-6">
               {service.name}
             </h1>
-            <p className="text-sage-600 text-lg leading-relaxed mb-8">
+            <p className="text-muted-foreground text-lg leading-relaxed mb-8">
               {service.description}
             </p>
 
             {/* Features */}
             <div className="grid grid-cols-2 gap-4 mb-8">
-              <div className="bg-white p-4 rounded-xl border border-sage-100">
+              <div className="bg-card p-4 rounded-xl border border-border">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-sage-100 rounded-full flex items-center justify-center">
-                    <Clock size={20} className="text-sage-700" />
+                  <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
+                    <Clock size={20} className="text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="text-xs text-sage-500">Duration</p>
-                    <p className="font-semibold text-sage-900">
+                    <p className="text-xs text-muted-foreground">Duration</p>
+                    <p className="font-semibold text-foreground">
                       {service.duration} mins
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-sage-100">
+              <div className="bg-card p-4 rounded-xl border border-border">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-sage-100 rounded-full flex items-center justify-center">
-                    <Calendar size={20} className="text-sage-700" />
+                  <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
+                    <Calendar size={20} className="text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="text-xs text-sage-500">Valid For</p>
-                    <p className="font-semibold text-sage-900">
+                    <p className="text-xs text-muted-foreground">Valid For</p>
+                    <p className="font-semibold text-foreground">
                       {APP_CONFIG.voucherValidity} days
                     </p>
                   </div>
@@ -117,15 +117,15 @@ export default function VoucherDetailPage({ params }: PageProps) {
             </div>
 
             {/* Price & CTA */}
-            <div className="mt-auto bg-white p-6 rounded-2xl border border-sage-100 shadow-spa">
+            <div className="mt-auto bg-card p-6 rounded-2xl border border-border shadow-spa">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <p className="text-sm text-sage-500 mb-1">Voucher Price</p>
-                  <p className="font-serif text-3xl text-sage-900">
+                  <p className="text-sm text-muted-foreground mb-1">Voucher Price</p>
+                  <p className="font-sans font-semibold text-3xl text-foreground">
                     {formatCurrency(service.price)}
                   </p>
                 </div>
-                <div className="flex items-center gap-1 text-sand-500">
+                <div className="flex items-center gap-1 text-accent">
                   {[...Array(5)].map((_, i) => (
                     <Star key={i} size={16} className="fill-current" />
                   ))}
@@ -133,13 +133,13 @@ export default function VoucherDetailPage({ params }: PageProps) {
               </div>
 
               <Link href={`/checkout/${service.id}`}>
-                <Button className="w-full bg-sage-800 hover:bg-sage-700 text-sand-50 py-6 text-lg rounded-xl flex items-center justify-center gap-2">
+                <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg rounded-xl flex items-center justify-center gap-2">
                   <Gift size={20} />
                   Purchase Voucher
                 </Button>
               </Link>
 
-              <p className="text-center text-sage-500 text-sm mt-4">
+              <p className="text-center text-muted-foreground text-sm mt-4">
                 Instant delivery via Email & WhatsApp
               </p>
             </div>

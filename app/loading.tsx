@@ -2,9 +2,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-sand-50">
+    <div className="min-h-screen bg-background">
       {/* Hero skeleton */}
-      <div className="relative h-[70vh] bg-sage-200 animate-pulse" />
+      <div className="relative h-[70vh] bg-muted animate-pulse" />
 
       {/* Services section skeleton */}
       <div className="max-w-7xl mx-auto px-4 py-16">
@@ -15,7 +15,7 @@ export default function Loading() {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+            <div key={i} className="bg-card rounded-xl overflow-hidden shadow-sm">
               <Skeleton className="h-48 w-full" />
               <div className="p-6 space-y-3">
                 <Skeleton className="h-4 w-20" />
