@@ -42,7 +42,6 @@ import {
 } from "@/lib/actions/services";
 import type { Service, ServiceInsert, ServiceUpdate } from "@/lib/database.types";
 import { cn } from "@/lib/utils";
-import { useInView } from "@/hooks/useInView";
 
 type ServiceCategory = "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE";
 
@@ -89,8 +88,6 @@ export default function AdminServicesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-
-  const [gridRef, isGridInView] = useInView<HTMLDivElement>({ threshold: 0.1 });
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -301,17 +298,14 @@ export default function AdminServicesPage() {
             )}
           </div>
         ) : (
-          <div 
-            ref={gridRef}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredServices.map((service, index) => (
               <div
                 key={service.id}
                 className={cn(
                   "bg-card rounded-2xl shadow-spa border border-border overflow-hidden transition-all hover:shadow-spa-lg card-hover-lift",
                   !service.is_active && "opacity-60",
-                  isGridInView ? "animate-fade-slide-up" : "opacity-0"
+                  isMounted ? "animate-fade-slide-up" : "opacity-0"
                 )}
                 style={{ animationDelay: `${200 + index * 75}ms` }}
               >

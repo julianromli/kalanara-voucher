@@ -45,7 +45,6 @@ import {
 } from "@/lib/actions/vouchers";
 import type { VoucherWithService } from "@/lib/database.types";
 import { cn } from "@/lib/utils";
-import { useInView } from "@/hooks/useInView";
 
 type VoucherStatus = "ALL" | "ACTIVE" | "REDEEMED" | "EXPIRED";
 
@@ -90,8 +89,6 @@ export default function AdminVouchersPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-
-  const [tableRef, isTableInView] = useInView<HTMLDivElement>({ threshold: 0.1 });
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -300,10 +297,9 @@ export default function AdminVouchersPage() {
           </div>
         ) : (
           <div 
-            ref={tableRef}
             className={cn(
               "bg-card rounded-2xl shadow-spa border border-border overflow-hidden",
-              isTableInView ? "animate-fade-slide-up" : "opacity-0"
+              isMounted ? "animate-fade-slide-up" : "opacity-0"
             )}
             style={{ animationDelay: "400ms" }}
           >
@@ -345,7 +341,7 @@ export default function AdminVouchersPage() {
                         key={voucher.id}
                         className={cn(
                           "hover:bg-accent/50 transition-colors row-hover-lift",
-                          isTableInView ? "animate-fade-slide-up" : "opacity-0"
+                          isMounted ? "animate-fade-slide-up" : "opacity-0"
                         )}
                         style={{ animationDelay: `${500 + index * 50}ms` }}
                       >
