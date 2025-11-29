@@ -11,16 +11,20 @@ import {
   Gift,
   User,
   CheckCircle,
-  Loader2,
+  Mail,
+  MessageCircle,
+  Send,
+  Phone,
 } from "lucide-react";
 import { useStore } from "@/context/StoreContext";
 import { useToast } from "@/context/ToastContext";
 import { formatCurrency, APP_CONFIG } from "@/lib/constants";
-import { PaymentMethod, PaymentStatus } from "@/lib/types";
+import { PaymentMethod, PaymentStatus, DeliveryMethod, SendTo } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createVoucher } from "@/lib/actions/vouchers";
 import { createOrder } from "@/lib/actions/orders";
+import { generateWhatsAppUrl, WhatsAppVoucherData } from "@/lib/utils/whatsapp";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -32,8 +36,26 @@ interface CheckoutForm {
   customerPhone: string;
   recipientName: string;
   recipientEmail: string;
+  recipientPhone: string;
   senderMessage: string;
   paymentMethod: PaymentMethod;
+  sendTo: SendTo;
+  deliveryMethod: DeliveryMethod;
+}
+
+interface SuccessData {
+  voucherCode: string;
+  recipientName: string;
+  recipientEmail: string;
+  recipientPhone: string;
+  senderName: string;
+  senderMessage: string;
+  serviceName: string;
+  serviceDuration: number;
+  amount: number;
+  expiryDate: string;
+  deliveryMethod: DeliveryMethod;
+  sendTo: SendTo;
 }
 
 export default function CheckoutPage({ params }: PageProps) {
@@ -43,7 +65,7 @@ export default function CheckoutPage({ params }: PageProps) {
   const { showToast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [voucherCode, setVoucherCode] = useState("");
+  const [successData, setSuccessData] = useState<SuccessData | null>(null);
 
   const service = services.find((s) => s.id === id);
 
@@ -56,10 +78,15 @@ export default function CheckoutPage({ params }: PageProps) {
   } = useForm<CheckoutForm>({
     defaultValues: {
       paymentMethod: PaymentMethod.CREDIT_CARD,
+      sendTo: SendTo.RECIPIENT,
+      deliveryMethod: DeliveryMethod.EMAIL,
     },
   });
 
   const selectedPayment = watch("paymentMethod");
+  const sendTo = watch("sendTo");
+  const deliveryMethod = watch("deliveryMethod");
+  const needsRecipientPhone = deliveryMethod === DeliveryMethod.WHATSAPP || deliveryMethod === DeliveryMethod.BOTH;
 
   if (!service) {
     return (
@@ -110,26 +137,51 @@ export default function CheckoutPage({ params }: PageProps) {
         throw new Error("Failed to create order");
       }
 
-      // Send voucher email
-      try {
-        await fetch("/api/email/send-voucher", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            recipientEmail: data.recipientEmail,
-            recipientName: data.recipientName,
-            senderName: data.customerName,
-            senderMessage: data.senderMessage,
-            voucherCode: voucher.code,
-            serviceName: service.name,
-            serviceDuration: service.duration,
-            amount: service.price,
-            expiryDate: expiryDate.toISOString(),
-          }),
-        });
-      } catch (emailError) {
-        console.error("Email sending failed:", emailError);
-        // Continue even if email fails - voucher is still created
+      // Determine delivery target based on sendTo selection
+      const targetEmail = data.sendTo === SendTo.PURCHASER ? data.customerEmail : data.recipientEmail;
+      const targetPhone = data.sendTo === SendTo.PURCHASER ? data.customerPhone : data.recipientPhone;
+      const targetName = data.sendTo === SendTo.PURCHASER ? data.customerName : data.recipientName;
+
+      // Send voucher via email if selected
+      if (data.deliveryMethod === DeliveryMethod.EMAIL || data.deliveryMethod === DeliveryMethod.BOTH) {
+        try {
+          await fetch("/api/email/send-voucher", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              recipientEmail: targetEmail,
+              recipientName: targetName,
+              senderName: data.customerName,
+              senderMessage: data.senderMessage,
+              voucherCode: voucher.code,
+              serviceName: service.name,
+              serviceDuration: service.duration,
+              amount: service.price,
+              expiryDate: expiryDate.toISOString(),
+            }),
+          });
+        } catch (emailError) {
+          console.error("Email sending failed:", emailError);
+        }
+      }
+
+      // Generate WhatsApp URL if selected
+      if (data.deliveryMethod === DeliveryMethod.WHATSAPP || data.deliveryMethod === DeliveryMethod.BOTH) {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+        const whatsappData: WhatsAppVoucherData = {
+          recipientPhone: targetPhone,
+          recipientName: targetName,
+          senderName: data.customerName,
+          senderMessage: data.senderMessage,
+          voucherCode: voucher.code,
+          serviceName: service.name,
+          serviceDuration: service.duration,
+          amount: service.price,
+          expiryDate: expiryDate.toISOString(),
+          verifyUrl: `${baseUrl}/verify?code=${voucher.code}`,
+        };
+        const whatsappUrl = generateWhatsAppUrl(whatsappData);
+        window.open(whatsappUrl, "_blank");
       }
 
       // Update local state
@@ -147,18 +199,81 @@ export default function CheckoutPage({ params }: PageProps) {
         amount: service.price,
       });
 
-      setVoucherCode(voucher.code);
+      // Store success data for resend options
+      setSuccessData({
+        voucherCode: voucher.code,
+        recipientName: targetName,
+        recipientEmail: targetEmail,
+        recipientPhone: targetPhone,
+        senderName: data.customerName,
+        senderMessage: data.senderMessage,
+        serviceName: service.name,
+        serviceDuration: service.duration,
+        amount: service.price,
+        expiryDate: expiryDate.toISOString(),
+        deliveryMethod: data.deliveryMethod,
+        sendTo: data.sendTo,
+      });
       setIsSuccess(true);
-      showToast("Payment successful! Voucher sent to recipient.", "success");
+
+      const deliveryMsg = data.deliveryMethod === DeliveryMethod.BOTH 
+        ? "via Email dan WhatsApp" 
+        : data.deliveryMethod === DeliveryMethod.WHATSAPP 
+          ? "via WhatsApp" 
+          : "via Email";
+      showToast(`Pembayaran berhasil! Voucher dikirim ${deliveryMsg}.`, "success");
     } catch (error) {
       console.error("Checkout error:", error);
-      showToast("Failed to complete purchase. Please try again.", "error");
+      showToast("Gagal menyelesaikan pembelian. Silakan coba lagi.", "error");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  if (isSuccess) {
+  const handleResendWhatsApp = () => {
+    if (!successData) return;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    const whatsappData: WhatsAppVoucherData = {
+      recipientPhone: successData.recipientPhone,
+      recipientName: successData.recipientName,
+      senderName: successData.senderName,
+      senderMessage: successData.senderMessage,
+      voucherCode: successData.voucherCode,
+      serviceName: successData.serviceName,
+      serviceDuration: successData.serviceDuration,
+      amount: successData.amount,
+      expiryDate: successData.expiryDate,
+      verifyUrl: `${baseUrl}/verify?code=${successData.voucherCode}`,
+    };
+    const whatsappUrl = generateWhatsAppUrl(whatsappData);
+    window.open(whatsappUrl, "_blank");
+  };
+
+  const handleResendEmail = async () => {
+    if (!successData) return;
+    try {
+      await fetch("/api/email/send-voucher", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipientEmail: successData.recipientEmail,
+          recipientName: successData.recipientName,
+          senderName: successData.senderName,
+          senderMessage: successData.senderMessage,
+          voucherCode: successData.voucherCode,
+          serviceName: successData.serviceName,
+          serviceDuration: successData.serviceDuration,
+          amount: successData.amount,
+          expiryDate: successData.expiryDate,
+        }),
+      });
+      showToast("Email berhasil dikirim ulang!", "success");
+    } catch {
+      showToast("Gagal mengirim email. Silakan coba lagi.", "error");
+    }
+  };
+
+  if (isSuccess && successData) {
     return (
       <div className="min-h-screen bg-sage-800 flex items-center justify-center px-4">
         <div className="bg-white rounded-3xl p-8 md:p-12 max-w-lg w-full text-center shadow-2xl">
@@ -166,17 +281,40 @@ export default function CheckoutPage({ params }: PageProps) {
             <CheckCircle size={40} className="text-sage-700" />
           </div>
           <h1 className="font-serif text-3xl text-sage-900 mb-2">
-            Payment Successful!
+            Pembayaran Berhasil!
           </h1>
           <p className="text-sage-600 mb-8">
-            Your voucher has been created and sent to the recipient.
+            Voucher Anda telah dibuat dan dikirim ke penerima.
           </p>
 
-          <div className="bg-sand-50 p-6 rounded-2xl mb-8">
-            <p className="text-sm text-sage-500 mb-2">Voucher Code</p>
+          <div className="bg-sand-50 p-6 rounded-2xl mb-6">
+            <p className="text-sm text-sage-500 mb-2">Kode Voucher</p>
             <p className="font-mono text-2xl text-sage-900 font-bold tracking-wider">
-              {voucherCode}
+              {successData.voucherCode}
             </p>
+          </div>
+
+          {/* Resend Options */}
+          <div className="bg-sage-50 p-4 rounded-xl mb-6">
+            <p className="text-sm text-sage-600 mb-3">Kirim Ulang Voucher</p>
+            <div className="flex gap-3">
+              <Button
+                onClick={handleResendEmail}
+                variant="outline"
+                className="flex-1 border-sage-300 text-sage-700 gap-2"
+              >
+                <Mail size={18} />
+                Email
+              </Button>
+              <Button
+                onClick={handleResendWhatsApp}
+                variant="outline"
+                className="flex-1 border-green-500 text-green-700 hover:bg-green-50 gap-2"
+              >
+                <MessageCircle size={18} />
+                WhatsApp
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -184,14 +322,14 @@ export default function CheckoutPage({ params }: PageProps) {
               onClick={() => router.push("/")}
               className="w-full bg-sage-800 hover:bg-sage-700 text-white py-3"
             >
-              Back to Home
+              Kembali ke Beranda
             </Button>
             <Button
               onClick={() => router.push("/verify")}
               variant="outline"
               className="w-full border-sage-300 text-sage-700 py-3"
             >
-              Verify Another Voucher
+              Verifikasi Voucher Lain
             </Button>
           </div>
         </div>
@@ -256,22 +394,22 @@ export default function CheckoutPage({ params }: PageProps) {
               {/* Recipient Details */}
               <div className="bg-white p-6 rounded-2xl border border-sage-100">
                 <h2 className="font-semibold text-sage-900 mb-4 flex items-center gap-2">
-                  <Gift size={20} /> Recipient Details
+                  <Gift size={20} /> Detail Penerima
                 </h2>
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm text-sage-600 mb-1 block">
-                      Recipient Name
+                      Nama Penerima
                     </label>
                     <Input
                       {...register("recipientName", { required: true })}
-                      placeholder="Recipient's name"
+                      placeholder="Nama penerima voucher"
                       className={errors.recipientName ? "border-red-500" : ""}
                     />
                   </div>
                   <div>
                     <label className="text-sm text-sage-600 mb-1 block">
-                      Recipient Email
+                      Email Penerima
                     </label>
                     <Input
                       {...register("recipientEmail", {
@@ -279,21 +417,127 @@ export default function CheckoutPage({ params }: PageProps) {
                         pattern: /^\S+@\S+$/i,
                       })}
                       type="email"
-                      placeholder="recipient@email.com"
+                      placeholder="penerima@email.com"
                       className={errors.recipientEmail ? "border-red-500" : ""}
                     />
                   </div>
                   <div>
                     <label className="text-sm text-sage-600 mb-1 block">
-                      Gift Message (Optional)
+                      Pesan (Opsional)
                     </label>
                     <textarea
                       {...register("senderMessage")}
-                      placeholder="Write a personal message..."
+                      placeholder="Tulis pesan pribadi..."
                       rows={3}
                       className="w-full px-3 py-2 border border-sage-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sage-500 resize-none"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Delivery Options */}
+              <div className="bg-white p-6 rounded-2xl border border-sage-100">
+                <h2 className="font-semibold text-sage-900 mb-4 flex items-center gap-2">
+                  <Send size={20} /> Opsi Pengiriman Voucher
+                </h2>
+                <div className="space-y-4">
+                  {/* Send To Toggle */}
+                  <div>
+                    <label className="text-sm text-sage-600 mb-2 block">
+                      Kirim Voucher Ke
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { value: SendTo.RECIPIENT, label: "Langsung ke Penerima" },
+                        { value: SendTo.PURCHASER, label: "Kirim ke Saya" },
+                      ].map((option) => (
+                        <label
+                          key={option.value}
+                          className={`flex items-center justify-center p-3 border rounded-xl cursor-pointer transition-all text-sm ${
+                            sendTo === option.value
+                              ? "border-sage-600 bg-sage-50 text-sage-900 font-medium"
+                              : "border-sage-200 hover:border-sage-400 text-sage-600"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            value={option.value}
+                            {...register("sendTo")}
+                            className="sr-only"
+                          />
+                          {option.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Delivery Method */}
+                  <div>
+                    <label className="text-sm text-sage-600 mb-2 block">
+                      Metode Pengiriman
+                    </label>
+                    <div className="space-y-2">
+                      {[
+                        { value: DeliveryMethod.EMAIL, label: "Email", icon: Mail },
+                        { value: DeliveryMethod.WHATSAPP, label: "WhatsApp", icon: MessageCircle },
+                        { value: DeliveryMethod.BOTH, label: "Email & WhatsApp", icon: Send },
+                      ].map((method) => (
+                        <label
+                          key={method.value}
+                          className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${
+                            deliveryMethod === method.value
+                              ? "border-sage-600 bg-sage-50"
+                              : "border-sage-200 hover:border-sage-400"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            value={method.value}
+                            {...register("deliveryMethod")}
+                            className="sr-only"
+                          />
+                          <method.icon
+                            size={20}
+                            className={
+                              deliveryMethod === method.value
+                                ? "text-sage-700"
+                                : "text-sage-400"
+                            }
+                          />
+                          <span
+                            className={
+                              deliveryMethod === method.value
+                                ? "text-sage-900 font-medium"
+                                : "text-sage-600"
+                            }
+                          >
+                            {method.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Recipient Phone (conditional) */}
+                  {needsRecipientPhone && (
+                    <div>
+                      <label className="text-sm text-sage-600 mb-1 block flex items-center gap-2">
+                        <Phone size={16} />
+                        {sendTo === SendTo.PURCHASER ? "WhatsApp Anda" : "WhatsApp Penerima"}
+                      </label>
+                      <Input
+                        {...register("recipientPhone", {
+                          required: needsRecipientPhone,
+                          pattern: /^[\d\s+()-]+$/,
+                        })}
+                        placeholder="+62 812 3456 7890"
+                        className={errors.recipientPhone ? "border-red-500" : ""}
+                      />
+                      <p className="text-xs text-sage-500 mt-1">
+                        Nomor WhatsApp untuk menerima voucher
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 

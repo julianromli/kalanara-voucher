@@ -37,6 +37,23 @@ export enum PaymentStatus {
 }
 
 /**
+ * Method of voucher delivery to recipient
+ */
+export enum DeliveryMethod {
+  EMAIL = "EMAIL",
+  WHATSAPP = "WHATSAPP",
+  BOTH = "BOTH",
+}
+
+/**
+ * Target recipient for voucher delivery
+ */
+export enum SendTo {
+  PURCHASER = "PURCHASER",
+  RECIPIENT = "RECIPIENT",
+}
+
+/**
  * Administrative user roles with different permission levels
  */
 export enum AdminRole {
@@ -72,6 +89,18 @@ export interface RecipientDetails {
   readonly name: string;
   readonly email: string;
   readonly message: string;
+}
+
+/**
+ * Configuration for voucher delivery method and target
+ */
+export interface DeliveryOptions {
+  /** Target recipient for the voucher delivery */
+  readonly sendTo: SendTo;
+  /** Method of delivering the voucher */
+  readonly deliveryMethod: DeliveryMethod;
+  /** Phone number for WhatsApp delivery (required when deliveryMethod includes WHATSAPP) */
+  readonly recipientPhone?: string;
 }
 
 /**
