@@ -6,7 +6,6 @@ import {
   Ticket,
   Search,
   Filter,
-  ArrowLeft,
   Clock,
   CheckCircle,
   XCircle,
@@ -195,17 +194,10 @@ export default function AdminVouchersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-sage-50">
+    <div className="min-h-screen">
       {/* Header */}
       <div className="bg-sage-900 py-8 px-4">
         <div className="max-w-7xl mx-auto">
-          <button
-            onClick={() => router.push("/admin/dashboard")}
-            className="flex items-center gap-2 text-sage-400 hover:text-sand-300 mb-4 transition-colors"
-          >
-            <ArrowLeft size={18} />
-            <span className="text-sm">Back to Dashboard</span>
-          </button>
           <div className="flex items-center gap-3">
             <Ticket size={24} className="text-sand-400" />
             <h1 className="font-serif text-2xl text-sand-100">

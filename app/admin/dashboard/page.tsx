@@ -100,7 +100,7 @@ export default function AdminDashboardPage() {
   }, [] as { name: string; value: number }[]);
 
   return (
-    <div className="min-h-screen bg-sage-50">
+    <div className="min-h-screen">
       {/* Header */}
       <div className="bg-sage-900 py-8 px-4">
         <div className="max-w-7xl mx-auto">
