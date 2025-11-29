@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TrendingUp, Calendar as CalendarIcon, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -30,6 +31,7 @@ interface ChartDataPoint {
 interface ChartCardProps {
   data: ChartDataPoint[];
   title?: string;
+  animationDelay?: number;
 }
 
 // Theme-aware colors using Kalanara's sage palette
@@ -58,10 +60,16 @@ const CHART_COLORS = {
   },
 };
 
-export function ChartCard({ data, title = "Revenue (Last 7 Days)" }: ChartCardProps) {
+export function ChartCard({ data, title = "Revenue (Last 7 Days)", animationDelay = 0 }: ChartCardProps) {
   const { resolvedTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<Date | undefined>(undefined);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   const isDark = resolvedTheme === "dark";
   const colors = isDark ? CHART_COLORS.dark : CHART_COLORS.light;
@@ -73,7 +81,13 @@ export function ChartCard({ data, title = "Revenue (Last 7 Days)" }: ChartCardPr
   };
 
   return (
-    <div className="relative rounded-xl border border-border bg-card p-6 max-h-[400px] overflow-y-auto">
+    <div 
+      className={cn(
+        "relative rounded-xl border border-border bg-card p-6 max-h-[400px] overflow-y-auto",
+        isMounted ? "animate-scale-in" : "opacity-0"
+      )}
+      style={{ animationDelay: `${animationDelay}ms` }}
+    >
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TrendingUp className="size-4 text-muted-foreground" />

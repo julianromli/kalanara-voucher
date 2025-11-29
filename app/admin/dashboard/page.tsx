@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -11,17 +11,24 @@ import { StatCard } from "@/components/admin/stat-card";
 import { ChartCard } from "@/components/admin/chart-card";
 import { RecentOrders } from "@/components/admin/recent-orders";
 import { VoucherSummary } from "@/components/admin/voucher-summary";
+import { cn } from "@/lib/utils";
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { services, vouchers, orders, reviews, isLoading: dataLoading } = useStore();
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push("/admin/login");
     }
   }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Show loading while auth or data is loading
   if (authLoading || dataLoading || !isAuthenticated) {
@@ -93,35 +100,42 @@ export default function AdminDashboardPage() {
               value={formatCurrency(totalRevenue)}
               icon="revenue"
               badge="All Time"
+              animationDelay={0}
             />
             <StatCard
               title="Active Vouchers"
               value={activeVouchers}
               icon="active"
               badge="Current"
+              animationDelay={75}
             />
             <StatCard
               title="Total Orders"
               value={orders.length}
               icon="orders"
               badge="All Time"
+              animationDelay={150}
             />
             <StatCard
               title="Avg. Rating"
               value={`${avgRating} / 5`}
               icon="rating"
               badge="Reviews"
+              animationDelay={225}
             />
           </div>
 
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <ChartCard data={revenueData} />
-            <RecentOrders orders={recentOrdersData} />
+            <ChartCard data={revenueData} animationDelay={300} />
+            <RecentOrders orders={recentOrdersData} animationDelay={375} />
           </div>
 
           {/* Bottom Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className={cn(
+            "grid grid-cols-1 lg:grid-cols-3 gap-6",
+            isMounted ? "animate-fade-slide-up" : "opacity-0"
+          )} style={{ animationDelay: "450ms" }}>
             <div className="lg:col-span-2">
               {/* Quick Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -129,25 +143,29 @@ export default function AdminDashboardPage() {
                   title="Services"
                   value={services.length}
                   icon="services"
+                  animationDelay={500}
                 />
                 <StatCard
                   title="Total Vouchers"
                   value={vouchers.length}
                   icon="vouchers"
+                  animationDelay={575}
                 />
                 <StatCard
                   title="Redeemed"
                   value={redeemedVouchers}
                   icon="redeemed"
+                  animationDelay={650}
                 />
                 <StatCard
                   title="Reviews"
                   value={reviews.length}
                   icon="rating"
+                  animationDelay={725}
                 />
               </div>
             </div>
-            <VoucherSummary stats={voucherStats} reviews={reviewsData} />
+            <VoucherSummary stats={voucherStats} reviews={reviewsData} animationDelay={500} />
           </div>
         </div>
       </div>

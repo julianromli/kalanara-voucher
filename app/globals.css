@@ -500,6 +500,46 @@
     }
 }
 
+/* Admin Dashboard Specific Animations */
+@keyframes iconBounce {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+@layer utilities {
+    /* Row hover for tables/lists */
+    .row-hover-lift {
+        transition: transform 0.2s ease, background-color 0.2s ease;
+    }
+
+    .row-hover-lift:hover {
+        transform: translateX(4px);
+        background-color: var(--accent);
+    }
+
+    /* Sidebar nav item hover */
+    .nav-item-hover {
+        transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    .nav-item-hover:hover {
+        transform: translateX(2px);
+    }
+
+    /* Icon bounce animation */
+    .animate-icon-bounce {
+        animation: iconBounce 0.5s ease-out;
+    }
+
+    /* Extended stagger delays for admin grids */
+    .animate-stagger-7 { animation-delay: 700ms; }
+    .animate-stagger-8 { animation-delay: 800ms; }
+}
+
 /* Accessibility - Respect reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
     *,

@@ -44,6 +44,8 @@ import {
   voidVoucher,
 } from "@/lib/actions/vouchers";
 import type { VoucherWithService } from "@/lib/database.types";
+import { cn } from "@/lib/utils";
+import { useInView } from "@/hooks/useInView";
 
 type VoucherStatus = "ALL" | "ACTIVE" | "REDEEMED" | "EXPIRED";
 
@@ -87,12 +89,20 @@ export default function AdminVouchersPage() {
   const [extendDays, setExtendDays] = useState(30);
   const [isProcessing, setIsProcessing] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  const [tableRef, isTableInView] = useInView<HTMLDivElement>({ threshold: 0.1 });
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push("/admin/login");
     }
   }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     async function fetchVouchers() {
@@ -199,23 +209,35 @@ export default function AdminVouchersPage() {
       <div className="w-full overflow-y-auto overflow-x-hidden p-4 md:p-6 h-full">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-card rounded-xl p-4 shadow-spa border border-border">
+          <div className={cn(
+            "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
+            isMounted ? "animate-fade-slide-up" : "opacity-0"
+          )}>
             <p className="text-sm text-muted-foreground">Total</p>
             <p className="text-2xl font-sans font-semibold text-foreground">{stats.total}</p>
           </div>
-          <div className="bg-card rounded-xl p-4 shadow-spa border border-border">
+          <div className={cn(
+            "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
+            isMounted ? "animate-fade-slide-up" : "opacity-0"
+          )} style={{ animationDelay: "75ms" }}>
             <p className="text-sm text-primary flex items-center gap-1">
               <Clock size={14} /> Active
             </p>
             <p className="text-2xl font-sans font-semibold text-foreground">{stats.active}</p>
           </div>
-          <div className="bg-card rounded-xl p-4 shadow-spa border border-border">
+          <div className={cn(
+            "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
+            isMounted ? "animate-fade-slide-up" : "opacity-0"
+          )} style={{ animationDelay: "150ms" }}>
             <p className="text-sm text-primary flex items-center gap-1">
               <CheckCircle size={14} /> Redeemed
             </p>
             <p className="text-2xl font-sans font-semibold text-foreground">{stats.redeemed}</p>
           </div>
-          <div className="bg-card rounded-xl p-4 shadow-spa border border-border">
+          <div className={cn(
+            "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
+            isMounted ? "animate-fade-slide-up" : "opacity-0"
+          )} style={{ animationDelay: "225ms" }}>
             <p className="text-sm text-destructive flex items-center gap-1">
               <XCircle size={14} /> Expired
             </p>
@@ -224,7 +246,10 @@ export default function AdminVouchersPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-card rounded-2xl shadow-spa border border-border p-4 mb-6">
+        <div className={cn(
+          "bg-card rounded-2xl shadow-spa border border-border p-4 mb-6",
+          isMounted ? "animate-fade-slide-up" : "opacity-0"
+        )} style={{ animationDelay: "300ms" }}>
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
               <Search
@@ -274,7 +299,14 @@ export default function AdminVouchersPage() {
             </p>
           </div>
         ) : (
-          <div className="bg-card rounded-2xl shadow-spa border border-border overflow-hidden">
+          <div 
+            ref={tableRef}
+            className={cn(
+              "bg-card rounded-2xl shadow-spa border border-border overflow-hidden",
+              isTableInView ? "animate-fade-slide-up" : "opacity-0"
+            )}
+            style={{ animationDelay: "400ms" }}
+          >
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -303,7 +335,7 @@ export default function AdminVouchersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filteredVouchers.map((voucher) => {
+                  {filteredVouchers.map((voucher, index) => {
                     const status = getVoucherStatus(voucher);
                     const config = STATUS_CONFIG[status];
                     const StatusIcon = config.icon;
@@ -311,7 +343,11 @@ export default function AdminVouchersPage() {
                     return (
                       <tr
                         key={voucher.id}
-                        className="hover:bg-accent/50 transition-colors"
+                        className={cn(
+                          "hover:bg-accent/50 transition-colors row-hover-lift",
+                          isTableInView ? "animate-fade-slide-up" : "opacity-0"
+                        )}
+                        style={{ animationDelay: `${500 + index * 50}ms` }}
                       >
                         <td className="p-4">
                           <div className="flex items-center gap-2">

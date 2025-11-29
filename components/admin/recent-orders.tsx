@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Search, ShoppingBag, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatCurrency } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 interface Order {
   id: string;
@@ -15,11 +17,25 @@ interface Order {
 
 interface RecentOrdersProps {
   orders: Order[];
+  animationDelay?: number;
 }
 
-export function RecentOrders({ orders }: RecentOrdersProps) {
+export function RecentOrders({ orders, animationDelay = 0 }: RecentOrdersProps) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <div className="relative overflow-hidden rounded-xl border border-border bg-card max-h-[400px] flex flex-col">
+    <div 
+      className={cn(
+        "relative overflow-hidden rounded-xl border border-border bg-card max-h-[400px] flex flex-col",
+        isMounted ? "animate-scale-in" : "opacity-0"
+      )}
+      style={{ animationDelay: `${animationDelay}ms` }}
+    >
       <div className="flex items-center justify-between px-4 pt-[15px] pb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <ShoppingBag className="size-4 text-muted-foreground" />
@@ -44,10 +60,14 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
               No orders yet
             </div>
           ) : (
-            orders.map((order) => (
+            orders.map((order, index) => (
               <div
                 key={order.id}
-                className="relative h-[56px] rounded-[10px] border border-border bg-sidebar hover:bg-sidebar-accent px-3 py-2"
+                className={cn(
+                  "relative h-[56px] rounded-[10px] border border-border bg-sidebar hover:bg-sidebar-accent px-3 py-2 row-hover-lift",
+                  isMounted ? "animate-fade-slide-up" : "opacity-0"
+                )}
+                style={{ animationDelay: `${animationDelay + 100 + index * 75}ms` }}
               >
                 <div className="flex items-center justify-between h-full gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">

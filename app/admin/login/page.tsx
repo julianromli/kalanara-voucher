@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -18,6 +19,12 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -62,7 +69,10 @@ export default function AdminLoginPage() {
     <div className="min-h-screen bg-primary flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className={cn(
+          "text-center mb-8",
+          isMounted ? "animate-fade-slide-down" : "opacity-0"
+        )}>
           <h1 className="font-sans font-semibold text-3xl text-primary-foreground mb-2">KALANARA</h1>
           <p className="text-muted-foreground text-sm">Staff Portal</p>
         </div>
@@ -70,7 +80,11 @@ export default function AdminLoginPage() {
         {/* Login Form */}
         <form
           onSubmit={handleSubmit}
-          className="bg-card rounded-2xl p-8 shadow-2xl"
+          className={cn(
+            "bg-card rounded-2xl p-8 shadow-2xl",
+            isMounted ? "animate-scale-in" : "opacity-0"
+          )}
+          style={{ animationDelay: "150ms" }}
         >
           <h2 className="font-sans font-semibold text-2xl text-foreground mb-6 text-center">
             Sign In
@@ -84,7 +98,9 @@ export default function AdminLoginPage() {
 
           <div className="space-y-5">
             {/* Email */}
-            <div>
+            <div className={cn(
+              isMounted ? "animate-fade-slide-up" : "opacity-0"
+            )} style={{ animationDelay: "250ms" }}>
               <label className="block text-muted-foreground text-sm mb-2">
                 Email Address
               </label>
@@ -107,7 +123,9 @@ export default function AdminLoginPage() {
             </div>
 
             {/* Password */}
-            <div>
+            <div className={cn(
+              isMounted ? "animate-fade-slide-up" : "opacity-0"
+            )} style={{ animationDelay: "325ms" }}>
               <label className="block text-muted-foreground text-sm mb-2">
                 Password
               </label>
@@ -141,7 +159,11 @@ export default function AdminLoginPage() {
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="w-full mt-8 bg-primary hover:bg-primary/90 text-primary-foreground py-3"
+            className={cn(
+              "w-full mt-8 bg-primary hover:bg-primary/90 text-primary-foreground py-3 btn-hover-lift",
+              isMounted ? "animate-fade-slide-up" : "opacity-0"
+            )}
+            style={{ animationDelay: "400ms" }}
           >
             {isSubmitting ? (
               <>

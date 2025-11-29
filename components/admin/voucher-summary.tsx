@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Ticket, Clock, CheckCircle, XCircle, Star } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface VoucherStats {
   active: number;
@@ -18,13 +20,27 @@ interface Review {
 interface VoucherSummaryProps {
   stats: VoucherStats;
   reviews?: Review[];
+  animationDelay?: number;
 }
 
-export function VoucherSummary({ stats, reviews = [] }: VoucherSummaryProps) {
+export function VoucherSummary({ stats, reviews = [], animationDelay = 0 }: VoucherSummaryProps) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* Voucher Stats */}
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div 
+        className={cn(
+          "rounded-xl border border-border bg-card p-5",
+          isMounted ? "animate-scale-in" : "opacity-0"
+        )}
+        style={{ animationDelay: `${animationDelay}ms` }}
+      >
         <h3 className="font-medium text-foreground mb-4 flex items-center gap-2">
           <Ticket className="size-4 text-muted-foreground" />
           Voucher Summary
@@ -55,7 +71,13 @@ export function VoucherSummary({ stats, reviews = [] }: VoucherSummaryProps) {
       </div>
 
       {/* Recent Reviews */}
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div 
+        className={cn(
+          "rounded-xl border border-border bg-card p-5",
+          isMounted ? "animate-scale-in" : "opacity-0"
+        )}
+        style={{ animationDelay: `${animationDelay + 100}ms` }}
+      >
         <h3 className="font-medium text-foreground mb-4 flex items-center gap-2">
           <Star className="size-4 text-primary" />
           Recent Reviews

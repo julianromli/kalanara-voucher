@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { TrendingUp, Tag, ShoppingBag, Star, Ticket, Clock, CheckCircle, XCircle, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,16 +21,27 @@ interface StatCardProps {
   icon: keyof typeof iconMap;
   badge?: string;
   className?: string;
+  animationDelay?: number;
 }
 
-export function StatCard({ title, value, icon, badge, className }: StatCardProps) {
+export function StatCard({ title, value, icon, badge, className, animationDelay = 0 }: StatCardProps) {
   const Icon = iconMap[icon] || Tag;
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
-    <div className={cn(
-      "relative overflow-hidden rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:shadow-spa hover:border-border/80 group",
-      className
-    )}>
+    <div 
+      className={cn(
+        "relative overflow-hidden rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:shadow-spa hover:border-border/80 group card-hover-lift",
+        isMounted ? "animate-fade-slide-up" : "opacity-0",
+        className
+      )}
+      style={{ animationDelay: `${animationDelay}ms` }}
+    >
       <div className="flex items-start justify-between">
         <div className="space-y-1.5">
           <p className="text-sm text-muted-foreground font-medium tracking-tight">{title}</p>
@@ -41,7 +53,10 @@ export function StatCard({ title, value, icon, badge, className }: StatCardProps
               {badge}
             </span>
           )}
-          <div className="flex size-12 items-center justify-center rounded-xl border border-primary/20 bg-primary transition-transform duration-300 group-hover:scale-105">
+          <div className={cn(
+            "flex size-12 items-center justify-center rounded-xl border border-primary/20 bg-primary transition-transform duration-300 group-hover:scale-105",
+            isMounted && "animate-icon-bounce"
+          )} style={{ animationDelay: `${animationDelay + 200}ms` }}>
             <Icon className="size-5 text-primary-foreground" />
           </div>
         </div>

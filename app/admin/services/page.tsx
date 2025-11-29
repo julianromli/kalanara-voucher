@@ -41,6 +41,8 @@ import {
   deleteService,
 } from "@/lib/actions/services";
 import type { Service, ServiceInsert, ServiceUpdate } from "@/lib/database.types";
+import { cn } from "@/lib/utils";
+import { useInView } from "@/hooks/useInView";
 
 type ServiceCategory = "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE";
 
@@ -86,12 +88,20 @@ export default function AdminServicesPage() {
   const [formData, setFormData] = useState<ServiceFormData>(DEFAULT_FORM);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  const [gridRef, isGridInView] = useInView<HTMLDivElement>({ threshold: 0.1 });
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push("/admin/login");
     }
   }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     async function fetchServices() {
@@ -217,17 +227,23 @@ export default function AdminServicesPage() {
       <DashboardHeader title="Service Management" showActions={false} />
       <div className="w-full overflow-y-auto overflow-x-hidden p-4 md:p-6 h-full">
         {/* Action Bar */}
-        <div className="flex items-center justify-between mb-6">
+        <div className={cn(
+          "flex items-center justify-between mb-6",
+          isMounted ? "animate-fade-slide-down" : "opacity-0"
+        )}>
           <p className="text-muted-foreground text-sm">
             Manage spa services, pricing, and availability
           </p>
-          <Button onClick={handleOpenCreate} size="sm">
+          <Button onClick={handleOpenCreate} size="sm" className="btn-hover-lift">
             <Plus size={16} className="mr-2" />
             Add Service
           </Button>
         </div>
         {/* Filters */}
-        <div className="bg-card rounded-2xl shadow-spa border border-border p-4 mb-6">
+        <div className={cn(
+          "bg-card rounded-2xl shadow-spa border border-border p-4 mb-6",
+          isMounted ? "animate-fade-slide-up" : "opacity-0"
+        )} style={{ animationDelay: "100ms" }}>
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
               <Search
@@ -285,13 +301,19 @@ export default function AdminServicesPage() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredServices.map((service) => (
+          <div 
+            ref={gridRef}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {filteredServices.map((service, index) => (
               <div
                 key={service.id}
-                className={`bg-card rounded-2xl shadow-spa border border-border overflow-hidden transition-all hover:shadow-spa-lg ${
-                  !service.is_active ? "opacity-60" : ""
-                }`}
+                className={cn(
+                  "bg-card rounded-2xl shadow-spa border border-border overflow-hidden transition-all hover:shadow-spa-lg card-hover-lift",
+                  !service.is_active && "opacity-60",
+                  isGridInView ? "animate-fade-slide-up" : "opacity-0"
+                )}
+                style={{ animationDelay: `${200 + index * 75}ms` }}
               >
                 <div className="relative h-40">
                   <Image

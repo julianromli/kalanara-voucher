@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -12,6 +13,7 @@ import {
   LogOut,
   Leaf,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   Sidebar,
   SidebarContent,
@@ -53,6 +55,12 @@ export function AdminSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const { logout, user } = useAuth();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -63,7 +71,10 @@ export function AdminSidebar({
     <Sidebar className="lg:border-r-0!" collapsible="offcanvas" {...props}>
       <SidebarHeader className="pb-0">
         <div className="px-2 py-3">
-          <div className="flex items-center justify-between">
+          <div className={cn(
+            "flex items-center justify-between",
+            isMounted ? "animate-fade-slide-down" : "opacity-0"
+          )}>
             <Link href="/admin/dashboard" className="flex items-center gap-2">
               <div className="size-8 bg-gradient-to-br from-sage-500 to-sage-700 rounded-lg shadow flex items-center justify-center text-white">
                 <Leaf className="size-5" />
@@ -100,14 +111,20 @@ export function AdminSidebar({
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => {
+              {navItems.map((item, index) => {
                 const isActive = pathname === item.href;
                 return (
-                  <SidebarMenuItem key={item.href}>
+                  <SidebarMenuItem 
+                    key={item.href}
+                    className={cn(
+                      isMounted ? "animate-slide-in-left" : "opacity-0"
+                    )}
+                    style={{ animationDelay: `${150 + index * 50}ms` }}
+                  >
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
-                      className="h-9 text-sm"
+                      className="h-9 text-sm nav-item-hover"
                     >
                       <Link href={item.href}>
                         <item.icon className="size-4" />
@@ -144,7 +161,13 @@ export function AdminSidebar({
       </SidebarContent>
 
       <SidebarFooter className="p-4">
-        <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-muted/50 mb-3">
+        <div 
+          className={cn(
+            "flex items-center gap-3 px-2 py-2 rounded-lg bg-muted/50 mb-3",
+            isMounted ? "animate-fade-slide-up" : "opacity-0"
+          )}
+          style={{ animationDelay: "400ms" }}
+        >
           <div className="size-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
             {user?.name?.charAt(0).toUpperCase() || "A"}
           </div>
@@ -158,7 +181,11 @@ export function AdminSidebar({
           variant="outline"
           size="sm"
           onClick={handleLogout}
-          className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+          className={cn(
+            "w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30",
+            isMounted ? "animate-fade-slide-up" : "opacity-0"
+          )}
+          style={{ animationDelay: "450ms" }}
         >
           <LogOut className="size-4" />
           Logout
