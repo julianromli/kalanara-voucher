@@ -79,8 +79,8 @@ Update the file after completing each sub-task, not just after completing an ent
   - [x] 7.5 Test form validation for phone number format
   - [x] 7.6 Run TypeScript type check (`bunx tsc --noEmit`) ✅ PASSED
 
-- [ ] 8.0 Git commit and merge
-  - [ ] 8.1 Run `git status` to review all changes
-  - [ ] 8.2 Stage all relevant files with `git add`
-  - [ ] 8.3 Commit with message: `feat: add voucher delivery via WhatsApp and Email options`
+- [x] 8.0 Git commit and merge
+  - [x] 8.1 Run `git status` to review all changes
+  - [x] 8.2 Stage all relevant files with `git add`
+  - [x] 8.3 Commit with message: `feat: add voucher delivery via WhatsApp and Email options`
   - [ ] 8.4 Merge feature branch to master (if approved)
