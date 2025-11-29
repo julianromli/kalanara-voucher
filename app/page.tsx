@@ -5,6 +5,8 @@ import Image from "next/image";
 import { Clock, ArrowRight, Star, Quote } from "lucide-react";
 import { useStore } from "@/context/StoreContext";
 import { formatCurrency } from "@/lib/constants";
+import { Footer13 } from "@/components/footer13";
+import { TrustFeatures } from "@/components/trust-features";
 
 export default function LandingPage() {
   const { services, reviews } = useStore();
@@ -13,14 +15,15 @@ export default function LandingPage() {
     .filter((r) => r.rating >= 4)
     .sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )
     .slice(0, 3);
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Hero Section */}
-      <section className="relative h-[85vh] flex items-center justify-center overflow-hidden">
+      {/* Hero Section - Full Width Desktop */}
+      <section className="relative min-h-screen flex items-center overflow-hidden">
+        {/* Background */}
         <div className="absolute inset-0 bg-primary">
           <Image
             src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&q=80"
@@ -28,34 +31,54 @@ export default function LandingPage() {
             fill
             sizes="100vw"
             priority
-            className="object-cover opacity-60"
+            className="object-cover opacity-50"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent" />
+          {/* Gradient overlays for depth */}
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/90 via-primary/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-primary via-transparent to-primary/30" />
         </div>
 
-        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
-          <span className="text-muted-foreground tracking-[0.2em] text-sm md:text-base uppercase mb-4 block animate-fade-in">
-            Welcome to Kalanara
-          </span>
-          <h1 className="font-sans font-semibold text-5xl md:text-7xl text-primary-foreground mb-6 leading-tight">
-            Rejuvenate Your <br />
-            <span className="italic text-primary-foreground/70">Body & Soul</span>
-          </h1>
-          <p className="text-primary-foreground/90 text-lg md:text-xl mb-10 max-w-2xl mx-auto font-light">
-            Experience the ancient healing traditions of Java in a modern
-            sanctuary. Book your escape today.
-          </p>
-          <a
-            href="#services"
-            className="inline-flex items-center gap-2 bg-accent text-accent-foreground px-8 py-4 rounded-full text-lg font-medium hover:bg-accent/90 transition-all transform hover:scale-105 shadow-lg shadow-primary/20"
-          >
-            Explore Treatments
-          </a>
+        {/* Content - Full width on desktop */}
+        <div className="relative z-10 w-full px-6 sm:px-8 lg:px-16 xl:px-24 pt-20">
+          <div className="max-w-none lg:max-w-[50%]">
+            <span className="text-primary-foreground/60 tracking-[0.3em] text-xs md:text-sm uppercase mb-6 block">
+              Welcome to Kalanara
+            </span>
+            <h1 className="font-sans font-semibold text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl text-primary-foreground mb-8 leading-[1.1]">
+              Rejuvenate <br className="hidden sm:block" />
+              Your{" "}
+              <span className="italic font-normal text-primary-foreground/70">
+                Body & Soul
+              </span>
+            </h1>
+            <p className="text-primary-foreground/80 text-base sm:text-lg md:text-xl mb-10 max-w-xl font-light leading-relaxed">
+              Experience the ancient healing traditions of Java in a modern
+              sanctuary. Book your escape today.
+            </p>
+            <div className="flex flex-col sm:flex-row items-start gap-4">
+              <a
+                href="#services"
+                className="inline-flex items-center gap-3 bg-accent text-accent-foreground px-8 py-4 rounded-full text-base sm:text-lg font-medium hover:bg-accent/90 transition-all transform hover:scale-105 shadow-xl"
+              >
+                Explore Treatments
+                <ArrowRight size={20} />
+              </a>
+              <Link
+                href="/verify"
+                className="inline-flex items-center gap-2 text-primary-foreground/70 hover:text-primary-foreground px-4 py-4 text-base font-medium transition-colors"
+              >
+                Verify Your Voucher
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Services Section */}
-      <section id="services" className="py-24 px-4 sm:px-6 lg:px-8 bg-background">
+      <section
+        id="services"
+        className="py-24 px-4 sm:px-6 lg:px-8 bg-background"
+      >
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="font-sans font-semibold text-4xl text-foreground mb-4">
@@ -76,7 +99,10 @@ export default function LandingPage() {
                 >
                   <div className="relative h-64 overflow-hidden">
                     <Image
-                      src={service.image || "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80"}
+                      src={
+                        service.image ||
+                        "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80"
+                      }
                       alt={service.name}
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -172,49 +198,12 @@ export default function LandingPage() {
       )}
 
       {/* Trust/Features */}
-      <section className="py-20 bg-primary text-primary-foreground">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
-          <div>
-            <div className="w-16 h-16 mx-auto bg-primary-foreground/10 rounded-full flex items-center justify-center mb-4 text-primary-foreground/70">
-              <Clock size={32} />
-            </div>
-            <h3 className="font-sans font-semibold text-xl mb-2">Instant Delivery</h3>
-            <p className="text-primary-foreground/70 text-sm">
-              Vouchers are sent automatically via WhatsApp & Email immediately
-              after purchase.
-            </p>
-          </div>
-          <div>
-            <div className="w-16 h-16 mx-auto bg-primary-foreground/10 rounded-full flex items-center justify-center mb-4 text-primary-foreground/70">
-              <Star size={32} />
-            </div>
-            <h3 className="font-sans font-semibold text-xl mb-2">Valid for 12 Months</h3>
-            <p className="text-primary-foreground/70 text-sm">
-              Flexible redemption period to suit your schedule.
-            </p>
-          </div>
-          <div>
-            <div className="w-16 h-16 mx-auto bg-primary-foreground/10 rounded-full flex items-center justify-center mb-4 text-primary-foreground/70">
-              <Quote size={32} />
-            </div>
-            <h3 className="font-sans font-semibold text-xl mb-2">Secure Payment</h3>
-            <p className="text-primary-foreground/70 text-sm">
-              Trusted payments via QRIS, Bank Transfer, and Credit Cards.
-            </p>
-          </div>
-        </div>
-      </section>
+      <TrustFeatures />
+
+      {/* Feature Section */}
 
       {/* Footer */}
-      <footer className="bg-primary text-primary-foreground/80 py-12">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <h2 className="font-sans font-semibold text-2xl text-primary-foreground mb-2">KALANARA</h2>
-          <p className="text-primary-foreground/60 text-sm mb-6">Harmony in Every Touch</p>
-          <p className="text-primary-foreground/50 text-xs">
-            © {new Date().getFullYear()} Kalanara Spa. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      <Footer13 />
     </div>
   );
 }

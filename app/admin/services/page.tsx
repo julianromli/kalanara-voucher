@@ -308,8 +308,8 @@ export default function AdminServicesPage() {
                     <span
                       className={`text-xs px-2 py-1 rounded-full ${
                         service.is_active
-                          ? "bg-primary/10 text-primary"
-                          : "bg-destructive/10 text-destructive"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-destructive text-destructive-foreground"
                       }`}
                     >
                       {service.is_active ? "Active" : "Inactive"}
@@ -342,10 +342,9 @@ export default function AdminServicesPage() {
 
                   <div className="flex gap-2 pt-4 border-t border-border">
                     <Button
-                      variant="outline"
                       size="sm"
                       onClick={() => handleOpenEdit(service)}
-                      className="flex-1"
+                      className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
                     >
                       <Pencil size={14} className="mr-1" />
                       Edit

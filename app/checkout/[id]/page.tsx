@@ -16,6 +16,7 @@ import {
   Send,
   Phone,
   Download,
+  ChevronLeft,
 } from "lucide-react";
 import QRCode from "react-qr-code";
 import { generateVoucherPDF, downloadPDF } from "@/lib/pdf";
@@ -380,7 +381,18 @@ export default function CheckoutPage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background py-12">
+    <div className="min-h-screen bg-background py-8">
+      {/* Back Button */}
+      <div className="max-w-4xl mx-auto px-4 mb-6">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group"
+        >
+          <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+          <span>Back</span>
+        </button>
+      </div>
+
       <div className="max-w-4xl mx-auto px-4">
         <h1 className="font-sans font-semibold text-3xl text-foreground mb-8 text-center">
           Complete Your Purchase

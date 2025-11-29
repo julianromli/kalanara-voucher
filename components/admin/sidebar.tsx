@@ -145,7 +145,7 @@ export function AdminSidebar({
 
       <SidebarFooter className="p-4">
         <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-muted/50 mb-3">
-          <div className="size-8 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center text-sm font-medium">
+          <div className="size-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
             {user?.name?.charAt(0).toUpperCase() || "A"}
           </div>
           <div className="flex-1 min-w-0">

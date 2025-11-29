@@ -47,9 +47,13 @@ export default function VoucherDetailPage({ params }: PageProps) {
       <div className="max-w-7xl mx-auto px-4 pt-8">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group"
         >
-          <ChevronLeft size={20} /> Back
+          <ChevronLeft
+            size={20}
+            className="group-hover:-translate-x-1 transition-transform"
+          />
+          <span>Back</span>
         </button>
       </div>
 
@@ -59,7 +63,10 @@ export default function VoucherDetailPage({ params }: PageProps) {
           {/* Image */}
           <div className="relative rounded-2xl overflow-hidden shadow-spa-lg h-[400px] lg:h-[500px]">
             <Image
-              src={service.image || "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80"}
+              src={
+                service.image ||
+                "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80"
+              }
               alt={service.name}
               fill
               sizes="(max-width: 768px) 100vw, 50vw"
@@ -120,7 +127,9 @@ export default function VoucherDetailPage({ params }: PageProps) {
             <div className="mt-auto bg-card p-6 rounded-2xl border border-border shadow-spa">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Voucher Price</p>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Voucher Price
+                  </p>
                   <p className="font-sans font-semibold text-3xl text-foreground">
                     {formatCurrency(service.price)}
                   </p>
