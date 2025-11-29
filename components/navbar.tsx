@@ -57,12 +57,12 @@ export default function Navbar() {
                 >
                   Home
                 </Link>
-                <a
+                <Link
                   href="/#services"
                   className="hover:text-sage-600 font-medium transition-colors"
                 >
                   Treatments
-                </a>
+                </Link>
                 <Link
                   href="/verify"
                   className="hover:text-sage-600 font-medium transition-colors flex items-center gap-1"
@@ -86,13 +86,13 @@ export default function Navbar() {
                   </Link>
                 ) : null}
 
-                <a
+                <Link
                   href="/#services"
                   className="bg-sage-800 text-sand-100 px-5 py-2 rounded-full hover:bg-sage-700 transition-colors flex items-center gap-2"
                 >
                   <ShoppingBag size={18} />
                   <span>Buy Voucher</span>
-                </a>
+                </Link>
               </>
             ) : (
               <div className="flex items-center space-x-6">
@@ -143,13 +143,13 @@ export default function Navbar() {
                 >
                   Home
                 </Link>
-                <a
+                <Link
                   href="/#services"
                   onClick={() => setIsOpen(false)}
                   className="block py-2"
                 >
                   Treatments
-                </a>
+                </Link>
                 <Link
                   href="/verify"
                   onClick={() => setIsOpen(false)}
