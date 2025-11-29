@@ -16,7 +16,7 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-sage-50">
+    <div className="min-h-screen bg-background">
       <AdminSidebar />
       <main className="pl-16">{children}</main>
     </div>

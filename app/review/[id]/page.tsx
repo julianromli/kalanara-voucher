@@ -53,20 +53,20 @@ export default function ReviewPage({ params }: PageProps) {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-sage-800 flex items-center justify-center px-4">
-        <div className="bg-white rounded-3xl p-8 md:p-12 max-w-lg w-full text-center shadow-2xl">
-          <div className="w-20 h-20 bg-sage-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle size={40} className="text-sage-700" />
+      <div className="min-h-screen bg-primary flex items-center justify-center px-4">
+        <div className="bg-card rounded-3xl p-8 md:p-12 max-w-lg w-full text-center shadow-2xl">
+          <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle size={40} className="text-muted-foreground" />
           </div>
-          <h1 className="font-sans font-semibold text-3xl text-sage-900 mb-2">
+          <h1 className="font-sans font-semibold text-3xl text-foreground mb-2">
             Thank You!
           </h1>
-          <p className="text-sage-600 mb-8">
+          <p className="text-muted-foreground mb-8">
             Your feedback helps us improve our services.
           </p>
           <Button
             onClick={() => router.push("/")}
-            className="w-full bg-sage-800 hover:bg-sage-700 text-white py-3"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3"
           >
             Back to Home
           </Button>
@@ -76,37 +76,37 @@ export default function ReviewPage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sage-50 to-sand-100 py-12">
+    <div className="min-h-screen bg-gradient-to-b from-muted to-background py-12">
       <div className="max-w-xl mx-auto px-4">
         <div className="text-center mb-8">
-          <h1 className="font-sans font-semibold text-4xl text-sage-900 mb-2">
+          <h1 className="font-sans font-semibold text-4xl text-foreground mb-2">
             Share Your Experience
           </h1>
-          <p className="text-sage-600">
+          <p className="text-muted-foreground">
             We&apos;d love to hear about your spa journey
           </p>
         </div>
 
         {voucher && (
-          <div className="bg-white p-4 rounded-xl mb-8 flex gap-4 items-center border border-sage-100">
+          <div className="bg-card p-4 rounded-xl mb-8 flex gap-4 items-center border border-border">
             <img
               src={voucher.service.image || `https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=200&q=80`}
               alt={voucher.service.name}
               className="w-16 h-16 object-cover rounded-lg"
             />
             <div>
-              <p className="text-sm text-sage-500">Reviewing</p>
-              <p className="font-semibold text-sage-900">
+              <p className="text-sm text-muted-foreground">Reviewing</p>
+              <p className="font-semibold text-foreground">
                 {voucher.service.name}
               </p>
             </div>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-spa">
+        <form onSubmit={handleSubmit} className="bg-card p-8 rounded-2xl shadow-spa">
           {/* Rating */}
           <div className="mb-8">
-            <label className="block text-sage-900 font-medium mb-4 text-center">
+            <label className="block text-foreground font-medium mb-4 text-center">
               How was your experience?
             </label>
             <div className="flex justify-center gap-2">
@@ -123,15 +123,15 @@ export default function ReviewPage({ params }: PageProps) {
                     size={40}
                     className={`transition-colors ${
                       star <= (hoverRating || rating)
-                        ? "text-sand-500 fill-sand-500"
-                        : "text-sage-200"
+                        ? "text-accent fill-accent"
+                        : "text-muted-foreground/30"
                     }`}
                   />
                 </button>
               ))}
             </div>
             {rating > 0 && (
-              <p className="text-center text-sage-500 mt-2 text-sm">
+              <p className="text-center text-muted-foreground mt-2 text-sm">
                 {rating === 5 && "Excellent!"}
                 {rating === 4 && "Great!"}
                 {rating === 3 && "Good"}
@@ -143,7 +143,7 @@ export default function ReviewPage({ params }: PageProps) {
 
           {/* Name */}
           <div className="mb-6">
-            <label className="block text-sage-700 text-sm mb-2">
+            <label className="block text-muted-foreground text-sm mb-2">
               Your Name (Optional)
             </label>
             <Input
@@ -155,7 +155,7 @@ export default function ReviewPage({ params }: PageProps) {
 
           {/* Comment */}
           <div className="mb-8">
-            <label className="block text-sage-700 text-sm mb-2">
+            <label className="block text-muted-foreground text-sm mb-2">
               Tell us more (Optional)
             </label>
             <textarea
@@ -163,14 +163,14 @@ export default function ReviewPage({ params }: PageProps) {
               onChange={(e) => setComment(e.target.value)}
               placeholder="What did you enjoy most about your experience?"
               rows={4}
-              className="w-full px-4 py-3 border border-sage-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sage-500 resize-none"
+              className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring resize-none"
             />
           </div>
 
           <Button
             type="submit"
             disabled={isSubmitting || rating === 0}
-            className="w-full bg-sage-800 hover:bg-sage-700 text-white py-4 rounded-xl flex items-center justify-center gap-2"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 rounded-xl flex items-center justify-center gap-2"
           >
             {isSubmitting ? (
               "Submitting..."

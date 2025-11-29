@@ -56,17 +56,17 @@ function getVoucherStatus(voucher: VoucherWithService): "active" | "redeemed" | 
 const STATUS_CONFIG = {
   active: {
     label: "Active",
-    color: "bg-emerald-100 text-emerald-700",
+    color: "bg-success/10 text-success",
     icon: Clock,
   },
   redeemed: {
     label: "Redeemed",
-    color: "bg-blue-100 text-blue-700",
+    color: "bg-info/10 text-info",
     icon: CheckCircle,
   },
   expired: {
     label: "Expired",
-    color: "bg-red-100 text-red-700",
+    color: "bg-destructive/10 text-destructive",
     icon: XCircle,
   },
 };
@@ -180,8 +180,8 @@ export default function AdminVouchersPage() {
 
   if (authLoading || !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-sage-900 flex items-center justify-center">
-        <Loader2 className="animate-spin text-sand-300" size={32} />
+      <div className="min-h-screen bg-primary flex items-center justify-center">
+        <Loader2 className="animate-spin text-muted-foreground" size={32} />
       </div>
     );
   }
@@ -196,15 +196,15 @@ export default function AdminVouchersPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <div className="bg-sage-900 py-8 px-4">
+      <div className="bg-primary py-8 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-3">
-            <Ticket size={24} className="text-sand-400" />
-            <h1 className="font-sans font-semibold text-2xl text-sand-100">
+            <Ticket size={24} className="text-muted-foreground" />
+            <h1 className="font-sans font-semibold text-2xl text-primary-foreground">
               Voucher Management
             </h1>
           </div>
-          <p className="text-sage-400 mt-2">
+          <p className="text-muted-foreground mt-2">
             View and manage all vouchers, redeem, extend, or void them
           </p>
         </div>
@@ -213,37 +213,37 @@ export default function AdminVouchersPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl p-4 shadow-spa border border-sage-100">
-            <p className="text-sm text-sage-500">Total</p>
-            <p className="text-2xl font-sans font-semibold text-sage-900">{stats.total}</p>
+          <div className="bg-card rounded-xl p-4 shadow-spa border border-border">
+            <p className="text-sm text-muted-foreground">Total</p>
+            <p className="text-2xl font-sans font-semibold text-foreground">{stats.total}</p>
           </div>
-          <div className="bg-white rounded-xl p-4 shadow-spa border border-sage-100">
-            <p className="text-sm text-emerald-600 flex items-center gap-1">
+          <div className="bg-card rounded-xl p-4 shadow-spa border border-border">
+            <p className="text-sm text-success flex items-center gap-1">
               <Clock size={14} /> Active
             </p>
-            <p className="text-2xl font-sans font-semibold text-sage-900">{stats.active}</p>
+            <p className="text-2xl font-sans font-semibold text-foreground">{stats.active}</p>
           </div>
-          <div className="bg-white rounded-xl p-4 shadow-spa border border-sage-100">
-            <p className="text-sm text-blue-600 flex items-center gap-1">
+          <div className="bg-card rounded-xl p-4 shadow-spa border border-border">
+            <p className="text-sm text-info flex items-center gap-1">
               <CheckCircle size={14} /> Redeemed
             </p>
-            <p className="text-2xl font-sans font-semibold text-sage-900">{stats.redeemed}</p>
+            <p className="text-2xl font-sans font-semibold text-foreground">{stats.redeemed}</p>
           </div>
-          <div className="bg-white rounded-xl p-4 shadow-spa border border-sage-100">
-            <p className="text-sm text-red-600 flex items-center gap-1">
+          <div className="bg-card rounded-xl p-4 shadow-spa border border-border">
+            <p className="text-sm text-destructive flex items-center gap-1">
               <XCircle size={14} /> Expired
             </p>
-            <p className="text-2xl font-sans font-semibold text-sage-900">{stats.expired}</p>
+            <p className="text-2xl font-sans font-semibold text-foreground">{stats.expired}</p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl shadow-spa border border-sage-100 p-4 mb-6">
+        <div className="bg-card rounded-2xl shadow-spa border border-border p-4 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
               <Search
                 size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-sage-400"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               />
               <Input
                 placeholder="Search by code, recipient..."
@@ -273,50 +273,50 @@ export default function AdminVouchersPage() {
         {/* Vouchers Table */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="animate-spin text-sage-500" size={32} />
+            <Loader2 className="animate-spin text-muted-foreground" size={32} />
           </div>
         ) : filteredVouchers.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-spa border border-sage-100 p-12 text-center">
-            <Ticket size={48} className="text-sage-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-sage-700 mb-2">
+          <div className="bg-card rounded-2xl shadow-spa border border-border p-12 text-center">
+            <Ticket size={48} className="text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-muted-foreground mb-2">
               No vouchers found
             </h3>
-            <p className="text-sage-500">
+            <p className="text-muted-foreground">
               {searchQuery || statusFilter !== "ALL"
                 ? "Try adjusting your filters"
                 : "Vouchers will appear here when customers make purchases"}
             </p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-spa border border-sage-100 overflow-hidden">
+          <div className="bg-card rounded-2xl shadow-spa border border-border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-sage-100 bg-sage-50/50">
-                    <th className="text-left p-4 text-sm font-medium text-sage-600">
+                  <tr className="border-b border-border bg-accent/50">
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">
                       Code
                     </th>
-                    <th className="text-left p-4 text-sm font-medium text-sage-600">
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">
                       Service
                     </th>
-                    <th className="text-left p-4 text-sm font-medium text-sage-600">
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">
                       Recipient
                     </th>
-                    <th className="text-left p-4 text-sm font-medium text-sage-600">
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">
                       Value
                     </th>
-                    <th className="text-left p-4 text-sm font-medium text-sage-600">
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">
                       Expiry
                     </th>
-                    <th className="text-left p-4 text-sm font-medium text-sage-600">
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">
                       Status
                     </th>
-                    <th className="text-right p-4 text-sm font-medium text-sage-600">
+                    <th className="text-right p-4 text-sm font-medium text-muted-foreground">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-sage-100">
+                <tbody className="divide-y divide-border">
                   {filteredVouchers.map((voucher) => {
                     const status = getVoucherStatus(voucher);
                     const config = STATUS_CONFIG[status];
@@ -325,19 +325,19 @@ export default function AdminVouchersPage() {
                     return (
                       <tr
                         key={voucher.id}
-                        className="hover:bg-sage-50/50 transition-colors"
+                        className="hover:bg-accent/50 transition-colors"
                       >
                         <td className="p-4">
                           <div className="flex items-center gap-2">
-                            <code className="font-mono text-sm text-sage-800 bg-sage-100 px-2 py-1 rounded">
+                            <code className="font-mono text-sm text-foreground bg-muted px-2 py-1 rounded">
                               {voucher.code}
                             </code>
                             <button
                               onClick={() => handleCopyCode(voucher.code)}
-                              className="text-sage-400 hover:text-sage-600 transition-colors"
+                              className="text-muted-foreground hover:text-foreground transition-colors"
                             >
                               {copiedCode === voucher.code ? (
-                                <Check size={14} className="text-emerald-500" />
+                                <Check size={14} className="text-success" />
                               ) : (
                                 <Copy size={14} />
                               )}
@@ -345,24 +345,24 @@ export default function AdminVouchersPage() {
                           </div>
                         </td>
                         <td className="p-4">
-                          <p className="text-sage-800 font-medium">
+                          <p className="text-foreground font-medium">
                             {voucher.services?.name || "Unknown"}
                           </p>
-                          <p className="text-xs text-sage-500">
+                          <p className="text-xs text-muted-foreground">
                             {voucher.services?.duration || 0} mins
                           </p>
                         </td>
                         <td className="p-4">
-                          <p className="text-sage-800">{voucher.recipient_name}</p>
-                          <p className="text-xs text-sage-500">
+                          <p className="text-foreground">{voucher.recipient_name}</p>
+                          <p className="text-xs text-muted-foreground">
                             {voucher.recipient_email}
                           </p>
                         </td>
-                        <td className="p-4 font-medium text-sage-800">
+                        <td className="p-4 font-medium text-foreground">
                           {formatCurrency(voucher.amount)}
                         </td>
                         <td className="p-4">
-                          <p className="text-sage-700">
+                          <p className="text-muted-foreground">
                             {new Date(voucher.expiry_date).toLocaleDateString()}
                           </p>
                         </td>
@@ -382,7 +382,7 @@ export default function AdminVouchersPage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => openActionDialog(voucher, "redeem")}
-                                  className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                  className="h-8 w-8 p-0 text-success hover:text-success hover:bg-success/10"
                                   title="Redeem"
                                 >
                                   <ScanLine size={16} />
@@ -391,7 +391,7 @@ export default function AdminVouchersPage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => openActionDialog(voucher, "extend")}
-                                  className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  className="h-8 w-8 p-0 text-info hover:text-info hover:bg-info/10"
                                   title="Extend"
                                 >
                                   <CalendarPlus size={16} />
@@ -400,7 +400,7 @@ export default function AdminVouchersPage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => openActionDialog(voucher, "void")}
-                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                                   title="Void"
                                 >
                                   <Ban size={16} />
@@ -408,7 +408,7 @@ export default function AdminVouchersPage() {
                               </>
                             )}
                             {status !== "active" && (
-                              <span className="text-xs text-sage-400 px-2">
+                              <span className="text-xs text-muted-foreground px-2">
                                 No actions
                               </span>
                             )}
@@ -431,19 +431,19 @@ export default function AdminVouchersPage() {
             <DialogTitle className="font-sans font-semibold text-xl flex items-center gap-2">
               {actionType === "redeem" && (
                 <>
-                  <ScanLine size={20} className="text-emerald-600" />
+                  <ScanLine size={20} className="text-success" />
                   Redeem Voucher
                 </>
               )}
               {actionType === "extend" && (
                 <>
-                  <CalendarPlus size={20} className="text-blue-600" />
+                  <CalendarPlus size={20} className="text-info" />
                   Extend Voucher
                 </>
               )}
               {actionType === "void" && (
                 <>
-                  <Ban size={20} className="text-red-600" />
+                  <Ban size={20} className="text-destructive" />
                   Void Voucher
                 </>
               )}
@@ -460,23 +460,23 @@ export default function AdminVouchersPage() {
 
           {selectedVoucher && (
             <div className="py-4">
-              <div className="bg-sage-50 rounded-xl p-4 mb-4">
+              <div className="bg-muted rounded-xl p-4 mb-4">
                 <div className="flex items-center justify-between mb-2">
-                  <code className="font-mono font-bold text-sage-800">
+                  <code className="font-mono font-bold text-foreground">
                     {selectedVoucher.code}
                   </code>
-                  <span className="text-sm font-medium text-sage-700">
+                  <span className="text-sm font-medium text-muted-foreground">
                     {formatCurrency(selectedVoucher.amount)}
                   </span>
                 </div>
-                <p className="text-sm text-sage-600">
+                <p className="text-sm text-muted-foreground">
                   {selectedVoucher.services?.name} • {selectedVoucher.recipient_name}
                 </p>
               </div>
 
               {actionType === "extend" && (
                 <div className="space-y-3">
-                  <label className="block text-sm text-sage-700">
+                  <label className="block text-sm text-muted-foreground">
                     Extend by (days)
                   </label>
                   <Select
@@ -494,7 +494,7 @@ export default function AdminVouchersPage() {
                       <SelectItem value="90">90 days</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-sage-500">
+                  <p className="text-xs text-muted-foreground">
                     New expiry:{" "}
                     {new Date(
                       new Date(selectedVoucher.expiry_date).getTime() +
@@ -505,9 +505,9 @@ export default function AdminVouchersPage() {
               )}
 
               {actionType === "void" && (
-                <div className="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
-                  <AlertCircle size={20} className="text-red-600 shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-700">
+                <div className="flex items-start gap-3 p-3 bg-destructive/10 rounded-lg border border-destructive/30">
+                  <AlertCircle size={20} className="text-destructive shrink-0 mt-0.5" />
+                  <p className="text-sm text-destructive">
                     Warning: This action is irreversible. The voucher will be
                     immediately marked as expired and cannot be used.
                   </p>
@@ -516,7 +516,7 @@ export default function AdminVouchersPage() {
             </div>
           )}
 
-          <div className="flex gap-3 justify-end pt-4 border-t border-sage-100">
+          <div className="flex gap-3 justify-end pt-4 border-t border-border">
             <Button
               variant="outline"
               onClick={closeActionDialog}
@@ -529,10 +529,10 @@ export default function AdminVouchersPage() {
               disabled={isProcessing}
               className={
                 actionType === "void"
-                  ? "bg-red-600 hover:bg-red-700"
+                  ? "bg-destructive hover:bg-destructive/90"
                   : actionType === "redeem"
-                  ? "bg-emerald-600 hover:bg-emerald-700"
-                  : "bg-blue-600 hover:bg-blue-700"
+                  ? "bg-success hover:bg-success/90"
+                  : "bg-info hover:bg-info/90"
               }
             >
               {isProcessing ? (

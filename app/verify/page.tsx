@@ -87,13 +87,13 @@ export default function VerifyPage() {
   };
 
   const getStatusDisplay = (voucher: NonNullable<typeof searchResult>["voucher"]) => {
-    if (!voucher) return { text: "Unknown", color: "text-gray-500", bg: "bg-gray-100" };
+    if (!voucher) return { text: "Unknown", color: "text-muted-foreground", bg: "bg-muted" };
     
     if (voucher.isRedeemed) {
       return {
         text: "Redeemed",
-        color: "text-blue-700",
-        bg: "bg-blue-100",
+        color: "text-info",
+        bg: "bg-info/10",
         icon: CheckCircle,
       };
     }
@@ -102,29 +102,29 @@ export default function VerifyPage() {
     if (isExpired) {
       return {
         text: "Expired",
-        color: "text-red-700",
-        bg: "bg-red-100",
+        color: "text-destructive",
+        bg: "bg-destructive/10",
         icon: XCircle,
       };
     }
     
     return {
       text: "Valid",
-      color: "text-emerald-700",
-      bg: "bg-emerald-100",
+      color: "text-success",
+      bg: "bg-success/10",
       icon: CheckCircle,
     };
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sage-50 to-sand-100">
+    <div className="min-h-screen bg-gradient-to-b from-muted to-background">
       {/* Hero */}
-      <div className="bg-sage-800 py-20 px-4">
+      <div className="bg-primary py-20 px-4">
         <div className="max-w-2xl mx-auto text-center">
-          <h1 className="font-sans font-semibold text-4xl md:text-5xl text-sand-50 mb-4">
+          <h1 className="font-sans font-semibold text-4xl md:text-5xl text-primary-foreground mb-4">
             Verify Your Voucher
           </h1>
-          <p className="text-sage-300 text-lg">
+          <p className="text-primary-foreground/70 text-lg">
             Enter your voucher code to check its validity and details
           </p>
         </div>
@@ -132,15 +132,15 @@ export default function VerifyPage() {
 
       {/* Input Mode Tabs */}
       <div className="max-w-xl mx-auto px-4 -mt-8">
-        <div className="bg-white rounded-2xl shadow-spa-lg overflow-hidden">
+        <div className="bg-card rounded-2xl shadow-spa-lg overflow-hidden">
           {/* Tabs */}
-          <div className="flex border-b border-sage-100">
+          <div className="flex border-b border-border">
             <button
               onClick={() => setInputMode("manual")}
               className={`flex-1 py-4 px-6 flex items-center justify-center gap-2 font-medium transition-colors ${
                 inputMode === "manual"
-                  ? "bg-sage-50 text-sage-900 border-b-2 border-sage-600"
-                  : "text-sage-500 hover:text-sage-700"
+                  ? "bg-muted text-foreground border-b-2 border-primary"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Keyboard size={18} />
@@ -150,8 +150,8 @@ export default function VerifyPage() {
               onClick={() => setInputMode("scanner")}
               className={`flex-1 py-4 px-6 flex items-center justify-center gap-2 font-medium transition-colors ${
                 inputMode === "scanner"
-                  ? "bg-sage-50 text-sage-900 border-b-2 border-sage-600"
-                  : "text-sage-500 hover:text-sage-700"
+                  ? "bg-muted text-foreground border-b-2 border-primary"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <QrCode size={18} />
@@ -174,13 +174,13 @@ export default function VerifyPage() {
                     />
                     <Search
                       size={20}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-sage-400"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                     />
                   </div>
                   <Button
                     type="submit"
                     disabled={isSearching || !code.trim()}
-                    className="bg-sage-800 hover:bg-sage-700 text-white px-8"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground px-8"
                   >
                     {isSearching ? "..." : "Verify"}
                   </Button>
@@ -201,7 +201,7 @@ export default function VerifyPage() {
         {searchResult && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
             {searchResult.found && searchResult.voucher ? (
-              <div className="bg-white rounded-2xl overflow-hidden shadow-spa-lg">
+              <div className="bg-card rounded-2xl overflow-hidden shadow-spa-lg">
                 {/* Status Banner */}
                 {(() => {
                   const status = getStatusDisplay(searchResult.voucher);
@@ -228,14 +228,14 @@ export default function VerifyPage() {
                       className="w-24 h-24 object-cover rounded-xl"
                     />
                     <div>
-                      <h2 className="font-sans font-semibold text-2xl text-sage-900">
+                      <h2 className="font-sans font-semibold text-2xl text-foreground">
                         {searchResult.voucher.service.name}
                       </h2>
-                      <p className="text-sage-500 flex items-center gap-2 mt-1">
+                      <p className="text-muted-foreground flex items-center gap-2 mt-1">
                         <Clock size={16} />
                         {searchResult.voucher.service.duration} minutes
                       </p>
-                      <p className="text-sage-800 font-semibold mt-2">
+                      <p className="text-foreground font-semibold mt-2">
                         {formatCurrency(searchResult.voucher.amount)}
                       </p>
                     </div>
@@ -243,19 +243,19 @@ export default function VerifyPage() {
 
                   {/* Recipient */}
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-sand-50 p-4 rounded-xl">
-                      <p className="text-xs text-sage-500 mb-1 flex items-center gap-1">
+                    <div className="bg-background p-4 rounded-xl">
+                      <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                         <Gift size={12} /> Recipient
                       </p>
-                      <p className="font-medium text-sage-900">
+                      <p className="font-medium text-foreground">
                         {searchResult.voucher.recipientName}
                       </p>
                     </div>
-                    <div className="bg-sand-50 p-4 rounded-xl">
-                      <p className="text-xs text-sage-500 mb-1 flex items-center gap-1">
+                    <div className="bg-background p-4 rounded-xl">
+                      <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                         <Calendar size={12} /> Expires
                       </p>
-                      <p className="font-medium text-sage-900">
+                      <p className="font-medium text-foreground">
                         {formatDate(new Date(searchResult.voucher.expiryDate))}
                       </p>
                     </div>
@@ -263,12 +263,12 @@ export default function VerifyPage() {
 
                   {/* Message */}
                   {searchResult.voucher.senderMessage && (
-                    <div className="bg-sage-50 p-4 rounded-xl border border-sage-100">
-                      <p className="text-xs text-sage-500 mb-2">Gift Message</p>
-                      <p className="text-sage-700 italic">
+                    <div className="bg-muted p-4 rounded-xl border border-border">
+                      <p className="text-xs text-muted-foreground mb-2">Gift Message</p>
+                      <p className="text-muted-foreground italic">
                         &quot;{searchResult.voucher.senderMessage}&quot;
                       </p>
-                      <p className="text-sage-500 text-sm mt-2">
+                      <p className="text-muted-foreground text-sm mt-2">
                         — From {searchResult.voucher.senderName}
                       </p>
                     </div>
@@ -279,7 +279,7 @@ export default function VerifyPage() {
                     <Button
                       onClick={handleDownloadPDF}
                       disabled={isDownloading}
-                      className="w-full bg-sage-800 hover:bg-sage-700 text-white py-6"
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6"
                     >
                       <Download size={18} className="mr-2" />
                       {isDownloading ? "Generating PDF..." : "Download Voucher PDF"}
@@ -288,18 +288,18 @@ export default function VerifyPage() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl p-12 text-center shadow-spa">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <XCircle size={32} className="text-red-600" />
+              <div className="bg-card rounded-2xl p-12 text-center shadow-spa">
+                <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <XCircle size={32} className="text-destructive" />
                 </div>
-                <h2 className="font-sans font-semibold text-2xl text-sage-900 mb-2">
+                <h2 className="font-sans font-semibold text-2xl text-foreground mb-2">
                   Voucher Not Found
                 </h2>
-                <p className="text-sage-600">
+                <p className="text-muted-foreground">
                   We couldn&apos;t find a voucher with the code{" "}
                   <span className="font-mono font-bold">{code}</span>
                 </p>
-                <p className="text-sage-500 text-sm mt-4">
+                <p className="text-muted-foreground text-sm mt-4">
                   Please check the code and try again
                 </p>
               </div>
@@ -308,7 +308,7 @@ export default function VerifyPage() {
         )}
 
         {!searchResult && (
-          <div className="text-center py-12 text-sage-500">
+          <div className="text-center py-12 text-muted-foreground">
             <Search size={48} className="mx-auto mb-4 opacity-30" />
             <p>Enter a voucher code above to verify its status</p>
           </div>

@@ -2,11 +2,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AdminLoading() {
   return (
-    <div className="min-h-screen bg-sand-50">
+    <div className="min-h-screen bg-background">
       {/* Header skeleton */}
-      <div className="bg-sage-900 text-white px-6 py-8">
-        <Skeleton className="h-8 w-48 bg-sage-700" />
-        <Skeleton className="h-4 w-64 mt-2 bg-sage-700" />
+      <div className="bg-primary text-primary-foreground px-6 py-8">
+        <Skeleton className="h-8 w-48 bg-muted" />
+        <Skeleton className="h-4 w-64 mt-2 bg-muted" />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">

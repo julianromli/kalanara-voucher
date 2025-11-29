@@ -206,8 +206,8 @@ export default function AdminServicesPage() {
 
   if (authLoading || !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-sage-900 flex items-center justify-center">
-        <Loader2 className="animate-spin text-sand-300" size={32} />
+      <div className="min-h-screen bg-primary flex items-center justify-center">
+        <Loader2 className="animate-spin text-muted-foreground" size={32} />
       </div>
     );
   }
@@ -215,24 +215,24 @@ export default function AdminServicesPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <div className="bg-sage-900 py-8 px-4">
+      <div className="bg-primary py-8 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Tag size={24} className="text-sand-400" />
-              <h1 className="font-sans font-semibold text-2xl text-sand-100">
+              <Tag size={24} className="text-muted-foreground" />
+              <h1 className="font-sans font-semibold text-2xl text-primary-foreground">
                 Service Management
               </h1>
             </div>
             <Button
               onClick={handleOpenCreate}
-              className="bg-sand-500 hover:bg-sand-400 text-sage-900"
+              className="bg-accent hover:bg-accent/80 text-accent-foreground"
             >
               <Plus size={18} className="mr-2" />
               Add Service
             </Button>
           </div>
-          <p className="text-sage-400 mt-2">
+          <p className="text-muted-foreground mt-2">
             Manage spa services, pricing, and availability
           </p>
         </div>
@@ -240,12 +240,12 @@ export default function AdminServicesPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Filters */}
-        <div className="bg-white rounded-2xl shadow-spa border border-sage-100 p-4 mb-6">
+        <div className="bg-card rounded-2xl shadow-spa border border-border p-4 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
               <Search
                 size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-sage-400"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               />
               <Input
                 placeholder="Search services..."
@@ -277,21 +277,21 @@ export default function AdminServicesPage() {
         {/* Services Grid */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="animate-spin text-sage-500" size={32} />
+            <Loader2 className="animate-spin text-muted-foreground" size={32} />
           </div>
         ) : filteredServices.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-spa border border-sage-100 p-12 text-center">
-            <Tag size={48} className="text-sage-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-sage-700 mb-2">
+          <div className="bg-card rounded-2xl shadow-spa border border-border p-12 text-center">
+            <Tag size={48} className="text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-muted-foreground mb-2">
               No services found
             </h3>
-            <p className="text-sage-500 mb-6">
+            <p className="text-muted-foreground mb-6">
               {searchQuery || categoryFilter !== "ALL"
                 ? "Try adjusting your filters"
                 : "Create your first service to get started"}
             </p>
             {!searchQuery && categoryFilter === "ALL" && (
-              <Button onClick={handleOpenCreate} className="bg-sage-700 hover:bg-sage-600">
+              <Button onClick={handleOpenCreate} className="bg-primary hover:bg-primary/90">
                 <Plus size={18} className="mr-2" />
                 Create Service
               </Button>
@@ -302,7 +302,7 @@ export default function AdminServicesPage() {
             {filteredServices.map((service) => (
               <div
                 key={service.id}
-                className={`bg-white rounded-2xl shadow-spa border border-sage-100 overflow-hidden transition-all hover:shadow-spa-lg ${
+                className={`bg-card rounded-2xl shadow-spa border border-border overflow-hidden transition-all hover:shadow-spa-lg ${
                   !service.is_active ? "opacity-60" : ""
                 }`}
               >
@@ -321,39 +321,39 @@ export default function AdminServicesPage() {
                     <span
                       className={`text-xs px-2 py-1 rounded-full ${
                         service.is_active
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-red-100 text-red-700"
+                          ? "bg-success/10 text-success"
+                          : "bg-destructive/10 text-destructive"
                       }`}
                     >
                       {service.is_active ? "Active" : "Inactive"}
                     </span>
                   </div>
                   <div className="absolute bottom-3 left-3">
-                    <span className="text-xs px-2 py-1 rounded-full bg-white/90 backdrop-blur text-sage-700">
+                    <span className="text-xs px-2 py-1 rounded-full bg-card/90 backdrop-blur text-muted-foreground">
                       {CATEGORY_LABELS[service.category]}
                     </span>
                   </div>
                 </div>
 
                 <div className="p-5">
-                  <h3 className="font-sans font-semibold text-xl text-sage-900 mb-1">
+                  <h3 className="font-sans font-semibold text-xl text-foreground mb-1">
                     {service.name}
                   </h3>
-                  <p className="text-sm text-sage-500 line-clamp-2 mb-4 min-h-[40px]">
+                  <p className="text-sm text-muted-foreground line-clamp-2 mb-4 min-h-[40px]">
                     {service.description || "No description"}
                   </p>
 
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-1 text-sage-600">
+                    <div className="flex items-center gap-1 text-muted-foreground">
                       <Clock size={16} />
                       <span className="text-sm">{service.duration} mins</span>
                     </div>
-                    <span className="font-semibold text-sage-800">
+                    <span className="font-semibold text-foreground">
                       {formatCurrency(service.price)}
                     </span>
                   </div>
 
-                  <div className="flex gap-2 pt-4 border-t border-sage-100">
+                  <div className="flex gap-2 pt-4 border-t border-border">
                     <Button
                       variant="outline"
                       size="sm"
@@ -368,7 +368,7 @@ export default function AdminServicesPage() {
                       size="sm"
                       onClick={() => handleDelete(service.id)}
                       disabled={isDeleting === service.id}
-                      className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
                     >
                       {isDeleting === service.id ? (
                         <Loader2 size={14} className="animate-spin" />
@@ -395,7 +395,7 @@ export default function AdminServicesPage() {
 
           <div className="space-y-5 py-4">
             <div>
-              <label className="block text-sm text-sage-700 mb-1.5">
+              <label className="block text-sm text-muted-foreground mb-1.5">
                 Service Name *
               </label>
               <Input
@@ -408,7 +408,7 @@ export default function AdminServicesPage() {
             </div>
 
             <div>
-              <label className="block text-sm text-sage-700 mb-1.5">
+              <label className="block text-sm text-muted-foreground mb-1.5">
                 Description
               </label>
               <textarea
@@ -418,13 +418,13 @@ export default function AdminServicesPage() {
                 }
                 placeholder="Describe the service..."
                 rows={3}
-                className="w-full px-3 py-2 border border-sage-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sage-500 resize-none"
+                className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring resize-none"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-sage-700 mb-1.5">
+                <label className="block text-sm text-muted-foreground mb-1.5">
                   Duration (mins) *
                 </label>
                 <Input
@@ -441,7 +441,7 @@ export default function AdminServicesPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-sage-700 mb-1.5">
+                <label className="block text-sm text-muted-foreground mb-1.5">
                   Price (IDR) *
                 </label>
                 <Input
@@ -460,7 +460,7 @@ export default function AdminServicesPage() {
             </div>
 
             <div>
-              <label className="block text-sm text-sage-700 mb-1.5">
+              <label className="block text-sm text-muted-foreground mb-1.5">
                 Category *
               </label>
               <Select
@@ -483,7 +483,7 @@ export default function AdminServicesPage() {
             </div>
 
             <div>
-              <label className="block text-sm text-sage-700 mb-1.5">
+              <label className="block text-sm text-muted-foreground mb-1.5">
                 Image URL
               </label>
               <Input
@@ -507,7 +507,7 @@ export default function AdminServicesPage() {
             </div>
           </div>
 
-          <div className="flex gap-3 justify-end pt-4 border-t border-sage-100">
+          <div className="flex gap-3 justify-end pt-4 border-t border-border">
             <Button
               variant="outline"
               onClick={() => setIsDialogOpen(false)}
@@ -519,7 +519,7 @@ export default function AdminServicesPage() {
             <Button
               onClick={handleSave}
               disabled={isSaving}
-              className="bg-sage-700 hover:bg-sage-600"
+              className="bg-primary hover:bg-primary/90"
             >
               {isSaving ? (
                 <Loader2 size={16} className="mr-1 animate-spin" />
