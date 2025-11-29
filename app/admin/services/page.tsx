@@ -308,7 +308,7 @@ export default function AdminServicesPage() {
                     <span
                       className={`text-xs px-2 py-1 rounded-full ${
                         service.is_active
-                          ? "bg-success/10 text-success"
+                          ? "bg-primary/10 text-primary"
                           : "bg-destructive/10 text-destructive"
                       }`}
                     >

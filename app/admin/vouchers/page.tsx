@@ -56,12 +56,12 @@ function getVoucherStatus(voucher: VoucherWithService): "active" | "redeemed" | 
 const STATUS_CONFIG = {
   active: {
     label: "Active",
-    color: "bg-success/10 text-success",
+    color: "bg-primary/10 text-primary",
     icon: Clock,
   },
   redeemed: {
     label: "Redeemed",
-    color: "bg-info/10 text-info",
+    color: "bg-primary/10 text-primary",
     icon: CheckCircle,
   },
   expired: {
@@ -204,13 +204,13 @@ export default function AdminVouchersPage() {
             <p className="text-2xl font-sans font-semibold text-foreground">{stats.total}</p>
           </div>
           <div className="bg-card rounded-xl p-4 shadow-spa border border-border">
-            <p className="text-sm text-success flex items-center gap-1">
+            <p className="text-sm text-primary flex items-center gap-1">
               <Clock size={14} /> Active
             </p>
             <p className="text-2xl font-sans font-semibold text-foreground">{stats.active}</p>
           </div>
           <div className="bg-card rounded-xl p-4 shadow-spa border border-border">
-            <p className="text-sm text-info flex items-center gap-1">
+            <p className="text-sm text-primary flex items-center gap-1">
               <CheckCircle size={14} /> Redeemed
             </p>
             <p className="text-2xl font-sans font-semibold text-foreground">{stats.redeemed}</p>
@@ -368,7 +368,7 @@ export default function AdminVouchersPage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => openActionDialog(voucher, "redeem")}
-                                  className="h-8 w-8 p-0 text-success hover:text-success hover:bg-success/10"
+                                  className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
                                   title="Redeem"
                                 >
                                   <ScanLine size={16} />
@@ -377,7 +377,7 @@ export default function AdminVouchersPage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => openActionDialog(voucher, "extend")}
-                                  className="h-8 w-8 p-0 text-info hover:text-info hover:bg-info/10"
+                                  className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
                                   title="Extend"
                                 >
                                   <CalendarPlus size={16} />
@@ -417,13 +417,13 @@ export default function AdminVouchersPage() {
             <DialogTitle className="font-sans font-semibold text-xl flex items-center gap-2">
               {actionType === "redeem" && (
                 <>
-                  <ScanLine size={20} className="text-success" />
+                  <ScanLine size={20} className="text-primary" />
                   Redeem Voucher
                 </>
               )}
               {actionType === "extend" && (
                 <>
-                  <CalendarPlus size={20} className="text-info" />
+                  <CalendarPlus size={20} className="text-primary" />
                   Extend Voucher
                 </>
               )}
@@ -516,9 +516,7 @@ export default function AdminVouchersPage() {
               className={
                 actionType === "void"
                   ? "bg-destructive hover:bg-destructive/90"
-                  : actionType === "redeem"
-                  ? "bg-success hover:bg-success/90"
-                  : "bg-info hover:bg-info/90"
+                  : "bg-primary hover:bg-primary/90"
               }
             >
               {isProcessing ? (

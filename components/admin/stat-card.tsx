@@ -14,17 +14,6 @@ const iconMap: Record<string, LucideIcon> = {
   expired: XCircle,
 };
 
-const iconColors: Record<string, string> = {
-  revenue: "text-success bg-success/10 border-success/20",
-  services: "text-info bg-info/10 border-info/20",
-  orders: "text-info bg-info/10 border-info/20",
-  rating: "text-warning bg-warning/10 border-warning/20",
-  vouchers: "text-primary bg-primary/10 border-primary/20",
-  active: "text-success bg-success/10 border-success/20",
-  redeemed: "text-info bg-info/10 border-info/20",
-  expired: "text-destructive bg-destructive/10 border-destructive/20",
-};
-
 interface StatCardProps {
   title: string;
   value: string | number;
@@ -35,7 +24,6 @@ interface StatCardProps {
 
 export function StatCard({ title, value, icon, badge, className }: StatCardProps) {
   const Icon = iconMap[icon] || Tag;
-  const colorClass = iconColors[icon] || "text-muted-foreground bg-muted border-border";
 
   return (
     <div className={cn(
@@ -53,11 +41,8 @@ export function StatCard({ title, value, icon, badge, className }: StatCardProps
               {badge}
             </span>
           )}
-          <div className={cn(
-            "flex size-12 items-center justify-center rounded-xl border transition-transform duration-300 group-hover:scale-105",
-            colorClass
-          )}>
-            <Icon className="size-5" />
+          <div className="flex size-12 items-center justify-center rounded-xl border border-primary/20 bg-primary transition-transform duration-300 group-hover:scale-105">
+            <Icon className="size-5 text-primary-foreground" />
           </div>
         </div>
       </div>

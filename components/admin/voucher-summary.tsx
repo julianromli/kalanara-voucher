@@ -32,14 +32,14 @@ export function VoucherSummary({ stats, reviews = [] }: VoucherSummaryProps) {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground flex items-center gap-2 text-sm">
-              <Clock className="size-4 text-success" />
+              <Clock className="size-4 text-primary" />
               Active
             </span>
             <span className="font-semibold text-foreground">{stats.active}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground flex items-center gap-2 text-sm">
-              <CheckCircle className="size-4 text-info" />
+              <CheckCircle className="size-4 text-primary" />
               Redeemed
             </span>
             <span className="font-semibold text-foreground">{stats.redeemed}</span>
@@ -57,7 +57,7 @@ export function VoucherSummary({ stats, reviews = [] }: VoucherSummaryProps) {
       {/* Recent Reviews */}
       <div className="rounded-xl border border-border bg-card p-5">
         <h3 className="font-medium text-foreground mb-4 flex items-center gap-2">
-          <Star className="size-4 text-warning" />
+          <Star className="size-4 text-primary" />
           Recent Reviews
         </h3>
         {reviews.length > 0 ? (
