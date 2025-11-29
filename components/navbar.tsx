@@ -11,7 +11,7 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, logout, user } = useAuth();
+  const { isAuthenticated, logout, user, isLoading } = useAuth();
   const { showToast } = useToast();
 
   const isAdminRoute = pathname.startsWith("/admin");
@@ -70,21 +70,21 @@ export default function Navbar() {
                   <ShieldCheck size={16} /> Verify
                 </Link>
 
-                {isAuthenticated ? (
+                {isAuthenticated && !isLoading ? (
                   <Link
                     href="/admin/dashboard"
                     className="text-sm font-semibold text-sage-800 hover:text-sage-600"
                   >
-                    Dashboard ({user?.role})
+                    Dashboard
                   </Link>
-                ) : (
+                ) : !isLoading ? (
                   <Link
                     href="/admin/login"
                     className="text-sm text-sage-500 hover:text-sage-800"
                   >
                     Staff Login
                   </Link>
-                )}
+                ) : null}
 
                 <a
                   href="/#services"
@@ -157,7 +157,7 @@ export default function Navbar() {
                 >
                   <ShieldCheck size={16} /> Verify Voucher
                 </Link>
-                {isAuthenticated ? (
+                {isAuthenticated && !isLoading ? (
                   <Link
                     href="/admin/dashboard"
                     onClick={() => setIsOpen(false)}
@@ -165,7 +165,7 @@ export default function Navbar() {
                   >
                     Dashboard
                   </Link>
-                ) : (
+                ) : !isLoading ? (
                   <Link
                     href="/admin/login"
                     onClick={() => setIsOpen(false)}
@@ -173,7 +173,7 @@ export default function Navbar() {
                   >
                     Staff Login
                   </Link>
-                )}
+                ) : null}
               </>
             ) : (
               <>

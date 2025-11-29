@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Search, CheckCircle, XCircle, Clock, Gift, Calendar, QrCode, Keyboard } from "lucide-react";
+import { Search, CheckCircle, XCircle, Clock, Gift, Calendar, QrCode, Keyboard, Download } from "lucide-react";
 import { useStore } from "@/context/StoreContext";
 import { formatCurrency, formatDate } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import QRScanner from "@/components/qr-scanner";
+import { generateVoucherPDF, downloadPDF } from "@/lib/pdf";
 
 export default function VerifyPage() {
   const [code, setCode] = useState("");
@@ -18,6 +19,33 @@ export default function VerifyPage() {
   } | null>(null);
 
   const { getVoucherByCode } = useStore();
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    if (!searchResult?.voucher) return;
+    
+    setIsDownloading(true);
+    try {
+      const v = searchResult.voucher;
+      const blob = await generateVoucherPDF({
+        code: v.code,
+        serviceName: v.service.name,
+        serviceDescription: v.service.description || undefined,
+        duration: v.service.duration,
+        amount: v.amount,
+        recipientName: v.recipientName,
+        senderName: v.senderName,
+        senderMessage: v.senderMessage || undefined,
+        expiryDate: v.expiryDate instanceof Date ? v.expiryDate.toISOString() : v.expiryDate,
+        purchaseDate: v.purchaseDate instanceof Date ? v.purchaseDate.toISOString() : v.purchaseDate,
+      });
+      downloadPDF(blob, `kalanara-voucher-${v.code}.pdf`);
+    } catch (error) {
+      console.error("Failed to generate PDF:", error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const verifyCode = async (voucherCode: string) => {
     setIsSearching(true);
@@ -234,6 +262,18 @@ export default function VerifyPage() {
                         — From {searchResult.voucher.senderName}
                       </p>
                     </div>
+                  )}
+
+                  {/* Download PDF Button */}
+                  {!searchResult.voucher.isRedeemed && new Date(searchResult.voucher.expiryDate) >= new Date() && (
+                    <Button
+                      onClick={handleDownloadPDF}
+                      disabled={isDownloading}
+                      className="w-full bg-sage-800 hover:bg-sage-700 text-white py-6"
+                    >
+                      <Download size={18} className="mr-2" />
+                      {isDownloading ? "Generating PDF..." : "Download Voucher PDF"}
+                    </Button>
                   )}
                 </div>
               </div>
