@@ -1,0 +1,7 @@
+{
+  "name": "Kalanara Spa",
+  "description": "Organic luxury spa voucher booking platform with admin management system.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

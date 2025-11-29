@@ -1,26 +1,213 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-playfair);
   --font-mono: var(--font-geist-mono);
+  
+  /* Sage Color Palette - Organic spa greens */
+  --color-sage-50: #f6f7f4;
+  --color-sage-100: #e8ebe3;
+  --color-sage-200: #d2d9c8;
+  --color-sage-300: #b3c0a1;
+  --color-sage-400: #94a67a;
+  --color-sage-500: #778c5d;
+  --color-sage-600: #5d7048;
+  --color-sage-700: #4a5a3b;
+  --color-sage-800: #3d4932;
+  --color-sage-900: #343f2c;
+  --color-sage-950: #1a2115;
+  
+  /* Sand Color Palette - Warm neutral tones */
+  --color-sand-50: #faf8f5;
+  --color-sand-100: #f3efe8;
+  --color-sand-200: #e6ddd0;
+  --color-sand-300: #d5c6b1;
+  --color-sand-400: #c2aa8e;
+  --color-sand-500: #b39474;
+  --color-sand-600: #a68261;
+  --color-sand-700: #8a6a51;
+  --color-sand-800: #715846;
+  --color-sand-900: #5d4a3b;
+  --color-sand-950: #31261e;
+  
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --radius: 0.625rem;
+  
+  /* Kalanara Spa Theme - Light Mode */
+  --background: #faf8f5; /* sand-50 */
+  --foreground: #343f2c; /* sage-900 */
+  --card: #ffffff;
+  --card-foreground: #343f2c; /* sage-900 */
+  --popover: #ffffff;
+  --popover-foreground: #343f2c; /* sage-900 */
+  --primary: #5d7048; /* sage-600 */
+  --primary-foreground: #faf8f5; /* sand-50 */
+  --secondary: #f3efe8; /* sand-100 */
+  --secondary-foreground: #4a5a3b; /* sage-700 */
+  --muted: #e6ddd0; /* sand-200 */
+  --muted-foreground: #5d4a3b; /* sand-900 */
+  --accent: #e8ebe3; /* sage-100 */
+  --accent-foreground: #4a5a3b; /* sage-700 */
+  --destructive: #dc2626;
+  --border: #d2d9c8; /* sage-200 */
+  --input: #e6ddd0; /* sand-200 */
+  --ring: #778c5d; /* sage-500 */
+  
+  /* Chart colors - spa-inspired */
+  --chart-1: #778c5d; /* sage-500 */
+  --chart-2: #b39474; /* sand-500 */
+  --chart-3: #94a67a; /* sage-400 */
+  --chart-4: #c2aa8e; /* sand-400 */
+  --chart-5: #5d7048; /* sage-600 */
+  
+  /* Sidebar */
+  --sidebar: #f6f7f4; /* sage-50 */
+  --sidebar-foreground: #343f2c; /* sage-900 */
+  --sidebar-primary: #5d7048; /* sage-600 */
+  --sidebar-primary-foreground: #faf8f5; /* sand-50 */
+  --sidebar-accent: #e8ebe3; /* sage-100 */
+  --sidebar-accent-foreground: #4a5a3b; /* sage-700 */
+  --sidebar-border: #d2d9c8; /* sage-200 */
+  --sidebar-ring: #778c5d; /* sage-500 */
+}
+
+.dark {
+  /* Kalanara Spa Theme - Dark Mode */
+  --background: #1a2115; /* sage-950 */
+  --foreground: #f3efe8; /* sand-100 */
+  --card: #343f2c; /* sage-900 */
+  --card-foreground: #f3efe8; /* sand-100 */
+  --popover: #343f2c; /* sage-900 */
+  --popover-foreground: #f3efe8; /* sand-100 */
+  --primary: #94a67a; /* sage-400 */
+  --primary-foreground: #1a2115; /* sage-950 */
+  --secondary: #3d4932; /* sage-800 */
+  --secondary-foreground: #e6ddd0; /* sand-200 */
+  --muted: #31261e; /* sand-950 */
+  --muted-foreground: #d5c6b1; /* sand-300 */
+  --accent: #4a5a3b; /* sage-700 */
+  --accent-foreground: #e8ebe3; /* sage-100 */
+  --destructive: #ef4444;
+  --border: #4a5a3b; /* sage-700 */
+  --input: #3d4932; /* sage-800 */
+  --ring: #94a67a; /* sage-400 */
+  
+  /* Chart colors - spa-inspired dark */
+  --chart-1: #94a67a; /* sage-400 */
+  --chart-2: #c2aa8e; /* sand-400 */
+  --chart-3: #b3c0a1; /* sage-300 */
+  --chart-4: #d5c6b1; /* sand-300 */
+  --chart-5: #778c5d; /* sage-500 */
+  
+  /* Sidebar */
+  --sidebar: #343f2c; /* sage-900 */
+  --sidebar-foreground: #f3efe8; /* sand-100 */
+  --sidebar-primary: #94a67a; /* sage-400 */
+  --sidebar-primary-foreground: #1a2115; /* sage-950 */
+  --sidebar-accent: #4a5a3b; /* sage-700 */
+  --sidebar-accent-foreground: #e8ebe3; /* sage-100 */
+  --sidebar-border: #4a5a3b; /* sage-700 */
+  --sidebar-ring: #94a67a; /* sage-400 */
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* Elegant selection color */
+  ::selection {
+    background-color: #b3c0a1; /* sage-300 */
+    color: #1a2115; /* sage-950 */
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  /* Spa-specific gradient backgrounds */
+  .bg-spa-gradient {
+    background: linear-gradient(135deg, #f6f7f4 0%, #faf8f5 50%, #f3efe8 100%);
+  }
+  
+  .bg-spa-gradient-dark {
+    background: linear-gradient(135deg, #1a2115 0%, #343f2c 50%, #31261e 100%);
+  }
+  
+  /* Elegant text gradient for headings */
+  .text-spa-gradient {
+    background: linear-gradient(135deg, #5d7048 0%, #778c5d 50%, #8a6a51 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Soft shadow for cards */
+  .shadow-spa {
+    box-shadow: 0 4px 20px -2px rgba(93, 112, 72, 0.08),
+                0 2px 8px -2px rgba(93, 112, 72, 0.04);
+  }
+  
+  .shadow-spa-lg {
+    box-shadow: 0 10px 40px -4px rgba(93, 112, 72, 0.12),
+                0 4px 16px -4px rgba(93, 112, 72, 0.06);
+  }
+  
+  /* Decorative leaf pattern overlay */
+  .bg-leaf-pattern {
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5c-5 10-15 15-25 15 10-5 15-15 15-25 5 10 15 15 25 15-10-5-15-15-15-25z' fill='%23d2d9c8' fill-opacity='0.15'/%3E%3C/svg%3E");
+  }
+  
+  /* Smooth transitions for interactive elements */
+  .transition-spa {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
 }

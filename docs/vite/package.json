@@ -1,0 +1,30 @@
+{
+  "name": "kalanara-spa",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react-router-dom": "^7.9.6",
+    "recharts": "^3.4.1",
+    "react": "^19.2.0",
+    "lucide-react": "^0.554.0",
+    "react-dom": "^19.2.0",
+    "react-hook-form": "^7.66.1",
+    "react-qr-code": "2.0.15",
+    "jspdf": "2.5.1",
+    "jsqr": "1.4.0",
+    "qrcode": "1.5.3",
+    "@emailjs/browser": "3.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

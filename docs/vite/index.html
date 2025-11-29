@@ -1,0 +1,84 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kalanara Spa | Rejuvenate Your Soul</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              sage: {
+                50: '#f4f7f4',
+                100: '#e3ebe3',
+                200: '#c5d9c5',
+                300: '#9abf9a',
+                400: '#729f72',
+                500: '#4f804f', // Base Green
+                600: '#3d663d',
+                700: '#325232',
+                800: '#2a422a', // Deep Sage
+                900: '#233623',
+              },
+              sand: {
+                50: '#fdfcfb',
+                100: '#f7f5f0', // Warm Sand Background
+                200: '#efe8db',
+                300: '#e2d5be',
+                400: '#d0b998',
+                500: '#c19f78', // Gold/Bronze accent
+                600: '#b38b62',
+                700: '#95704e',
+                800: '#7b5d43',
+                900: '#644c38',
+              }
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              serif: ['Playfair Display', 'serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      /* Hide scrollbar for clean UI */
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6",
+    "recharts": "https://aistudiocdn.com/recharts@^3.4.1",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react-hook-form": "https://aistudiocdn.com/react-hook-form@^7.66.1",
+    "react-qr-code": "https://esm.sh/react-qr-code@2.0.15?external=react,react-dom",
+    "jspdf": "https://esm.sh/jspdf@2.5.1",
+    "jsqr": "https://esm.sh/jsqr@1.4.0",
+    "qrcode": "https://esm.sh/qrcode@1.5.3",
+    "@emailjs/browser": "https://esm.sh/@emailjs/browser@3.11.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-sand-50 text-sage-900 antialiased">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
