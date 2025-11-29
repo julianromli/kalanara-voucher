@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search, CheckCircle, XCircle, Clock, Gift, Calendar, QrCode, Keyboard, Download } from "lucide-react";
 import { useStore } from "@/context/StoreContext";
 import { formatCurrency, formatDate } from "@/lib/constants";
@@ -20,6 +21,7 @@ export default function VerifyPage() {
 
   const { getVoucherByCode } = useStore();
   const [isDownloading, setIsDownloading] = useState(false);
+  const searchParams = useSearchParams();
 
   const handleDownloadPDF = async () => {
     if (!searchResult?.voucher) return;
@@ -65,6 +67,14 @@ export default function VerifyPage() {
 
     setIsSearching(false);
   };
+
+  // Auto-verify if code is provided in URL (e.g., /verify?code=KSP-2025-XXXX)
+  useEffect(() => {
+    const codeParam = searchParams.get("code");
+    if (codeParam) {
+      verifyCode(codeParam);
+    }
+  }, [searchParams]);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();

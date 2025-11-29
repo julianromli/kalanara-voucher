@@ -656,6 +656,7 @@ export default function CheckoutPage({ params }: PageProps) {
                       src={service.image || "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=200&q=80"}
                       alt={service.name}
                       fill
+                      sizes="80px"
                       className="object-cover"
                     />
                   </div>

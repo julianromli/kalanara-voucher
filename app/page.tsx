@@ -26,6 +26,7 @@ export default function LandingPage() {
             src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&q=80"
             alt="Spa Background"
             fill
+            sizes="100vw"
             priority
             className="object-cover opacity-60"
           />
@@ -78,6 +79,7 @@ export default function LandingPage() {
                       src={service.image || "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80"}
                       alt={service.name}
                       fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover group-hover:scale-110 transition-transform duration-700"
                     />
                     <div className="absolute top-4 right-4 bg-white/90 backdrop-blur text-sage-900 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 shadow-sm">

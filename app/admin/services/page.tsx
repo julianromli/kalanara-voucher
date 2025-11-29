@@ -322,6 +322,7 @@ export default function AdminServicesPage() {
                     }
                     alt={service.name}
                     fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="object-cover"
                   />
                   <div className="absolute top-3 right-3 flex gap-2">
@@ -506,6 +507,7 @@ export default function AdminServicesPage() {
                     src={formData.image_url}
                     alt="Preview"
                     fill
+                    sizes="128px"
                     className="object-cover"
                   />
                 </div>

@@ -62,6 +62,7 @@ export default function VoucherDetailPage({ params }: PageProps) {
               src={service.image || "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80"}
               alt={service.name}
               fill
+              sizes="(max-width: 768px) 100vw, 50vw"
               priority
               className="object-cover"
             />
