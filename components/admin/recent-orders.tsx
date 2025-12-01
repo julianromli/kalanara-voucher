@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { Search, ShoppingBag, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { formatCurrency } from "@/lib/constants";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { formatCurrency, APP_CONFIG } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 interface Order {
@@ -72,6 +72,10 @@ export function RecentOrders({ orders, animationDelay = 0 }: RecentOrdersProps) 
                 <div className="flex items-center justify-between h-full gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <Avatar className="size-8 shrink-0">
+                      <AvatarImage 
+                        src={APP_CONFIG.defaultAvatarUrl} 
+                        alt={order.customerName} 
+                      />
                       <AvatarFallback className="bg-muted text-muted-foreground text-xs">
                         {order.customerName.charAt(0).toUpperCase()}
                       </AvatarFallback>

@@ -29,6 +29,7 @@ export const APP_CONFIG = {
   voucherValidity: 365, // days
   currency: "IDR",
   currencySymbol: "Rp",
+  defaultAvatarUrl: "https://github.com/haydenbleasel.png",
 } as const;
 
 // ============================================================================
