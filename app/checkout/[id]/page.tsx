@@ -494,7 +494,7 @@ export default function CheckoutPage({ params }: PageProps) {
                       {...register("senderMessage")}
                       placeholder="Write a personal message..."
                       rows={3}
-                      className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring resize-none placeholder:text-muted-foreground"
                     />
                   </div>
                 </div>
