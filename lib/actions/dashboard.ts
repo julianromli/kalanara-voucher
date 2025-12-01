@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 import { cacheLife, cacheTag } from "next/cache";
 
 export interface DashboardStats {
@@ -38,7 +38,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   cacheLife("minutes");
   cacheTag("dashboard-stats");
 
-  const supabase = await createClient();
+  const supabase = getAdminClient();
 
   // Parallel queries for better performance
   const [
