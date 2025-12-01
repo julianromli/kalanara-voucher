@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Ticket, Clock, CheckCircle, XCircle, Star } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  Ticket01Icon,
+  Clock01Icon,
+  Tick02Icon,
+  CancelCircleIcon,
+  StarIcon,
+} from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 
 interface VoucherStats {
@@ -42,27 +49,27 @@ export function VoucherSummary({ stats, reviews = [], animationDelay = 0 }: Vouc
         style={{ animationDelay: `${animationDelay}ms` }}
       >
         <h3 className="font-medium text-foreground mb-4 flex items-center gap-2">
-          <Ticket className="size-4 text-muted-foreground" />
+          <HugeiconsIcon icon={Ticket01Icon} className="size-4 text-muted-foreground" />
           Voucher Summary
         </h3>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground flex items-center gap-2 text-sm">
-              <Clock className="size-4 text-primary" />
+              <HugeiconsIcon icon={Clock01Icon} className="size-4 text-primary" />
               Active
             </span>
             <span className="font-semibold text-foreground">{stats.active}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground flex items-center gap-2 text-sm">
-              <CheckCircle className="size-4 text-primary" />
+              <HugeiconsIcon icon={Tick02Icon} className="size-4 text-primary" />
               Redeemed
             </span>
             <span className="font-semibold text-foreground">{stats.redeemed}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground flex items-center gap-2 text-sm">
-              <XCircle className="size-4 text-destructive" />
+              <HugeiconsIcon icon={CancelCircleIcon} className="size-4 text-destructive" />
               Expired
             </span>
             <span className="font-semibold text-foreground">{stats.expired}</span>
@@ -79,7 +86,7 @@ export function VoucherSummary({ stats, reviews = [], animationDelay = 0 }: Vouc
         style={{ animationDelay: `${animationDelay + 100}ms` }}
       >
         <h3 className="font-medium text-foreground mb-4 flex items-center gap-2">
-          <Star className="size-4 text-primary" />
+          <HugeiconsIcon icon={StarIcon} className="size-4 text-primary" />
           Recent Reviews
         </h3>
         {reviews.length > 0 ? (
@@ -91,8 +98,9 @@ export function VoucherSummary({ stats, reviews = [], animationDelay = 0 }: Vouc
               >
                 <div className="flex items-center gap-1 mb-1">
                   {[...Array(5)].map((_, i) => (
-                    <Star
+                    <HugeiconsIcon
                       key={i}
+                      icon={StarIcon}
                       className={`size-3 ${
                         i < review.rating
                           ? "text-warning fill-warning"

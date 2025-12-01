@@ -2,21 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import {
-  Ticket,
-  Search,
-  Filter,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Loader2,
-  CalendarPlus,
-  Ban,
-  ScanLine,
-  Copy,
-  Check,
-} from "lucide-react";
+  Ticket01Icon,
+  Search01Icon,
+  FilterIcon,
+  Clock01Icon,
+  Tick02Icon,
+  CancelCircleIcon,
+  AlertCircleIcon,
+  Loading03Icon,
+  CalendarAdd01Icon,
+  Cancel01Icon,
+  QrCode01Icon,
+  Copy01Icon,
+} from "@hugeicons/core-free-icons";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { formatCurrency } from "@/lib/constants";
@@ -54,21 +54,21 @@ function getVoucherStatus(voucher: VoucherWithService): "active" | "redeemed" | 
   return "active";
 }
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<"active" | "redeemed" | "expired", { label: string; color: string; icon: IconSvgElement }> = {
   active: {
     label: "Active",
     color: "bg-primary/10 text-primary",
-    icon: Clock,
+    icon: Clock01Icon,
   },
   redeemed: {
     label: "Redeemed",
     color: "bg-primary/10 text-primary",
-    icon: CheckCircle,
+    icon: Tick02Icon,
   },
   expired: {
     label: "Expired",
     color: "bg-destructive/10 text-destructive",
-    icon: XCircle,
+    icon: CancelCircleIcon,
   },
 };
 
@@ -206,7 +206,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
             isMounted ? "animate-fade-slide-up" : "opacity-0"
           )} style={{ animationDelay: "75ms" }}>
             <p className="text-sm text-primary flex items-center gap-1">
-              <Clock size={14} /> Active
+              <HugeiconsIcon icon={Clock01Icon} size={14} /> Active
             </p>
             <p className="text-2xl font-sans font-semibold text-foreground">{stats.active}</p>
           </div>
@@ -215,7 +215,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
             isMounted ? "animate-fade-slide-up" : "opacity-0"
           )} style={{ animationDelay: "150ms" }}>
             <p className="text-sm text-primary flex items-center gap-1">
-              <CheckCircle size={14} /> Redeemed
+              <HugeiconsIcon icon={Tick02Icon} size={14} /> Redeemed
             </p>
             <p className="text-2xl font-sans font-semibold text-foreground">{stats.redeemed}</p>
           </div>
@@ -224,7 +224,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
             isMounted ? "animate-fade-slide-up" : "opacity-0"
           )} style={{ animationDelay: "225ms" }}>
             <p className="text-sm text-destructive flex items-center gap-1">
-              <XCircle size={14} /> Expired
+              <HugeiconsIcon icon={CancelCircleIcon} size={14} /> Expired
             </p>
             <p className="text-2xl font-sans font-semibold text-foreground">{stats.expired}</p>
           </div>
@@ -237,7 +237,8 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
         )} style={{ animationDelay: "300ms" }}>
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
-              <Search
+              <HugeiconsIcon
+                icon={Search01Icon}
                 size={18}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               />
@@ -253,7 +254,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
               onValueChange={(v) => setStatusFilter(v as VoucherStatus)}
             >
               <SelectTrigger className="w-full md:w-[180px]">
-                <Filter size={16} className="mr-2" />
+                <HugeiconsIcon icon={FilterIcon} size={16} className="mr-2" />
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
@@ -269,7 +270,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
         {/* Vouchers Table */}
         {filteredVouchers.length === 0 ? (
           <div className="bg-card rounded-2xl shadow-spa border border-border p-12 text-center">
-            <Ticket size={48} className="text-muted-foreground mx-auto mb-4" />
+            <HugeiconsIcon icon={Ticket01Icon} size={48} className="text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium text-muted-foreground mb-2">
               No vouchers found
             </h3>
@@ -339,9 +340,9 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                               className="text-muted-foreground hover:text-foreground transition-colors"
                             >
                               {copiedCode === voucher.code ? (
-                                <Check size={14} className="text-success" />
+                                <HugeiconsIcon icon={Tick02Icon} size={14} className="text-success" />
                               ) : (
-                                <Copy size={14} />
+                                <HugeiconsIcon icon={Copy01Icon} size={14} />
                               )}
                             </button>
                           </div>
@@ -372,7 +373,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                           <span
                             className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${config.color}`}
                           >
-                            <StatusIcon size={12} />
+                            <HugeiconsIcon icon={config.icon} size={12} />
                             {config.label}
                           </span>
                         </td>
@@ -387,7 +388,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                                   className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
                                   title="Redeem"
                                 >
-                                  <ScanLine size={16} />
+                                  <HugeiconsIcon icon={QrCode01Icon} size={16} />
                                 </Button>
                                 <Button
                                   variant="ghost"
@@ -396,7 +397,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                                   className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
                                   title="Extend"
                                 >
-                                  <CalendarPlus size={16} />
+                                  <HugeiconsIcon icon={CalendarAdd01Icon} size={16} />
                                 </Button>
                                 <Button
                                   variant="ghost"
@@ -405,7 +406,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                                   className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                                   title="Void"
                                 >
-                                  <Ban size={16} />
+                                  <HugeiconsIcon icon={Cancel01Icon} size={16} />
                                 </Button>
                               </>
                             )}
@@ -433,19 +434,19 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
             <DialogTitle className="font-sans font-semibold text-xl flex items-center gap-2">
               {actionType === "redeem" && (
                 <>
-                  <ScanLine size={20} className="text-primary" />
+                  <HugeiconsIcon icon={QrCode01Icon} size={20} className="text-primary" />
                   Redeem Voucher
                 </>
               )}
               {actionType === "extend" && (
                 <>
-                  <CalendarPlus size={20} className="text-primary" />
+                  <HugeiconsIcon icon={CalendarAdd01Icon} size={20} className="text-primary" />
                   Extend Voucher
                 </>
               )}
               {actionType === "void" && (
                 <>
-                  <Ban size={20} className="text-destructive" />
+                  <HugeiconsIcon icon={Cancel01Icon} size={20} className="text-destructive" />
                   Void Voucher
                 </>
               )}
@@ -508,7 +509,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
 
               {actionType === "void" && (
                 <div className="flex items-start gap-3 p-3 bg-destructive/10 rounded-lg border border-destructive/30">
-                  <AlertCircle size={20} className="text-destructive shrink-0 mt-0.5" />
+                  <HugeiconsIcon icon={AlertCircleIcon} size={20} className="text-destructive shrink-0 mt-0.5" />
                   <p className="text-sm text-destructive">
                     Warning: This action is irreversible. The voucher will be
                     immediately marked as expired and cannot be used.
@@ -536,7 +537,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
               }
             >
               {isProcessing ? (
-                <Loader2 size={16} className="mr-1 animate-spin" />
+                <HugeiconsIcon icon={Loading03Icon} size={16} className="mr-1 animate-spin" />
               ) : null}
               {actionType === "redeem" && "Confirm Redemption"}
               {actionType === "extend" && "Extend Voucher"}

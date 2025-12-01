@@ -3,7 +3,15 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Lock, Mail, Eye, EyeOff, Loader2, Leaf } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  LockIcon,
+  Mail01Icon,
+  ViewIcon,
+  ViewOffIcon,
+  Loading03Icon,
+  Leaf01Icon,
+} from "@hugeicons/core-free-icons";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { Button } from "@/components/ui/button";
@@ -40,7 +48,7 @@ export default function AdminLoginPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="size-8 text-primary animate-spin" />
+        <HugeiconsIcon icon={Loading03Icon} className="size-8 text-primary animate-spin" />
       </div>
     );
   }
@@ -79,7 +87,7 @@ export default function AdminLoginPage() {
           >
             <div className="flex items-center gap-3 mb-12">
               <div className="size-10 bg-gradient-to-br from-sage-500 to-sage-700 rounded-xl shadow-lg flex items-center justify-center text-white">
-                <Leaf className="size-6" />
+                <HugeiconsIcon icon={Leaf01Icon} className="size-6" />
               </div>
               <div>
                 <span className="font-semibold text-lg text-foreground">
@@ -122,7 +130,8 @@ export default function AdminLoginPage() {
                 Email Address
               </label>
               <div className="relative">
-                <Mail
+                <HugeiconsIcon
+                  icon={Mail01Icon}
                   size={16}
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
                 />
@@ -171,7 +180,11 @@ export default function AdminLoginPage() {
                   tabIndex={-1}
                   aria-label="Toggle password visibility"
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? (
+                    <HugeiconsIcon icon={ViewOffIcon} size={16} />
+                  ) : (
+                    <HugeiconsIcon icon={ViewIcon} size={16} />
+                  )}
                 </button>
               </div>
             </div>
@@ -211,7 +224,7 @@ export default function AdminLoginPage() {
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  <HugeiconsIcon icon={Loading03Icon} className="size-4 mr-2 animate-spin" />
                   Signing in...
                 </>
               ) : (

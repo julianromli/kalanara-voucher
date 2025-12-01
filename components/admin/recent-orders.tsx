@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, ShoppingBag, Calendar } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Search01Icon, ShoppingBag01Icon, Calendar01Icon } from "@hugeicons/core-free-icons";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatCurrency, APP_CONFIG } from "@/lib/constants";
@@ -38,14 +39,14 @@ export function RecentOrders({ orders, animationDelay = 0 }: RecentOrdersProps) 
     >
       <div className="flex items-center justify-between px-4 pt-[15px] pb-4 flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <ShoppingBag className="size-4 text-muted-foreground" />
+          <HugeiconsIcon icon={ShoppingBag01Icon} className="size-4 text-muted-foreground" />
           <h2 className="text-[15px] font-normal text-foreground tracking-tight">
             Recent Orders
           </h2>
         </div>
 
         <div className="relative">
-          <Search className="absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground z-10" />
+          <HugeiconsIcon icon={Search01Icon} className="absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground z-10" />
           <Input
             placeholder="Search orders..."
             className="h-7 w-[140px] sm:w-[180px] md:w-[200px] pl-8 pr-2 text-sm text-muted-foreground"
@@ -95,7 +96,7 @@ export function RecentOrders({ orders, animationDelay = 0 }: RecentOrdersProps) 
                       {formatCurrency(order.totalAmount)}
                     </p>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Calendar className="size-3" />
+                      <HugeiconsIcon icon={Calendar01Icon} className="size-3" />
                       {new Date(order.createdAt).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",

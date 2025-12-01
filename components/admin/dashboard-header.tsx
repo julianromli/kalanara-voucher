@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, ScanLine } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Download04Icon, QrCode01Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -49,7 +50,7 @@ export function DashboardHeader({ title, showActions = true }: DashboardHeaderPr
               asChild
             >
               <Link href="/verify">
-                <ScanLine className="size-4" />
+                <HugeiconsIcon icon={QrCode01Icon} className="size-4" />
                 <span className="hidden xl:inline">Scan QR</span>
               </Link>
             </Button>
@@ -62,7 +63,7 @@ export function DashboardHeader({ title, showActions = true }: DashboardHeaderPr
               )}
               style={{ animationDelay: "150ms" }}
             >
-              <Download className="size-4" />
+              <HugeiconsIcon icon={Download04Icon} className="size-4" />
               <span className="hidden xl:inline">Export</span>
             </Button>
           </div>

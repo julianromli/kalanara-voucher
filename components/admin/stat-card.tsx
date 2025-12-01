@@ -1,18 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TrendingUp, Tag, ShoppingBag, Star, Ticket, Clock, CheckCircle, XCircle, type LucideIcon } from "lucide-react";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import {
+  ChartIncreaseIcon,
+  Tag01Icon,
+  ShoppingBag01Icon,
+  StarIcon,
+  Ticket01Icon,
+  Clock01Icon,
+  Tick02Icon,
+  CancelCircleIcon,
+} from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 
-const iconMap: Record<string, LucideIcon> = {
-  revenue: TrendingUp,
-  services: Tag,
-  orders: ShoppingBag,
-  rating: Star,
-  vouchers: Ticket,
-  active: Clock,
-  redeemed: CheckCircle,
-  expired: XCircle,
+const iconMap: Record<string, IconSvgElement> = {
+  revenue: ChartIncreaseIcon,
+  services: Tag01Icon,
+  orders: ShoppingBag01Icon,
+  rating: StarIcon,
+  vouchers: Ticket01Icon,
+  active: Clock01Icon,
+  redeemed: Tick02Icon,
+  expired: CancelCircleIcon,
 };
 
 interface StatCardProps {
@@ -25,7 +35,7 @@ interface StatCardProps {
 }
 
 export function StatCard({ title, value, icon, badge, className, animationDelay = 0 }: StatCardProps) {
-  const Icon = iconMap[icon] || Tag;
+  const IconComponent = iconMap[icon] || Tag01Icon;
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -57,7 +67,7 @@ export function StatCard({ title, value, icon, badge, className, animationDelay 
             "flex size-12 items-center justify-center rounded-xl border border-primary/20 bg-primary transition-transform duration-300 group-hover:scale-105",
             isMounted && "animate-icon-bounce"
           )} style={{ animationDelay: `${animationDelay + 200}ms` }}>
-            <Icon className="size-5 text-primary-foreground" />
+            <HugeiconsIcon icon={IconComponent} size={20} className="text-primary-foreground" />
           </div>
         </div>
       </div>

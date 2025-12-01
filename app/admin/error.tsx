@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { AlertTriangle, RefreshCw, LayoutDashboard } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Alert01Icon, RefreshIcon, DashboardSquare01Icon } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 
 export default function AdminError({
@@ -20,7 +21,7 @@ export default function AdminError({
       <div className="max-w-md w-full text-center">
         <div className="bg-card rounded-2xl shadow-lg p-8 space-y-6">
           <div className="w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center mx-auto">
-            <AlertTriangle className="w-8 h-8 text-warning" />
+            <HugeiconsIcon icon={Alert01Icon} className="w-8 h-8 text-warning" />
           </div>
 
           <div className="space-y-2">
@@ -44,14 +45,14 @@ export default function AdminError({
               onClick={reset}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
             >
-              <RefreshCw size={18} />
+              <HugeiconsIcon icon={RefreshIcon} size={18} />
               Retry
             </button>
             <Link
               href="/admin/dashboard"
               className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border text-muted-foreground rounded-lg hover:bg-accent transition-colors"
             >
-              <LayoutDashboard size={18} />
+              <HugeiconsIcon icon={DashboardSquare01Icon} size={18} />
               Dashboard
             </Link>
           </div>

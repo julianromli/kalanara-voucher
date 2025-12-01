@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TrendingUp, Calendar as CalendarIcon, ChevronDown } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ChartIncreaseIcon, Calendar01Icon, ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -90,7 +91,7 @@ export function ChartCard({ data, title = "Revenue (Last 7 Days)", animationDela
     >
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <TrendingUp className="size-4 text-muted-foreground" />
+          <HugeiconsIcon icon={ChartIncreaseIcon} className="size-4 text-muted-foreground" />
           <h2 className="text-[15px] font-normal text-foreground tracking-tight">
             {title}
           </h2>
@@ -102,9 +103,9 @@ export function ChartCard({ data, title = "Revenue (Last 7 Days)", animationDela
               size="sm"
               className="h-7 gap-2 text-xs px-[10px] py-[4px]"
             >
-              <CalendarIcon className="size-4" />
+              <HugeiconsIcon icon={Calendar01Icon} className="size-4" />
               {formatDateRange(date)}
-              <ChevronDown className="size-3" />
+              <HugeiconsIcon icon={ArrowDown01Icon} className="size-3" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="end">

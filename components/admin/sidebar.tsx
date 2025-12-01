@@ -3,16 +3,17 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  Search,
-  LayoutDashboard,
-  Sparkles,
-  Ticket,
-  Settings,
-  HelpCircle,
-  LogOut,
-  Leaf,
-} from "lucide-react";
+  Search01Icon,
+  DashboardSquare01Icon,
+  SparklesIcon,
+  Ticket01Icon,
+  Settings02Icon,
+  HelpCircleIcon,
+  Logout01Icon,
+  Leaf01Icon,
+} from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 import {
   Sidebar,
@@ -33,17 +34,17 @@ import { useAuth } from "@/context/AuthContext";
 
 const navItems = [
   {
-    icon: LayoutDashboard,
+    icon: DashboardSquare01Icon,
     label: "Dashboard",
     href: "/admin/dashboard",
   },
   {
-    icon: Sparkles,
+    icon: SparklesIcon,
     label: "Services",
     href: "/admin/services",
   },
   {
-    icon: Ticket,
+    icon: Ticket01Icon,
     label: "Vouchers",
     href: "/admin/vouchers",
   },
@@ -77,7 +78,7 @@ export function AdminSidebar({
           )}>
             <Link href="/admin/dashboard" className="flex items-center gap-2">
               <div className="size-8 bg-gradient-to-br from-sage-500 to-sage-700 rounded-lg shadow flex items-center justify-center text-white">
-                <Leaf className="size-5" />
+                <HugeiconsIcon icon={Leaf01Icon} size={20} />
               </div>
               <div className="flex flex-col">
                 <span className="font-semibold text-sm">Kalanara Spa</span>
@@ -87,7 +88,7 @@ export function AdminSidebar({
           </div>
 
           <div className="mt-4 relative">
-            <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground z-10" />
+            <HugeiconsIcon icon={Search01Icon} size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
             <Input
               type="search"
               placeholder="Search..."
@@ -127,7 +128,7 @@ export function AdminSidebar({
                       className="h-9 text-sm nav-item-hover"
                     >
                       <Link href={item.href}>
-                        <item.icon className="size-4" />
+                        <HugeiconsIcon icon={item.icon} size={16} />
                         <span>{item.label}</span>
                       </Link>
                     </SidebarMenuButton>
@@ -145,13 +146,13 @@ export function AdminSidebar({
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton className="h-9 text-sm text-muted-foreground">
-                  <Settings className="size-4" />
+                  <HugeiconsIcon icon={Settings02Icon} size={16} />
                   <span>Settings</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton className="h-9 text-sm text-muted-foreground">
-                  <HelpCircle className="size-4" />
+                  <HugeiconsIcon icon={HelpCircleIcon} size={16} />
                   <span>Help Center</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -187,7 +188,7 @@ export function AdminSidebar({
           )}
           style={{ animationDelay: "450ms" }}
         >
-          <LogOut className="size-4" />
+          <HugeiconsIcon icon={Logout01Icon} size={16} />
           Logout
         </Button>
       </SidebarFooter>

@@ -3,18 +3,19 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  Plus,
-  Pencil,
-  Trash2,
-  Clock,
-  X,
-  Check,
-  Loader2,
-  Search,
-  Filter,
-  Tag,
-} from "lucide-react";
+  PlusSignIcon,
+  PencilEdit01Icon,
+  Delete02Icon,
+  Clock01Icon,
+  Cancel01Icon,
+  Tick02Icon,
+  Loading03Icon,
+  Search01Icon,
+  FilterIcon,
+  Tag01Icon,
+} from "@hugeicons/core-free-icons";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { formatCurrency } from "@/lib/constants";
@@ -219,7 +220,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
             Manage spa services, pricing, and availability
           </p>
           <Button onClick={handleOpenCreate} size="sm" className="btn-hover-lift">
-            <Plus size={16} className="mr-2" />
+            <HugeiconsIcon icon={PlusSignIcon} size={16} className="mr-2" />
             Add Service
           </Button>
         </div>
@@ -230,7 +231,8 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
         )} style={{ animationDelay: "100ms" }}>
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
-              <Search
+              <HugeiconsIcon
+                icon={Search01Icon}
                 size={18}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               />
@@ -246,7 +248,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
               onValueChange={(v) => setCategoryFilter(v as ServiceCategory | "ALL")}
             >
               <SelectTrigger className="w-full md:w-[200px]">
-                <Filter size={16} className="mr-2" />
+                <HugeiconsIcon icon={FilterIcon} size={16} className="mr-2" />
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
@@ -264,7 +266,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
         {/* Services Grid */}
         {filteredServices.length === 0 ? (
           <div className="bg-card rounded-2xl shadow-spa border border-border p-12 text-center">
-            <Tag size={48} className="text-muted-foreground mx-auto mb-4" />
+            <HugeiconsIcon icon={Tag01Icon} size={48} className="text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium text-muted-foreground mb-2">
               No services found
             </h3>
@@ -275,7 +277,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
             </p>
             {!searchQuery && categoryFilter === "ALL" && (
               <Button onClick={handleOpenCreate} className="bg-primary hover:bg-primary/90">
-                <Plus size={18} className="mr-2" />
+                <HugeiconsIcon icon={PlusSignIcon} size={18} className="mr-2" />
                 Create Service
               </Button>
             )}
@@ -331,7 +333,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
 
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-1 text-muted-foreground">
-                      <Clock size={16} />
+                      <HugeiconsIcon icon={Clock01Icon} size={16} />
                       <span className="text-sm">{service.duration} mins</span>
                     </div>
                     <span className="font-semibold text-foreground">
@@ -345,7 +347,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
                       onClick={() => handleOpenEdit(service)}
                       className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
                     >
-                      <Pencil size={14} className="mr-1" />
+                      <HugeiconsIcon icon={PencilEdit01Icon} size={14} className="mr-1" />
                       Edit
                     </Button>
                     <Button
@@ -356,9 +358,9 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
                       className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
                     >
                       {isDeleting === service.id ? (
-                        <Loader2 size={14} className="animate-spin" />
+                        <HugeiconsIcon icon={Loading03Icon} size={14} className="animate-spin" />
                       ) : (
-                        <Trash2 size={14} />
+                        <HugeiconsIcon icon={Delete02Icon} size={14} />
                       )}
                     </Button>
                   </div>
@@ -498,7 +500,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
               onClick={() => setIsDialogOpen(false)}
               disabled={isSaving}
             >
-              <X size={16} className="mr-1" />
+              <HugeiconsIcon icon={Cancel01Icon} size={16} className="mr-1" />
               Cancel
             </Button>
             <Button
@@ -507,9 +509,9 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
               className="bg-primary hover:bg-primary/90"
             >
               {isSaving ? (
-                <Loader2 size={16} className="mr-1 animate-spin" />
+                <HugeiconsIcon icon={Loading03Icon} size={16} className="mr-1 animate-spin" />
               ) : (
-                <Check size={16} className="mr-1" />
+                <HugeiconsIcon icon={Tick02Icon} size={16} className="mr-1" />
               )}
               {isEditing ? "Update" : "Create"}
             </Button>
