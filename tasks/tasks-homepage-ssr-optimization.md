@@ -68,7 +68,7 @@ Update the file after completing each sub-task, not just after completing an ent
   - [ ] 5.4 Test other pages still work (checkout, admin) with StoreContext
   - [ ] 5.5 Check browser DevTools Network tab - no client-side fetch for services on homepage
 
-- [ ] 6.0 Commit and Merge
-  - [ ] 6.1 Stage all changes: `git add .`
-  - [ ] 6.2 Commit with message: `perf: implement SSR for homepage services and testimonials`
-  - [ ] 6.3 Push branch and create PR (or merge to master if approved)
+- [x] 6.0 Commit and Merge
+  - [x] 6.1 Stage all changes: `git add .`
+  - [x] 6.2 Commit with message: `perf: implement SSR for homepage services and testimonials`
+  - [x] 6.3 Push branch and create PR (or merge to master if approved)

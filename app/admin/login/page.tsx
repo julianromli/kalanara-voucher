@@ -74,15 +74,17 @@ export default function AdminLoginPage() {
       <div className="flex items-center justify-center w-full lg:w-1/3 bg-background px-6 py-12 lg:px-8">
         <div className="w-full max-w-md">
           {/* Logo */}
-          <div className={cn(
-            isMounted ? "animate-fade-slide-down" : "opacity-0"
-          )}>
+          <div
+            className={cn(isMounted ? "animate-fade-slide-down" : "opacity-0")}
+          >
             <div className="flex items-center gap-3 mb-12">
               <div className="size-10 bg-gradient-to-br from-sage-500 to-sage-700 rounded-xl shadow-lg flex items-center justify-center text-white">
                 <Leaf className="size-6" />
               </div>
               <div>
-                <span className="font-semibold text-lg text-foreground">Kalanara Spa</span>
+                <span className="font-semibold text-lg text-foreground">
+                  Kalanara Spa
+                </span>
                 <p className="text-xs text-muted-foreground">Admin Portal</p>
               </div>
             </div>
@@ -98,19 +100,25 @@ export default function AdminLoginPage() {
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="mt-10 space-y-5">
             {error && (
-              <div className={cn(
-                "bg-destructive/10 text-destructive px-4 py-3 rounded-lg text-sm",
-                isMounted ? "animate-fade-slide-up" : "opacity-0"
-              )}>
+              <div
+                className={cn(
+                  "bg-destructive/10 text-destructive px-4 py-3 rounded-lg text-sm",
+                  isMounted ? "animate-fade-slide-up" : "opacity-0",
+                )}
+              >
                 {error}
               </div>
             )}
 
             {/* Email */}
-            <div className={cn(
-              isMounted ? "animate-fade-slide-up" : "opacity-0"
-            )} style={{ animationDelay: "150ms" }}>
-              <label htmlFor="email" className="block text-sm font-medium text-muted-foreground mb-1.5">
+            <div
+              className={cn(isMounted ? "animate-fade-slide-up" : "opacity-0")}
+              style={{ animationDelay: "150ms" }}
+            >
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-muted-foreground mb-1.5"
+              >
                 Email Address
               </label>
               <div className="relative">
@@ -133,10 +141,14 @@ export default function AdminLoginPage() {
             </div>
 
             {/* Password */}
-            <div className={cn(
-              isMounted ? "animate-fade-slide-up" : "opacity-0"
-            )} style={{ animationDelay: "225ms" }}>
-              <label htmlFor="password" className="block text-sm font-medium text-muted-foreground mb-1.5">
+            <div
+              className={cn(isMounted ? "animate-fade-slide-up" : "opacity-0")}
+              style={{ animationDelay: "225ms" }}
+            >
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-muted-foreground mb-1.5"
+              >
                 Password
               </label>
               <div className="relative">
@@ -165,10 +177,13 @@ export default function AdminLoginPage() {
             </div>
 
             {/* Remember Me */}
-            <div className={cn(
-              "flex items-center gap-2",
-              isMounted ? "animate-fade-slide-up" : "opacity-0"
-            )} style={{ animationDelay: "300ms" }}>
+            <div
+              className={cn(
+                "flex items-center gap-2",
+                isMounted ? "animate-fade-slide-up" : "opacity-0",
+              )}
+              style={{ animationDelay: "300ms" }}
+            >
               <Checkbox
                 id="remember"
                 checked={rememberMe}
@@ -189,8 +204,8 @@ export default function AdminLoginPage() {
               type="submit"
               disabled={isSubmitting}
               className={cn(
-                "w-full h-10 bg-foreground hover:bg-foreground/90 text-background font-medium btn-hover-lift",
-                isMounted ? "animate-fade-slide-up" : "opacity-0"
+                "w-full h-10 font-medium btn-hover-lift",
+                isMounted ? "animate-fade-slide-up" : "opacity-0",
               )}
               style={{ animationDelay: "375ms" }}
             >
@@ -217,15 +232,19 @@ export default function AdminLoginPage() {
           priority
         />
         <div className="absolute inset-0 bg-primary/75" />
-        
+
         {/* Quote Overlay */}
-        <div className={cn(
-          "absolute inset-0 flex flex-col items-start justify-end p-10",
-          isMounted ? "animate-fade-slide-up" : "opacity-0"
-        )} style={{ animationDelay: "400ms" }}>
+        <div
+          className={cn(
+            "absolute inset-0 flex flex-col items-start justify-end p-10",
+            isMounted ? "animate-fade-slide-up" : "opacity-0",
+          )}
+          style={{ animationDelay: "400ms" }}
+        >
           <div className="max-w-lg">
             <p className="text-xl md:text-2xl lg:text-3xl font-semibold text-primary-foreground text-balance leading-snug">
-              Elevate your guests&apos; experience with seamless voucher management.
+              Elevate your guests&apos; experience with seamless voucher
+              management.
             </p>
             <p className="text-base mt-4 text-primary-foreground/80 text-balance">
               Kalanara Spa — Where wellness meets hospitality.
