@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { revalidateTag } from "next/cache";
 import type {
   Database,
   Voucher,
@@ -104,6 +105,7 @@ export async function createVoucher(
     return null;
   }
 
+  revalidateTag("dashboard-stats", "max");
   return data as Voucher;
 }
 
@@ -148,6 +150,7 @@ export async function redeemVoucher(
     return { success: false, message: "Failed to redeem voucher." };
   }
 
+  revalidateTag("dashboard-stats", "max");
   return { success: true, message: `Voucher ${code} redeemed successfully!` };
 }
 
@@ -173,6 +176,7 @@ export async function extendVoucher(
     .update({ expiry_date: currentExpiry.toISOString() })
     .eq("id", id);
 
+  if (!error) revalidateTag("dashboard-stats", "max");
   return !error;
 }
 
@@ -185,5 +189,6 @@ export async function voidVoucher(id: string): Promise<boolean> {
     .update({ expiry_date: new Date("2000-01-01").toISOString() })
     .eq("id", id);
 
+  if (!error) revalidateTag("dashboard-stats", "max");
   return !error;
 }

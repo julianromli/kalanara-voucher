@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { revalidateTag } from "next/cache";
 import type { Service, ServiceInsert, ServiceUpdate } from "@/lib/database.types";
 
 export async function getServices(): Promise<Service[]> {
@@ -64,6 +65,7 @@ export async function createService(service: ServiceInsert): Promise<Service | n
     return null;
   }
 
+  revalidateTag("dashboard-stats", "max");
   return data;
 }
 
@@ -84,6 +86,7 @@ export async function updateService(
     return null;
   }
 
+  revalidateTag("dashboard-stats", "max");
   return data;
 }
 
@@ -100,5 +103,6 @@ export async function deleteService(id: string): Promise<boolean> {
     return false;
   }
 
+  revalidateTag("dashboard-stats", "max");
   return true;
 }

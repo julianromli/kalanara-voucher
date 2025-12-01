@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { revalidateTag } from "next/cache";
 import type { Database, Order, OrderInsert, OrderWithVoucher } from "@/lib/database.types";
 
 export async function getOrders(): Promise<OrderWithVoucher[]> {
@@ -49,6 +50,7 @@ export async function createOrder(order: OrderInsert): Promise<Order | null> {
     return null;
   }
 
+  revalidateTag("dashboard-stats", "max");
   return data as Order;
 }
 
@@ -62,6 +64,7 @@ export async function updateOrderStatus(
     .update({ payment_status: status } as Database["public"]["Tables"]["orders"]["Update"])
     .eq("id", id);
 
+  if (!error) revalidateTag("dashboard-stats", "max");
   return !error;
 }
 

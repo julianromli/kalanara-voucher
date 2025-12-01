@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { cacheLife, cacheTag } from "next/cache";
 
 export interface DashboardStats {
   totalRevenue: number;
@@ -33,6 +34,10 @@ export interface DashboardStats {
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
+  "use cache: private";
+  cacheLife("minutes");
+  cacheTag("dashboard-stats");
+
   const supabase = await createClient();
 
   // Parallel queries for better performance
