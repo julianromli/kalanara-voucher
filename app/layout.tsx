@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Inter, Playfair_Display, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { StoreProvider } from "@/context/StoreContext";
@@ -70,7 +71,9 @@ export default function RootLayout({
         <AuthProvider>
           <StoreProvider>
             <ToastProvider>
-              <Navbar />
+              <Suspense fallback={null}>
+                <Navbar />
+              </Suspense>
               <main>{children}</main>
             </ToastProvider>
           </StoreProvider>
