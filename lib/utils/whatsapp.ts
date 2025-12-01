@@ -66,40 +66,33 @@ export function generateVoucherMessage(data: WhatsAppVoucherData): string {
   const formattedAmount = formatCurrency(data.amount);
   const formattedExpiry = formatDate(data.expiryDate);
 
-  const message = `🎁 *KALANARA SPA GIFT VOUCHER*
+  const message = `🎁 *You've got a gift!*
 
-Dear *${data.recipientName}*,
+Hey ${data.recipientName}! ✨
 
-${data.senderName} has gifted you a luxurious spa experience at Kalanara Spa!
-${data.senderMessage ? `\n_"${data.senderMessage}"_\n— ${data.senderName}\n` : ""}
-━━━━━━━━━━━━━━━━━━
-📋 *VOUCHER DETAILS*
-━━━━━━━━━━━━━━━━━━
+${data.senderName} just sent you a spa treat at Kalanara Spa — lucky you!
+${data.senderMessage ? `\n_"${data.senderMessage}"_\n— ${data.senderName} 💕\n` : ""}
+• • •
 
-🎫 *Code:* \`${data.voucherCode}\`
-💆 *Treatment:* ${data.serviceName}
-⏱️ *Duration:* ${data.serviceDuration} minutes
-💰 *Value:* ${formattedAmount}
-📅 *Valid Until:* ${formattedExpiry}
+*Your Voucher*
+Code: \`${data.voucherCode}\`
+Treatment: ${data.serviceName}
+Duration: ${data.serviceDuration} min
+Worth: ${formattedAmount}
+Valid until: ${formattedExpiry}
 
-━━━━━━━━━━━━━━━━━━
-✨ *HOW TO REDEEM*
-━━━━━━━━━━━━━━━━━━
+• • •
 
-1️⃣ Call us at +62 361 123 4567 to book
-2️⃣ Present your voucher code on arrival
-3️⃣ Enjoy your spa experience!
+*Ready to relax?*
+📞 Book via +62 361 123 4567
+📍 Show your code when you arrive
+🔗 Verify: ${data.verifyUrl}
 
-🔗 *Verify your voucher:*
-${data.verifyUrl}
+• • •
 
-━━━━━━━━━━━━━━━━━━
-*KALANARA SPA*
-_Harmony in Every Touch_
-
-📍 Jl. Raya Ubud No. 88, Ubud, Bali 80571
-📞 +62 361 123 4567
-✉️ hello@kalanaraspa.com`;
+_Kalanara Spa_
+Jl. Raya Ubud No. 88, Ubud, Bali
+hello@kalanaraspa.com`;
 
   return message;
 }
