@@ -14,7 +14,6 @@ import {
   Mail,
   MessageCircle,
   Send,
-  Phone,
   Download,
   ChevronLeft,
 } from "lucide-react";
@@ -90,7 +89,6 @@ export default function CheckoutPage({ params }: PageProps) {
   const selectedPayment = watch("paymentMethod");
   const sendTo = watch("sendTo");
   const deliveryMethod = watch("deliveryMethod");
-  const needsRecipientPhone = deliveryMethod === DeliveryMethod.WHATSAPP || deliveryMethod === DeliveryMethod.BOTH;
 
   if (!service) {
     return (
@@ -434,11 +432,11 @@ export default function CheckoutPage({ params }: PageProps) {
                   </div>
                   <div>
                     <label className="text-sm text-muted-foreground mb-1 block">
-                      Phone
+                      WhatsApp
                     </label>
                     <Input
                       {...register("customerPhone", { required: true })}
-                      placeholder="+62 xxx xxxx xxxx"
+                      placeholder="+62 812 3456 7890"
                       className={errors.customerPhone ? "border-destructive" : ""}
                     />
                   </div>
@@ -473,6 +471,19 @@ export default function CheckoutPage({ params }: PageProps) {
                       type="email"
                       placeholder="recipient@email.com"
                       className={errors.recipientEmail ? "border-destructive" : ""}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">
+                      Recipient WhatsApp
+                    </label>
+                    <Input
+                      {...register("recipientPhone", {
+                        required: true,
+                        pattern: /^[\d\s+()-]+$/,
+                      })}
+                      placeholder="+62 812 3456 7890"
+                      className={errors.recipientPhone ? "border-destructive" : ""}
                     />
                   </div>
                   <div>
@@ -571,27 +582,6 @@ export default function CheckoutPage({ params }: PageProps) {
                       ))}
                     </div>
                   </div>
-
-                  {/* Recipient Phone (conditional) */}
-                  {needsRecipientPhone && (
-                    <div>
-                      <label className="text-sm text-muted-foreground mb-1 block flex items-center gap-2">
-                        <Phone size={16} />
-                        {sendTo === SendTo.PURCHASER ? "Your WhatsApp" : "Recipient's WhatsApp"}
-                      </label>
-                      <Input
-                        {...register("recipientPhone", {
-                          required: needsRecipientPhone,
-                          pattern: /^[\d\s+()-]+$/,
-                        })}
-                        placeholder="+62 812 3456 7890"
-                        className={errors.recipientPhone ? "border-destructive" : ""}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        WhatsApp number to receive the voucher
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
 
