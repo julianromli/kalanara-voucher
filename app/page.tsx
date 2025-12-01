@@ -1,26 +1,47 @@
-"use client";
-
 import Link from "next/link";
 import Image from "next/image";
-import { Clock, ArrowRight, Star, Quote } from "lucide-react";
-import { useStore } from "@/context/StoreContext";
-import { formatCurrency } from "@/lib/constants";
+import { ArrowRight } from "lucide-react";
 import { Footer13 } from "@/components/footer13";
 import { TrustFeatures } from "@/components/trust-features";
-import { useInView } from "@/hooks/useInView";
+import { ServicesSection } from "@/components/services-section";
+import { TestimonialsSection } from "@/components/testimonials-section";
+import { getServices } from "@/lib/actions/services";
+import { getReviews } from "@/lib/actions/reviews";
+import { ServiceCategory } from "@/lib/types";
+import type { Service, Review } from "@/lib/types";
+import type { Service as DBService, Review as DBReview } from "@/lib/database.types";
 
-export default function LandingPage() {
-  const { services, reviews } = useStore();
-  const [servicesRef, servicesInView] = useInView<HTMLElement>({ threshold: 0.1 });
-  const [testimonialsRef, testimonialsInView] = useInView<HTMLElement>({ threshold: 0.1 });
+function adaptDBServiceToFrontend(dbService: DBService): Service {
+  return {
+    id: dbService.id,
+    name: dbService.name,
+    description: dbService.description ?? "",
+    duration: dbService.duration,
+    price: dbService.price,
+    category: dbService.category as ServiceCategory,
+    image: dbService.image_url ?? "/images/services/placeholder.jpg",
+  };
+}
 
-  const displayedReviews = reviews
-    .filter((r) => r.rating >= 4)
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    )
-    .slice(0, 3);
+function adaptDBReviewToFrontend(dbReview: DBReview): Review {
+  return {
+    id: dbReview.id,
+    voucherId: dbReview.voucher_id,
+    rating: dbReview.rating,
+    comment: dbReview.comment ?? "",
+    customerName: dbReview.customer_name,
+    createdAt: new Date(dbReview.created_at),
+  };
+}
+
+export default async function LandingPage() {
+  const [dbServices, dbReviews] = await Promise.all([
+    getServices(),
+    getReviews(),
+  ]);
+
+  const services = dbServices.map(adaptDBServiceToFrontend);
+  const reviews = dbReviews.map(adaptDBReviewToFrontend);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -78,139 +99,13 @@ export default function LandingPage() {
       </section>
 
       {/* Services Section */}
-      <section
-        ref={servicesRef}
-        id="services"
-        className="py-24 px-4 sm:px-6 lg:px-8 bg-background"
-      >
-        <div className="max-w-7xl mx-auto">
-          <div className={`text-center mb-16 ${servicesInView ? "animate-fade-slide-up" : "opacity-0"}`}>
-            <h2 className="font-sans font-semibold text-4xl text-foreground mb-4">
-              Curated Packages
-            </h2>
-            <div className="h-1 w-20 bg-accent mx-auto rounded-full"></div>
-            <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
-              Select a voucher package below to gift yourself or a loved one.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {services.length > 0 ? (
-              services.map((service, index) => (
-                <div
-                  key={service.id}
-                  className={`group bg-card rounded-2xl overflow-hidden shadow-spa hover:shadow-spa-lg border border-border card-hover-lift ${
-                    servicesInView ? "animate-fade-slide-up" : "opacity-0"
-                  }`}
-                  style={{ animationDelay: servicesInView ? `${(index + 1) * 100}ms` : "0ms" }}
-                >
-                  <div className="relative h-64 overflow-hidden img-hover-zoom">
-                    <Image
-                      src={
-                        service.image ||
-                        "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80"
-                      }
-                      alt={service.name}
-                      fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      className="object-cover"
-                    />
-                    <div className="absolute top-4 right-4 bg-card/90 backdrop-blur text-foreground px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 shadow-sm">
-                      <Clock size={14} />
-                      {service.duration} mins
-                    </div>
-                  </div>
-
-                  <div className="p-6">
-                    <h3 className="font-sans font-semibold text-2xl text-foreground mb-2 group-hover:text-muted-foreground transition-colors">
-                      {service.name}
-                    </h3>
-                    <p className="text-muted-foreground text-sm mb-6 line-clamp-2">
-                      {service.description}
-                    </p>
-
-                    <div className="flex items-center justify-between mt-auto pt-4 border-t border-border">
-                      <span className="text-lg font-semibold text-foreground">
-                        {formatCurrency(service.price)}
-                      </span>
-                      <Link
-                        href={`/voucher/${service.id}`}
-                        className="text-muted-foreground font-medium hover:text-foreground flex items-center gap-1 text-sm uppercase tracking-wide transition-colors"
-                      >
-                        Details <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="col-span-3 text-center py-12 text-muted-foreground">
-                No services available at the moment.
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
+      <ServicesSection services={services} />
 
       {/* Testimonials Section */}
-      {displayedReviews.length > 0 && (
-        <section ref={testimonialsRef} className="py-24 px-4 sm:px-6 lg:px-8 bg-card">
-          <div className="max-w-7xl mx-auto">
-            <div className={`text-center mb-16 ${testimonialsInView ? "animate-fade-slide-up" : "opacity-0"}`}>
-              <h2 className="font-sans font-semibold text-4xl text-foreground mb-4">
-                Guest Experiences
-              </h2>
-              <div className="h-1 w-20 bg-accent mx-auto rounded-full"></div>
-              <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
-                Read what our guests have to say about their journey with us.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {displayedReviews.map((review, index) => (
-                <div
-                  key={review.id}
-                  className={`bg-background p-8 rounded-2xl border border-border relative card-hover-lift ${
-                    testimonialsInView ? "animate-fade-slide-up" : "opacity-0"
-                  }`}
-                  style={{ animationDelay: testimonialsInView ? `${(index + 1) * 100}ms` : "0ms" }}
-                >
-                  <Quote
-                    className="absolute top-6 right-6 text-muted-foreground/30"
-                    size={40}
-                  />
-                  <div className="flex items-center gap-1 mb-4">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        size={16}
-                        className={`${
-                          i < review.rating
-                            ? "text-accent fill-accent"
-                            : "text-muted-foreground/30"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-muted-foreground italic mb-6 min-h-[80px]">
-                    &quot;{review.comment}&quot;
-                  </p>
-                  <div className="border-t border-border pt-4">
-                    <p className="font-bold text-foreground">
-                      {review.customerName}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      <TestimonialsSection reviews={reviews} />
 
       {/* Trust/Features */}
       <TrustFeatures />
-
-      {/* Feature Section */}
 
       {/* Footer */}
       <Footer13 />
