@@ -18,9 +18,16 @@ export function ServicesSection({ services }: ServicesSectionProps) {
     <section
       ref={servicesRef}
       id="services"
-      className="py-24 px-4 sm:px-6 lg:px-8 bg-background"
+      className="relative py-24 px-4 sm:px-6 lg:px-8 bg-background overflow-hidden"
     >
-      <div className="max-w-7xl mx-auto">
+      {/* Gradient Mesh Background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-sage-100/30 dark:bg-sage-900/20 rounded-full blur-3xl opacity-50" />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto">
         <div className={`text-center mb-16 ${servicesInView ? "animate-fade-slide-up" : "opacity-0"}`}>
           <h2 className="font-sans font-semibold text-4xl text-foreground mb-4">
             Curated Packages
