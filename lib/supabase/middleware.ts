@@ -34,11 +34,26 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protect admin routes
-  if (request.nextUrl.pathname.startsWith("/admin/dashboard")) {
+  // Protect all admin routes (except login)
+  const isAdminRoute = request.nextUrl.pathname.startsWith("/admin") &&
+    !request.nextUrl.pathname.startsWith("/admin/login");
+
+  if (isAdminRoute) {
     if (!user) {
       const url = request.nextUrl.clone();
       url.pathname = "/admin/login";
+      return NextResponse.redirect(url);
+    }
+
+    // Role-based authorization: Verify user has admin role
+    const role = user.user_metadata?.role;
+    const allowedRoles = ["SUPER_ADMIN", "MANAGER", "STAFF", "ADMIN"];
+
+    if (!role || !allowedRoles.includes(role)) {
+      // Redirect unauthorized users to login with error
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin/login";
+      url.searchParams.set("error", "unauthorized");
       return NextResponse.redirect(url);
     }
   }

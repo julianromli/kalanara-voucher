@@ -29,6 +29,8 @@ import { createVoucher } from "@/lib/actions/vouchers";
 import { createOrder } from "@/lib/actions/orders";
 import { generateWhatsAppUrl, WhatsAppVoucherData } from "@/lib/utils/whatsapp";
 
+const PHONE_PATTERN = /^(\+62|62|0)[\d\s-]{8,14}$/;
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -77,6 +79,7 @@ export default function CheckoutPage({ params }: PageProps) {
     handleSubmit,
     watch,
     setValue,
+    trigger,
     formState: { errors },
   } = useForm<CheckoutForm>({
     defaultValues: {
@@ -435,10 +438,24 @@ export default function CheckoutPage({ params }: PageProps) {
                       WhatsApp
                     </label>
                     <Input
-                      {...register("customerPhone", { required: true })}
+                      {...register("customerPhone", {
+                        required: "Nomor WhatsApp wajib diisi",
+                        pattern: {
+                          value: PHONE_PATTERN,
+                          message: "Gunakan format 08xxxxxxxx atau +62xxxxxxxx",
+                        },
+                        onBlur: () => trigger("customerPhone"),
+                      })}
                       placeholder="+62 812 3456 7890"
-                      className={errors.customerPhone ? "border-destructive" : ""}
+                      aria-invalid={!!errors.customerPhone}
+                      className={errors.customerPhone ? "border-destructive focus-visible:ring-destructive/40" : ""}
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Format: 08xx xxxx xxxx atau +62 xxx xxxx xxxx
+                    </p>
+                    {errors.customerPhone?.message && (
+                      <p className="text-xs text-destructive mt-1">{errors.customerPhone.message}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -479,12 +496,23 @@ export default function CheckoutPage({ params }: PageProps) {
                     </label>
                     <Input
                       {...register("recipientPhone", {
-                        required: true,
-                        pattern: /^[\d\s+()-]+$/,
+                        required: "Nomor WhatsApp wajib diisi",
+                        pattern: {
+                          value: PHONE_PATTERN,
+                          message: "Gunakan format 08xxxxxxxx atau +62xxxxxxxx",
+                        },
+                        onBlur: () => trigger("recipientPhone"),
                       })}
                       placeholder="+62 812 3456 7890"
-                      className={errors.recipientPhone ? "border-destructive" : ""}
+                      aria-invalid={!!errors.recipientPhone}
+                      className={errors.recipientPhone ? "border-destructive focus-visible:ring-destructive/40" : ""}
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Format: 08xx xxxx xxxx atau +62 xxx xxxx xxxx
+                    </p>
+                    {errors.recipientPhone?.message && (
+                      <p className="text-xs text-destructive mt-1">{errors.recipientPhone.message}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm text-muted-foreground mb-1 block">
@@ -494,7 +522,7 @@ export default function CheckoutPage({ params }: PageProps) {
                       {...register("senderMessage")}
                       placeholder="Write a personal message..."
                       rows={3}
-                      className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring resize-none placeholder:text-muted"
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring resize-none placeholder:text-muted-foreground placeholder:transition-opacity focus:placeholder:text-transparent"
                     />
                   </div>
                 </div>

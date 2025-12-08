@@ -1,7 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { getVoucherByCode } from "@/lib/actions/vouchers";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Simple in-memory rate limiter (for production, consider Redis/Upstash)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string, limit = 10, windowMs = 60000): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry || entry.resetAt < now) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+
+  if (entry.count >= limit) return false;
+  entry.count++;
+  return true;
+}
 
 interface VoucherEmailRequest {
   recipientEmail: string;
@@ -17,6 +35,17 @@ interface VoucherEmailRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting to prevent abuse
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || 
+               request.headers.get("x-real-ip") || 
+               "unknown";
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const body: VoucherEmailRequest = await request.json();
 
     const {
@@ -30,6 +59,15 @@ export async function POST(request: NextRequest) {
       amount,
       expiryDate,
     } = body;
+
+    // Validate voucher exists in database (prevents arbitrary email sending)
+    const voucher = await getVoucherByCode(voucherCode);
+    if (!voucher) {
+      return NextResponse.json(
+        { error: "Invalid voucher code" },
+        { status: 400 }
+      );
+    }
 
     const formattedAmount = new Intl.NumberFormat("id-ID", {
       style: "currency",

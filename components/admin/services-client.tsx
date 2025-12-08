@@ -91,6 +91,19 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [optimisticIds, setOptimisticIds] = useState<Set<string>>(new Set());
+
+  const setOptimistic = (id: string, active: boolean) => {
+    setOptimisticIds((prev) => {
+      const next = new Set(prev);
+      if (active) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -141,8 +154,27 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
 
     setIsSaving(true);
 
-    try {
-      if (isEditing && editingId) {
+    if (isEditing && editingId) {
+      const previous = services;
+      const optimisticUpdated = services.map((s) =>
+        s.id === editingId
+          ? {
+              ...s,
+              name: formData.name,
+              description: formData.description || null,
+              duration: formData.duration,
+              price: formData.price,
+              category: formData.category,
+              image_url: formData.image_url || null,
+              updated_at: new Date().toISOString(),
+            }
+          : s
+      );
+
+      setServices(optimisticUpdated);
+      setOptimistic(editingId, true);
+
+      try {
         const updated = await updateService(editingId, {
           name: formData.name,
           description: formData.description || null,
@@ -153,53 +185,87 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
         } as ServiceUpdate);
 
         if (updated) {
-          setServices((prev) =>
-            prev.map((s) => (s.id === editingId ? updated : s))
-          );
+          setServices((prev) => prev.map((s) => (s.id === editingId ? updated : s)));
           showToast("Service updated successfully", "success");
+          setIsDialogOpen(false);
         } else {
           throw new Error("Failed to update");
         }
-      } else {
-        const created = await createService({
-          name: formData.name,
-          description: formData.description || null,
-          duration: formData.duration,
-          price: formData.price,
-          category: formData.category,
-          image_url: formData.image_url || null,
-        } as ServiceInsert);
-
-        if (created) {
-          setServices((prev) => [...prev, created]);
-          showToast("Service created successfully", "success");
-        } else {
-          throw new Error("Failed to create");
-        }
+      } catch {
+        setServices(previous);
+        showToast("Failed to save service", "error");
+      } finally {
+        setOptimistic(editingId, false);
+        setIsSaving(false);
       }
 
-      setIsDialogOpen(false);
+      return;
+    }
+
+    const tempId = `temp-${Date.now()}`;
+    const previous = services;
+    const optimisticService: Service = {
+      id: tempId,
+      name: formData.name,
+      description: formData.description || null,
+      duration: formData.duration,
+      price: formData.price,
+      category: formData.category,
+      image_url: formData.image_url || null,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setServices((prev) => [...prev, optimisticService]);
+    setOptimistic(tempId, true);
+
+    try {
+      const created = await createService({
+        name: formData.name,
+        description: formData.description || null,
+        duration: formData.duration,
+        price: formData.price,
+        category: formData.category,
+        image_url: formData.image_url || null,
+      } as ServiceInsert);
+
+      if (created) {
+        setServices((prev) => prev.map((s) => (s.id === tempId ? created : s)));
+        showToast("Service created successfully", "success");
+        setIsDialogOpen(false);
+      } else {
+        throw new Error("Failed to create");
+      }
     } catch {
+      setServices(previous);
       showToast("Failed to save service", "error");
     } finally {
+      setOptimistic(tempId, false);
       setIsSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
     setIsDeleting(id);
+    setOptimistic(id, true);
+    const previous = services;
+
+    setServices((prev) => prev.filter((s) => s.id !== id));
+
     try {
       const success = await deleteService(id);
       if (success) {
-        setServices((prev) => prev.filter((s) => s.id !== id));
         showToast("Service deactivated", "success");
       } else {
         throw new Error("Failed to delete");
       }
     } catch {
+      setServices(previous);
       showToast("Failed to delete service", "error");
     } finally {
       setIsDeleting(null);
+      setOptimistic(id, false);
     }
   };
 
@@ -284,89 +350,100 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredServices.map((service, index) => (
-              <div
-                key={service.id}
-                className={cn(
-                  "bg-card rounded-2xl shadow-spa border border-border overflow-hidden transition-all hover:shadow-spa-lg card-hover-lift",
-                  !service.is_active && "opacity-60",
-                  isMounted ? "animate-fade-slide-up" : "opacity-0"
-                )}
-                style={{ animationDelay: `${200 + index * 75}ms` }}
-              >
-                <div className="relative h-40">
-                  <Image
-                    src={
-                      service.image_url ||
-                      "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=600&q=80"
-                    }
-                    alt={service.name}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="object-cover"
-                  />
-                  <div className="absolute top-3 right-3 flex gap-2">
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full ${
-                        service.is_active
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-destructive text-destructive-foreground"
-                      }`}
-                    >
-                      {service.is_active ? "Active" : "Inactive"}
-                    </span>
-                  </div>
-                  <div className="absolute bottom-3 left-3">
-                    <span className="text-xs px-2 py-1 rounded-full bg-card/90 backdrop-blur text-muted-foreground">
-                      {CATEGORY_LABELS[service.category]}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-5">
-                  <h3 className="font-sans font-semibold text-xl text-foreground mb-1">
-                    {service.name}
-                  </h3>
-                  <p className="text-sm text-muted-foreground line-clamp-2 mb-4 min-h-[40px]">
-                    {service.description || "No description"}
-                  </p>
-
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <HugeiconsIcon icon={Clock01Icon} size={16} />
-                      <span className="text-sm">{service.duration} mins</span>
-                    </div>
-                    <span className="font-semibold text-foreground">
-                      {formatCurrency(service.price)}
-                    </span>
-                  </div>
-
-                  <div className="flex gap-2 pt-4 border-t border-border">
-                    <Button
-                      size="sm"
-                      onClick={() => handleOpenEdit(service)}
-                      className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
-                    >
-                      <HugeiconsIcon icon={PencilEdit01Icon} size={14} className="mr-1" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(service.id)}
-                      disabled={isDeleting === service.id}
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
-                    >
-                      {isDeleting === service.id ? (
-                        <HugeiconsIcon icon={Loading03Icon} size={14} className="animate-spin" />
-                      ) : (
-                        <HugeiconsIcon icon={Delete02Icon} size={14} />
+            {filteredServices.map((service, index) => {
+              const isOptimistic = optimisticIds.has(service.id);
+              return (
+                <div
+                  key={service.id}
+                  className={cn(
+                    "bg-card rounded-2xl shadow-spa border border-border overflow-hidden transition-all hover:shadow-spa-lg card-hover-lift",
+                    !service.is_active && "opacity-60",
+                    isOptimistic && "opacity-70 saturate-50",
+                    isMounted ? "animate-fade-slide-up" : "opacity-0"
+                  )}
+                  style={{ animationDelay: `${200 + index * 75}ms` }}
+                >
+                  <div className="relative h-40">
+                    <Image
+                      src={
+                        service.image_url ||
+                        "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=600&q=80"
+                      }
+                      alt={service.name}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover"
+                    />
+                    <div className="absolute top-3 right-3 flex gap-2">
+                      {isOptimistic && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground flex items-center gap-1">
+                          <HugeiconsIcon icon={Loading03Icon} size={12} className="animate-spin" />
+                          Syncing
+                        </span>
                       )}
-                    </Button>
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full ${
+                          service.is_active
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-destructive text-destructive-foreground"
+                        }`}
+                      >
+                        {service.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                    <div className="absolute bottom-3 left-3">
+                      <span className="text-xs px-2 py-1 rounded-full bg-card/90 backdrop-blur text-muted-foreground">
+                        {CATEGORY_LABELS[service.category]}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-5">
+                    <h3 className="font-sans font-semibold text-xl text-foreground mb-1">
+                      {service.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground line-clamp-2 mb-4 min-h-[40px]">
+                      {service.description || "No description"}
+                    </p>
+
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <HugeiconsIcon icon={Clock01Icon} size={16} />
+                        <span className="text-sm">{service.duration} mins</span>
+                      </div>
+                      <span className="font-semibold text-foreground">
+                        {formatCurrency(service.price)}
+                      </span>
+                    </div>
+
+                    <div className="flex gap-2 pt-4 border-t border-border">
+                      <Button
+                        size="sm"
+                        onClick={() => handleOpenEdit(service)}
+                        disabled={isOptimistic}
+                        className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                      >
+                        <HugeiconsIcon icon={PencilEdit01Icon} size={14} className="mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(service.id)}
+                        disabled={isDeleting === service.id || isOptimistic}
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+                      >
+                        {isDeleting === service.id ? (
+                          <HugeiconsIcon icon={Loading03Icon} size={14} className="animate-spin" />
+                        ) : (
+                          <HugeiconsIcon icon={Delete02Icon} size={14} />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

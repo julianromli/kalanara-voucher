@@ -163,7 +163,7 @@ export default function ReviewPage({ params }: PageProps) {
               onChange={(e) => setComment(e.target.value)}
               placeholder="What did you enjoy most about your experience?"
               rows={4}
-              className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring resize-none placeholder:text-muted-foreground placeholder:transition-opacity focus:placeholder:text-transparent"
             />
           </div>
 

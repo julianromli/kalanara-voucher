@@ -38,7 +38,6 @@ import {
 } from "@/components/ui/select";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
 import {
-  getVouchers,
   redeemVoucher,
   extendVoucher,
   voidVoucher,
@@ -92,6 +91,19 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [optimisticIds, setOptimisticIds] = useState<Set<string>>(new Set());
+
+  const setOptimistic = (id: string, active: boolean) => {
+    setOptimisticIds((prev) => {
+      const next = new Set(prev);
+      if (active) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -137,9 +149,41 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
 
     setIsProcessing(true);
 
+    const previous = vouchers;
+    const voucherId = selectedVoucher.id;
+    let message = "An error occurred";
+
+    const optimisticList = vouchers.map((voucher) => {
+      if (voucher.id !== voucherId) return voucher;
+
+      if (actionType === "redeem") {
+        return {
+          ...voucher,
+          is_redeemed: true,
+          redeemed_at: new Date().toISOString(),
+        };
+      }
+
+      if (actionType === "extend") {
+        const currentExpiry = new Date(voucher.expiry_date);
+        currentExpiry.setDate(currentExpiry.getDate() + extendDays);
+        return {
+          ...voucher,
+          expiry_date: currentExpiry.toISOString(),
+        };
+      }
+
+      return {
+        ...voucher,
+        expiry_date: new Date("2000-01-01").toISOString(),
+      };
+    });
+
+    setVouchers(optimisticList);
+    setOptimistic(voucherId, true);
+
     try {
       let success = false;
-      let message = "";
 
       switch (actionType) {
         case "redeem": {
@@ -164,15 +208,16 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
 
       if (success) {
         showToast(message, "success");
-        const updated = await getVouchers();
-        setVouchers(updated);
       } else {
-        showToast(message, "error");
+        setVouchers(previous);
+        showToast(message || "An error occurred", "error");
       }
     } catch {
+      setVouchers(previous);
       showToast("An error occurred", "error");
     } finally {
       setIsProcessing(false);
+      setOptimistic(selectedVoucher.id, false);
       closeActionDialog();
     }
   };
@@ -317,6 +362,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filteredVouchers.map((voucher, index) => {
+                    const isOptimistic = optimisticIds.has(voucher.id);
                     const status = getVoucherStatus(voucher);
                     const config = STATUS_CONFIG[status];
                     const StatusIcon = config.icon;
@@ -326,6 +372,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                         key={voucher.id}
                         className={cn(
                           "hover:bg-accent/50 transition-colors row-hover-lift",
+                          isOptimistic && "opacity-70 saturate-50",
                           isMounted ? "animate-fade-slide-up" : "opacity-0"
                         )}
                         style={{ animationDelay: `${500 + index * 50}ms` }}
@@ -376,6 +423,12 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                             <HugeiconsIcon icon={config.icon} size={12} />
                             {config.label}
                           </span>
+                          {isOptimistic && (
+                            <span className="ml-2 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <HugeiconsIcon icon={Loading03Icon} size={12} className="animate-spin" />
+                              Syncing
+                            </span>
+                          )}
                         </td>
                         <td className="p-4">
                           <div className="flex items-center justify-end gap-1">
@@ -385,6 +438,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => openActionDialog(voucher, "redeem")}
+                                  disabled={isOptimistic}
                                   className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
                                   title="Redeem"
                                 >
@@ -394,6 +448,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => openActionDialog(voucher, "extend")}
+                                  disabled={isOptimistic}
                                   className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
                                   title="Extend"
                                 >
@@ -403,6 +458,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => openActionDialog(voucher, "void")}
+                                  disabled={isOptimistic}
                                   className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                                   title="Void"
                                 >
