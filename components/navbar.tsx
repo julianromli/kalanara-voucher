@@ -5,14 +5,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Menu, X, ShoppingBag, ShieldCheck } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
-  const { isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
     // Trigger mount animation after a small delay for smooth reveal
@@ -105,32 +103,6 @@ export default function Navbar() {
               </Link>
             ))}
 
-            {isAuthenticated && !isLoading ? (
-              <Link
-                href="/admin/dashboard"
-                className={`font-medium transition-all duration-500 flex items-center gap-1 ${isMounted ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
-                  } ${isScrolled
-                    ? "text-foreground hover:text-muted-foreground"
-                    : "text-primary-foreground/90 hover:text-primary-foreground"
-                  }`}
-                style={{ transitionDelay: isMounted ? "525ms" : "0ms" }}
-              >
-                Dashboard
-              </Link>
-            ) : !isLoading ? (
-              <Link
-                href="/admin/login"
-                className={`font-medium transition-all duration-500 flex items-center gap-1 ${isMounted ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
-                  } ${isScrolled
-                    ? "text-foreground hover:text-muted-foreground"
-                    : "text-primary-foreground/90 hover:text-primary-foreground"
-                  }`}
-                style={{ transitionDelay: isMounted ? "525ms" : "0ms" }}
-              >
-                Staff Login
-              </Link>
-            ) : null}
-
             <Link
               href="/#services"
               className={`btn-hover-lift px-5 py-2 rounded-lg transition-all duration-500 flex items-center gap-2 ${isMounted ? "translate-y-0 opacity-100 scale-100" : "-translate-y-2 opacity-0 scale-95"
@@ -181,27 +153,6 @@ export default function Navbar() {
               {item.label === "Verify" ? "Verify Voucher" : item.label}
             </Link>
           ))}
-          {isAuthenticated && !isLoading ? (
-            <Link
-              href="/admin/dashboard"
-              onClick={() => setIsOpen(false)}
-              className={`block py-2 flex items-center gap-2 transition-all duration-300 ${isOpen ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"
-                }`}
-              style={{ transitionDelay: isOpen ? "150ms" : "0ms" }}
-            >
-              Dashboard
-            </Link>
-          ) : !isLoading ? (
-            <Link
-              href="/admin/login"
-              onClick={() => setIsOpen(false)}
-              className={`block py-2 flex items-center gap-2 transition-all duration-300 ${isOpen ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"
-                }`}
-              style={{ transitionDelay: isOpen ? "150ms" : "0ms" }}
-            >
-              Staff Login
-            </Link>
-          ) : null}
         </div>
       </div>
     </nav>

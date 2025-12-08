@@ -1,5 +1,6 @@
 "use server";
 
+import crypto from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { revalidateTag } from "next/cache";
@@ -10,11 +11,17 @@ import type {
   VoucherWithService,
 } from "@/lib/database.types";
 
+/**
+ * Generates a cryptographically secure voucher code.
+ * Uses crypto.randomBytes() instead of Math.random() for security.
+ * Format: KSP-{YEAR}-{12 random alphanumeric characters}
+ */
 function generateVoucherCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const randomBytes = crypto.randomBytes(12);
   const randomPart = Array.from(
-    { length: 8 },
-    () => chars[Math.floor(Math.random() * chars.length)]
+    { length: 12 },
+    (_, i) => chars[randomBytes[i] % chars.length]
   ).join("");
   const year = new Date().getFullYear();
   return `KSP-${year}-${randomPart}`;
