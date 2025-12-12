@@ -14,13 +14,13 @@ import type {
 /**
  * Generates a cryptographically secure voucher code.
  * Uses crypto.randomBytes() instead of Math.random() for security.
- * Format: KSP-{YEAR}-{12 random alphanumeric characters}
+ * Format: KSP-{YEAR}-{8 random alphanumeric characters}
  */
 function generateVoucherCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  const randomBytes = crypto.randomBytes(12);
+  const randomBytes = crypto.randomBytes(8);
   const randomPart = Array.from(
-    { length: 12 },
+    { length: 8 },
     (_, i) => chars[randomBytes[i] % chars.length]
   ).join("");
   const year = new Date().getFullYear();
