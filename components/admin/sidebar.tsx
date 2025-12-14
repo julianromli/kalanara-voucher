@@ -13,6 +13,9 @@ import {
   HelpCircleIcon,
   Logout01Icon,
   Leaf01Icon,
+  ShoppingBag01Icon,
+  StarIcon,
+  UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 import {
@@ -44,9 +47,24 @@ const navItems = [
     href: "/admin/services",
   },
   {
+    icon: ShoppingBag01Icon,
+    label: "Orders",
+    href: "/admin/orders",
+  },
+  {
+    icon: StarIcon,
+    label: "Reviews",
+    href: "/admin/reviews",
+  },
+  {
     icon: Ticket01Icon,
     label: "Vouchers",
     href: "/admin/vouchers",
+  },
+  {
+    icon: UserGroupIcon,
+    label: "Users",
+    href: "/admin/users",
   },
 ];
 
@@ -145,15 +163,19 @@ export function AdminSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton className="h-9 text-sm text-muted-foreground">
-                  <HugeiconsIcon icon={Settings02Icon} size={16} />
-                  <span>Settings</span>
+                <SidebarMenuButton asChild className="h-9 text-sm">
+                  <Link href="/admin/settings">
+                    <HugeiconsIcon icon={Settings02Icon} size={16} />
+                    <span>Settings</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton className="h-9 text-sm text-muted-foreground">
-                  <HugeiconsIcon icon={HelpCircleIcon} size={16} />
-                  <span>Help Center</span>
+                <SidebarMenuButton asChild className="h-9 text-sm">
+                  <Link href="/admin/help">
+                    <HugeiconsIcon icon={HelpCircleIcon} size={16} />
+                    <span>Help Center</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
