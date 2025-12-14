@@ -41,9 +41,9 @@ export default function Navbar() {
 
   // Nav items for staggered animation
   const navItems = [
-    { href: "/", label: "Home" },
-    { href: "/#services", label: "Treatments" },
-    { href: "/verify", label: "Verify", icon: ShieldCheck },
+    { href: "/", label: "Beranda" },
+    { href: "/#services", label: "Paket Voucher" },
+    { href: "/verify", label: "Cek Voucher", icon: ShieldCheck },
   ];
 
   return (
@@ -113,7 +113,7 @@ export default function Navbar() {
               style={{ transitionDelay: isMounted ? "600ms" : "0ms" }}
             >
               <ShoppingBag size={18} />
-              <span>Buy Voucher</span>
+              <span>Beli Voucher</span>
             </Link>
           </div>
 
@@ -150,7 +150,7 @@ export default function Navbar() {
               style={{ transitionDelay: isOpen ? `${index * 50}ms` : "0ms" }}
             >
               {item.icon && <item.icon size={16} />}
-              {item.label === "Verify" ? "Verify Voucher" : item.label}
+              {item.label === "Cek Voucher" ? "Cek Voucher Kamu" : item.label}
             </Link>
           ))}
         </div>

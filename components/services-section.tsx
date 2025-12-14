@@ -30,11 +30,11 @@ export function ServicesSection({ services }: ServicesSectionProps) {
       <div className="relative z-10 max-w-7xl mx-auto">
         <div className={`text-center mb-16 ${servicesInView ? "animate-fade-slide-up" : "opacity-0"}`}>
           <h2 className="font-sans font-semibold text-4xl text-foreground mb-4">
-            Curated Packages
+            Pilihan Paket Voucher
           </h2>
           <div className="h-1 w-20 bg-accent mx-auto rounded-full"></div>
           <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
-            Select a voucher package below to gift yourself or a loved one.
+            Pilih voucher spa untuk diri sendiri atau hadiah spesial untuk orang tersayang.
           </p>
         </div>
 
@@ -61,7 +61,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
                   />
                   <div className="absolute top-4 right-4 bg-card/90 backdrop-blur text-foreground px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 shadow-sm">
                     <Clock size={14} />
-                    {service.duration} mins
+                    {service.duration} menit
                   </div>
                 </div>
 
@@ -81,7 +81,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
                       href={`/voucher/${service.id}`}
                       className="text-muted-foreground font-medium hover:text-foreground flex items-center gap-1 text-sm uppercase tracking-wide transition-colors"
                     >
-                      Details <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                      Detail <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
                     </Link>
                   </div>
                 </div>
@@ -89,7 +89,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
             ))
           ) : (
             <div className="col-span-3 text-center py-12 text-muted-foreground">
-              No services available at the moment.
+              Belum ada paket tersedia saat ini.
             </div>
           )}
         </div>

@@ -25,16 +25,16 @@ export default function VoucherDetailPage({ params }: PageProps) {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h1 className="font-sans font-semibold text-3xl text-foreground mb-4">
-            Service Not Found
+            Paket Tidak Ditemukan
           </h1>
           <p className="text-muted-foreground mb-6">
-            The service you&apos;re looking for doesn&apos;t exist.
+            Maaf, paket yang kamu cari tidak tersedia.
           </p>
           <Link
             href="/"
             className="text-muted-foreground hover:text-foreground flex items-center gap-2 justify-center"
           >
-            <ChevronLeft size={20} /> Back to Home
+            <ChevronLeft size={20} /> Kembali ke Beranda
           </Link>
         </div>
       </div>
@@ -53,7 +53,7 @@ export default function VoucherDetailPage({ params }: PageProps) {
             size={20}
             className="group-hover:-translate-x-1 transition-transform"
           />
-          <span>Back</span>
+          <span>Kembali</span>
         </button>
       </div>
 
@@ -76,7 +76,7 @@ export default function VoucherDetailPage({ params }: PageProps) {
             <div className="absolute top-4 right-4 bg-card/90 backdrop-blur px-4 py-2 rounded-full flex items-center gap-2 shadow-sm">
               <Clock size={16} className="text-muted-foreground" />
               <span className="font-medium text-foreground">
-                {service.duration} minutes
+                {service.duration} menit
               </span>
             </div>
           </div>
@@ -101,9 +101,9 @@ export default function VoucherDetailPage({ params }: PageProps) {
                     <Clock size={20} className="text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Duration</p>
+                    <p className="text-xs text-muted-foreground">Durasi</p>
                     <p className="font-semibold text-foreground">
-                      {service.duration} mins
+                      {service.duration} menit
                     </p>
                   </div>
                 </div>
@@ -114,9 +114,9 @@ export default function VoucherDetailPage({ params }: PageProps) {
                     <Calendar size={20} className="text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Valid For</p>
+                    <p className="text-xs text-muted-foreground">Masa Berlaku</p>
                     <p className="font-semibold text-foreground">
-                      {APP_CONFIG.voucherValidity} days
+                      {APP_CONFIG.voucherValidity} hari
                     </p>
                   </div>
                 </div>
@@ -128,7 +128,7 @@ export default function VoucherDetailPage({ params }: PageProps) {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">
-                    Voucher Price
+                    Harga Voucher
                   </p>
                   <p className="font-sans font-semibold text-3xl text-foreground">
                     {formatCurrency(service.price)}
@@ -144,12 +144,12 @@ export default function VoucherDetailPage({ params }: PageProps) {
               <Link href={`/checkout/${service.id}`}>
                 <Button className="btn-hover-lift w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg flex items-center justify-center gap-2">
                   <Gift size={20} />
-                  Purchase Voucher
+                  Beli Voucher
                 </Button>
               </Link>
 
               <p className="text-center text-muted-foreground text-sm mt-4">
-                Instant delivery via Email & WhatsApp
+                Langsung dikirim via Email dan WhatsApp
               </p>
             </div>
           </div>

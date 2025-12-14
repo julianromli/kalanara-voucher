@@ -12,19 +12,19 @@ interface FeatureItem {
 const features: FeatureItem[] = [
   {
     icon: Zap,
-    title: "Instant Delivery",
+    title: "Langsung Dikirim",
     description:
-      "Vouchers are sent automatically via WhatsApp & Email immediately after purchase.",
+      "Voucher otomatis terkirim via WhatsApp dan Email setelah pembayaran berhasil.",
   },
   {
     icon: CalendarCheck,
-    title: "Valid for 12 Months",
-    description: "Flexible redemption period to suit your schedule.",
+    title: "Berlaku 12 Bulan",
+    description: "Fleksibel digunakan kapan saja sesuai jadwal kamu.",
   },
   {
     icon: ShieldCheck,
-    title: "Secure Payment",
-    description: "Trusted payments via QRIS, Bank Transfer, and Credit Cards.",
+    title: "Pembayaran Aman",
+    description: "Transaksi terpercaya via QRIS, Transfer Bank, dan Kartu Kredit.",
   },
 ];
 
@@ -46,7 +46,7 @@ const TrustFeatures = () => {
       <div className="relative z-10 max-w-7xl mx-auto">
         <div className={`text-center mb-16 ${isInView ? "animate-fade-slide-up" : "opacity-0"}`}>
           <h2 className="font-sans font-semibold text-4xl mb-4">
-            Why Choose Us
+            Kenapa Pilih Kami
           </h2>
           <div className="h-1 w-20 bg-accent mx-auto rounded-full" />
         </div>

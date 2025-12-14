@@ -28,11 +28,11 @@ export function TestimonialsSection({ reviews }: TestimonialsSectionProps) {
       <div className="max-w-7xl mx-auto">
         <div className={`text-center mb-16 ${testimonialsInView ? "animate-fade-slide-up" : "opacity-0"}`}>
           <h2 className="font-sans font-semibold text-4xl text-foreground mb-4">
-            Guest Experiences
+            Kata Mereka
           </h2>
           <div className="h-1 w-20 bg-accent mx-auto rounded-full"></div>
           <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
-            Read what our guests have to say about their journey with us.
+            Cerita pengalaman dari pelanggan setia Kalanara Spa.
           </p>
         </div>
 

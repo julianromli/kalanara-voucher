@@ -122,10 +122,10 @@ export default function VerifyPage() {
       <div className="bg-primary py-20 px-4">
         <div className="max-w-2xl mx-auto text-center">
           <h1 className="animate-fade-slide-up font-sans font-semibold text-4xl md:text-5xl text-primary-foreground mb-4">
-            Verify Your Voucher
+            Cek Voucher Kamu
           </h1>
           <p className="animate-fade-slide-up animate-stagger-1 text-primary-foreground/70 text-lg">
-            Enter your voucher code to check its validity and details
+            Masukkan kode voucher untuk melihat status dan detail voucher
           </p>
         </div>
       </div>
@@ -144,7 +144,7 @@ export default function VerifyPage() {
               }`}
             >
               <Keyboard size={18} />
-              Enter Code
+              Ketik Kode
             </button>
             <button
               onClick={() => setInputMode("scanner")}
@@ -169,7 +169,7 @@ export default function VerifyPage() {
                       type="text"
                       value={code}
                       onChange={(e) => setCode(e.target.value.toUpperCase())}
-                      placeholder="Enter voucher code (e.g., KSP-2024-XXXX)"
+                      placeholder="Masukkan kode voucher (contoh: KSP-2024-XXXX)"
                       className="pl-10 py-6 text-lg font-mono tracking-wider uppercase"
                     />
                     <Search
@@ -182,7 +182,7 @@ export default function VerifyPage() {
                     disabled={isSearching || !code.trim()}
                     className="bg-primary hover:bg-primary/90 text-primary-foreground px-8"
                   >
-                    {isSearching ? "..." : "Verify"}
+                    {isSearching ? "..." : "Cek"}
                   </Button>
                 </div>
               </form>
@@ -210,7 +210,7 @@ export default function VerifyPage() {
                       <div className="flex items-center gap-3">
                         {status.icon && <status.icon size={24} className={status.color} />}
                         <span className={`font-semibold ${status.color}`}>
-                          Voucher {status.text}
+                          Voucher {status.text === "Valid" ? "Aktif" : status.text === "Redeemed" ? "Sudah Digunakan" : "Kadaluarsa"}
                         </span>
                       </div>
                       <span className="font-mono text-sm">{searchResult.voucher.code}</span>
@@ -233,7 +233,7 @@ export default function VerifyPage() {
                       </h2>
                       <p className="text-muted-foreground flex items-center gap-2 mt-1">
                         <Clock size={16} />
-                        {searchResult.voucher.service.duration} minutes
+                        {searchResult.voucher.service.duration} menit
                       </p>
                       <p className="text-foreground font-semibold mt-2">
                         {formatCurrency(searchResult.voucher.amount)}
@@ -245,7 +245,7 @@ export default function VerifyPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-background p-4 rounded-xl">
                       <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                        <Gift size={12} /> Recipient
+                        <Gift size={12} /> Penerima
                       </p>
                       <p className="font-medium text-foreground">
                         {searchResult.voucher.recipientName}
@@ -253,7 +253,7 @@ export default function VerifyPage() {
                     </div>
                     <div className="bg-background p-4 rounded-xl">
                       <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                        <Calendar size={12} /> Expires
+                        <Calendar size={12} /> Berlaku Sampai
                       </p>
                       <p className="font-medium text-foreground">
                         {formatDate(new Date(searchResult.voucher.expiryDate))}
@@ -264,12 +264,12 @@ export default function VerifyPage() {
                   {/* Message */}
                   {searchResult.voucher.senderMessage && (
                     <div className="bg-muted p-4 rounded-xl border border-border">
-                      <p className="text-xs text-muted-foreground mb-2">Gift Message</p>
+                      <p className="text-xs text-muted-foreground mb-2">Pesan</p>
                       <p className="text-muted-foreground italic">
                         &quot;{searchResult.voucher.senderMessage}&quot;
                       </p>
                       <p className="text-muted-foreground text-sm mt-2">
-                        — From {searchResult.voucher.senderName}
+                        — Dari {searchResult.voucher.senderName}
                       </p>
                     </div>
                   )}
@@ -282,7 +282,7 @@ export default function VerifyPage() {
                       className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6"
                     >
                       <Download size={18} className="mr-2" />
-                      {isDownloading ? "Generating PDF..." : "Download Voucher PDF"}
+                      {isDownloading ? "Membuat PDF..." : "Download Voucher PDF"}
                     </Button>
                   )}
                 </div>
@@ -293,14 +293,14 @@ export default function VerifyPage() {
                   <XCircle size={32} className="text-destructive" />
                 </div>
                 <h2 className="font-sans font-semibold text-2xl text-foreground mb-2">
-                  Voucher Not Found
+                  Voucher Tidak Ditemukan
                 </h2>
                 <p className="text-muted-foreground">
-                  We couldn&apos;t find a voucher with the code{" "}
+                  Kami tidak menemukan voucher dengan kode{" "}
                   <span className="font-mono font-bold">{code}</span>
                 </p>
                 <p className="text-muted-foreground text-sm mt-4">
-                  Please check the code and try again
+                  Pastikan kode yang kamu masukkan sudah benar
                 </p>
               </div>
             )}
@@ -310,7 +310,7 @@ export default function VerifyPage() {
         {!searchResult && (
           <div className="text-center py-12 text-muted-foreground">
             <Search size={48} className="mx-auto mb-4 opacity-30" />
-            <p>Enter a voucher code above to verify its status</p>
+            <p>Masukkan kode voucher di atas untuk mengecek statusnya</p>
           </div>
         )}
       </div>

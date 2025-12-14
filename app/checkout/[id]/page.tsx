@@ -361,14 +361,14 @@ export default function CheckoutPage({ params }: PageProps) {
             <CheckCircle size={40} className="text-muted-foreground" />
           </div>
           <h1 className="font-sans font-semibold text-3xl text-foreground mb-2">
-            Payment Successful!
+            Pembayaran Berhasil!
           </h1>
           <p className="text-muted-foreground mb-8">
-            Your voucher has been created and sent to the recipient.
+            Voucher kamu sudah dibuat dan dikirim ke penerima.
           </p>
 
           <div className="bg-background p-6 rounded-2xl mb-6">
-            <p className="text-sm text-muted-foreground mb-2">Voucher Code</p>
+            <p className="text-sm text-muted-foreground mb-2">Kode Voucher</p>
             <p className="font-mono text-2xl text-foreground font-bold tracking-wider">
               {successData.voucherCode}
             </p>
@@ -393,7 +393,7 @@ export default function CheckoutPage({ params }: PageProps) {
 
           {/* Resend Options */}
           <div className="bg-muted p-4 rounded-xl mb-6">
-            <p className="text-sm text-muted-foreground mb-3">Resend Voucher</p>
+            <p className="text-sm text-muted-foreground mb-3">Kirim Ulang Voucher</p>
             <div className="flex gap-3">
               <Button
                 onClick={handleResendEmail}
@@ -419,14 +419,14 @@ export default function CheckoutPage({ params }: PageProps) {
               onClick={() => router.push("/")}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3"
             >
-              Back to Home
+              Kembali ke Beranda
             </Button>
             <Button
               onClick={() => router.push("/verify")}
               variant="outline"
               className="w-full border-border text-muted-foreground py-3"
             >
-              Verify Another Voucher
+              Cek Voucher Lain
             </Button>
           </div>
         </div>
@@ -450,16 +450,16 @@ export default function CheckoutPage({ params }: PageProps) {
         <button
           onClick={() => router.back()}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group"
-          aria-label="Go back to previous page"
+          aria-label="Kembali ke halaman sebelumnya"
         >
           <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-          <span>Back</span>
+          <span>Kembali</span>
         </button>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="animate-fade-slide-up font-sans font-semibold text-2xl sm:text-3xl text-foreground mb-6 sm:mb-8 text-center">
-          Complete Your Purchase
+          Selesaikan Pembelian
         </h1>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8" aria-label="Checkout form">
@@ -469,19 +469,19 @@ export default function CheckoutPage({ params }: PageProps) {
               {/* Customer Details */}
               <div className="animate-fade-slide-up animate-stagger-1 bg-card p-4 sm:p-6 rounded-2xl border border-border">
                 <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2 text-lg">
-                  <User size={20} aria-hidden="true" /> Your Details
+                  <User size={20} aria-hidden="true" /> Data Kamu
                 </h2>
-                <p className="sr-only">Section for entering your personal information</p>
+                <p className="sr-only">Bagian untuk mengisi informasi pribadi kamu</p>
                 <div className="space-y-3 sm:space-y-4">
                   <div>
                     <label className="text-sm text-muted-foreground mb-2 block font-medium">
-                      Full Name
+                      Nama Lengkap
                     </label>
                     <Input
                       {...register("customerName", { 
                         required: "Nama lengkap wajib diisi"
                       })}
-                      placeholder="Your name"
+                      placeholder="Nama kamu"
                       aria-invalid={!!errors.customerName}
                       aria-describedby={errors.customerName ? "customerName-error" : undefined}
                       className={`min-h-12 text-base ${errors.customerName ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
@@ -556,19 +556,19 @@ export default function CheckoutPage({ params }: PageProps) {
               {/* Recipient Details */}
               <div className="animate-fade-slide-up animate-stagger-2 bg-card p-4 sm:p-6 rounded-2xl border border-border">
                 <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2 text-lg">
-                  <Gift size={20} aria-hidden="true" /> Recipient Details
+                  <Gift size={20} aria-hidden="true" /> Data Penerima
                 </h2>
-                <p className="sr-only">Section for entering recipient information. Email field is not required in this section.</p>
+                <p className="sr-only">Bagian untuk mengisi informasi penerima voucher</p>
                 <div className="space-y-3 sm:space-y-4">
                   <div>
                     <label className="text-sm text-muted-foreground mb-2 block font-medium">
-                      Recipient Name
+                      Nama Penerima
                     </label>
                     <Input
                       {...register("recipientName", { 
                         required: "Nama penerima wajib diisi"
                       })}
-                      placeholder="Voucher recipient's name"
+                      placeholder="Nama penerima voucher"
                       aria-invalid={!!errors.recipientName}
                       aria-describedby={errors.recipientName ? "recipientName-error" : undefined}
                       className={`min-h-12 text-base ${errors.recipientName ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
@@ -579,7 +579,7 @@ export default function CheckoutPage({ params }: PageProps) {
                   </div>
                   <div>
                     <label className="text-sm text-muted-foreground mb-2 block font-medium">
-                      Recipient WhatsApp
+                      WhatsApp Penerima
                     </label>
                     <Input
                       {...register("recipientPhone", {
@@ -610,11 +610,11 @@ export default function CheckoutPage({ params }: PageProps) {
                   </div>
                   <div>
                     <label className="text-sm text-muted-foreground mb-2 block font-medium">
-                      Message (Optional)
+                      Pesan (Opsional)
                     </label>
                     <textarea
                       {...register("senderMessage")}
-                      placeholder="Write a personal message..."
+                      placeholder="Tulis pesan untuk penerima..."
                       rows={3}
                       className="w-full px-3 py-2 min-h-24 text-base border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring resize-none placeholder:text-muted-foreground placeholder:transition-opacity focus:placeholder:text-transparent"
                     />
@@ -625,20 +625,20 @@ export default function CheckoutPage({ params }: PageProps) {
               {/* Delivery Options */}
               <div className="animate-fade-slide-up animate-stagger-3 bg-card p-4 sm:p-6 rounded-2xl border border-border">
                 <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2 text-lg">
-                  <Send size={20} aria-hidden="true" /> Voucher Delivery Options
+                  <Send size={20} aria-hidden="true" /> Opsi Pengiriman Voucher
                 </h2>
-                <p className="sr-only">Section for selecting how and to whom the voucher will be delivered. Email field will appear if email delivery is selected.</p>
+                <p className="sr-only">Bagian untuk memilih cara dan tujuan pengiriman voucher</p>
                 <div className="space-y-4 sm:space-y-5">
                   {/* Send To Toggle */}
                   <div>
                     <label className="text-sm text-muted-foreground mb-2 block font-medium" id="sendTo-label">
-                      Send Voucher To
+                      Kirim Voucher Ke
                     </label>
-                    <p className="sr-only">Choose whether to send the voucher directly to the recipient or to yourself. This affects which email address will be used for email delivery.</p>
+                    <p className="sr-only">Pilih apakah voucher dikirim langsung ke penerima atau ke kamu sendiri</p>
                     <div className="grid grid-cols-2 gap-2 sm:gap-3" role="group" aria-labelledby="sendTo-label">
                       {[
-                        { value: SendTo.RECIPIENT, label: "Direct to Recipient" },
-                        { value: SendTo.PURCHASER, label: "Send to Me" },
+                        { value: SendTo.RECIPIENT, label: "Langsung ke Penerima" },
+                        { value: SendTo.PURCHASER, label: "Kirim ke Saya" },
                       ].map((option) => (
                         <label
                           key={option.value}
@@ -658,8 +658,8 @@ export default function CheckoutPage({ params }: PageProps) {
                           {option.label}
                           <span id={`sendTo-${option.value}-description`} className="sr-only">
                             {option.value === SendTo.RECIPIENT
-                              ? "Send the voucher directly to the recipient's email or WhatsApp"
-                              : "Send the voucher to your own email or WhatsApp"}
+                              ? "Kirim voucher langsung ke email atau WhatsApp penerima"
+                              : "Kirim voucher ke email atau WhatsApp kamu sendiri"}
                           </span>
                         </label>
                       ))}
@@ -669,9 +669,9 @@ export default function CheckoutPage({ params }: PageProps) {
                   {/* Delivery Method */}
                   <div>
                     <label className="text-sm text-muted-foreground mb-2 block font-medium" id="deliveryMethod-label">
-                      Delivery Method
+                      Metode Pengiriman
                     </label>
-                    <p className="sr-only">Select how you want the voucher to be delivered. Selecting Email or Both will require an email address.</p>
+                    <p className="sr-only">Pilih cara pengiriman voucher. Memilih Email atau Keduanya memerlukan alamat email.</p>
                     <div className="space-y-2 sm:space-y-3" role="group" aria-labelledby="deliveryMethod-label">
                       {[
                         { value: DeliveryMethod.WHATSAPP, label: "WhatsApp", icon: MessageCircle },
@@ -727,15 +727,15 @@ export default function CheckoutPage({ params }: PageProps) {
                             >
                               {method.label}
                               {isWhatsApp && !isSelected && (
-                                <span className="text-xs text-success/60 ml-1">(Recommended)</span>
+                                <span className="text-xs text-success/60 ml-1">(Disarankan)</span>
                               )}
                             </span>
                             <span id={`deliveryMethod-${method.value}-description`} className="sr-only">
                               {method.value === DeliveryMethod.WHATSAPP
-                                ? "Recommended. Send voucher via WhatsApp only."
+                                ? "Disarankan. Kirim voucher via WhatsApp saja."
                                 : method.value === DeliveryMethod.EMAIL
-                                  ? "Send voucher via Email only. Requires email address."
-                                  : "Send voucher via both Email and WhatsApp. Requires email address."}
+                                  ? "Kirim voucher via Email saja. Memerlukan alamat email."
+                                  : "Kirim voucher via Email dan WhatsApp. Memerlukan alamat email."}
                             </span>
                           </label>
                         );
@@ -757,11 +757,11 @@ export default function CheckoutPage({ params }: PageProps) {
                   >
                     <div className={showRecipientEmail ? "field-visible" : "field-hidden"}>
                       <label className="text-sm text-muted-foreground mb-2 block font-medium" htmlFor="recipientEmail">
-                        Recipient Email
-                        {showRecipientEmail && <span className="text-destructive ml-1" aria-label="required">*</span>}
+                        Email Penerima
+                        {showRecipientEmail && <span className="text-destructive ml-1" aria-label="wajib">*</span>}
                       </label>
                       <p className="sr-only">
-                        This field is required because you selected email as your delivery method. Enter the email address where the voucher should be sent.
+                        Field ini wajib diisi karena kamu memilih pengiriman via email. Masukkan alamat email tujuan pengiriman voucher.
                       </p>
                       <Input
                         id="recipientEmail"
@@ -810,20 +810,20 @@ export default function CheckoutPage({ params }: PageProps) {
               {/* Payment Method */}
               <div className="animate-fade-slide-up animate-stagger-4 bg-card p-4 sm:p-6 rounded-2xl border border-border">
                 <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2 text-lg">
-                  <CreditCard size={20} aria-hidden="true" /> Payment Method
+                  <CreditCard size={20} aria-hidden="true" /> Metode Pembayaran
                 </h2>
-                <p className="sr-only">Section for selecting your preferred payment method</p>
+                <p className="sr-only">Bagian untuk memilih metode pembayaran</p>
                 <div className="space-y-2 sm:space-y-3" role="group" aria-labelledby="paymentMethod-label">
-                  <span id="paymentMethod-label" className="sr-only">Payment method options</span>
+                  <span id="paymentMethod-label" className="sr-only">Pilihan metode pembayaran</span>
                   {[
                     {
                       value: PaymentMethod.CREDIT_CARD,
-                      label: "Credit/Debit Card",
+                      label: "Kartu Kredit/Debit",
                       icon: CreditCard,
                     },
                     {
                       value: PaymentMethod.BANK_TRANSFER,
-                      label: "Bank Transfer",
+                      label: "Transfer Bank",
                       icon: Building2,
                     },
                     {
@@ -867,10 +867,10 @@ export default function CheckoutPage({ params }: PageProps) {
                       </span>
                       <span id={`paymentMethod-${method.value}-description`} className="sr-only">
                         {method.value === PaymentMethod.CREDIT_CARD
-                          ? "Pay using credit or debit card"
+                          ? "Bayar dengan kartu kredit atau debit"
                           : method.value === PaymentMethod.BANK_TRANSFER
-                            ? "Pay using bank transfer"
-                            : "Pay using e-wallet"}
+                            ? "Bayar dengan transfer bank"
+                            : "Bayar dengan e-wallet"}
                       </span>
                     </label>
                   ))}
@@ -882,7 +882,7 @@ export default function CheckoutPage({ params }: PageProps) {
             <div className="lg:sticky lg:top-24 lg:h-fit">
               <div className="animate-scale-in bg-card p-4 sm:p-6 rounded-2xl border border-border">
                 <h2 className="font-semibold text-foreground mb-4 text-lg">
-                  Order Summary
+                  Ringkasan Pesanan
                 </h2>
 
                 <div className="flex gap-3 sm:gap-4 mb-6">
@@ -898,7 +898,7 @@ export default function CheckoutPage({ params }: PageProps) {
                   <div className="min-w-0">
                     <h3 className="font-medium text-foreground text-sm sm:text-base line-clamp-2">{service.name}</h3>
                     <p className="text-xs sm:text-sm text-muted-foreground">
-                      {service.duration} minutes
+                      {service.duration} menit
                     </p>
                   </div>
                 </div>
@@ -909,8 +909,8 @@ export default function CheckoutPage({ params }: PageProps) {
                     <span>{formatCurrency(service.price)}</span>
                   </div>
                   <div className="flex justify-between text-muted-foreground text-sm">
-                    <span>Service Fee</span>
-                    <span>Free</span>
+                    <span>Biaya Layanan</span>
+                    <span>Gratis</span>
                   </div>
                   <div className="border-t border-border pt-3 flex justify-between font-semibold text-foreground">
                     <span>Total</span>
@@ -925,13 +925,13 @@ export default function CheckoutPage({ params }: PageProps) {
                   disabled={isProcessing}
                   className="btn-hover-lift w-full mt-6 bg-primary hover:bg-primary/90 text-primary-foreground py-3 sm:py-4 text-base sm:text-lg min-h-12 sm:min-h-14"
                   aria-busy={isProcessing}
-                  aria-label={isProcessing ? "Processing your payment" : "Complete your purchase"}
+                  aria-label={isProcessing ? "Memproses pembayaran" : "Selesaikan pembelian"}
                 >
-                  {isProcessing ? "Processing..." : "Complete Purchase"}
+                  {isProcessing ? "Memproses..." : "Bayar Sekarang"}
                 </Button>
 
                 <p className="text-center text-muted-foreground text-xs mt-4">
-                  By completing this purchase, you agree to our Terms of Service
+                  Dengan menyelesaikan pembelian ini, kamu menyetujui Syarat dan Ketentuan kami
                 </p>
               </div>
             </div>

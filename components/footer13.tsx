@@ -14,35 +14,35 @@ import { useInView } from "@/hooks/useInView";
 
 const navigation = [
   {
-    title: "Spa Vouchers",
+    title: "Voucher Spa",
     links: [
-      { name: "Gift Vouchers", href: "/vouchers" },
-      { name: "Massage Treatments", href: "/vouchers#massage" },
-      { name: "Body Treatments", href: "/vouchers#body" },
-      { name: "Facial Treatments", href: "/vouchers#facial" },
+      { name: "Semua Voucher", href: "/#services" },
+      { name: "Paket Massage", href: "/#services" },
+      { name: "Paket Body Treatment", href: "/#services" },
+      { name: "Paket Facial", href: "/#services" },
     ],
   },
   {
     title: "Kalanara Spa",
     links: [
-      { name: "About Us", href: "/about" },
-      { name: "Our Treatments", href: "/treatments" },
-      { name: "Contact Us", href: "/contact" },
+      { name: "Tentang Kami", href: "/about" },
+      { name: "Layanan Kami", href: "/#services" },
+      { name: "Hubungi Kami", href: "/contact" },
     ],
   },
   {
-    title: "Help",
+    title: "Bantuan",
     links: [
-      { name: "How It Works", href: "/how-it-works" },
-      { name: "FAQs", href: "/faq" },
-      { name: "Redeem Voucher", href: "/redeem" },
+      { name: "Cara Pembelian", href: "/how-it-works" },
+      { name: "FAQ", href: "/faq" },
+      { name: "Tukar Voucher", href: "/verify" },
     ],
   },
   {
     title: "Legal",
     links: [
-      { name: "Terms of Service", href: "/terms" },
-      { name: "Privacy Policy", href: "/privacy" },
+      { name: "Syarat & Ketentuan", href: "/terms" },
+      { name: "Kebijakan Privasi", href: "/privacy" },
     ],
   },
 ];
@@ -73,9 +73,9 @@ const Footer13 = () => {
                   isInView ? "animate-fade-slide-up animate-stagger-1" : "opacity-0"
                 }`}
               >
-                Gift the Joy of
+                Hadiah Terbaik untuk
                 <span className="text-accent relative inline-block ml-3">
-                  Relaxation
+                  Relaksasi
                   <span className="bg-accent/30 absolute bottom-1 left-0 h-1 w-full rounded-full"></span>
                 </span>
               </h2>
@@ -84,7 +84,7 @@ const Footer13 = () => {
                   isInView ? "animate-fade-slide-up animate-stagger-2" : "opacity-0"
                 }`}
               >
-                Premium spa vouchers for someone special.
+                Voucher spa premium untuk orang tersayang.
               </p>
               <div
                 className={`mt-8 flex flex-col gap-4 sm:flex-row ${
@@ -93,7 +93,7 @@ const Footer13 = () => {
               >
                 <Button asChild size="lg" className="btn-hover-lift group bg-accent text-accent-foreground hover:bg-accent/90">
                   <a href="/#services" className="flex items-center gap-2">
-                    Shop Spa Vouchers Now
+                    Buy Voucher Sekarang
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </a>
                 </Button>
@@ -110,23 +110,23 @@ const Footer13 = () => {
             <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
               <div>
                 <h3 className="mb-2 text-2xl font-medium text-foreground">
-                  Wellness Tips & Exclusive Offers
+                  Tips Wellness dan Promo Eksklusif
                 </h3>
                 <p className="text-muted-foreground max-w-md">
-                  Subscribe for spa insights, seasonal promotions, and early
-                  access to new treatment packages.
+                  Dapatkan info perawatan terbaru, promo spesial, dan akses awal
+                  ke paket treatment baru.
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="relative grow">
                   <Input
                     type="email"
-                    placeholder="Your email address"
+                    placeholder="Alamat email kamu"
                     className="border-border bg-muted/50 h-12 pl-4"
                   />
                 </div>
                 <Button type="submit" className="btn-hover-lift h-12 px-6 bg-primary text-primary-foreground hover:bg-primary/90">
-                  Subscribe
+                  Langganan
                 </Button>
               </div>
             </div>
@@ -166,8 +166,7 @@ const Footer13 = () => {
                 }`}
                 style={{ animationDelay: isInView ? "900ms" : "0ms" }}
               >
-                © {new Date().getFullYear()} Kalanara Spa. Luxury wellness
-                experiences in Indonesia.
+                © {new Date().getFullYear()} Kalanara Spa Galaxy, Bekasi. Khusus Wanita.
               </p>
               <div className="flex items-center gap-6">
                 {socialLinks.map((link, index) => (

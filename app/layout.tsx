@@ -26,24 +26,34 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kalanara Spa | Luxury Spa Vouchers in Bali",
+  title: "Kalanara Spa Galaxy Bekasi | Voucher Spa Premium untuk Wanita",
   description:
-    "Experience the art of relaxation at Kalanara Spa. Gift wellness and serenity with our exclusive spa vouchers. Traditional Balinese treatments in Ubud.",
+    "Beli voucher spa premium di Kalanara Spa Galaxy, Bekasi. Hadiah spesial untuk diri sendiri atau orang tersayang. Terapis profesional, khusus wanita. Langsung dikirim via WhatsApp dan Email.",
   keywords: [
-    "spa",
-    "bali",
-    "voucher",
-    "gift",
-    "massage",
-    "wellness",
-    "ubud",
-    "relaxation",
+    "voucher spa bekasi",
+    "gift card spa",
+    "hadiah spa wanita",
+    "voucher massage bekasi",
+    "kalanara spa",
+    "spa galaxy bekasi",
+    "voucher treatment",
+    "hadiah relaksasi",
+    "spa khusus wanita",
+    "voucher pijat bekasi",
   ],
   openGraph: {
-    title: "Kalanara Spa | Harmony in Every Touch",
+    title: "Kalanara Spa Galaxy Bekasi | Voucher Spa Premium",
     description:
-      "Gift the experience of luxury spa treatments. Traditional Balinese healing in a modern sanctuary.",
+      "Hadiah spesial untuk me time. Voucher spa premium dari Kalanara Spa Galaxy, Bekasi. Khusus wanita, terapis profesional.",
     type: "website",
+    locale: "id_ID",
+  },
+  alternates: {
+    canonical: "https://voucher.kalanaraspa.com",
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
@@ -53,7 +63,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="id" className="scroll-smooth">
       <head>
         {/* put this in the <head> */}
         {process.env.NODE_ENV === "development" && (
