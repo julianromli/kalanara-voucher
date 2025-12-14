@@ -11,11 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import type { OrderWithVoucher } from "@/lib/database.types";
 
-interface OrdersClientProps {
+interface PurchasesClientProps {
   initialOrders: OrderWithVoucher[];
 }
 
-export function OrdersClient({ initialOrders }: OrdersClientProps) {
+export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [orders, setOrders] = useState(initialOrders);
@@ -65,19 +65,19 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
 
   return (
     <>
-      <DashboardHeader title="Orders Management" showActions={false} />
+      <DashboardHeader title="Purchases Management" showActions={false} />
       <div className="w-full overflow-y-auto overflow-x-hidden p-4 md:p-6 h-full">
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <p className="text-muted-foreground text-sm">
-              Manage customer orders and payment status
+              Manage customer voucher purchases and payment status
             </p>
           </div>
 
           <div className="bg-card rounded-2xl shadow-spa border border-border p-4">
             <div className="flex flex-col md:flex-row gap-4 mb-4">
               <Input
-                placeholder="Search orders..."
+                placeholder="Search purchases..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1"
@@ -100,6 +100,7 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Customer</TableHead>
+                    <TableHead>Voucher Code</TableHead>
                     <TableHead>Service</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
@@ -114,6 +115,11 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
                         <div>
                           <p className="font-medium">{order.customer_name}</p>
                           <p className="text-sm text-muted-foreground">{order.customer_email}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-mono text-sm">{order.vouchers?.code || "N/A"}</p>
                         </div>
                       </TableCell>
                       <TableCell>{order.vouchers?.services?.name || "Unknown"}</TableCell>

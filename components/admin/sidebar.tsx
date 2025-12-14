@@ -48,8 +48,8 @@ const navItems = [
   },
   {
     icon: ShoppingBag01Icon,
-    label: "Orders",
-    href: "/admin/orders",
+    label: "Purchases",
+    href: "/admin/purchases",
   },
   {
     icon: StarIcon,

@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
-import { OrdersClient } from '../orders-client';
+import { PurchasesClient } from '../purchases-client';
 
-describe('OrdersClient', () => {
-  test('should render orders table', () => {
+describe('PurchasesClient', () => {
+  test('should render purchases table', () => {
     const mockOrders = [
       {
         id: '1',
@@ -14,7 +14,7 @@ describe('OrdersClient', () => {
       }
     ];
 
-    render(<OrdersClient initialOrders={mockOrders} />);
+    render(<PurchasesClient initialOrders={mockOrders} />);
     
     expect(screen.getByText('John Doe')).toBeInTheDocument();
     expect(screen.getByText('500,000')).toBeInTheDocument();
