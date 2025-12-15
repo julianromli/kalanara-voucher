@@ -66,33 +66,34 @@ export function generateVoucherMessage(data: WhatsAppVoucherData): string {
   const formattedAmount = formatCurrency(data.amount);
   const formattedExpiry = formatDate(data.expiryDate);
 
-  const message = `🎁 *You've got a gift!*
+  const message = `🎁 *Kado Spesial nih!* 
 
-Hey ${data.recipientName}! ✨
+Halo ${data.recipientName}! 💕
 
-${data.senderName} just sent you a spa treat at Kalanara Spa — lucky you!
-${data.senderMessage ? `\n_"${data.senderMessage}"_\n— ${data.senderName} 💕\n` : ""}
+${data.senderName} memberikanmu pengalaman spa yang menenangkan di Kalanara Spa Galaxy, Bekasi — selamat ya!
+${data.senderMessage ? `\n💌 *"${data.senderMessage}"*\n— ${data.senderName} ✨\n` : ""}
+
+━━━ ✨ Voucher Anda ✨ ━━━
+
+Kode Voucher: \`${data.voucherCode}\`
+Perawatan: ${data.serviceName}
+Durasi: ${data.serviceDuration} menit
+Nilai: ${formattedAmount}
+Berlaku sampai: ${formattedExpiry}
+
+━━━ *Siap untuk relaksasi?* ━━━
+
+📞 Reservasi: +62 361 123 4567
+📍 Tunjukkan kode saat tiba
+🔗 Verifikasi: ${data.verifyUrl}
+
 • • •
 
-*Your Voucher*
-Code: \`${data.voucherCode}\`
-Treatment: ${data.serviceName}
-Duration: ${data.serviceDuration} min
-Worth: ${formattedAmount}
-Valid until: ${formattedExpiry}
+_Kalanara Spa Galaxy, Bekasi_
+💆‍♀️ *Khusus Wanita* • Terapis Profesional
+📧 hello@kalanaraspa.com
 
-• • •
-
-*Ready to relax?*
-📞 Book via +62 361 123 4567
-📍 Show your code when you arrive
-🔗 Verify: ${data.verifyUrl}
-
-• • •
-
-_Kalanara Spa_
-Jl. Raya Ubud No. 88, Ubud, Bali
-hello@kalanaraspa.com`;
+Terima kasih sudah mempercayakan waktu berkualitas Anda bersama kami! 🌸`;
 
   return message;
 }

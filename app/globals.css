@@ -349,12 +349,12 @@
 @keyframes fadeSlideUp {
     from {
         opacity: 0.01;
-        transform: translateY(20px);
+        transform: translate3d(0, 20px, 0);
         filter: blur(4px);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translate3d(0, 0, 0);
         filter: blur(0);
     }
 }
@@ -443,6 +443,9 @@
 @layer utilities {
     .animate-fade-slide-up {
         animation: fadeSlideUp 0.6s ease-out both;
+        will-change: transform, opacity;
+        backface-visibility: hidden;
+        perspective: 1000px;
     }
 
     .animate-fade-slide-down {
@@ -595,5 +598,28 @@
         opacity: 1 !important;
         transform: none !important;
         filter: none !important;
+    }
+
+    /* Hero headline optimization for zoom behavior */
+    .hero-headline {
+        line-height: 1.2;
+        text-wrap: balance;
+        overflow-wrap: break-word;
+        contain: layout style paint;
+        transform: translateZ(0); /* Force GPU acceleration */
+        max-width: 32rem; /* Consistent width for 2-line layout */
+    }
+
+    /* Container query support for better zoom behavior */
+    @container (min-width: 320px) {
+        .hero-headline {
+            font-size: clamp(2rem, 8vw, 4rem);
+            line-height: 1.2;
+        }
+    }
+
+    /* Additional text wrapping utilities for better readability */
+    .text-wrap-balance {
+        text-wrap: balance;
     }
 }

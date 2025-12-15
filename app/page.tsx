@@ -68,8 +68,8 @@ export default async function LandingPage() {
             <span className="animate-fade-slide-up text-primary-foreground/60 tracking-[0.3em] text-xs md:text-sm uppercase mb-6 block">
               Selamat Datang di Kalanara
             </span>
-            <h1 className="animate-fade-slide-up animate-stagger-1 font-sans font-semibold text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl text-primary-foreground mb-8 leading-[1.1]">
-              Hadiah Spesial <br className="hidden sm:block" />
+            <h1 className="animate-fade-slide-up animate-stagger-1 font-sans font-semibold text-4xl sm:text-5xl md:text-6xl lg:text-6xl xl:text-7xl text-primary-foreground mb-8 leading-[1.2] text-wrap-balance max-w-2xl hero-headline">
+              Hadiah Spesial<br />
               untuk{" "}
               <span className="italic font-normal text-primary-foreground/70">
                 Me Time
