@@ -1,0 +1,128 @@
+name: Keep Supabase Active
+
+on:
+  schedule:
+    # Run every Sunday at midnight UTC (before 7-day pause)
+    - cron: '0 0 * * 0'
+  workflow_dispatch:  # Allow manual triggering
+    inputs:
+      force_ping:
+        description: 'Force immediate ping to Supabase'
+        required: false
+        default: 'true'
+        type: boolean
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install Supabase CLI
+      run: npm install -g supabase
+        
+    - name: Ping Supabase Database
+      env:
+        SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      run: |
+        echo "Pinging Supabase database to prevent 7-day pause..."
+        curl -X GET "$SUPABASE_URL/rest/v1/" \
+          -H "apikey: $SUPABASE_ANON_KEY" \
+          -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+          -H "Content-Type: application/json"
+          
+    - name: Call Keep-Alive Edge Function
+      env:
+        SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      run: |
+        echo "Calling keep-alive edge function..."
+        curl -X POST "$SUPABASE_URL/functions/v1/keep-alive" \
+          -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+          -H "Content-Type: application/json" \
+          -d '{"source": "github_actions", "timestamp": "'$(date -Iseconds)'"}'
+          
+    - name: Verify Database Activity
+      env:
+        SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      run: |
+        echo "Verifying keep_alive table activity..."
+        curl -X GET "$SUPABASE_URL/rest/v1/keep_alive?select=*&order=created_at.desc&limit=5" \
+          -H "apikey: $SUPABASE_ANON_KEY" \
+          -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+          -H "Content-Type: application/json"
+          
+    - name: Log Success
+      run: |
+        echo "✅ Supabase keep-alive completed successfully at $(date -Iseconds)"
+        echo "Database should remain active for another 7 days"
+        
+    - name: Notify on Failure
+      if: failure()
+      run: |
+        echo "❌ Supabase keep-alive failed!"
+        echo "Please check the logs above and manually ping the database"
+        echo "URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}"
+        
+  backup-heartbeat:
+    runs-on: ubuntu-latest
+    needs: ping-supabase
+    if: always() && (needs.ping-supabase.result == 'success' || needs.ping-supabase.result == 'failure')
+    
+    steps:
+    - name: Simple Database Query
+      env:
+        SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      run: |
+        echo "Running backup heartbeat query..."
+        # Simple query to ensure database activity
+        curl -X GET "$SUPABASE_URL/rest/v1/vouchers?select=count&head=true" \
+          -H "apikey: $SUPABASE_ANON_KEY" \
+          -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+          -H "Content-Type: application/json" || echo "Query failed but continuing..."
+        
+    - name: Create Backup Record
+      env:
+        SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      run: |
+        echo "Creating backup activity record..."
+        curl -X POST "$SUPABASE_URL/rest/v1/keep_alive" \
+          -H "apikey: $SUPABASE_ANON_KEY" \
+          -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+          -H "Content-Type: application/json" \
+          -H "Prefer: return=minimal" \
+          -d '{"source": "github_actions_backup", "timestamp": "'$(date -Iseconds)'"}' || echo "Insert failed but continuing..."
+          
+  cleanup-old-records:
+    runs-on: ubuntu-latest
+    needs: backup-heartbeat
+    if: always() && needs.backup-heartbeat.result == 'success'
+    
+    steps:
+    - name: Clean Old Keep-Alive Records
+      env:
+        SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      run: |
+        echo "Cleaning keep_alive records older than 30 days..."
+        curl -X DELETE "$SUPABASE_URL/rest/v1/keep_alive?created_at=lt.$(date -d '30 days ago' -Iseconds)" \
+          -H "apikey: $SUPABASE_ANON_KEY" \
+          -H "Authorization: Bearer $SUPABASE_ANON_KEY" || echo "Cleanup failed but continuing..."
+        
+    - name: Final Log
+      run: |
+        echo "🧹 Cleanup completed"
+        echo "Supabase should remain active for another 7 days"
