@@ -32,14 +32,10 @@ export default function VerifyPage() {
       const blob = await generateVoucherPDF({
         code: v.code,
         serviceName: v.service.name,
-        serviceDescription: v.service.description || undefined,
-        duration: v.service.duration,
-        amount: v.amount,
         recipientName: v.recipientName,
         senderName: v.senderName,
         senderMessage: v.senderMessage || undefined,
         expiryDate: v.expiryDate instanceof Date ? v.expiryDate.toISOString() : v.expiryDate,
-        purchaseDate: v.purchaseDate instanceof Date ? v.purchaseDate.toISOString() : v.purchaseDate,
       });
       downloadPDF(blob, `kalanara-voucher-${v.code}.pdf`);
     } catch (error) {

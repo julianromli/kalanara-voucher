@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { X, CreditCard, Clock, Hash, Wallet } from "lucide-react";
 import type { OrderWithVoucher } from "@/lib/database.types";
 
 interface PurchasesClientProps {
@@ -21,6 +22,7 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
   const [orders, setOrders] = useState(initialOrders);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [selectedOrder, setSelectedOrder] = useState<OrderWithVoucher | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -29,9 +31,12 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
   }, [authLoading, isAuthenticated, router]);
 
   const filteredOrders = orders.filter((order) => {
+    const searchLower = searchQuery.toLowerCase();
     const matchesSearch = 
-      order.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer_email.toLowerCase().includes(searchQuery.toLowerCase());
+      order.customer_name.toLowerCase().includes(searchLower) ||
+      order.customer_email.toLowerCase().includes(searchLower) ||
+      order.midtrans_order_id?.toLowerCase().includes(searchLower) ||
+      order.midtrans_transaction_id?.toLowerCase().includes(searchLower);
     const matchesStatus = statusFilter === "ALL" || order.payment_status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -100,9 +105,10 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Customer</TableHead>
+                    <TableHead>Order ID</TableHead>
                     <TableHead>Voucher Code</TableHead>
-                    <TableHead>Service</TableHead>
                     <TableHead>Amount</TableHead>
+                    <TableHead>Payment</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Actions</TableHead>
@@ -118,12 +124,19 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div>
-                          <p className="font-mono text-sm">{order.vouchers?.code || "N/A"}</p>
-                        </div>
+                        <p className="font-mono text-xs text-muted-foreground">
+                          {order.midtrans_order_id || "-"}
+                        </p>
                       </TableCell>
-                      <TableCell>{order.vouchers?.services?.name || "Unknown"}</TableCell>
+                      <TableCell>
+                        <p className="font-mono text-sm">{order.vouchers?.code || "Pending"}</p>
+                      </TableCell>
                       <TableCell>{formatCurrency(order.total_amount)}</TableCell>
+                      <TableCell>
+                        <p className="text-sm capitalize">
+                          {order.midtrans_payment_type?.replace(/_/g, " ") || "-"}
+                        </p>
+                      </TableCell>
                       <TableCell>
                         <Badge variant={
                           order.payment_status === 'COMPLETED' ? 'default' :
@@ -145,8 +158,12 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
                               Complete
                             </Button>
                           )}
-                          <Button size="sm" variant="outline">
-                            View Details
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => setSelectedOrder(order)}
+                          >
+                            Details
                           </Button>
                         </div>
                       </TableCell>
@@ -158,6 +175,126 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
           </div>
         </div>
       </div>
+
+      {/* Order Detail Modal */}
+      {selectedOrder && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="font-semibold text-lg">Detail Pesanan</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedOrder(null)}
+              >
+                <X size={20} />
+              </Button>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              {/* Customer Info */}
+              <div className="bg-muted/50 rounded-xl p-4">
+                <h4 className="font-medium text-sm text-muted-foreground mb-2">Customer</h4>
+                <p className="font-medium">{selectedOrder.customer_name}</p>
+                <p className="text-sm text-muted-foreground">{selectedOrder.customer_email}</p>
+                <p className="text-sm text-muted-foreground">{selectedOrder.customer_phone}</p>
+              </div>
+
+              {/* Order Info */}
+              <div className="bg-muted/50 rounded-xl p-4">
+                <h4 className="font-medium text-sm text-muted-foreground mb-2">Order</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Service</span>
+                    <span className="font-medium">{selectedOrder.vouchers?.services?.name || "N/A"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-medium">{formatCurrency(selectedOrder.total_amount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Status</span>
+                    <Badge variant={
+                      selectedOrder.payment_status === 'COMPLETED' ? 'default' :
+                      selectedOrder.payment_status === 'PENDING' ? 'secondary' :
+                      'destructive'
+                    }>
+                      {selectedOrder.payment_status}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Voucher Code</span>
+                    <span className="font-mono text-sm">{selectedOrder.vouchers?.code || "Pending"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Midtrans Transaction Info */}
+              <div className="bg-muted/50 rounded-xl p-4">
+                <h4 className="font-medium text-sm text-muted-foreground mb-2 flex items-center gap-2">
+                  <CreditCard size={16} />
+                  Midtrans Transaction
+                </h4>
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Hash size={14} />
+                      Order ID
+                    </span>
+                    <span className="font-mono text-xs text-right break-all max-w-[200px]">
+                      {selectedOrder.midtrans_order_id || "-"}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Hash size={14} />
+                      Transaction ID
+                    </span>
+                    <span className="font-mono text-xs text-right break-all max-w-[200px]">
+                      {selectedOrder.midtrans_transaction_id || "-"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Wallet size={14} />
+                      Payment Type
+                    </span>
+                    <span className="capitalize">
+                      {selectedOrder.midtrans_payment_type?.replace(/_/g, " ") || "-"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Clock size={14} />
+                      Transaction Time
+                    </span>
+                    <span className="text-sm">
+                      {selectedOrder.midtrans_transaction_time 
+                        ? new Date(selectedOrder.midtrans_transaction_time).toLocaleString("id-ID")
+                        : "-"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timestamps */}
+              <div className="text-xs text-muted-foreground">
+                <p>Created: {new Date(selectedOrder.created_at).toLocaleString("id-ID")}</p>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-border">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setSelectedOrder(null)}
+              >
+                Tutup
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

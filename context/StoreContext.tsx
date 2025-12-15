@@ -114,7 +114,7 @@ function adaptDBVoucherToFrontend(dbVoucher: VoucherWithService): FrontendVouche
 function adaptDBOrderToFrontend(dbOrder: OrderWithVoucher): FrontendOrder {
   return {
     id: dbOrder.id,
-    voucher: adaptDBVoucherToFrontend(dbOrder.vouchers),
+    voucher: dbOrder.vouchers ? adaptDBVoucherToFrontend(dbOrder.vouchers) : null as unknown as FrontendVoucher,
     customerEmail: dbOrder.customer_email,
     customerName: dbOrder.customer_name,
     customerPhone: dbOrder.customer_phone,

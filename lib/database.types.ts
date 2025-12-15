@@ -107,7 +107,7 @@ export type Database = {
       orders: {
         Row: {
           id: string;
-          voucher_id: string;
+          voucher_id: string | null; // Nullable - set after payment success
           customer_email: string;
           customer_name: string;
           customer_phone: string;
@@ -115,10 +115,23 @@ export type Database = {
           payment_status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           total_amount: number;
           created_at: string;
+          // Midtrans fields
+          midtrans_order_id: string | null;
+          midtrans_transaction_id: string | null;
+          midtrans_payment_type: string | null;
+          midtrans_transaction_time: string | null;
+          // Recipient info for voucher creation
+          service_id: string | null;
+          recipient_name: string | null;
+          recipient_email: string | null;
+          recipient_phone: string | null;
+          sender_message: string | null;
+          delivery_method: "EMAIL" | "WHATSAPP" | "BOTH" | null;
+          send_to: "PURCHASER" | "RECIPIENT" | null;
         };
         Insert: {
           id?: string;
-          voucher_id: string;
+          voucher_id?: string | null;
           customer_email: string;
           customer_name: string;
           customer_phone: string;
@@ -126,10 +139,23 @@ export type Database = {
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           total_amount: number;
           created_at?: string;
+          // Midtrans fields
+          midtrans_order_id?: string | null;
+          midtrans_transaction_id?: string | null;
+          midtrans_payment_type?: string | null;
+          midtrans_transaction_time?: string | null;
+          // Recipient info for voucher creation
+          service_id?: string | null;
+          recipient_name?: string | null;
+          recipient_email?: string | null;
+          recipient_phone?: string | null;
+          sender_message?: string | null;
+          delivery_method?: "EMAIL" | "WHATSAPP" | "BOTH" | null;
+          send_to?: "PURCHASER" | "RECIPIENT" | null;
         };
         Update: {
           id?: string;
-          voucher_id?: string;
+          voucher_id?: string | null;
           customer_email?: string;
           customer_name?: string;
           customer_phone?: string;
@@ -137,6 +163,19 @@ export type Database = {
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           total_amount?: number;
           created_at?: string;
+          // Midtrans fields
+          midtrans_order_id?: string | null;
+          midtrans_transaction_id?: string | null;
+          midtrans_payment_type?: string | null;
+          midtrans_transaction_time?: string | null;
+          // Recipient info for voucher creation
+          service_id?: string | null;
+          recipient_name?: string | null;
+          recipient_email?: string | null;
+          recipient_phone?: string | null;
+          sender_message?: string | null;
+          delivery_method?: "EMAIL" | "WHATSAPP" | "BOTH" | null;
+          send_to?: "PURCHASER" | "RECIPIENT" | null;
         };
         Relationships: [
           {
@@ -144,6 +183,13 @@ export type Database = {
             columns: ["voucher_id"];
             isOneToOne: false;
             referencedRelation: "vouchers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "orders_service_id_fkey";
+            columns: ["service_id"];
+            isOneToOne: false;
+            referencedRelation: "services";
             referencedColumns: ["id"];
           }
         ];
@@ -269,5 +315,10 @@ export type VoucherWithService = Voucher & {
 };
 
 export type OrderWithVoucher = Order & {
-  vouchers: VoucherWithService;
+  vouchers: VoucherWithService | null;
+};
+
+// Order with service (for pending orders before voucher creation)
+export type OrderWithService = Order & {
+  services: Service | null;
 };

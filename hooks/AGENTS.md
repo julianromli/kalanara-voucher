@@ -6,8 +6,9 @@ Custom React hooks for reusable logic across the application.
 ## Structure
 ```
 hooks/
-├── useInView.ts      # Intersection Observer for scroll animations
-└── use-mobile.ts     # Mobile viewport detection
+├── useInView.ts         # Intersection Observer for scroll animations
+├── use-mobile.ts        # Mobile viewport detection
+└── useMidtransSnap.ts   # Midtrans Snap payment popup integration
 ```
 
 ## Available Hooks
@@ -52,6 +53,42 @@ function Component() {
   return isMobile ? <MobileView /> : <DesktopView />;
 }
 ```
+
+### useMidtransSnap (`useMidtransSnap.ts`)
+Midtrans Snap payment popup integration with dynamic script loading.
+
+```tsx
+import { useMidtransSnap } from "@/hooks/useMidtransSnap";
+
+function CheckoutPage() {
+  const { pay, isLoading, isReady, error } = useMidtransSnap({
+    onSuccess: (result) => {
+      console.log("Payment successful:", result.order_id);
+      router.push(`/checkout/success?order=${result.order_id}`);
+    },
+    onPending: (result) => {
+      console.log("Payment pending:", result.order_id);
+      router.push(`/checkout/pending?order=${result.order_id}`);
+    },
+    onError: (result) => {
+      console.error("Payment failed:", result);
+      toast.error("Pembayaran gagal. Silakan coba lagi.");
+    },
+    onClose: () => {
+      console.log("User closed payment popup");
+    },
+  });
+
+  // Later, when you have a token from the API:
+  pay(snapToken);
+}
+```
+
+**Returns**: `{ pay, isLoading, isReady, error }`
+- `pay(token)` - Open Snap payment popup with token
+- `isLoading` - Whether Snap.js is loading
+- `isReady` - Whether Snap.js is ready to use
+- `error` - Error message if script failed to load
 
 ## Animation Patterns
 

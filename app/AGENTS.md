@@ -86,6 +86,8 @@ export async function POST(request: NextRequest) {
 |-------|--------|---------|
 | `/api/email/send-voucher` | POST | Send voucher via Resend |
 | `/api/whatsapp/send-voucher` | POST | Generate WhatsApp URL |
+| `/api/midtrans/create-transaction` | POST | Create Midtrans Snap transaction |
+| `/api/midtrans/notification` | POST | Webhook for payment notifications |
 
 ## Admin Routes
 - Protected by `middleware.ts` (checks Supabase auth)

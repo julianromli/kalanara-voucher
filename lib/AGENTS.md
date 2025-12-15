@@ -16,6 +16,11 @@ lib/
 │   ├── orders.ts      # Order management
 │   ├── services.ts    # Service queries
 │   └── reviews.ts     # Review operations
+├── midtrans/          # Midtrans payment gateway integration
+│   ├── config.ts      # Environment-aware configuration
+│   ├── types.ts       # Midtrans-specific TypeScript types
+│   ├── signature.ts   # Webhook signature verification
+│   └── voucher-service.ts  # Voucher creation on payment success
 ├── supabase/          # Supabase client setup
 │   ├── client.ts      # Browser client (anon key)
 │   └── server.ts      # Server client (service role)
@@ -124,6 +129,19 @@ generateVoucherMessage(data) // Formatted voucher message
 ### `pdf.ts`
 ```typescript
 generateVoucherPDF(voucher)  // Returns jspdf document
+```
+
+### `midtrans/` (Payment Gateway)
+```typescript
+// config.ts
+getMidtransConfig()  // Get environment-aware config (sandbox/production)
+
+// signature.ts
+computeSignature(orderId, statusCode, grossAmount, serverKey)  // SHA512 hash
+verifySignature(notification, serverKey)  // Verify webhook authenticity
+
+// voucher-service.ts
+createVoucherOnPaymentSuccess(orderId)  // Create & deliver voucher after payment
 ```
 
 ## JIT Index
