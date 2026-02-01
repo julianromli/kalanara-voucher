@@ -276,3 +276,34 @@ export async function updateOrderVoucherId(
   
   return true;
 }
+
+/**
+ * Update order with payment link and transaction ID after Mayar API response
+ */
+export async function updateOrderPaymentLink(
+  orderId: string,
+  paymentLink: string,
+  transactionId?: string
+): Promise<boolean> {
+  const supabase = getAdminClient();
+  
+  const updateData: Database["public"]["Tables"]["orders"]["Update"] = {
+    payment_link: paymentLink,
+  };
+  
+  if (transactionId) {
+    updateData.payment_transaction_id = transactionId;
+  }
+  
+  const { error } = await supabase
+    .from("orders")
+    .update(updateData)
+    .eq("id", orderId);
+  
+  if (error) {
+    console.error("Error updating order payment link:", error);
+    return false;
+  }
+  
+  return true;
+}

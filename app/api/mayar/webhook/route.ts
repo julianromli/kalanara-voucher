@@ -15,11 +15,43 @@ import {
   type MayarWebhookPayload,
   type PaymentGatewayData,
 } from "@/lib/mayar/types";
+import { getMayarConfig } from "@/lib/mayar/config";
 import {
   getOrderByPaymentOrderId,
   updateOrderPaymentStatus,
 } from "@/lib/actions/orders";
 import { createVoucherOnPaymentSuccess } from "@/lib/payment/voucher-service";
+
+/**
+ * Validate webhook authentication
+ * Checks X-Webhook-Secret header against configured secret
+ */
+function validateWebhookAuth(request: NextRequest): boolean {
+  const config = getMayarConfig();
+  
+  // If no webhook secret is configured, log warning but allow (for development)
+  if (!config.webhookSecret) {
+    console.warn("[Mayar Webhook] SECURITY WARNING: No MAYAR_WEBHOOK_SECRET configured. Webhook authentication disabled.");
+    return true;
+  }
+  
+  // Check for webhook secret in headers
+  const providedSecret = request.headers.get("x-webhook-secret") 
+    || request.headers.get("X-Webhook-Secret")
+    || request.headers.get("authorization")?.replace("Bearer ", "");
+  
+  if (!providedSecret) {
+    console.error("[Mayar Webhook] SECURITY: Missing webhook secret in request headers");
+    return false;
+  }
+  
+  if (providedSecret !== config.webhookSecret) {
+    console.error("[Mayar Webhook] SECURITY: Invalid webhook secret provided");
+    return false;
+  }
+  
+  return true;
+}
 
 function extractOrderIdFromDescription(productName: string): string | null {
   // Try to extract from description pattern
@@ -29,6 +61,15 @@ function extractOrderIdFromDescription(productName: string): string | null {
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate webhook authentication
+    if (!validateWebhookAuth(request)) {
+      console.error("[Mayar Webhook] SECURITY: Unauthorized webhook request rejected");
+      return NextResponse.json(
+        { status: "error", message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     // Parse JSON body
     let body: unknown;
     try {

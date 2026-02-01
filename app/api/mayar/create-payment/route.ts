@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMayarConfig } from "@/lib/mayar/config";
 import { createMayarPayment, calculatePaymentExpiry } from "@/lib/mayar/client";
-import { createPendingOrder } from "@/lib/actions/orders";
+import { createPendingOrder, updateOrderPaymentLink } from "@/lib/actions/orders";
 import { getServiceById } from "@/lib/actions/services";
 import { DeliveryMethod, SendTo } from "@/lib/types";
 import type {
@@ -162,6 +162,19 @@ export async function POST(
       return NextResponse.json(
         { success: false, error: "Gagal menghubungi layanan pembayaran" },
         { status: 502 }
+      );
+    }
+
+    // Store payment link and transaction ID in order record
+    const updateSuccess = await updateOrderPaymentLink(
+      order.id,
+      mayarResponse.data.link,
+      mayarResponse.data.transactionId
+    );
+    
+    if (!updateSuccess) {
+      console.warn(
+        `[Mayar] Failed to update order ${order.id} with payment link, continuing anyway`
       );
     }
 

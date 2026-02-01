@@ -11,6 +11,7 @@ export interface MayarConfig {
   readonly isProduction: boolean;
   readonly apiKey: string;
   readonly apiUrl: string;
+  readonly webhookSecret: string | null;
 }
 
 export class MayarConfigError extends Error {
@@ -38,10 +39,14 @@ export function getMayarConfig(): MayarConfig {
     ? "https://api.mayar.id/hl/v1"
     : "https://api.mayar.club/hl/v1";
 
+  // Webhook secret is optional but highly recommended for security
+  const webhookSecret = process.env.MAYAR_WEBHOOK_SECRET || null;
+
   return {
     isProduction,
     apiKey,
     apiUrl,
+    webhookSecret,
   };
 }
 

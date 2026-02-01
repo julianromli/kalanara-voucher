@@ -136,12 +136,35 @@ export function isMayarWebhookPayload(
 
   const obj = value as Record<string, unknown>;
 
-  return (
-    typeof obj.event === "string" &&
-    (obj.event === "payment.received" || obj.event === "payment.reminder") &&
-    typeof obj.data === "object" &&
-    obj.data !== null
-  );
+  // Validate event field
+  if (
+    typeof obj.event !== "string" ||
+    (obj.event !== "payment.received" && obj.event !== "payment.reminder")
+  ) {
+    return false;
+  }
+
+  // Validate data object exists
+  if (typeof obj.data !== "object" || obj.data === null) {
+    return false;
+  }
+
+  const data = obj.data as Record<string, unknown>;
+
+  // Validate critical data fields for payment processing
+  if (typeof data.transactionId !== "string" || data.transactionId === "") {
+    return false;
+  }
+
+  if (typeof data.status !== "string" || data.status === "") {
+    return false;
+  }
+
+  if (typeof data.productName !== "string") {
+    return false;
+  }
+
+  return true;
 }
 
 export function isSuccessfulPayment(data: MayarWebhookData): boolean {
