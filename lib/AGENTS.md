@@ -173,3 +173,11 @@ rg -n "export function" lib/utils/
 - Always handle Supabase errors: `if (error) throw error`
 - Phone numbers: Use `formatPhoneNumber()` to normalize to +62 format
 - Currency: Use `formatCurrency()` for IDR display (Rp xxx.xxx)
+
+## Database Migration Notes
+- When renaming columns, update `lib/database.types.ts` manually OR regenerate via:
+  ```bash
+  bunx supabase gen types typescript --project-id PROJECT_ID > lib/database.types.ts
+  ```
+- Test files with mock data must also be updated when column names change
+- Migrations stored in `lib/supabase/migrations/` - run manually via Supabase SQL Editor

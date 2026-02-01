@@ -108,6 +108,18 @@ MAYAR_IS_PRODUCTION=false      # Set to "true" for production
 
 See [docs/mayar-setup.md](docs/mayar-setup.md) for detailed Mayar configuration guide.
 
+## Payment Gateway Notes
+- **Sandbox vs Production**: Mayar uses different domains - `api.mayar.club` (sandbox) vs `api.mayar.id` (production)
+- **Webhook testing**: Use ngrok (`ngrok http 3000`) to expose localhost for webhook callbacks
+- **Column naming**: Use generic `payment_*` columns, not vendor-specific names, for easier future migrations
+- **Files that change together** when switching payment gateways:
+  - `lib/{gateway}/` modules
+  - `app/api/{gateway}/` routes  
+  - `lib/actions/orders.ts` (order ID functions)
+  - `lib/database.types.ts` (column types)
+  - `app/checkout/[id]/page.tsx` (payment flow)
+  - `.env.local` and `.env.example`
+
 ## Definition of Done
 Before PR/commit:
 1. `bunx tsc --noEmit` passes
