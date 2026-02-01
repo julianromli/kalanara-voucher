@@ -101,13 +101,12 @@ SUPABASE_SERVICE_ROLE_KEY=
 RESEND_API_KEY=
 NEXT_PUBLIC_APP_URL=  # For email/WhatsApp links
 
-# Midtrans Payment Gateway
-MIDTRANS_SERVER_KEY=           # Server-side only (SB-Mid-server-xxx for sandbox)
-NEXT_PUBLIC_MIDTRANS_CLIENT_KEY=  # Client-side (SB-Mid-client-xxx for sandbox)
-MIDTRANS_IS_PRODUCTION=false   # Set to "true" for production
+# Mayar Payment Gateway
+MAYAR_API_KEY=                 # Server-side only (from web.mayar.club for sandbox)
+MAYAR_IS_PRODUCTION=false      # Set to "true" for production
 ```
 
-See [docs/midtrans-setup.md](docs/midtrans-setup.md) for detailed Midtrans configuration guide.
+See [docs/mayar-setup.md](docs/mayar-setup.md) for detailed Mayar configuration guide.
 
 ## Definition of Done
 Before PR/commit:

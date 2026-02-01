@@ -35,8 +35,8 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
     const matchesSearch = 
       order.customer_name.toLowerCase().includes(searchLower) ||
       order.customer_email.toLowerCase().includes(searchLower) ||
-      order.midtrans_order_id?.toLowerCase().includes(searchLower) ||
-      order.midtrans_transaction_id?.toLowerCase().includes(searchLower);
+      order.payment_order_id?.toLowerCase().includes(searchLower) ||
+      order.payment_transaction_id?.toLowerCase().includes(searchLower);
     const matchesStatus = statusFilter === "ALL" || order.payment_status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -125,7 +125,7 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
                       </TableCell>
                       <TableCell>
                         <p className="font-mono text-xs text-muted-foreground">
-                          {order.midtrans_order_id || "-"}
+                          {order.payment_order_id || "-"}
                         </p>
                       </TableCell>
                       <TableCell>
@@ -134,7 +134,7 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
                       <TableCell>{formatCurrency(order.total_amount)}</TableCell>
                       <TableCell>
                         <p className="text-sm capitalize">
-                          {order.midtrans_payment_type?.replace(/_/g, " ") || "-"}
+                          {order.payment_type?.replace(/_/g, " ") || "-"}
                         </p>
                       </TableCell>
                       <TableCell>
@@ -229,11 +229,11 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
                 </div>
               </div>
 
-              {/* Midtrans Transaction Info */}
+              {/* Payment Transaction Info */}
               <div className="bg-muted/50 rounded-xl p-4">
                 <h4 className="font-medium text-sm text-muted-foreground mb-2 flex items-center gap-2">
                   <CreditCard size={16} />
-                  Midtrans Transaction
+                  Payment Transaction
                 </h4>
                 <div className="space-y-2">
                   <div className="flex items-start justify-between">
@@ -242,7 +242,7 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
                       Order ID
                     </span>
                     <span className="font-mono text-xs text-right break-all max-w-[200px]">
-                      {selectedOrder.midtrans_order_id || "-"}
+                      {selectedOrder.payment_order_id || "-"}
                     </span>
                   </div>
                   <div className="flex items-start justify-between">
@@ -251,7 +251,7 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
                       Transaction ID
                     </span>
                     <span className="font-mono text-xs text-right break-all max-w-[200px]">
-                      {selectedOrder.midtrans_transaction_id || "-"}
+                      {selectedOrder.payment_transaction_id || "-"}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -260,7 +260,7 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
                       Payment Type
                     </span>
                     <span className="capitalize">
-                      {selectedOrder.midtrans_payment_type?.replace(/_/g, " ") || "-"}
+                      {selectedOrder.payment_type?.replace(/_/g, " ") || "-"}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -269,8 +269,8 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
                       Transaction Time
                     </span>
                     <span className="text-sm">
-                      {selectedOrder.midtrans_transaction_time 
-                        ? new Date(selectedOrder.midtrans_transaction_time).toLocaleString("id-ID")
+                      {selectedOrder.payment_transaction_time 
+                        ? new Date(selectedOrder.payment_transaction_time).toLocaleString("id-ID")
                         : "-"}
                     </span>
                   </div>

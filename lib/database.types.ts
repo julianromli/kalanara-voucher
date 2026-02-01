@@ -115,11 +115,12 @@ export type Database = {
           payment_status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           total_amount: number;
           created_at: string;
-          // Midtrans fields
-          midtrans_order_id: string | null;
-          midtrans_transaction_id: string | null;
-          midtrans_payment_type: string | null;
-          midtrans_transaction_time: string | null;
+          // Payment gateway fields
+          payment_order_id: string | null;
+          payment_transaction_id: string | null;
+          payment_type: string | null;
+          payment_transaction_time: string | null;
+          payment_link: string | null;
           // Recipient info for voucher creation
           service_id: string | null;
           recipient_name: string | null;
@@ -139,11 +140,12 @@ export type Database = {
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           total_amount: number;
           created_at?: string;
-          // Midtrans fields
-          midtrans_order_id?: string | null;
-          midtrans_transaction_id?: string | null;
-          midtrans_payment_type?: string | null;
-          midtrans_transaction_time?: string | null;
+          // Payment gateway fields
+          payment_order_id?: string | null;
+          payment_transaction_id?: string | null;
+          payment_type?: string | null;
+          payment_transaction_time?: string | null;
+          payment_link?: string | null;
           // Recipient info for voucher creation
           service_id?: string | null;
           recipient_name?: string | null;
@@ -163,11 +165,12 @@ export type Database = {
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           total_amount?: number;
           created_at?: string;
-          // Midtrans fields
-          midtrans_order_id?: string | null;
-          midtrans_transaction_id?: string | null;
-          midtrans_payment_type?: string | null;
-          midtrans_transaction_time?: string | null;
+          // Payment gateway fields
+          payment_order_id?: string | null;
+          payment_transaction_id?: string | null;
+          payment_type?: string | null;
+          payment_transaction_time?: string | null;
+          payment_link?: string | null;
           // Recipient info for voucher creation
           service_id?: string | null;
           recipient_name?: string | null;
