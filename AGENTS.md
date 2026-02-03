@@ -112,6 +112,7 @@ See [docs/mayar-setup.md](docs/mayar-setup.md) for detailed Mayar configuration 
 - **Sandbox vs Production**: Mayar uses different domains - `api.mayar.club` (sandbox) vs `api.mayar.id` (production)
 - **Webhook testing**: Use ngrok (`ngrok http 3000`) to expose localhost for webhook callbacks
 - **Column naming**: Use generic `payment_*` columns, not vendor-specific names, for easier future migrations
+- **Mayar Sandbox Quirks**: Sandbox status is `created` (not `paid`) and overwrites `description` field with "Penagihan"
 - **Files that change together** when switching payment gateways:
   - `lib/{gateway}/` modules
   - `app/api/{gateway}/` routes  

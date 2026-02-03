@@ -168,5 +168,6 @@ export function isMayarWebhookPayload(
 }
 
 export function isSuccessfulPayment(data: MayarWebhookData): boolean {
-  return data.status === "SUCCESS" && data.transactionStatus === "paid";
+  // Accept both "paid" (production) and "created" (sandbox) as successful
+  return data.status === "SUCCESS" && (data.transactionStatus === "paid" || data.transactionStatus === "created");
 }

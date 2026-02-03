@@ -10,6 +10,11 @@ HTTP client and types for Mayar.id payment gateway integration.
 
 ## Critical Quirks
 
+### Sandbox vs Production Behavior
+- Sandbox returns `transactionStatus: "created"` instead of `"paid"`.
+- Sandbox overwrites `description` field with "Penagihan", breaking Order ID extraction from description.
+- **Fix:** Order ID extraction must fallback to `customerName` or `transactionId` lookup.
+
 ### Order ID Extraction
 Mayar webhook doesn't include a custom order ID field. Order ID must be embedded in `description`:
 ```typescript

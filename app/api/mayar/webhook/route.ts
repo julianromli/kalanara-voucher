@@ -18,6 +18,7 @@ import {
 import { getMayarConfig } from "@/lib/mayar/config";
 import {
   getOrderByPaymentOrderId,
+  getOrderByTransactionId,
   updateOrderPaymentStatus,
 } from "@/lib/actions/orders";
 import { createVoucherOnPaymentSuccess } from "@/lib/payment/voucher-service";
@@ -54,9 +55,13 @@ function validateWebhookAuth(request: NextRequest): boolean {
 }
 
 function extractOrderIdFromDescription(productName: string): string | null {
-  // Try to extract from description pattern
-  const match = productName.match(/Order:\s*(KSP-[\w-]+)/i);
-  return match ? match[1] : null;
+  // Try to extract from description pattern "Order: KSP-xxx"
+  const descMatch = productName.match(/Order:\s*(KSP-[\w-]+)/i);
+  if (descMatch) return descMatch[1];
+  
+  // Fallback: extract from anywhere in string (e.g., customer name)
+  const anyMatch = productName.match(/(KSP-\d{13}-[A-Z0-9]{6})/i);
+  return anyMatch ? anyMatch[1] : null;
 }
 
 export async function POST(request: NextRequest) {
@@ -113,21 +118,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: "ok", message: "Payment not successful" });
     }
 
-    // Extract order ID from product name/description
-    const orderId = extractOrderIdFromDescription(data.productName);
-    if (!orderId) {
-      console.warn(
-        `[Mayar Webhook] Could not extract order ID from: ${data.productName}`
-      );
-      return NextResponse.json({ status: "ok", message: "Order ID not found in description" });
+    // Extract order ID from product name/description or customer name
+    let orderId = extractOrderIdFromDescription(data.productName);
+    
+    // Fallback: try extracting from customerName
+    if (!orderId && data.customerName) {
+      orderId = extractOrderIdFromDescription(data.customerName);
+    }
+    
+    let order;
+
+    if (orderId) {
+      console.log(`[Mayar Webhook] Processing order by ID: ${orderId}`);
+      order = await getOrderByPaymentOrderId(orderId);
     }
 
-    console.log(`[Mayar Webhook] Processing order: ${orderId}`);
+    // Secondary Fallback: try finding order by Mayar transaction ID if we already stored it
+    // This happens if the user visited the redirect URL first, which updates the order with transaction ID
+    if (!order && data.transactionId) {
+      console.log(`[Mayar Webhook] Order ID not found in payload, trying lookup by transaction ID: ${data.transactionId}`);
+      order = await getOrderByTransactionId(data.transactionId);
+      if (order) {
+        orderId = order.payment_order_id;
+        console.log(`[Mayar Webhook] Found order via transaction ID: ${orderId}`);
+      }
+    }
 
-    // Look up order by payment order ID
-    const order = await getOrderByPaymentOrderId(orderId);
     if (!order) {
-      console.warn(`[Mayar Webhook] Order not found: ${orderId}`);
+      console.warn(
+        `[Mayar Webhook] Could not match payment to any order. OrderID: ${orderId}, TransactionID: ${data.transactionId}`
+      );
+      // Still return 200 ok to Mayar so they stop retrying, but log the error
       return NextResponse.json({ status: "ok", message: "Order not found" });
     }
 

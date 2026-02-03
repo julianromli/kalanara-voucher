@@ -12,6 +12,7 @@ app/
 ├── loading.tsx        # Global loading skeleton
 ├── error.tsx          # Global error boundary
 ├── checkout/[id]/     # Voucher purchase flow
+├── checkout/success/  # Payment success page (Public, Guest access)
 ├── voucher/[id]/      # Voucher detail page
 ├── verify/            # Voucher verification (public)
 ├── review/[id]/       # Post-redemption review
@@ -108,6 +109,7 @@ return NextResponse.json({ status: "ok", message: "Already processed" });
 | `page.tsx` | Landing with service catalog + animations |
 | `globals.css` | Tailwind + animation keyframes + utility classes |
 | `checkout/[id]/page.tsx` | Full checkout with delivery options |
+| `checkout/success/page.tsx` | Order success & voucher display |
 | `verify/page.tsx` | QR scanner + voucher verification |
 
 ## Animation System

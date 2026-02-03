@@ -221,6 +221,47 @@ export async function getOrderByPaymentOrderId(paymentOrderId: string): Promise<
 }
 
 /**
+ * Get order by payment transaction ID (fallback for webhook)
+ */
+export async function getOrderByTransactionId(transactionId: string): Promise<OrderWithService | null> {
+  const supabase = getAdminClient();
+  
+  const { data, error } = await supabase
+    .from("orders")
+    .select(`*, services(*)`)
+    .eq("payment_transaction_id", transactionId)
+    .single();
+  
+  if (error) {
+    console.error("Error fetching order by transaction ID:", error);
+    return null;
+  }
+  
+  return data as OrderWithService;
+}
+
+/**
+ * Get full order details (including voucher) by payment order ID
+ * Used by public success page
+ */
+export async function getPublicOrderDetails(paymentOrderId: string): Promise<OrderWithVoucher | null> {
+  const supabase = getAdminClient();
+  
+  const { data, error } = await supabase
+    .from("orders")
+    .select(`*, vouchers(*, services(*))`)
+    .eq("payment_order_id", paymentOrderId)
+    .single();
+  
+  if (error) {
+    console.error("Error fetching public order details:", error);
+    return null;
+  }
+  
+  return data as OrderWithVoucher;
+}
+
+/**
  * Update order payment status and gateway data (for webhook processing)
  */
 export async function updateOrderPaymentStatus(

@@ -147,7 +147,7 @@ export async function POST(
     const redirectUrl = `${appUrl}/checkout/success?order_id=${order.payment_order_id}`;
 
     const mayarRequest: MayarCreatePaymentRequest = {
-      name: validatedData.customerName,
+      name: `${validatedData.customerName} - ${order.payment_order_id}`,
       email: validatedData.customerEmail,
       amount: service.price,
       mobile: validatedData.customerPhone,
