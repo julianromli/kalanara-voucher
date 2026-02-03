@@ -16,10 +16,11 @@ lib/
 │   ├── orders.ts      # Order management
 │   ├── services.ts    # Service queries
 │   └── reviews.ts     # Review operations
-├── midtrans/          # Midtrans payment gateway integration
+├── mayar/             # Mayar payment gateway integration
 │   ├── config.ts      # Environment-aware configuration
-│   ├── types.ts       # Midtrans-specific TypeScript types
-│   ├── signature.ts   # Webhook signature verification
+│   ├── types.ts       # Mayar-specific TypeScript types
+│   └── client.ts      # HTTP client for Mayar API
+├── payment/           # Payment processing utilities
 │   └── voucher-service.ts  # Voucher creation on payment success
 ├── supabase/          # Supabase client setup
 │   ├── client.ts      # Browser client (anon key)
@@ -131,17 +132,20 @@ generateVoucherMessage(data) // Formatted voucher message
 generateVoucherPDF(voucher)  // Returns jspdf document
 ```
 
-### `midtrans/` (Payment Gateway)
+### `mayar/` (Payment Gateway)
 ```typescript
 // config.ts
-getMidtransConfig()  // Get environment-aware config (sandbox/production)
+getMayarConfig()  // Get environment-aware config (sandbox/production)
 
-// signature.ts
-computeSignature(orderId, statusCode, grossAmount, serverKey)  // SHA512 hash
-verifySignature(notification, serverKey)  // Verify webhook authenticity
+// client.ts
+createMayarPayment(request)  // Create payment link via Mayar API
+calculatePaymentExpiry()     // Get expiry datetime (24 hours from now)
+```
 
+### `payment/` (Payment Processing)
+```typescript
 // voucher-service.ts
-createVoucherOnPaymentSuccess(orderId)  // Create & deliver voucher after payment
+createVoucherOnPaymentSuccess(order)  // Create & deliver voucher after payment
 ```
 
 ## JIT Index
@@ -169,3 +173,11 @@ rg -n "export function" lib/utils/
 - Always handle Supabase errors: `if (error) throw error`
 - Phone numbers: Use `formatPhoneNumber()` to normalize to +62 format
 - Currency: Use `formatCurrency()` for IDR display (Rp xxx.xxx)
+
+## Database Migration Notes
+- When renaming columns, update `lib/database.types.ts` manually OR regenerate via:
+  ```bash
+  bunx supabase gen types typescript --project-id PROJECT_ID > lib/database.types.ts
+  ```
+- Test files with mock data must also be updated when column names change
+- Migrations stored in `lib/supabase/migrations/` - run manually via Supabase SQL Editor

@@ -12,6 +12,7 @@ app/
 ├── loading.tsx        # Global loading skeleton
 ├── error.tsx          # Global error boundary
 ├── checkout/[id]/     # Voucher purchase flow
+├── checkout/success/  # Payment success page (Public, Guest access)
 ├── voucher/[id]/      # Voucher detail page
 ├── verify/            # Voucher verification (public)
 ├── review/[id]/       # Post-redemption review
@@ -86,8 +87,15 @@ export async function POST(request: NextRequest) {
 |-------|--------|---------|
 | `/api/email/send-voucher` | POST | Send voucher via Resend |
 | `/api/whatsapp/send-voucher` | POST | Generate WhatsApp URL |
-| `/api/midtrans/create-transaction` | POST | Create Midtrans Snap transaction |
-| `/api/midtrans/notification` | POST | Webhook for payment notifications |
+| `/api/mayar/create-payment` | POST | Create Mayar payment link, returns redirect URL |
+| `/api/mayar/webhook` | POST | Webhook for Mayar payment notifications |
+
+### Webhook Pattern
+```tsx
+// Webhooks should ALWAYS return 200 to prevent retries (except server errors)
+// Even for invalid/duplicate payloads, return 200 with error in body
+return NextResponse.json({ status: "ok", message: "Already processed" });
+```
 
 ## Admin Routes
 - Protected by `middleware.ts` (checks Supabase auth)
@@ -101,6 +109,7 @@ export async function POST(request: NextRequest) {
 | `page.tsx` | Landing with service catalog + animations |
 | `globals.css` | Tailwind + animation keyframes + utility classes |
 | `checkout/[id]/page.tsx` | Full checkout with delivery options |
+| `checkout/success/page.tsx` | Order success & voucher display |
 | `verify/page.tsx` | QR scanner + voucher verification |
 
 ## Animation System

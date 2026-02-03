@@ -91,6 +91,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Initialize auth state on mount
   useEffect(() => {
+    // Skip on server
+    if (typeof window === "undefined") {
+      setIsLoading(false);
+      return;
+    }
+
     const supabase = createClient();
 
     // Get initial session
@@ -104,6 +110,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setUser(null);
         }
       } catch (error) {
+        // Handle storage access errors gracefully
         console.error('Error initializing auth:', error);
         setUser(null);
       } finally {
@@ -114,23 +121,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
     initializeAuth();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          setUser(extractUserFromSupabaseUser(session.user));
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          setUser(extractUserFromSupabaseUser(session.user));
-        } else if (event === 'USER_UPDATED' && session?.user) {
-          setUser(extractUserFromSupabaseUser(session.user));
+    let subscription: { unsubscribe: () => void } | null = null;
+    
+    try {
+      const { data } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          if (event === 'SIGNED_IN' && session?.user) {
+            setUser(extractUserFromSupabaseUser(session.user));
+          } else if (event === 'SIGNED_OUT') {
+            setUser(null);
+          } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+            setUser(extractUserFromSupabaseUser(session.user));
+          } else if (event === 'USER_UPDATED' && session?.user) {
+            setUser(extractUserFromSupabaseUser(session.user));
+          }
         }
-      }
-    );
+      );
+      subscription = data.subscription;
+    } catch (error) {
+      console.error('Error setting up auth listener:', error);
+    }
 
     // Cleanup subscription on unmount
     return () => {
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 

@@ -24,9 +24,8 @@ import { formatCurrency } from "@/lib/constants";
 import { DeliveryMethod, SendTo } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useMidtransSnap } from "@/hooks/useMidtransSnap";
 import { generateWhatsAppUrl, WhatsAppVoucherData } from "@/lib/utils/whatsapp";
-import type { CreateTransactionRequest, SnapResult } from "@/lib/midtrans/types";
+import type { CreatePaymentRequest } from "@/lib/mayar/types";
 
 const PHONE_PATTERN = /^(\+62|62|0)[\d\s-]{8,14}$/;
 
@@ -84,30 +83,6 @@ export default function CheckoutPage({ params }: PageProps) {
   const formDataRef = useRef<CheckoutForm | null>(null);
 
   const service = services.find((s) => s.id === id);
-
-  // Midtrans Snap hook
-  const { pay, isLoading: isSnapLoading, isReady: isSnapReady, error: snapError } = useMidtransSnap({
-    onSuccess: async (result: SnapResult) => {
-      console.log("[Checkout] Payment success:", result);
-      // Payment successful - webhook will handle voucher creation
-      // Show success UI immediately, voucher details will be fetched
-      await handlePaymentSuccess(result);
-    },
-    onPending: (result: SnapResult) => {
-      console.log("[Checkout] Payment pending:", result);
-      handlePaymentPending(result);
-    },
-    onError: (result: SnapResult) => {
-      console.error("[Checkout] Payment error:", result);
-      setIsProcessing(false);
-      showToast("Pembayaran gagal. Silakan coba lagi.", "error");
-    },
-    onClose: () => {
-      console.log("[Checkout] Payment popup closed");
-      setIsProcessing(false);
-      // User closed without completing - they can retry
-    },
-  });
 
   // Utility function to announce changes to screen readers
   const announceToScreenReader = (message: string) => {
@@ -173,55 +148,7 @@ export default function CheckoutPage({ params }: PageProps) {
   }
 
 
-  // Handle successful payment
-  const handlePaymentSuccess = async (result: SnapResult) => {
-    if (!formDataRef.current || !service) return;
-    
-    const data = formDataRef.current;
-    const targetPhone = data.sendTo === SendTo.PURCHASER ? data.customerPhone : data.recipientPhone;
-    const targetName = data.sendTo === SendTo.PURCHASER ? data.customerName : data.recipientName;
-    const targetEmail = data.sendTo === SendTo.PURCHASER ? data.customerEmail : (data.recipientEmail || data.customerEmail);
-
-    // Calculate expiry date (1 year from now)
-    const expiryDate = new Date();
-    expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-
-    // For now, show success with order ID - voucher code will be available after webhook processes
-    // In production, you might want to poll for voucher creation or use websockets
-    setSuccessData({
-      voucherCode: "Sedang diproses...", // Will be updated by webhook
-      orderId: result.order_id,
-      recipientName: targetName,
-      recipientEmail: targetEmail || "",
-      recipientPhone: targetPhone,
-      senderName: data.customerName,
-      senderMessage: data.senderMessage,
-      serviceName: service.name,
-      serviceDuration: service.duration,
-      amount: service.price,
-      expiryDate: expiryDate.toISOString(),
-      deliveryMethod: data.deliveryMethod,
-      sendTo: data.sendTo,
-    });
-    
-    setIsSuccess(true);
-    setIsProcessing(false);
-    showToast("Pembayaran berhasil! Voucher sedang diproses.", "success");
-  };
-
-  // Handle pending payment (bank transfer, etc.)
-  const handlePaymentPending = (result: SnapResult) => {
-    setPendingData({
-      orderId: result.order_id,
-      paymentType: result.payment_type,
-      pdfUrl: result.pdf_url,
-    });
-    setIsPending(true);
-    setIsProcessing(false);
-    showToast("Menunggu pembayaran. Silakan selesaikan pembayaran Anda.", "info");
-  };
-
-  // Form submission - create transaction and show Snap popup
+  // Form submission - create payment and redirect to Mayar
   const onSubmit = async (data: CheckoutForm) => {
     // Focus on first error field if validation errors exist
     const errorFields = Object.keys(errors);
@@ -231,17 +158,12 @@ export default function CheckoutPage({ params }: PageProps) {
       return;
     }
 
-    if (!isSnapReady) {
-      showToast("Sistem pembayaran sedang dimuat. Silakan tunggu.", "error");
-      return;
-    }
-
     setIsProcessing(true);
     formDataRef.current = data;
 
     try {
-      // Create transaction via API
-      const requestBody: CreateTransactionRequest = {
+      // Create payment via API
+      const requestBody: CreatePaymentRequest = {
         serviceId: service.id,
         customerName: data.customerName,
         customerEmail: data.customerEmail,
@@ -254,7 +176,7 @@ export default function CheckoutPage({ params }: PageProps) {
         sendTo: data.sendTo,
       };
 
-      const response = await fetch("/api/midtrans/create-transaction", {
+      const response = await fetch("/api/mayar/create-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
@@ -262,14 +184,14 @@ export default function CheckoutPage({ params }: PageProps) {
 
       const result = await response.json();
 
-      if (!result.success || !result.token) {
-        throw new Error(result.error || "Gagal membuat transaksi");
+      if (!result.success || !result.paymentLink) {
+        throw new Error(result.error || "Gagal membuat pembayaran");
       }
 
       setCurrentOrderId(result.orderId);
       
-      // Open Midtrans Snap popup
-      pay(result.token);
+      // Redirect to Mayar payment page
+      window.location.href = result.paymentLink;
     } catch (error) {
       console.error("Checkout error:", error);
       setIsProcessing(false);
@@ -516,13 +438,6 @@ export default function CheckoutPage({ params }: PageProps) {
         <h1 className="animate-fade-slide-up font-sans font-semibold text-2xl sm:text-3xl text-foreground mb-6 sm:mb-8 text-center">
           Selesaikan Pembelian
         </h1>
-
-        {/* Snap loading error */}
-        {snapError && (
-          <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-center">
-            <p className="text-destructive text-sm">{snapError}</p>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8" aria-label="Checkout form">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
@@ -829,7 +744,7 @@ export default function CheckoutPage({ params }: PageProps) {
 
                 <Button
                   type="submit"
-                  disabled={isProcessing || isSnapLoading || !isSnapReady}
+                  disabled={isProcessing}
                   className="btn-hover-lift w-full mt-6 bg-primary hover:bg-primary/90 text-primary-foreground py-3 sm:py-4 text-base sm:text-lg min-h-12 sm:min-h-14"
                   aria-busy={isProcessing}
                 >
@@ -838,18 +753,13 @@ export default function CheckoutPage({ params }: PageProps) {
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       Memproses...
                     </>
-                  ) : isSnapLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Memuat...
-                    </>
                   ) : (
                     "Bayar Sekarang"
                   )}
                 </Button>
 
                 <p className="text-center text-muted-foreground text-xs mt-4">
-                  Pembayaran diproses secara aman oleh Midtrans
+                  Pembayaran diproses secara aman oleh Mayar.id
                 </p>
               </div>
             </div>

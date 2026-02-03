@@ -1,30 +1,25 @@
 /**
- * Midtrans Create Transaction API Route
- * 
- * Creates a pending order and generates a Snap token for payment
- * 
- * POST /api/midtrans/create-transaction
- * 
- * @see Design Document: app/api/midtrans/create-transaction/route.ts
- * Requirements: 2.1, 2.2, 2.3, 2.4, 8.1
+ * Mayar Create Payment API Route
+ *
+ * Creates a pending order and generates a payment link for redirect
+ *
+ * POST /api/mayar/create-payment
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getMidtransConfig } from "@/lib/midtrans/config";
-import { createPendingOrder } from "@/lib/actions/orders";
+import { getMayarConfig } from "@/lib/mayar/config";
+import { createMayarPayment, calculatePaymentExpiry } from "@/lib/mayar/client";
+import { createPendingOrder, updateOrderPaymentLink } from "@/lib/actions/orders";
 import { getServiceById } from "@/lib/actions/services";
 import { DeliveryMethod, SendTo } from "@/lib/types";
 import type {
-  CreateTransactionRequest,
-  CreateTransactionResponse,
-  MidtransTransactionRequest,
+  CreatePaymentRequest,
+  CreatePaymentResponse,
+  MayarCreatePaymentRequest,
   PendingOrderData,
-} from "@/lib/midtrans/types";
+} from "@/lib/mayar/types";
 
-/**
- * Validate required fields in the request body
- */
-function validateRequest(body: unknown): CreateTransactionRequest | null {
+function validateRequest(body: unknown): CreatePaymentRequest | null {
   if (typeof body !== "object" || body === null) {
     return null;
   }
@@ -44,14 +39,19 @@ function validateRequest(body: unknown): CreateTransactionRequest | null {
   ];
 
   for (const field of requiredFields) {
-    if (!data[field] || (typeof data[field] === "string" && data[field].toString().trim() === "")) {
+    if (
+      !data[field] ||
+      (typeof data[field] === "string" && data[field].toString().trim() === "")
+    ) {
       return null;
     }
   }
 
   // Validate delivery method
   const deliveryMethodStr = data.deliveryMethod as string;
-  if (!Object.values(DeliveryMethod).includes(deliveryMethodStr as DeliveryMethod)) {
+  if (
+    !Object.values(DeliveryMethod).includes(deliveryMethodStr as DeliveryMethod)
+  ) {
     return null;
   }
 
@@ -75,62 +75,13 @@ function validateRequest(body: unknown): CreateTransactionRequest | null {
   };
 }
 
-/**
- * Split customer name into first and last name
- */
-function splitName(fullName: string): { firstName: string; lastName?: string } {
-  const parts = fullName.trim().split(/\s+/);
-  if (parts.length === 1) {
-    return { firstName: parts[0] };
-  }
-  return {
-    firstName: parts[0],
-    lastName: parts.slice(1).join(" "),
-  };
-}
-
-/**
- * Call Midtrans Snap API to create transaction token
- */
-async function createSnapToken(
-  transactionRequest: MidtransTransactionRequest,
-  config: ReturnType<typeof getMidtransConfig>
-): Promise<{ token: string; redirect_url: string } | null> {
-  const authString = Buffer.from(`${config.serverKey}:`).toString("base64");
-
-  try {
-    const response = await fetch(`${config.apiUrl}/transactions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        Authorization: `Basic ${authString}`,
-      },
-      body: JSON.stringify(transactionRequest),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("Midtrans API error:", response.status, errorData);
-      return null;
-    }
-
-    const data = await response.json();
-    return {
-      token: data.token,
-      redirect_url: data.redirect_url,
-    };
-  } catch (error) {
-    console.error("Error calling Midtrans API:", error);
-    return null;
-  }
-}
-
-export async function POST(request: NextRequest): Promise<NextResponse<CreateTransactionResponse>> {
+export async function POST(
+  request: NextRequest
+): Promise<NextResponse<CreatePaymentResponse>> {
   try {
     // Parse request body
     const body = await request.json().catch(() => null);
-    
+
     // Validate request
     const validatedData = validateRequest(body);
     if (!validatedData) {
@@ -156,12 +107,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreateTra
       );
     }
 
-    // Get Midtrans config
-    let config;
+    // Validate Mayar config exists
     try {
-      config = getMidtransConfig();
+      getMayarConfig();
     } catch {
-      console.error("Midtrans configuration error");
+      console.error("Mayar configuration error");
       return NextResponse.json(
         { success: false, error: "Layanan pembayaran tidak tersedia" },
         { status: 502 }
@@ -184,7 +134,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreateTra
     };
 
     const order = await createPendingOrder(pendingOrderData);
-    if (!order || !order.midtrans_order_id) {
+    if (!order || !order.payment_order_id) {
       console.error("Failed to create pending order");
       return NextResponse.json(
         { success: false, error: "Gagal membuat pesanan" },
@@ -192,49 +142,49 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreateTra
       );
     }
 
-    // Build Midtrans transaction request
-    const { firstName, lastName } = splitName(validatedData.customerName);
-    
-    const transactionRequest: MidtransTransactionRequest = {
-      transaction_details: {
-        order_id: order.midtrans_order_id,
-        gross_amount: service.price,
-      },
-      customer_details: {
-        first_name: firstName,
-        last_name: lastName,
-        email: validatedData.customerEmail,
-        phone: validatedData.customerPhone,
-      },
-      item_details: [
-        {
-          id: service.id,
-          name: service.name,
-          price: service.price,
-          quantity: 1,
-        },
-      ],
-      callbacks: {
-        finish: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/success?order_id=${order.midtrans_order_id}`,
-      },
+    // Build Mayar payment request
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const redirectUrl = `${appUrl}/checkout/success?order_id=${order.payment_order_id}`;
+
+    const mayarRequest: MayarCreatePaymentRequest = {
+      name: `${validatedData.customerName} - ${order.payment_order_id}`,
+      email: validatedData.customerEmail,
+      amount: service.price,
+      mobile: validatedData.customerPhone,
+      redirectUrl,
+      description: `Voucher Spa - ${service.name} | Order: ${order.payment_order_id}`,
+      expiredAt: calculatePaymentExpiry(),
     };
 
-    // Create Snap token
-    const snapResult = await createSnapToken(transactionRequest, config);
-    if (!snapResult) {
+    // Create payment with Mayar
+    const mayarResponse = await createMayarPayment(mayarRequest);
+    if (!mayarResponse) {
       return NextResponse.json(
         { success: false, error: "Gagal menghubungi layanan pembayaran" },
         { status: 502 }
       );
     }
 
+    // Store payment link and transaction ID in order record
+    const updateSuccess = await updateOrderPaymentLink(
+      order.id,
+      mayarResponse.data.link,
+      mayarResponse.data.transactionId
+    );
+    
+    if (!updateSuccess) {
+      console.warn(
+        `[Mayar] Failed to update order ${order.id} with payment link, continuing anyway`
+      );
+    }
+
     return NextResponse.json({
       success: true,
-      token: snapResult.token,
-      orderId: order.midtrans_order_id,
+      paymentLink: mayarResponse.data.link,
+      orderId: order.payment_order_id,
     });
   } catch (error) {
-    console.error("Unexpected error in create-transaction:", error);
+    console.error("Unexpected error in create-payment:", error);
     return NextResponse.json(
       { success: false, error: "Terjadi kesalahan internal" },
       { status: 500 }

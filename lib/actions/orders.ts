@@ -104,50 +104,46 @@ export async function getOrderStats(): Promise<{
 
 
 // ============================================================================
-// Midtrans Integration Functions
+// Payment Gateway Integration Functions
 // ============================================================================
 
-import type { PendingOrderData, MidtransPaymentData } from "@/lib/midtrans/types";
+import type { PendingOrderData, PaymentGatewayData } from "@/lib/mayar/types";
 import type { PaymentStatus, OrderWithService } from "@/lib/database.types";
 
 /**
- * Generate a unique Midtrans order ID
+ * Generate a unique payment order ID
  * Format: KSP-{timestamp}-{random}
- * @returns Unique order ID string
  */
-function generateMidtransOrderId(): string {
+function generatePaymentOrderId(): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `KSP-${timestamp}-${random}`;
 }
 
 /**
- * Check if a Midtrans order ID already exists in the database
- * @param midtransOrderId - The order ID to check
- * @returns true if exists, false otherwise
+ * Check if a payment order ID already exists in the database
  */
-export async function checkMidtransOrderIdExists(midtransOrderId: string): Promise<boolean> {
+export async function checkPaymentOrderIdExists(paymentOrderId: string): Promise<boolean> {
   const supabase = getAdminClient();
   const { data } = await supabase
     .from("orders")
     .select("id")
-    .eq("midtrans_order_id", midtransOrderId)
+    .eq("payment_order_id", paymentOrderId)
     .single();
   
   return data !== null;
 }
 
 /**
- * Generate a unique Midtrans order ID with collision check
+ * Generate a unique payment order ID with collision check
  * Retries up to 3 times if collision detected
- * @returns Unique order ID string
  */
-export async function generateUniqueMidtransOrderId(): Promise<string> {
+export async function generateUniquePaymentOrderId(): Promise<string> {
   const maxRetries = 3;
   
   for (let i = 0; i < maxRetries; i++) {
-    const orderId = generateMidtransOrderId();
-    const exists = await checkMidtransOrderIdExists(orderId);
+    const orderId = generatePaymentOrderId();
+    const exists = await checkPaymentOrderIdExists(orderId);
     
     if (!exists) {
       return orderId;
@@ -164,25 +160,22 @@ export async function generateUniqueMidtransOrderId(): Promise<string> {
  * Create a pending order before payment
  * Order is created with PENDING status and null voucher_id
  * Voucher will be created after payment confirmation via webhook
- * 
- * @param data - Pending order data including customer and recipient info
- * @returns Created order or null if failed
  */
 export async function createPendingOrder(data: PendingOrderData): Promise<Order | null> {
   const supabase = getAdminClient();
   
-  // Generate unique Midtrans order ID
-  const midtransOrderId = await generateUniqueMidtransOrderId();
+  // Generate unique payment order ID
+  const paymentOrderId = await generateUniquePaymentOrderId();
   
   const orderData: OrderInsert = {
     voucher_id: null, // Will be set after payment success
     customer_email: data.customer_email,
     customer_name: data.customer_name,
     customer_phone: data.customer_phone,
-    payment_method: "BANK_TRANSFER", // Default, will be updated by Midtrans
+    payment_method: "BANK_TRANSFER", // Default, will be updated by webhook
     payment_status: "PENDING",
     total_amount: data.total_amount,
-    midtrans_order_id: midtransOrderId,
+    payment_order_id: paymentOrderId,
     // Store recipient info for voucher creation after payment
     service_id: data.service_id,
     recipient_name: data.recipient_name,
@@ -208,21 +201,19 @@ export async function createPendingOrder(data: PendingOrderData): Promise<Order 
 }
 
 /**
- * Get order by Midtrans order ID (for webhook processing)
- * @param midtransOrderId - The Midtrans order ID
- * @returns Order with service info or null if not found
+ * Get order by payment order ID (for webhook processing)
  */
-export async function getOrderByMidtransOrderId(midtransOrderId: string): Promise<OrderWithService | null> {
+export async function getOrderByPaymentOrderId(paymentOrderId: string): Promise<OrderWithService | null> {
   const supabase = getAdminClient();
   
   const { data, error } = await supabase
     .from("orders")
     .select(`*, services(*)`)
-    .eq("midtrans_order_id", midtransOrderId)
+    .eq("payment_order_id", paymentOrderId)
     .single();
   
   if (error) {
-    console.error("Error fetching order by Midtrans ID:", error);
+    console.error("Error fetching order by payment order ID:", error);
     return null;
   }
   
@@ -230,16 +221,53 @@ export async function getOrderByMidtransOrderId(midtransOrderId: string): Promis
 }
 
 /**
- * Update order payment status and Midtrans data (for webhook processing)
- * @param orderId - The internal order ID (UUID)
- * @param status - New payment status
- * @param midtransData - Midtrans transaction data
- * @returns true if successful, false otherwise
+ * Get order by payment transaction ID (fallback for webhook)
+ */
+export async function getOrderByTransactionId(transactionId: string): Promise<OrderWithService | null> {
+  const supabase = getAdminClient();
+  
+  const { data, error } = await supabase
+    .from("orders")
+    .select(`*, services(*)`)
+    .eq("payment_transaction_id", transactionId)
+    .single();
+  
+  if (error) {
+    console.error("Error fetching order by transaction ID:", error);
+    return null;
+  }
+  
+  return data as OrderWithService;
+}
+
+/**
+ * Get full order details (including voucher) by payment order ID
+ * Used by public success page
+ */
+export async function getPublicOrderDetails(paymentOrderId: string): Promise<OrderWithVoucher | null> {
+  const supabase = getAdminClient();
+  
+  const { data, error } = await supabase
+    .from("orders")
+    .select(`*, vouchers(*, services(*))`)
+    .eq("payment_order_id", paymentOrderId)
+    .single();
+  
+  if (error) {
+    console.error("Error fetching public order details:", error);
+    return null;
+  }
+  
+  return data as OrderWithVoucher;
+}
+
+/**
+ * Update order payment status and gateway data (for webhook processing)
  */
 export async function updateOrderPaymentStatus(
   orderId: string,
   status: PaymentStatus,
-  midtransData?: MidtransPaymentData
+  paymentData?: PaymentGatewayData
 ): Promise<boolean> {
   const supabase = getAdminClient();
   
@@ -247,11 +275,11 @@ export async function updateOrderPaymentStatus(
     payment_status: status,
   };
   
-  // Add Midtrans data if provided
-  if (midtransData) {
-    updateData.midtrans_transaction_id = midtransData.transaction_id;
-    updateData.midtrans_payment_type = midtransData.payment_type;
-    updateData.midtrans_transaction_time = midtransData.transaction_time;
+  // Add payment gateway data if provided
+  if (paymentData) {
+    updateData.payment_transaction_id = paymentData.transaction_id;
+    updateData.payment_type = paymentData.payment_type;
+    updateData.payment_transaction_time = paymentData.transaction_time;
   }
   
   const { error } = await supabase
@@ -270,9 +298,6 @@ export async function updateOrderPaymentStatus(
 
 /**
  * Update order with voucher ID after successful payment
- * @param orderId - The internal order ID (UUID)
- * @param voucherId - The created voucher ID
- * @returns true if successful, false otherwise
  */
 export async function updateOrderVoucherId(
   orderId: string,
@@ -287,6 +312,37 @@ export async function updateOrderVoucherId(
   
   if (error) {
     console.error("Error updating order voucher ID:", error);
+    return false;
+  }
+  
+  return true;
+}
+
+/**
+ * Update order with payment link and transaction ID after Mayar API response
+ */
+export async function updateOrderPaymentLink(
+  orderId: string,
+  paymentLink: string,
+  transactionId?: string
+): Promise<boolean> {
+  const supabase = getAdminClient();
+  
+  const updateData: Database["public"]["Tables"]["orders"]["Update"] = {
+    payment_link: paymentLink,
+  };
+  
+  if (transactionId) {
+    updateData.payment_transaction_id = transactionId;
+  }
+  
+  const { error } = await supabase
+    .from("orders")
+    .update(updateData)
+    .eq("id", orderId);
+  
+  if (error) {
+    console.error("Error updating order payment link:", error);
     return false;
   }
   

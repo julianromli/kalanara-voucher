@@ -1,5 +1,5 @@
 /**
- * Voucher Service for Midtrans Payment Integration
+ * Voucher Service for Payment Gateway Integration
  * @description Handles voucher creation and delivery after successful payment
  */
 
@@ -14,27 +14,12 @@ export interface VoucherCreationResult {
   error?: string;
 }
 
-/**
- * Calculate voucher expiry date (default: 1 year from now)
- */
 function calculateExpiryDate(): string {
   const expiryDate = new Date();
   expiryDate.setFullYear(expiryDate.getFullYear() + 1);
   return expiryDate.toISOString();
 }
 
-/**
- * Create voucher after successful payment
- * 
- * This function:
- * 1. Validates order has required data for voucher creation
- * 2. Creates the voucher in database
- * 3. Updates the order with voucher_id
- * 4. Triggers delivery via Email/WhatsApp
- * 
- * @param order - Order with service info (from webhook)
- * @returns Result with voucher ID and code, or error
- */
 export async function createVoucherOnPaymentSuccess(
   order: OrderWithService
 ): Promise<VoucherCreationResult> {
@@ -57,7 +42,6 @@ export async function createVoucherOnPaymentSuccess(
       error: "Voucher already created",
     };
   }
-
 
   try {
     // Prepare voucher data
@@ -102,9 +86,6 @@ export async function createVoucherOnPaymentSuccess(
   }
 }
 
-/**
- * Trigger voucher delivery via Email and/or WhatsApp
- */
 async function triggerVoucherDelivery(
   order: OrderWithService,
   voucherId: string,
