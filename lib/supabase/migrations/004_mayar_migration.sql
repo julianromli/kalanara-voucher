@@ -25,3 +25,7 @@ COMMENT ON COLUMN orders.payment_link IS 'Payment URL for customer redirect (May
 -- Create partial index for webhook lookup (if not exists)
 CREATE INDEX IF NOT EXISTS orders_payment_order_id_idx ON orders (payment_order_id)
   WHERE payment_order_id IS NOT NULL;
+
+-- Create partial index for transaction ID lookup (fallback webhook processing)
+CREATE INDEX IF NOT EXISTS orders_payment_transaction_id_idx ON orders (payment_transaction_id)
+  WHERE payment_transaction_id IS NOT NULL;

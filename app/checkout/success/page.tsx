@@ -2,7 +2,6 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
-import Image from "next/image";
 import { CheckCircle, Download, Mail, MessageCircle, AlertCircle, Loader2 } from "lucide-react";
 import QRCode from "react-qr-code";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,6 @@ import { generateVoucherPDF, downloadPDF } from "@/lib/pdf";
 import { generateWhatsAppUrl, WhatsAppVoucherData } from "@/lib/utils/whatsapp";
 import { DeliveryMethod, SendTo } from "@/lib/types";
 import { getPublicOrderDetails } from "@/lib/actions/orders";
-import type { OrderWithVoucher } from "@/lib/database.types";
 
 interface VoucherData {
   voucherCode: string;
@@ -62,8 +60,7 @@ function SuccessContent() {
               // In OrderWithVoucher, vouchers is "Voucher | null" or similar.
               // We need to check if 'services' is nested in 'vouchers'
               const voucher = result.vouchers;
-              // Check if voucher has services relation loaded
-              // @ts-ignore - Supabase types can be tricky with nested relations
+              // Get service details from voucher relation
               const service = voucher.services; 
               
               // Fallback: use result.services if voucher.services is missing (since Order also has service_id)
@@ -87,7 +84,7 @@ function SuccessContent() {
                 voucherCode: voucher.code,
                 orderId: result.id,
                 paymentOrderId: result.payment_order_id || "",
-                recipientName: result.recipient_name,
+                recipientName: result.recipient_name || "",
                 recipientEmail: result.recipient_email,
                 recipientPhone: result.recipient_phone || "",
                 senderName: result.customer_name || "",

@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# binaries
+ngrok.exe
+
+# Windows device name artifacts
+nul

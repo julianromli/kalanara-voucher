@@ -30,9 +30,14 @@ import { createVoucherOnPaymentSuccess } from "@/lib/payment/voucher-service";
 function validateWebhookAuth(request: NextRequest): boolean {
   const config = getMayarConfig();
   
-  // If no webhook secret is configured, log warning but allow (for development)
+  // If no webhook secret is configured, require it in production
   if (!config.webhookSecret) {
-    console.warn("[Mayar Webhook] SECURITY WARNING: No MAYAR_WEBHOOK_SECRET configured. Webhook authentication disabled.");
+    const isProduction = process.env.MAYAR_IS_PRODUCTION === "true";
+    if (isProduction) {
+      console.error("[Mayar Webhook] CRITICAL: MAYAR_WEBHOOK_SECRET required in production");
+      return false;
+    }
+    console.warn("[Mayar Webhook] WARNING: Webhook auth disabled (development only)");
     return true;
   }
   
