@@ -4,6 +4,7 @@ import { getServiceById } from "@/lib/actions/services";
 import { createScalevOrder, createScalevPaymentIntent, getScalevCheckoutAvailability } from "@/lib/scalev/client";
 import { getScalevConfig } from "@/lib/scalev/config";
 import { ensureScalevServiceMapping } from "@/lib/scalev/catalog-sync";
+import { buildScalevPublicOrderUrl } from "@/lib/scalev/urls";
 import {
   SCALEV_PAYMENT_METHODS,
   SCALEV_VA_BANK_CODES,
@@ -101,7 +102,7 @@ function extractPaymentLink(
     intent?.invoice_url ||
     createdOrder.invoice_url ||
     createdOrder.payment_link ||
-    createdOrder.secret_slug ||
+    buildScalevPublicOrderUrl(createdOrder.secret_slug) ||
     null
   );
 }

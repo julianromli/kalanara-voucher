@@ -63,4 +63,21 @@ describe("buildPaymentSnapshot", () => {
     expect(snapshot.normalizedStatus).toBe("COMPLETED");
     expect(snapshot.paymentLink).toBe("https://example.com/pay");
   });
+
+  it("builds a hosted Scalev URL when only secret_slug is returned", () => {
+    const snapshot = buildPaymentSnapshot(
+      {
+        id: 456,
+        order_id: "ORD-2",
+        payment_status: "pending",
+        status: "created",
+        secret_slug: "secret-token",
+      },
+      null
+    );
+
+    expect(snapshot.paymentLink).toBe(
+      "https://app.scalev.id/order/public/secret-token/success"
+    );
+  });
 });

@@ -5,7 +5,7 @@
 
 import { createVoucher } from "@/lib/actions/vouchers";
 import { updateOrderVoucherId } from "@/lib/actions/orders";
-import type { OrderWithService, VoucherInsert } from "@/lib/database.types";
+import type { OrderWithService, Voucher, VoucherInsert } from "@/lib/database.types";
 
 export interface VoucherCreationResult {
   success: boolean;
@@ -70,7 +70,7 @@ export async function createVoucherOnPaymentSuccess(
     }
 
     // Trigger delivery based on order preferences
-    await triggerVoucherDelivery(order, voucher.id, voucher.code);
+    await triggerVoucherDelivery(order, voucher);
 
     return {
       success: true,
@@ -88,8 +88,7 @@ export async function createVoucherOnPaymentSuccess(
 
 async function triggerVoucherDelivery(
   order: OrderWithService,
-  voucherId: string,
-  voucherCode: string
+  voucher: Voucher
 ): Promise<void> {
   const { delivery_method, send_to } = order;
   
@@ -102,20 +101,39 @@ async function triggerVoucherDelivery(
     : order.customer_phone;
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const serviceName = order.services?.name || "Layanan Spa";
+  const serviceDuration = order.services?.duration || 60;
+  const deliveryPayload = {
+    recipientName: order.recipient_name || order.customer_name,
+    senderName: order.customer_name,
+    senderMessage: order.sender_message || undefined,
+    voucherCode: voucher.code,
+    serviceName,
+    serviceDuration,
+    amount: voucher.amount,
+    expiryDate: voucher.expiry_date,
+  };
 
   // Send via Email
   if (delivery_method === "EMAIL" || delivery_method === "BOTH") {
     if (recipientEmail) {
       try {
-        await fetch(`${appUrl}/api/email/send-voucher`, {
+        const response = await fetch(`${appUrl}/api/email/send-voucher`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            voucherId,
             recipientEmail,
-            recipientName: order.recipient_name,
+            ...deliveryPayload,
           }),
         });
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => "");
+          throw new Error(
+            `Email delivery failed with status ${response.status}${
+              errorText ? `: ${errorText}` : ""
+            }`
+          );
+        }
         console.log(`[VoucherService] Email sent to ${recipientEmail}`);
       } catch (error) {
         console.error("[VoucherService] Email delivery failed:", error);
@@ -127,15 +145,22 @@ async function triggerVoucherDelivery(
   if (delivery_method === "WHATSAPP" || delivery_method === "BOTH") {
     if (recipientPhone) {
       try {
-        await fetch(`${appUrl}/api/whatsapp/send-voucher`, {
+        const response = await fetch(`${appUrl}/api/whatsapp/send-voucher`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            voucherId,
             recipientPhone,
-            recipientName: order.recipient_name,
+            ...deliveryPayload,
           }),
         });
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => "");
+          throw new Error(
+            `WhatsApp delivery failed with status ${response.status}${
+              errorText ? `: ${errorText}` : ""
+            }`
+          );
+        }
         console.log(`[VoucherService] WhatsApp sent to ${recipientPhone}`);
       } catch (error) {
         console.error("[VoucherService] WhatsApp delivery failed:", error);
