@@ -1,177 +1,136 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState, Suspense } from "react";
-import { CheckCircle, Download, Mail, MessageCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  AlertCircle,
+  CheckCircle,
+  Download,
+  Loader2,
+  Mail,
+  MessageCircle,
+} from "lucide-react";
 import QRCode from "react-qr-code";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/context/ToastContext";
-import { generateVoucherPDF, downloadPDF } from "@/lib/pdf";
-import { generateWhatsAppUrl, WhatsAppVoucherData } from "@/lib/utils/whatsapp";
-import { DeliveryMethod, SendTo } from "@/lib/types";
-import { getPublicOrderDetails } from "@/lib/actions/orders";
-
-interface VoucherData {
-  voucherCode: string;
-  orderId: string;
-  paymentOrderId: string;
-  recipientName: string;
-  recipientEmail?: string | null;
-  recipientPhone: string;
-  senderName: string;
-  senderMessage?: string | null;
-  serviceName: string;
-  serviceDuration: number;
-  amount: number;
-  expiryDate: string;
-  deliveryMethod: DeliveryMethod;
-  sendTo: SendTo;
-}
+import { downloadPDF, generateVoucherPDF } from "@/lib/pdf";
+import type { PublicOrderStatusPayload } from "@/lib/scalev/types";
+import { generateWhatsAppUrl, type WhatsAppVoucherData } from "@/lib/utils/whatsapp";
 
 function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { showToast } = useToast();
   const orderId = searchParams.get("order_id");
-  
+
+  const [payload, setPayload] = useState<PublicOrderStatusPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<VoucherData | null>(null);
 
   useEffect(() => {
     if (!orderId) {
-      setError("Order ID tidak ditemukan");
+      setError("Order ID tidak ditemukan.");
       setIsLoading(false);
       return;
     }
 
-    const fetchOrder = async () => {
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+    const maxAttempts = 12;
+
+    const poll = async () => {
       try {
-        // Poll for voucher creation (webhook processing might take a moment)
-        let attempts = 0;
-        const maxAttempts = 10;
-        
-        const checkStatus = async () => {
-          try {
-            const result = await getPublicOrderDetails(orderId);
-            
-            if (result && result.payment_status === "COMPLETED" && result.vouchers) {
-              // Ensure vouchers is treated as a single object (since it's a 1:1 relation usually, but Supabase might return array if not single())
-              // In OrderWithVoucher, vouchers is "Voucher | null" or similar.
-              // We need to check if 'services' is nested in 'vouchers'
-              const voucher = result.vouchers;
-              // Get service details from voucher relation
-              const service = voucher.services; 
-              
-              // Fallback: use result.services if voucher.services is missing (since Order also has service_id)
-              // But createOrder saves service_id to Order.
-              // Let's assume result.vouchers contains the code.
-              
-              if (!voucher) return false;
+        const response = await fetch(
+          `/api/orders/public-status?order_id=${encodeURIComponent(orderId)}`,
+          { cache: "no-store" }
+        );
 
-              // We need service details. 'result' has 'services' relation?
-              // getPublicOrderDetails selects: `*, vouchers(*, services(*))`
-              // This implies vouchers -> services. 
-              // BUT 'orders' table also has 'service_id'. 
-              // Let's use the top level fetch if possible, but getPublicOrderDetails definition was `*, vouchers(*, services(*))`
-              // This means `result.vouchers.services` should be present.
-              
-              // However, the interface OrderWithVoucher might expect `services` at root too?
-              // Let's check OrderWithVoucher in database.types.ts if I could.
-              // Assuming safe access:
+        if (!response.ok) {
+          throw new Error("Gagal memuat status pesanan.");
+        }
 
-              setData({
-                voucherCode: voucher.code,
-                orderId: result.id,
-                paymentOrderId: result.payment_order_id || "",
-                recipientName: result.recipient_name || "",
-                recipientEmail: result.recipient_email,
-                recipientPhone: result.recipient_phone || "",
-                senderName: result.customer_name || "",
-                senderMessage: result.sender_message,
-                serviceName: service?.name || "Layanan Spa",
-                serviceDuration: service?.duration || 60,
-                amount: result.total_amount,
-                expiryDate: voucher.expiry_date,
-                deliveryMethod: result.delivery_method as DeliveryMethod,
-                sendTo: result.send_to as SendTo,
-              });
-              setIsLoading(false);
-              return true;
-            }
-            
-            return false;
-          } catch (e) {
-            console.error("Polling error:", e);
-            return false;
-          }
-        };
+        const result = (await response.json()) as PublicOrderStatusPayload;
+        if (cancelled) return;
 
-        const poll = async () => {
-          const success = await checkStatus();
-          if (success) return;
+        setPayload(result);
 
-          attempts++;
-          if (attempts < maxAttempts) {
-            setTimeout(poll, 2000); // Retry every 2 seconds
-          } else {
-            setError("Pembayaran sedang diverifikasi. Silakan cek email/WhatsApp Anda dalam beberapa saat.");
-            setIsLoading(false);
-          }
-        };
+        if (result.status === "completed" || result.status === "failed") {
+          setIsLoading(false);
+          return;
+        }
 
-        poll();
-      } catch (err) {
-        console.error("Error fetching order:", err);
-        setError("Terjadi kesalahan saat memuat data pesanan");
-        setIsLoading(false);
+        attempts += 1;
+        if (attempts >= maxAttempts) {
+          setError(
+            "Pembayaran masih diverifikasi. Silakan cek lagi beberapa saat lagi."
+          );
+          setIsLoading(false);
+          return;
+        }
+
+        timeoutId = setTimeout(poll, 2500);
+      } catch (pollError) {
+        console.error("Public status polling failed:", pollError);
+        if (!cancelled) {
+          setError("Terjadi kesalahan saat memeriksa status pembayaran.");
+          setIsLoading(false);
+        }
       }
     };
 
-    fetchOrder();
+    poll();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [orderId]);
 
+  const voucher = payload?.voucher;
+
   const handleDownloadPDF = async () => {
-    if (!data) return;
+    if (!voucher) return;
+
     try {
       const blob = await generateVoucherPDF({
-        code: data.voucherCode,
-        serviceName: data.serviceName,
-        recipientName: data.recipientName,
-        senderName: data.senderName,
-        senderMessage: data.senderMessage || undefined,
-        expiryDate: data.expiryDate,
+        code: voucher.voucherCode,
+        serviceName: voucher.serviceName,
+        recipientName: voucher.recipientName,
+        senderName: voucher.senderName,
+        senderMessage: voucher.senderMessage || undefined,
+        expiryDate: voucher.expiryDate,
       });
-      downloadPDF(blob, `kalanara-voucher-${data.voucherCode}.pdf`);
-    } catch (error) {
-      console.error("Failed to generate PDF:", error);
+      downloadPDF(blob, `kalanara-voucher-${voucher.voucherCode}.pdf`);
+    } catch (downloadError) {
+      console.error("Failed to generate PDF:", downloadError);
       showToast("Gagal membuat PDF. Silakan coba lagi.", "error");
     }
   };
 
   const handleResendWhatsApp = () => {
-    if (!data) return;
+    if (!voucher) return;
+
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
     const whatsappData: WhatsAppVoucherData = {
-      recipientPhone: data.recipientPhone,
-      recipientName: data.recipientName,
-      senderName: data.senderName,
-      senderMessage: data.senderMessage || "",
-      voucherCode: data.voucherCode,
-      serviceName: data.serviceName,
-      serviceDuration: data.serviceDuration,
-      amount: data.amount,
-      expiryDate: data.expiryDate,
-      verifyUrl: `${baseUrl}/verify?code=${data.voucherCode}`,
+      recipientPhone: voucher.recipientPhone,
+      recipientName: voucher.recipientName,
+      senderName: voucher.senderName,
+      senderMessage: voucher.senderMessage || "",
+      voucherCode: voucher.voucherCode,
+      serviceName: voucher.serviceName,
+      serviceDuration: voucher.serviceDuration,
+      amount: voucher.amount,
+      expiryDate: voucher.expiryDate,
+      verifyUrl: `${baseUrl}/verify?code=${voucher.voucherCode}`,
     };
-    const whatsappUrl = generateWhatsAppUrl(whatsappData);
-    window.open(whatsappUrl, "_blank");
+
+    window.open(generateWhatsAppUrl(whatsappData), "_blank");
   };
 
   const handleResendEmail = async () => {
-    if (!data) return;
-    if (!data.recipientEmail) {
-      showToast("Email penerima tidak tersedia", "error");
+    if (!voucher?.recipientEmail) {
+      showToast("Email penerima tidak tersedia.", "error");
       return;
     }
 
@@ -180,107 +139,138 @@ function SuccessContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          recipientEmail: data.recipientEmail,
-          recipientName: data.recipientName,
-          senderName: data.senderName,
-          senderMessage: data.senderMessage,
-          voucherCode: data.voucherCode,
-          serviceName: data.serviceName,
-          serviceDuration: data.serviceDuration,
-          amount: data.amount,
-          expiryDate: data.expiryDate,
+          recipientEmail: voucher.recipientEmail,
+          recipientName: voucher.recipientName,
+          senderName: voucher.senderName,
+          senderMessage: voucher.senderMessage,
+          voucherCode: voucher.voucherCode,
+          serviceName: voucher.serviceName,
+          serviceDuration: voucher.serviceDuration,
+          amount: voucher.amount,
+          expiryDate: voucher.expiryDate,
         }),
       });
 
-      if (!response.ok) throw new Error("Gagal mengirim email");
-      
-      showToast("Email berhasil dikirim ulang!", "success");
-    } catch {
+      if (!response.ok) {
+        throw new Error("Gagal mengirim email");
+      }
+
+      showToast("Email berhasil dikirim ulang.", "success");
+    } catch (emailError) {
+      console.error("Failed to resend email:", emailError);
       showToast("Gagal mengirim email. Silakan coba lagi.", "error");
     }
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-        <h2 className="text-xl font-semibold text-foreground">Memproses Pembayaran...</h2>
-        <p className="text-muted-foreground text-center mt-2 max-w-md">
-          Mohon tunggu sebentar, kami sedang memverifikasi pembayaran dan membuat voucher Anda.
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <Loader2 className="mb-4 size-12 animate-spin text-primary" />
+        <h2 className="text-xl font-semibold text-foreground">
+          Memproses Pembayaran...
+        </h2>
+        <p className="mt-2 max-w-md text-center text-muted-foreground">
+          Mohon tunggu sebentar, kami sedang memverifikasi pembayaran dan
+          menyiapkan voucher Anda.
         </p>
       </div>
     );
   }
 
-  if (error) {
+  if (error || payload?.status === "pending") {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <div className="bg-destructive/10 p-4 rounded-full mb-4">
-          <AlertCircle className="h-12 w-12 text-destructive" />
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <div className="mb-4 rounded-full bg-muted p-4">
+          <AlertCircle className="size-12 text-muted-foreground" />
         </div>
-        <h2 className="text-xl font-semibold text-foreground mb-2">Status Pesanan</h2>
-        <p className="text-muted-foreground text-center mb-6 max-w-md">{error}</p>
+        <h2 className="mb-2 text-xl font-semibold text-foreground">
+          Verifikasi Pembayaran
+        </h2>
+        <p className="mb-6 max-w-md text-center text-muted-foreground">
+          {error || payload?.message || "Pembayaran masih diverifikasi."}
+        </p>
+        <div className="flex w-full max-w-sm flex-col gap-3">
+          <Button onClick={() => window.location.reload()}>Coba Lagi</Button>
+          <Button variant="outline" onClick={() => router.push("/")}>
+            Kembali ke Beranda
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (payload?.status === "failed") {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <div className="mb-4 rounded-full bg-destructive/10 p-4">
+          <AlertCircle className="size-12 text-destructive" />
+        </div>
+        <h2 className="mb-2 text-xl font-semibold text-foreground">
+          Pembayaran Tidak Berhasil
+        </h2>
+        <p className="mb-6 max-w-md text-center text-muted-foreground">
+          {payload.message || "Pesanan tidak dapat diselesaikan."}
+        </p>
         <Button onClick={() => router.push("/")}>Kembali ke Beranda</Button>
       </div>
     );
   }
 
-  if (!data) return null;
+  if (!voucher) {
+    return null;
+  }
 
   return (
-    <div className="min-h-screen bg-primary flex items-center justify-center px-4 py-8">
-      <div className="animate-scale-in bg-card rounded-3xl p-8 md:p-12 max-w-lg w-full text-center shadow-2xl">
-        <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6 animate-checkmark-pop">
+    <div className="flex min-h-screen items-center justify-center bg-primary px-4 py-8">
+      <div className="animate-scale-in w-full max-w-lg rounded-3xl bg-card p-8 text-center shadow-2xl md:p-12">
+        <div className="mx-auto mb-6 flex size-20 items-center justify-center rounded-full bg-muted animate-checkmark-pop">
           <CheckCircle size={40} className="text-muted-foreground" />
         </div>
-        
-        <h1 className="font-sans font-semibold text-3xl text-foreground mb-2">
+
+        <h1 className="mb-2 font-sans text-3xl font-semibold text-foreground">
           Pembayaran Berhasil!
         </h1>
-        <p className="text-muted-foreground mb-8">
-          Voucher kamu sudah siap dan akan dikirim ke penerima.
+        <p className="mb-8 text-muted-foreground">
+          Voucher Anda sudah aktif dan siap digunakan.
         </p>
 
-        <div className="bg-background p-6 rounded-2xl mb-6">
-          <p className="text-sm text-muted-foreground mb-2">Order ID</p>
-          <p className="font-mono text-lg text-foreground font-bold tracking-wider break-all">
-            {data.paymentOrderId}
+        <div className="mb-6 rounded-2xl bg-background p-6">
+          <p className="mb-2 text-sm text-muted-foreground">Order ID</p>
+          <p className="break-all font-mono text-lg font-bold tracking-wider text-foreground">
+            {voucher.paymentOrderId}
           </p>
         </div>
 
-        <div className="bg-background p-6 rounded-2xl mb-6">
-          <p className="text-sm text-muted-foreground mb-2">Kode Voucher</p>
-          <p className="font-mono text-2xl text-foreground font-bold tracking-wider break-all">
-            {data.voucherCode}
+        <div className="mb-6 rounded-2xl bg-background p-6">
+          <p className="mb-2 text-sm text-muted-foreground">Kode Voucher</p>
+          <p className="break-all font-mono text-2xl font-bold tracking-wider text-foreground">
+            {voucher.voucherCode}
           </p>
         </div>
 
-        {/* QR Code */}
-        <div className="flex justify-center mb-6">
-          <div className="bg-card p-4 rounded-xl border border-border">
-            <QRCode value={data.voucherCode} size={150} />
+        <div className="mb-6 flex justify-center">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <QRCode value={voucher.voucherCode} size={150} />
           </div>
         </div>
 
-        {/* Download PDF */}
         <Button
           onClick={handleDownloadPDF}
           variant="outline"
-          className="w-full border-border text-muted-foreground gap-2 mb-6"
+          className="mb-6 w-full gap-2 border-border text-muted-foreground"
         >
           <Download size={18} />
           Download Voucher PDF
         </Button>
 
-        {/* Resend Options */}
-        <div className="bg-muted p-4 rounded-xl mb-6">
-          <p className="text-sm text-muted-foreground mb-3">Kirim Ulang Voucher</p>
+        <div className="mb-6 rounded-xl bg-muted p-4">
+          <p className="mb-3 text-sm text-muted-foreground">Kirim Ulang Voucher</p>
           <div className="flex gap-3">
             <Button
               onClick={handleResendEmail}
-              disabled={!data.recipientEmail}
+              disabled={!voucher.recipientEmail}
               variant="outline"
-              className="flex-1 border-border text-muted-foreground gap-2"
+              className="flex-1 gap-2 border-border text-muted-foreground"
             >
               <Mail size={18} />
               Email
@@ -288,7 +278,7 @@ function SuccessContent() {
             <Button
               onClick={handleResendWhatsApp}
               variant="outline"
-              className="flex-1 border-success text-success hover:bg-success/10 gap-2"
+              className="flex-1 gap-2 border-success text-success hover:bg-success/10"
             >
               <MessageCircle size={18} />
               WhatsApp
@@ -299,14 +289,14 @@ function SuccessContent() {
         <div className="space-y-3">
           <Button
             onClick={() => router.push("/")}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3"
+            className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
           >
             Kembali ke Beranda
           </Button>
           <Button
             onClick={() => router.push("/verify")}
             variant="outline"
-            className="w-full border-border text-muted-foreground py-3"
+            className="w-full border-border text-muted-foreground"
           >
             Cek Voucher Lain
           </Button>
@@ -318,11 +308,13 @@ function SuccessContent() {
 
 export default function CheckoutSuccessPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-10 w-10 text-primary animate-spin" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <Loader2 className="size-10 animate-spin text-primary" />
+        </div>
+      }
+    >
       <SuccessContent />
     </Suspense>
   );

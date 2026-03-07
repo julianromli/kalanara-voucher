@@ -19,6 +19,11 @@ export type Database = {
           category: "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE";
           image_url: string | null;
           is_active: boolean;
+          scalev_product_id: number | null;
+          scalev_variant_id: number | null;
+          scalev_variant_unique_id: string | null;
+          scalev_sync_status: string | null;
+          scalev_last_synced_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -31,6 +36,11 @@ export type Database = {
           category: "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE";
           image_url?: string | null;
           is_active?: boolean;
+          scalev_product_id?: number | null;
+          scalev_variant_id?: number | null;
+          scalev_variant_unique_id?: string | null;
+          scalev_sync_status?: string | null;
+          scalev_last_synced_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -43,6 +53,11 @@ export type Database = {
           category?: "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE";
           image_url?: string | null;
           is_active?: boolean;
+          scalev_product_id?: number | null;
+          scalev_variant_id?: number | null;
+          scalev_variant_unique_id?: string | null;
+          scalev_sync_status?: string | null;
+          scalev_last_synced_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -113,6 +128,7 @@ export type Database = {
           customer_phone: string;
           payment_method: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
           payment_status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
+          payment_provider: string;
           total_amount: number;
           created_at: string;
           // Payment gateway fields
@@ -121,6 +137,15 @@ export type Database = {
           payment_type: string | null;
           payment_transaction_time: string | null;
           payment_link: string | null;
+          scalev_order_pk: number | null;
+          scalev_order_id: string | null;
+          scalev_pg_reference_id: string | null;
+          scalev_payment_method: string | null;
+          scalev_sub_payment_method: string | null;
+          scalev_store_unique_id: string | null;
+          scalev_last_checked_at: string | null;
+          scalev_raw_status: string | null;
+          scalev_raw_payment_status: string | null;
           // Recipient info for voucher creation
           service_id: string | null;
           recipient_name: string | null;
@@ -138,6 +163,7 @@ export type Database = {
           customer_phone: string;
           payment_method: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
+          payment_provider?: string;
           total_amount: number;
           created_at?: string;
           // Payment gateway fields
@@ -146,6 +172,15 @@ export type Database = {
           payment_type?: string | null;
           payment_transaction_time?: string | null;
           payment_link?: string | null;
+          scalev_order_pk?: number | null;
+          scalev_order_id?: string | null;
+          scalev_pg_reference_id?: string | null;
+          scalev_payment_method?: string | null;
+          scalev_sub_payment_method?: string | null;
+          scalev_store_unique_id?: string | null;
+          scalev_last_checked_at?: string | null;
+          scalev_raw_status?: string | null;
+          scalev_raw_payment_status?: string | null;
           // Recipient info for voucher creation
           service_id?: string | null;
           recipient_name?: string | null;
@@ -163,6 +198,7 @@ export type Database = {
           customer_phone?: string;
           payment_method?: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
+          payment_provider?: string;
           total_amount?: number;
           created_at?: string;
           // Payment gateway fields
@@ -171,6 +207,15 @@ export type Database = {
           payment_type?: string | null;
           payment_transaction_time?: string | null;
           payment_link?: string | null;
+          scalev_order_pk?: number | null;
+          scalev_order_id?: string | null;
+          scalev_pg_reference_id?: string | null;
+          scalev_payment_method?: string | null;
+          scalev_sub_payment_method?: string | null;
+          scalev_store_unique_id?: string | null;
+          scalev_last_checked_at?: string | null;
+          scalev_raw_status?: string | null;
+          scalev_raw_payment_status?: string | null;
           // Recipient info for voucher creation
           service_id?: string | null;
           recipient_name?: string | null;

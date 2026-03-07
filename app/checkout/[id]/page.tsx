@@ -1,31 +1,31 @@
 "use client";
 
-import { use, useState, useEffect, useRef } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import Image from "next/image";
 import {
+  ChevronLeft,
+  CreditCard,
   Gift,
-  User,
-  CheckCircle,
+  Loader2,
   Mail,
   MessageCircle,
   Send,
-  Download,
-  ChevronLeft,
-  Loader2,
-  Clock,
+  User,
 } from "lucide-react";
-import QRCode from "react-qr-code";
-import { generateVoucherPDF, downloadPDF } from "@/lib/pdf";
-import { useStore } from "@/context/StoreContext";
-import { useToast } from "@/context/ToastContext";
-import { formatCurrency } from "@/lib/constants";
-import { DeliveryMethod, SendTo } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { generateWhatsAppUrl, WhatsAppVoucherData } from "@/lib/utils/whatsapp";
-import type { CreatePaymentRequest } from "@/lib/mayar/types";
+import { formatCurrency } from "@/lib/constants";
+import {
+  type ScalevCheckoutConfig,
+  type ScalevCheckoutRequest,
+  type ScalevPaymentMethod,
+  type ScalevVABankCode,
+} from "@/lib/scalev/types";
+import { DeliveryMethod, SendTo } from "@/lib/types";
+import { useToast } from "@/context/ToastContext";
+import { useStore } from "@/context/StoreContext";
 
 const PHONE_PATTERN = /^(\+62|62|0)[\d\s-]{8,14}$/;
 
@@ -45,56 +45,18 @@ interface CheckoutForm {
   deliveryMethod: DeliveryMethod;
 }
 
-interface SuccessData {
-  voucherCode: string;
-  orderId: string;
-  recipientName: string;
-  recipientEmail: string;
-  recipientPhone: string;
-  senderName: string;
-  senderMessage: string;
-  serviceName: string;
-  serviceDuration: number;
-  amount: number;
-  expiryDate: string;
-  deliveryMethod: DeliveryMethod;
-  sendTo: SendTo;
-}
-
-interface PendingData {
-  orderId: string;
-  paymentType: string;
-  pdfUrl?: string;
-}
-
-
 export default function CheckoutPage({ params }: PageProps) {
   const { id } = use(params);
   const router = useRouter();
-  const { services } = useStore();
+  const { services, isLoading: servicesLoading } = useStore();
   const { showToast } = useToast();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [isPending, setIsPending] = useState(false);
-  const [successData, setSuccessData] = useState<SuccessData | null>(null);
-  const [pendingData, setPendingData] = useState<PendingData | null>(null);
-  const [, setCurrentOrderId] = useState<string | null>(null);
+  const service = services.find((item) => item.id === id);
   const announcementRef = useRef<HTMLDivElement>(null);
-  const formDataRef = useRef<CheckoutForm | null>(null);
 
-  const service = services.find((s) => s.id === id);
-
-  // Utility function to announce changes to screen readers
-  const announceToScreenReader = (message: string) => {
-    if (announcementRef.current) {
-      announcementRef.current.textContent = message;
-      setTimeout(() => {
-        if (announcementRef.current) {
-          announcementRef.current.textContent = "";
-        }
-      }, 1000);
-    }
-  };
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentConfig, setPaymentConfig] = useState<ScalevCheckoutConfig | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<ScalevPaymentMethod | null>(null);
+  const [subPaymentMethod, setSubPaymentMethod] = useState<ScalevVABankCode | "">("");
 
   const {
     register,
@@ -116,54 +78,118 @@ export default function CheckoutPage({ params }: PageProps) {
   const deliveryMethod = watch("deliveryMethod");
   const recipientEmail = watch("recipientEmail");
 
-  // Compute whether to show recipient email field
   const showRecipientEmail =
-    (deliveryMethod === DeliveryMethod.EMAIL || deliveryMethod === DeliveryMethod.BOTH) &&
+    (deliveryMethod === DeliveryMethod.EMAIL ||
+      deliveryMethod === DeliveryMethod.BOTH) &&
     sendTo === SendTo.RECIPIENT;
 
-  // Trigger validation when field visibility changes
+  const selectedPaymentOption = useMemo(
+    () =>
+      paymentConfig?.paymentOptions.find((option) => option.code === paymentMethod) ||
+      null,
+    [paymentConfig, paymentMethod]
+  );
+
+  const announceToScreenReader = (message: string) => {
+    if (!announcementRef.current) return;
+    announcementRef.current.textContent = message;
+    setTimeout(() => {
+      if (announcementRef.current) {
+        announcementRef.current.textContent = "";
+      }
+    }, 1000);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPaymentOptions() {
+      try {
+        const response = await fetch("/api/scalev/payment-options", {
+          cache: "no-store",
+        });
+        const result = (await response.json()) as {
+          success: boolean;
+          config?: ScalevCheckoutConfig;
+        };
+
+        if (!cancelled && result.success && result.config) {
+          setPaymentConfig(result.config);
+          setPaymentMethod(result.config.paymentOptions[0]?.code || null);
+          if (result.config.paymentOptions[0]?.code !== "va") {
+            setSubPaymentMethod("");
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load Scalev payment options:", error);
+        if (!cancelled) {
+          showToast("Gagal memuat metode pembayaran.", "error");
+        }
+      }
+    }
+
+    loadPaymentOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showToast]);
+
   useEffect(() => {
     if (showRecipientEmail) {
       trigger("recipientEmail");
-      announceToScreenReader("Email field is now required for your selected delivery method.");
+      announceToScreenReader(
+        "Email penerima sekarang wajib diisi untuk metode pengiriman yang dipilih."
+      );
     } else {
       clearErrors("recipientEmail");
-      announceToScreenReader("Email field is no longer required.");
+      announceToScreenReader("Email penerima tidak lagi wajib diisi.");
     }
-  }, [showRecipientEmail, trigger, clearErrors]);
+  }, [clearErrors, showRecipientEmail, trigger]);
 
-  // Clear email validation errors when field becomes valid
   useEffect(() => {
     if (showRecipientEmail && recipientEmail && errors.recipientEmail) {
       trigger("recipientEmail");
     }
-  }, [recipientEmail, showRecipientEmail, errors.recipientEmail, trigger]);
+  }, [errors.recipientEmail, recipientEmail, showRecipientEmail, trigger]);
 
-  if (!service) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Service not found</p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (paymentMethod !== "va") {
+      setSubPaymentMethod("");
+    } else if (
+      selectedPaymentOption?.subMethods?.length &&
+      !selectedPaymentOption.subMethods.includes(subPaymentMethod as ScalevVABankCode)
+    ) {
+      setSubPaymentMethod(selectedPaymentOption.subMethods[0]);
+    }
+  }, [paymentMethod, selectedPaymentOption, subPaymentMethod]);
 
-
-  // Form submission - create payment and redirect to Mayar
   const onSubmit = async (data: CheckoutForm) => {
-    // Focus on first error field if validation errors exist
     const errorFields = Object.keys(errors);
     if (errorFields.length > 0) {
-      const firstErrorField = errorFields[0] as keyof CheckoutForm;
-      setFocus(firstErrorField);
+      setFocus(errorFields[0] as keyof CheckoutForm);
+      return;
+    }
+
+    if (!service) {
+      showToast("Layanan tidak ditemukan.", "error");
+      return;
+    }
+
+    if (!paymentMethod) {
+      showToast("Pilih metode pembayaran terlebih dahulu.", "error");
+      return;
+    }
+
+    if (paymentMethod === "va" && !subPaymentMethod) {
+      showToast("Pilih bank virtual account.", "error");
       return;
     }
 
     setIsProcessing(true);
-    formDataRef.current = data;
 
     try {
-      // Create payment via API
-      const requestBody: CreatePaymentRequest = {
+      const requestBody: ScalevCheckoutRequest = {
         serviceId: service.id,
         customerName: data.customerName,
         customerEmail: data.customerEmail,
@@ -174,246 +200,57 @@ export default function CheckoutPage({ params }: PageProps) {
         senderMessage: data.senderMessage,
         deliveryMethod: data.deliveryMethod,
         sendTo: data.sendTo,
+        paymentMethod,
+        subPaymentMethod:
+          paymentMethod === "va" ? (subPaymentMethod as ScalevVABankCode) : undefined,
       };
 
-      const response = await fetch("/api/mayar/create-payment", {
+      const response = await fetch("/api/scalev/create-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
+      const result = (await response.json()) as {
+        success: boolean;
+        paymentLink?: string;
+        error?: string;
+      };
 
-      const result = await response.json();
-
-      if (!result.success || !result.paymentLink) {
-        throw new Error(result.error || "Gagal membuat pembayaran");
+      if (!response.ok || !result.success || !result.paymentLink) {
+        throw new Error(result.error || "Gagal membuat pembayaran.");
       }
 
-      setCurrentOrderId(result.orderId);
-      
-      // Redirect to Mayar payment page
-      window.location.href = result.paymentLink;
+      window.location.assign(result.paymentLink);
     } catch (error) {
-      console.error("Checkout error:", error);
-      setIsProcessing(false);
+      console.error("Scalev checkout error:", error);
       showToast(
-        error instanceof Error ? error.message : "Gagal memproses pembayaran. Silakan coba lagi.",
+        error instanceof Error
+          ? error.message
+          : "Gagal memproses pembayaran. Silakan coba lagi.",
         "error"
       );
+      setIsProcessing(false);
     }
   };
 
-
-  // Resend handlers
-  const handleResendWhatsApp = () => {
-    if (!successData) return;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-    const whatsappData: WhatsAppVoucherData = {
-      recipientPhone: successData.recipientPhone,
-      recipientName: successData.recipientName,
-      senderName: successData.senderName,
-      senderMessage: successData.senderMessage,
-      voucherCode: successData.voucherCode,
-      serviceName: successData.serviceName,
-      serviceDuration: successData.serviceDuration,
-      amount: successData.amount,
-      expiryDate: successData.expiryDate,
-      verifyUrl: `${baseUrl}/verify?code=${successData.voucherCode}`,
-    };
-    const whatsappUrl = generateWhatsAppUrl(whatsappData);
-    window.open(whatsappUrl, "_blank");
-  };
-
-  const handleResendEmail = async () => {
-    if (!successData) return;
-    try {
-      await fetch("/api/email/send-voucher", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recipientEmail: successData.recipientEmail,
-          recipientName: successData.recipientName,
-          senderName: successData.senderName,
-          senderMessage: successData.senderMessage,
-          voucherCode: successData.voucherCode,
-          serviceName: successData.serviceName,
-          serviceDuration: successData.serviceDuration,
-          amount: successData.amount,
-          expiryDate: successData.expiryDate,
-        }),
-      });
-      showToast("Email berhasil dikirim ulang!", "success");
-    } catch {
-      showToast("Gagal mengirim email. Silakan coba lagi.", "error");
-    }
-  };
-
-  const handleDownloadPDF = async () => {
-    if (!successData || !service) return;
-    try {
-      const blob = await generateVoucherPDF({
-        code: successData.voucherCode,
-        serviceName: successData.serviceName,
-        recipientName: successData.recipientName,
-        senderName: successData.senderName,
-        senderMessage: successData.senderMessage || undefined,
-        expiryDate: successData.expiryDate,
-      });
-      downloadPDF(blob, `kalanara-voucher-${successData.voucherCode}.pdf`);
-    } catch (error) {
-      console.error("Failed to generate PDF:", error);
-      showToast("Gagal membuat PDF. Silakan coba lagi.", "error");
-    }
-  };
-
-  // Pending payment UI
-  if (isPending && pendingData) {
+  if (servicesLoading || !paymentConfig) {
     return (
-      <div className="min-h-screen bg-primary flex items-center justify-center px-4">
-        <div className="animate-scale-in bg-card rounded-3xl p-8 md:p-12 max-w-lg w-full text-center shadow-2xl">
-          <div className="w-20 h-20 bg-warning/20 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Clock size={40} className="text-warning" />
-          </div>
-          <h1 className="font-sans font-semibold text-3xl text-foreground mb-2">
-            Menunggu Pembayaran
-          </h1>
-          <p className="text-muted-foreground mb-6">
-            Silakan selesaikan pembayaran Anda melalui {pendingData.paymentType}.
-          </p>
-
-          <div className="bg-background p-6 rounded-2xl mb-6">
-            <p className="text-sm text-muted-foreground mb-2">Order ID</p>
-            <p className="font-mono text-lg text-foreground font-bold tracking-wider">
-              {pendingData.orderId}
-            </p>
-          </div>
-
-          {pendingData.pdfUrl && (
-            <Button
-              onClick={() => window.open(pendingData.pdfUrl, "_blank")}
-              variant="outline"
-              className="w-full border-border text-muted-foreground gap-2 mb-6"
-            >
-              <Download size={18} />
-              Download Instruksi Pembayaran
-            </Button>
-          )}
-
-          <p className="text-sm text-muted-foreground mb-6">
-            Voucher akan dikirim otomatis setelah pembayaran dikonfirmasi.
-          </p>
-
-          <div className="space-y-3">
-            <Button
-              onClick={() => router.push("/")}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3"
-            >
-              Kembali ke Beranda
-            </Button>
-          </div>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="size-10 animate-spin text-primary" />
       </div>
     );
   }
 
-
-  // Success UI
-  if (isSuccess && successData) {
+  if (!service) {
     return (
-      <div className="min-h-screen bg-primary flex items-center justify-center px-4">
-        <div className="animate-scale-in bg-card rounded-3xl p-8 md:p-12 max-w-lg w-full text-center shadow-2xl">
-          <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6 animate-checkmark-pop">
-            <CheckCircle size={40} className="text-muted-foreground" />
-          </div>
-          <h1 className="font-sans font-semibold text-3xl text-foreground mb-2">
-            Pembayaran Berhasil!
-          </h1>
-          <p className="text-muted-foreground mb-8">
-            Voucher kamu sedang diproses dan akan dikirim ke penerima.
-          </p>
-
-          <div className="bg-background p-6 rounded-2xl mb-6">
-            <p className="text-sm text-muted-foreground mb-2">Order ID</p>
-            <p className="font-mono text-lg text-foreground font-bold tracking-wider">
-              {successData.orderId}
-            </p>
-          </div>
-
-          {successData.voucherCode !== "Sedang diproses..." && (
-            <>
-              <div className="bg-background p-6 rounded-2xl mb-6">
-                <p className="text-sm text-muted-foreground mb-2">Kode Voucher</p>
-                <p className="font-mono text-2xl text-foreground font-bold tracking-wider">
-                  {successData.voucherCode}
-                </p>
-              </div>
-
-              {/* QR Code */}
-              <div className="flex justify-center mb-6">
-                <div className="bg-card p-4 rounded-xl border border-border">
-                  <QRCode value={successData.voucherCode} size={150} />
-                </div>
-              </div>
-
-              {/* Download PDF */}
-              <Button
-                onClick={handleDownloadPDF}
-                variant="outline"
-                className="w-full border-border text-muted-foreground gap-2 mb-6"
-              >
-                <Download size={18} />
-                Download Voucher PDF
-              </Button>
-
-              {/* Resend Options */}
-              <div className="bg-muted p-4 rounded-xl mb-6">
-                <p className="text-sm text-muted-foreground mb-3">Kirim Ulang Voucher</p>
-                <div className="flex gap-3">
-                  <Button
-                    onClick={handleResendEmail}
-                    variant="outline"
-                    className="flex-1 border-border text-muted-foreground gap-2"
-                  >
-                    <Mail size={18} />
-                    Email
-                  </Button>
-                  <Button
-                    onClick={handleResendWhatsApp}
-                    variant="outline"
-                    className="flex-1 border-success text-success hover:bg-success/10 gap-2"
-                  >
-                    <MessageCircle size={18} />
-                    WhatsApp
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
-
-          <div className="space-y-3">
-            <Button
-              onClick={() => router.push("/")}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3"
-            >
-              Kembali ke Beranda
-            </Button>
-            <Button
-              onClick={() => router.push("/verify")}
-              variant="outline"
-              className="w-full border-border text-muted-foreground py-3"
-            >
-              Cek Voucher Lain
-            </Button>
-          </div>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-muted-foreground">Layanan tidak ditemukan.</p>
       </div>
     );
   }
 
-
-  // Main checkout form
   return (
     <div className="min-h-screen bg-background py-8">
-      {/* Screen Reader Announcements Live Region */}
       <div
         ref={announcementRef}
         role="status"
@@ -422,50 +259,51 @@ export default function CheckoutPage({ params }: PageProps) {
         className="sr-only"
       />
 
-      {/* Back Button */}
-      <div className="max-w-4xl mx-auto px-4 mb-6 animate-slide-in-left">
+      <div className="mx-auto mb-6 max-w-4xl px-4 animate-slide-in-left">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group"
+          className="group flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
           aria-label="Kembali ke halaman sebelumnya"
         >
-          <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+          <ChevronLeft size={20} className="transition-transform group-hover:-translate-x-1" />
           <span>Kembali</span>
         </button>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="animate-fade-slide-up font-sans font-semibold text-2xl sm:text-3xl text-foreground mb-6 sm:mb-8 text-center">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        <h1 className="animate-fade-slide-up text-center font-sans text-2xl font-semibold text-foreground sm:text-3xl">
           Selesaikan Pembelian
         </h1>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8" aria-label="Checkout form">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-            {/* Left Column - Form */}
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="mt-8 space-y-8"
+          aria-label="Form checkout voucher"
+        >
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
             <div className="space-y-6">
-              {/* Customer Details */}
-              <div className="animate-fade-slide-up animate-stagger-1 bg-card p-4 sm:p-6 rounded-2xl border border-border">
-                <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2 text-lg">
+              <div className="animate-fade-slide-up animate-stagger-1 rounded-2xl border border-border bg-card p-4 sm:p-6">
+                <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                   <User size={20} aria-hidden="true" /> Data Kamu
                 </h2>
-                <div className="space-y-3 sm:space-y-4">
+                <div className="space-y-4">
                   <div>
-                    <label className="text-sm text-muted-foreground mb-2 block font-medium">
+                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
                       Nama Lengkap
                     </label>
                     <Input
                       {...register("customerName", { required: "Nama lengkap wajib diisi" })}
                       placeholder="Nama kamu"
-                      aria-invalid={!!errors.customerName}
-                      aria-describedby={errors.customerName ? "customerName-error" : undefined}
-                      className={`min-h-12 text-base ${errors.customerName ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
+                      className={errors.customerName ? "border-destructive" : ""}
                     />
-                    {errors.customerName?.message && (
-                      <p id="customerName-error" className="text-xs text-destructive mt-1">{errors.customerName.message}</p>
+                    {errors.customerName && (
+                      <p className="mt-1 text-xs text-destructive">
+                        {errors.customerName.message}
+                      </p>
                     )}
                   </div>
                   <div>
-                    <label className="text-sm text-muted-foreground mb-2 block font-medium">
+                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
                       Email
                     </label>
                     <Input
@@ -477,17 +315,17 @@ export default function CheckoutPage({ params }: PageProps) {
                         },
                       })}
                       type="email"
-                      placeholder="your@email.com"
-                      aria-invalid={!!errors.customerEmail}
-                      aria-describedby={errors.customerEmail ? "customerEmail-error" : undefined}
-                      className={`min-h-12 text-base ${errors.customerEmail ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
+                      placeholder="nama@email.com"
+                      className={errors.customerEmail ? "border-destructive" : ""}
                     />
-                    {errors.customerEmail?.message && (
-                      <p id="customerEmail-error" className="text-xs text-destructive mt-1">{errors.customerEmail.message}</p>
+                    {errors.customerEmail && (
+                      <p className="mt-1 text-xs text-destructive">
+                        {errors.customerEmail.message}
+                      </p>
                     )}
                   </div>
                   <div>
-                    <label className="text-sm text-muted-foreground mb-2 block font-medium">
+                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
                       WhatsApp
                     </label>
                     <Input
@@ -499,41 +337,39 @@ export default function CheckoutPage({ params }: PageProps) {
                         },
                       })}
                       placeholder="+62 812 3456 7890"
-                      aria-invalid={!!errors.customerPhone}
-                      aria-describedby={errors.customerPhone ? "customerPhone-error" : undefined}
-                      className={`min-h-12 text-base ${errors.customerPhone ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
+                      className={errors.customerPhone ? "border-destructive" : ""}
                     />
-                    {errors.customerPhone?.message && (
-                      <p id="customerPhone-error" className="text-xs text-destructive mt-1">{errors.customerPhone.message}</p>
+                    {errors.customerPhone && (
+                      <p className="mt-1 text-xs text-destructive">
+                        {errors.customerPhone.message}
+                      </p>
                     )}
                   </div>
                 </div>
               </div>
 
-
-              {/* Recipient Details */}
-              <div className="animate-fade-slide-up animate-stagger-2 bg-card p-4 sm:p-6 rounded-2xl border border-border">
-                <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2 text-lg">
+              <div className="animate-fade-slide-up animate-stagger-2 rounded-2xl border border-border bg-card p-4 sm:p-6">
+                <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                   <Gift size={20} aria-hidden="true" /> Data Penerima
                 </h2>
-                <div className="space-y-3 sm:space-y-4">
+                <div className="space-y-4">
                   <div>
-                    <label className="text-sm text-muted-foreground mb-2 block font-medium">
+                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
                       Nama Penerima
                     </label>
                     <Input
                       {...register("recipientName", { required: "Nama penerima wajib diisi" })}
                       placeholder="Nama penerima voucher"
-                      aria-invalid={!!errors.recipientName}
-                      aria-describedby={errors.recipientName ? "recipientName-error" : undefined}
-                      className={`min-h-12 text-base ${errors.recipientName ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
+                      className={errors.recipientName ? "border-destructive" : ""}
                     />
-                    {errors.recipientName?.message && (
-                      <p id="recipientName-error" className="text-xs text-destructive mt-1">{errors.recipientName.message}</p>
+                    {errors.recipientName && (
+                      <p className="mt-1 text-xs text-destructive">
+                        {errors.recipientName.message}
+                      </p>
                     )}
                   </div>
                   <div>
-                    <label className="text-sm text-muted-foreground mb-2 block font-medium">
+                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
                       WhatsApp Penerima
                     </label>
                     <Input
@@ -545,50 +381,49 @@ export default function CheckoutPage({ params }: PageProps) {
                         },
                       })}
                       placeholder="+62 812 3456 7890"
-                      aria-invalid={!!errors.recipientPhone}
-                      aria-describedby={errors.recipientPhone ? "recipientPhone-error" : undefined}
-                      className={`min-h-12 text-base ${errors.recipientPhone ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
+                      className={errors.recipientPhone ? "border-destructive" : ""}
                     />
-                    {errors.recipientPhone?.message && (
-                      <p id="recipientPhone-error" className="text-xs text-destructive mt-1">{errors.recipientPhone.message}</p>
+                    {errors.recipientPhone && (
+                      <p className="mt-1 text-xs text-destructive">
+                        {errors.recipientPhone.message}
+                      </p>
                     )}
                   </div>
                   <div>
-                    <label className="text-sm text-muted-foreground mb-2 block font-medium">
-                      Pesan (Opsional)
+                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                      Pesan
                     </label>
                     <textarea
                       {...register("senderMessage")}
-                      placeholder="Tulis pesan untuk penerima..."
                       rows={3}
-                      className="w-full px-3 py-2 min-h-24 text-base border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                      placeholder="Tulis pesan untuk penerima..."
+                      className="min-h-24 w-full resize-none rounded-lg border border-border px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Delivery Options */}
-              <div className="animate-fade-slide-up animate-stagger-3 bg-card p-4 sm:p-6 rounded-2xl border border-border">
-                <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2 text-lg">
+              <div className="animate-fade-slide-up animate-stagger-3 rounded-2xl border border-border bg-card p-4 sm:p-6">
+                <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                   <Send size={20} aria-hidden="true" /> Opsi Pengiriman Voucher
                 </h2>
-                <div className="space-y-4 sm:space-y-5">
-                  {/* Send To Toggle */}
+
+                <div className="space-y-5">
                   <div>
-                    <label className="text-sm text-muted-foreground mb-2 block font-medium">
+                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
                       Kirim Voucher Ke
                     </label>
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                       {[
                         { value: SendTo.RECIPIENT, label: "Langsung ke Penerima" },
                         { value: SendTo.PURCHASER, label: "Kirim ke Saya" },
                       ].map((option) => (
                         <label
                           key={option.value}
-                          className={`flex items-center justify-center p-3 sm:p-4 border rounded-xl cursor-pointer transition-all text-sm sm:text-base min-h-12 sm:min-h-14 ${
+                          className={`flex min-h-14 cursor-pointer items-center justify-center rounded-xl border p-3 text-sm transition-all sm:text-base ${
                             sendTo === option.value
-                              ? "border-primary bg-muted text-foreground font-medium"
-                              : "border-border hover:border-muted-foreground text-muted-foreground"
+                              ? "border-primary bg-muted font-medium text-foreground"
+                              : "border-border text-muted-foreground hover:border-muted-foreground"
                           }`}
                         >
                           <input
@@ -603,114 +438,147 @@ export default function CheckoutPage({ params }: PageProps) {
                     </div>
                   </div>
 
-
-                  {/* Delivery Method */}
                   <div>
-                    <label className="text-sm text-muted-foreground mb-2 block font-medium">
+                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
                       Metode Pengiriman
                     </label>
-                    <div className="space-y-2 sm:space-y-3">
+                    <div className="space-y-3">
                       {[
                         { value: DeliveryMethod.WHATSAPP, label: "WhatsApp", icon: MessageCircle },
                         { value: DeliveryMethod.EMAIL, label: "Email", icon: Mail },
                         { value: DeliveryMethod.BOTH, label: "Email & WhatsApp", icon: Send },
-                      ].map((method) => {
-                        const isWhatsApp = method.value === DeliveryMethod.WHATSAPP;
-                        const isSelected = deliveryMethod === method.value;
-                        
-                        return (
-                          <label
-                            key={method.value}
-                            className={`flex items-center gap-3 p-3 sm:p-4 border rounded-xl cursor-pointer transition-all min-h-12 sm:min-h-14 ${
-                              isSelected
-                                ? isWhatsApp
-                                  ? "border-success bg-success/10 ring-2 ring-success/30"
-                                  : "border-primary bg-muted"
-                                : isWhatsApp
-                                  ? "border-border hover:border-success/50 hover:bg-success/5"
-                                  : "border-border hover:border-muted-foreground"
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              value={method.value}
-                              {...register("deliveryMethod")}
-                              className="sr-only"
-                            />
-                            <method.icon
-                              size={20}
-                              className={
-                                isSelected
-                                  ? isWhatsApp ? "text-success" : "text-muted-foreground"
-                                  : isWhatsApp ? "text-success/60" : "text-muted-foreground/50"
-                              }
-                            />
-                            <span
-                              className={
-                                isSelected
-                                  ? isWhatsApp ? "text-success font-semibold" : "text-foreground font-medium"
-                                  : isWhatsApp ? "text-success/70 font-medium" : "text-muted-foreground"
-                              }
-                            >
-                              {method.label}
-                              {isWhatsApp && !isSelected && (
-                                <span className="text-xs text-success/60 ml-1">(Disarankan)</span>
-                              )}
-                            </span>
-                          </label>
-                        );
-                      })}
+                      ].map((method) => (
+                        <label
+                          key={method.value}
+                          className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border p-4 transition-all ${
+                            deliveryMethod === method.value
+                              ? "border-primary bg-muted"
+                              : "border-border hover:border-muted-foreground"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            value={method.value}
+                            {...register("deliveryMethod")}
+                            className="sr-only"
+                          />
+                          <method.icon size={20} className="text-muted-foreground" />
+                          <span className="text-sm text-foreground sm:text-base">
+                            {method.label}
+                          </span>
+                        </label>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Conditional Recipient Email Field */}
                   <div
                     className={`overflow-hidden transition-all duration-300 ${
-                      showRecipientEmail ? "opacity-100 max-h-48" : "opacity-0 max-h-0"
+                      showRecipientEmail ? "max-h-40 opacity-100" : "max-h-0 opacity-0"
                     }`}
                     aria-hidden={!showRecipientEmail}
                   >
-                    <div>
-                      <label className="text-sm text-muted-foreground mb-2 block font-medium">
-                        Email Penerima
-                        {showRecipientEmail && <span className="text-destructive ml-1">*</span>}
-                      </label>
-                      <Input
-                        {...register("recipientEmail", {
-                          required: showRecipientEmail ? "Email wajib diisi untuk pengiriman email" : false,
-                          pattern: showRecipientEmail
-                            ? { value: /^\S+@\S+$/i, message: "Format email tidak valid" }
-                            : undefined,
-                        })}
-                        type="email"
-                        placeholder="recipient@email.com"
-                        aria-invalid={!!errors.recipientEmail}
-                        aria-describedby={errors.recipientEmail ? "recipientEmail-error" : undefined}
-                        className={`min-h-12 text-base ${errors.recipientEmail ? "border-destructive focus-visible:ring-destructive/40" : ""}`}
-                      />
-                      {errors.recipientEmail?.message && (
-                        <p id="recipientEmail-error" className="text-xs text-destructive mt-1">
-                          {errors.recipientEmail.message}
-                        </p>
-                      )}
-                    </div>
+                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                      Email Penerima
+                    </label>
+                    <Input
+                      {...register("recipientEmail", {
+                        required: showRecipientEmail
+                          ? "Email wajib diisi untuk pengiriman email"
+                          : false,
+                        pattern: showRecipientEmail
+                          ? {
+                              value: /^\S+@\S+$/i,
+                              message: "Format email tidak valid",
+                            }
+                          : undefined,
+                      })}
+                      type="email"
+                      placeholder="penerima@email.com"
+                      className={errors.recipientEmail ? "border-destructive" : ""}
+                    />
+                    {errors.recipientEmail && (
+                      <p className="mt-1 text-xs text-destructive">
+                        {errors.recipientEmail.message}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
+
+              <div className="animate-fade-slide-up animate-stagger-4 rounded-2xl border border-border bg-card p-4 sm:p-6">
+                <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+                  <CreditCard size={20} aria-hidden="true" /> Metode Pembayaran
+                </h2>
+                <div className="space-y-3">
+                  {paymentConfig.paymentOptions.map((option) => (
+                    <label
+                      key={option.code}
+                      className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all ${
+                        paymentMethod === option.code
+                          ? "border-primary bg-muted"
+                          : "border-border hover:border-muted-foreground"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value={option.code}
+                        checked={paymentMethod === option.code}
+                        onChange={() => setPaymentMethod(option.code)}
+                        className="mt-1"
+                      />
+                      <div className="space-y-1">
+                        <p className="font-medium text-foreground">{option.label}</p>
+                        {option.code === "va" && option.subMethods?.length ? (
+                          <p className="text-sm text-muted-foreground">
+                            Pilih bank virtual account pada dropdown di bawah.
+                          </p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            Pembayaran diproses melalui Scalev.
+                          </p>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+
+                {paymentMethod === "va" && selectedPaymentOption?.subMethods?.length ? (
+                  <div className="mt-4 space-y-2">
+                    <label className="block text-sm font-medium text-muted-foreground">
+                      Bank Virtual Account
+                    </label>
+                    <select
+                      value={subPaymentMethod}
+                      onChange={(event) =>
+                        setSubPaymentMethod(event.target.value as ScalevVABankCode)
+                      }
+                      className="min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base"
+                    >
+                      {selectedPaymentOption.subMethods.map((bank) => (
+                        <option key={bank} value={bank}>
+                          {bank}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+              </div>
             </div>
 
-
-            {/* Right Column - Order Summary */}
             <div className="lg:sticky lg:top-24 lg:h-fit">
-              <div className="animate-scale-in bg-card p-4 sm:p-6 rounded-2xl border border-border">
-                <h2 className="font-semibold text-foreground mb-4 text-lg">
+              <div className="animate-scale-in rounded-2xl border border-border bg-card p-4 sm:p-6">
+                <h2 className="mb-4 text-lg font-semibold text-foreground">
                   Ringkasan Pesanan
                 </h2>
 
-                <div className="flex gap-3 sm:gap-4 mb-6">
-                  <div className="relative size-16 sm:size-20 rounded-lg overflow-hidden flex-shrink-0">
+                <div className="mb-6 flex gap-4">
+                  <div className="relative size-20 overflow-hidden rounded-lg">
                     <Image
-                      src={service.image || "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=200&q=80"}
+                      src={
+                        service.image ||
+                        "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=200&q=80"
+                      }
                       alt={service.name}
                       fill
                       sizes="80px"
@@ -718,48 +586,48 @@ export default function CheckoutPage({ params }: PageProps) {
                     />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-medium text-foreground text-sm sm:text-base line-clamp-2">{service.name}</h3>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
+                    <h3 className="line-clamp-2 font-medium text-foreground">
+                      {service.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
                       {service.duration} menit
                     </p>
                   </div>
                 </div>
 
-                <div className="border-t border-border pt-4 space-y-2 sm:space-y-3">
-                  <div className="flex justify-between text-muted-foreground text-sm">
+                <div className="space-y-3 border-t border-border pt-4">
+                  <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Subtotal</span>
                     <span>{formatCurrency(service.price)}</span>
                   </div>
-                  <div className="flex justify-between text-muted-foreground text-sm">
+                  <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Biaya Layanan</span>
                     <span>Gratis</span>
                   </div>
-                  <div className="border-t border-border pt-3 flex justify-between font-semibold text-foreground">
+                  <div className="flex justify-between border-t border-border pt-3 font-semibold text-foreground">
                     <span>Total</span>
-                    <span className="text-lg sm:text-xl">
-                      {formatCurrency(service.price)}
-                    </span>
+                    <span className="text-lg">{formatCurrency(service.price)}</span>
                   </div>
                 </div>
 
                 <Button
                   type="submit"
-                  disabled={isProcessing}
-                  className="btn-hover-lift w-full mt-6 bg-primary hover:bg-primary/90 text-primary-foreground py-3 sm:py-4 text-base sm:text-lg min-h-12 sm:min-h-14"
+                  disabled={isProcessing || !paymentMethod}
+                  className="btn-hover-lift mt-6 min-h-14 w-full bg-primary text-base text-primary-foreground hover:bg-primary/90"
                   aria-busy={isProcessing}
                 >
                   {isProcessing ? (
                     <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      <Loader2 className="mr-2 size-5 animate-spin" />
                       Memproses...
                     </>
                   ) : (
-                    "Bayar Sekarang"
+                    "Lanjut ke Pembayaran"
                   )}
                 </Button>
 
-                <p className="text-center text-muted-foreground text-xs mt-4">
-                  Pembayaran diproses secara aman oleh Mayar.id
+                <p className="mt-4 text-center text-xs text-muted-foreground">
+                  Pembayaran diproses aman melalui Scalev.
                 </p>
               </div>
             </div>
