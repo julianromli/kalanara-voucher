@@ -25,6 +25,7 @@ describe('PurchasesClient', () => {
       payment_provider: 'scalev',
       created_at: '2025-12-01',
       payment_order_id: null,
+      public_access_token: 'test-public-access-token',
       payment_transaction_id: null,
       payment_type: null,
       payment_transaction_time: null,

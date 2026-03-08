@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
-import { getVoucherByCode } from "@/lib/actions/vouchers";
+import { getAuthorizedVoucherDelivery } from "@/lib/payment/public-voucher-delivery";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -22,15 +22,21 @@ function checkRateLimit(ip: string, limit = 10, windowMs = 60000): boolean {
 }
 
 interface VoucherEmailRequest {
-  recipientEmail: string;
-  recipientName: string;
-  senderName: string;
-  senderMessage?: string;
-  voucherCode: string;
-  serviceName: string;
-  serviceDuration: number;
-  amount: number;
-  expiryDate: string;
+  orderId: string;
+  token: string;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function sanitizeHeaderValue(value: string): string {
+  return value.replace(/[\r\n]+/g, " ").trim();
 }
 
 export async function POST(request: NextRequest) {
@@ -48,34 +54,36 @@ export async function POST(request: NextRequest) {
 
     const body: VoucherEmailRequest = await request.json();
 
-    const {
-      recipientEmail,
-      recipientName,
-      senderName,
-      senderMessage,
-      voucherCode,
-      serviceName,
-      serviceDuration,
-      amount,
-      expiryDate,
-    } = body;
+    const { orderId, token } = body;
 
-    // Validate voucher exists in database (prevents arbitrary email sending)
-    const voucher = await getVoucherByCode(voucherCode);
-    if (!voucher) {
+    if (!orderId || !token) {
       return NextResponse.json(
-        { error: "Invalid voucher code" },
+        { error: "orderId and token are required" },
         { status: 400 }
       );
     }
+
+    const delivery = await getAuthorizedVoucherDelivery(orderId, token);
+    if (!delivery || !delivery.recipientEmail) {
+      return NextResponse.json(
+        { error: "Voucher tidak valid atau email penerima tidak tersedia." },
+        { status: 400 }
+      );
+    }
+
+    const recipientName = escapeHtml(delivery.recipientName);
+    const senderName = escapeHtml(delivery.senderName);
+    const senderMessage = delivery.senderMessage ? escapeHtml(delivery.senderMessage) : null;
+    const voucherCode = escapeHtml(delivery.voucherCode);
+    const serviceName = escapeHtml(delivery.serviceName);
 
     const formattedAmount = new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       minimumFractionDigits: 0,
-    }).format(amount);
+    }).format(delivery.amount);
 
-    const formattedExpiry = new Date(expiryDate).toLocaleDateString("en-US", {
+    const formattedExpiry = new Date(delivery.expiryDate).toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -139,7 +147,7 @@ export async function POST(request: NextRequest) {
                     <tr>
                       <td style="text-align: center; padding: 8px;">
                         <p style="margin: 0; color: #d2d9c8; font-size: 11px; text-transform: uppercase;">Duration</p>
-                        <p style="margin: 4px 0 0; color: #ffffff; font-size: 16px; font-weight: 500;">${serviceDuration} mins</p>
+                        <p style="margin: 4px 0 0; color: #ffffff; font-size: 16px; font-weight: 500;">${delivery.serviceDuration} mins</p>
                       </td>
                       <td style="text-align: center; padding: 8px;">
                         <p style="margin: 0; color: #d2d9c8; font-size: 11px; text-transform: uppercase;">Value</p>
@@ -185,8 +193,8 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await resend.emails.send({
       from: "Kalanara Spa <voucher@kalanaraspa.com>",
-      to: [recipientEmail],
-      subject: `🎁 ${senderName} sent you a gift from Kalanara Spa!`,
+      to: [delivery.recipientEmail],
+      subject: `🎁 ${sanitizeHeaderValue(delivery.senderName)} sent you a gift from Kalanara Spa!`,
       html: emailHtml,
     });
 

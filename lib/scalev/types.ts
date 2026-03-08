@@ -58,6 +58,7 @@ export interface ScalevCreatePaymentResponse {
   paymentLink?: string;
   orderId?: string;
   paymentOrderId?: string;
+  publicAccessToken?: string;
   paymentMethod?: ScalevPaymentMethod;
   subPaymentMethod?: ScalevVABankCode;
   error?: string;
@@ -88,6 +89,8 @@ export interface ScalevPaymentOption {
 export interface ScalevCheckoutConfig {
   storeUniqueId: string;
   paymentOptions: ScalevPaymentOption[];
+  disabledPaymentMethods?: ScalevPaymentMethod[];
+  paymentNotice?: string;
 }
 
 export interface ScalevProductVariantInput {

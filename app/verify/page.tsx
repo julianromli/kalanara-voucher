@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, CheckCircle, XCircle, Clock, Gift, Calendar, QrCode, Keyboard, Download } from "lucide-react";
-import { useStore } from "@/context/StoreContext";
+import { Search, CheckCircle, XCircle, Clock, Gift, Calendar, QrCode, Keyboard } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import QRScanner from "@/components/qr-scanner";
-import { generateVoucherPDF, downloadPDF } from "@/lib/pdf";
+import type { PublicVoucherLookup } from "@/lib/types";
 
 export default function VerifyPage() {
   const [code, setCode] = useState("");
@@ -16,52 +15,48 @@ export default function VerifyPage() {
   const [inputMode, setInputMode] = useState<"scanner" | "manual">("manual");
   const [searchResult, setSearchResult] = useState<{
     found: boolean;
-    voucher?: ReturnType<typeof useStore>["vouchers"][0];
+    voucher?: PublicVoucherLookup;
   } | null>(null);
-
-  const { getVoucherByCode } = useStore();
-  const [isDownloading, setIsDownloading] = useState(false);
   const searchParams = useSearchParams();
-
-  const handleDownloadPDF = async () => {
-    if (!searchResult?.voucher) return;
-    
-    setIsDownloading(true);
-    try {
-      const v = searchResult.voucher;
-      const blob = await generateVoucherPDF({
-        code: v.code,
-        serviceName: v.service.name,
-        recipientName: v.recipientName,
-        senderName: v.senderName,
-        senderMessage: v.senderMessage || undefined,
-        expiryDate: v.expiryDate instanceof Date ? v.expiryDate.toISOString() : v.expiryDate,
-      });
-      downloadPDF(blob, `kalanara-voucher-${v.code}.pdf`);
-    } catch (error) {
-      console.error("Failed to generate PDF:", error);
-    } finally {
-      setIsDownloading(false);
-    }
-  };
 
   const verifyCode = async (voucherCode: string) => {
     setIsSearching(true);
     setSearchResult(null);
     setCode(voucherCode);
 
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      const response = await fetch(
+        `/api/vouchers/public-lookup?code=${encodeURIComponent(
+          voucherCode.trim().toUpperCase()
+        )}`,
+        { cache: "no-store" }
+      );
 
-    const voucher = getVoucherByCode(voucherCode.trim().toUpperCase());
+      if (response.status === 404) {
+        setSearchResult({ found: false });
+        return;
+      }
 
-    if (voucher) {
-      setSearchResult({ found: true, voucher });
-    } else {
+      if (!response.ok) {
+        throw new Error("Gagal memeriksa voucher.");
+      }
+
+      const result = (await response.json()) as {
+        found: boolean;
+        voucher?: PublicVoucherLookup;
+      };
+
+      if (result.found && result.voucher) {
+        setSearchResult({ found: true, voucher: result.voucher });
+      } else {
+        setSearchResult({ found: false });
+      }
+    } catch (error) {
+      console.error("Voucher verification failed:", error);
       setSearchResult({ found: false });
+    } finally {
+      setIsSearching(false);
     }
-
-    setIsSearching(false);
   };
 
   // Auto-verify if code is provided in URL (e.g., /verify?code=KSP-2025-XXXX)
@@ -256,31 +251,6 @@ export default function VerifyPage() {
                       </p>
                     </div>
                   </div>
-
-                  {/* Message */}
-                  {searchResult.voucher.senderMessage && (
-                    <div className="bg-muted p-4 rounded-xl border border-border">
-                      <p className="text-xs text-muted-foreground mb-2">Pesan</p>
-                      <p className="text-muted-foreground italic">
-                        &quot;{searchResult.voucher.senderMessage}&quot;
-                      </p>
-                      <p className="text-muted-foreground text-sm mt-2">
-                        — Dari {searchResult.voucher.senderName}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Download PDF Button */}
-                  {!searchResult.voucher.isRedeemed && new Date(searchResult.voucher.expiryDate) >= new Date() && (
-                    <Button
-                      onClick={handleDownloadPDF}
-                      disabled={isDownloading}
-                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6"
-                    >
-                      <Download size={18} className="mr-2" />
-                      {isDownloading ? "Membuat PDF..." : "Download Voucher PDF"}
-                    </Button>
-                  )}
                 </div>
               </div>
             ) : (

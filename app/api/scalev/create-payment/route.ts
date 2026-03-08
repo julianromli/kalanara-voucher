@@ -15,6 +15,20 @@ import {
 } from "@/lib/scalev/types";
 import { DeliveryMethod, SendTo } from "@/lib/types";
 
+function normalizeScalevPhoneNumber(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+
+  if (digits.startsWith("0")) {
+    return `62${digits.slice(1)}`;
+  }
+
+  if (digits.startsWith("62")) {
+    return digits;
+  }
+
+  return digits;
+}
+
 function isPaymentMethod(value: string): value is ScalevPaymentMethod {
   return SCALEV_PAYMENT_METHODS.includes(value as ScalevPaymentMethod);
 }
@@ -69,11 +83,11 @@ function validateRequest(body: unknown): ScalevCheckoutRequest | null {
     serviceId: String(data.serviceId),
     customerName: String(data.customerName),
     customerEmail: String(data.customerEmail),
-    customerPhone: String(data.customerPhone),
+    customerPhone: normalizeScalevPhoneNumber(String(data.customerPhone)),
     recipientName: String(data.recipientName),
     recipientEmail:
       typeof data.recipientEmail === "string" ? data.recipientEmail : undefined,
-    recipientPhone: String(data.recipientPhone),
+    recipientPhone: normalizeScalevPhoneNumber(String(data.recipientPhone)),
     senderMessage:
       typeof data.senderMessage === "string" ? data.senderMessage : undefined,
     deliveryMethod: data.deliveryMethod as DeliveryMethod,
@@ -240,6 +254,7 @@ export async function POST(
         paymentLink,
         orderId: scalevOrder.order_id || String(scalevOrder.id),
         paymentOrderId: order.payment_order_id,
+        publicAccessToken: order.public_access_token,
         paymentMethod: validatedData.paymentMethod,
         subPaymentMethod: validatedData.subPaymentMethod,
       });

@@ -1,7 +1,7 @@
 import "server-only";
 
 import {
-  getOrderByPaymentOrderId,
+  getOrderByPaymentOrderIdAndAccessToken,
   getPublicOrderDetails,
   updateOrderGatewayData,
   updateOrderPaymentStatus,
@@ -17,14 +17,21 @@ import { buildPaymentSnapshot, buildPublicOrderStatus } from "@/lib/scalev/mappe
 import type { PublicOrderStatusPayload, ScalevPaymentStatusResponse } from "@/lib/scalev/types";
 
 export async function reconcilePublicOrderStatus(
-  paymentOrderId: string
+  paymentOrderId: string,
+  publicAccessToken: string
 ): Promise<PublicOrderStatusPayload | null> {
-  const order = await getOrderByPaymentOrderId(paymentOrderId);
+  const order = await getOrderByPaymentOrderIdAndAccessToken(
+    paymentOrderId,
+    publicAccessToken
+  );
   if (!order) {
     return null;
   }
 
-  const existingPublicOrder = await getPublicOrderDetails(paymentOrderId);
+  const existingPublicOrder = await getPublicOrderDetails(
+    paymentOrderId,
+    publicAccessToken
+  );
   if (!existingPublicOrder) {
     return null;
   }
@@ -124,7 +131,10 @@ export async function reconcilePublicOrderStatus(
       scalevLastCheckedAt: new Date().toISOString(),
     });
 
-    const latestOrder = await getOrderByPaymentOrderId(paymentOrderId);
+    const latestOrder = await getOrderByPaymentOrderIdAndAccessToken(
+      paymentOrderId,
+      publicAccessToken
+    );
     if (latestOrder) {
       await createVoucherOnPaymentSuccess(latestOrder);
     }
@@ -166,6 +176,6 @@ export async function reconcilePublicOrderStatus(
     });
   }
 
-  const refreshed = await getPublicOrderDetails(paymentOrderId);
+  const refreshed = await getPublicOrderDetails(paymentOrderId, publicAccessToken);
   return refreshed ? buildPublicOrderStatus(refreshed) : null;
 }

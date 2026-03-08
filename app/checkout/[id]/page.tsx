@@ -115,8 +115,15 @@ export default function CheckoutPage({ params }: PageProps) {
 
         if (!cancelled && result.success && result.config) {
           setPaymentConfig(result.config);
-          setPaymentMethod(result.config.paymentOptions[0]?.code || null);
-          if (result.config.paymentOptions[0]?.code !== "va") {
+          const firstAvailableMethod = result.config.paymentOptions[0]?.code || null;
+
+          if (!firstAvailableMethod) {
+            showToast("Metode pembayaran sedang tidak tersedia.", "error");
+            return;
+          }
+
+          setPaymentMethod(firstAvailableMethod);
+          if (firstAvailableMethod !== "va") {
             setSubPaymentMethod("");
           }
         }
@@ -215,6 +222,7 @@ export default function CheckoutPage({ params }: PageProps) {
         success: boolean;
         paymentLink?: string;
         paymentOrderId?: string;
+        publicAccessToken?: string;
         error?: string;
       };
 
@@ -222,7 +230,8 @@ export default function CheckoutPage({ params }: PageProps) {
         !response.ok ||
         !result.success ||
         !result.paymentLink ||
-        !result.paymentOrderId
+        !result.paymentOrderId ||
+        !result.publicAccessToken
       ) {
         throw new Error(result.error || "Gagal membuat pembayaran.");
       }
@@ -237,7 +246,7 @@ export default function CheckoutPage({ params }: PageProps) {
       }
 
       router.push(
-        `/checkout/success?order_id=${encodeURIComponent(result.paymentOrderId)}`
+        `/checkout/success?order_id=${encodeURIComponent(result.paymentOrderId)}&token=${encodeURIComponent(result.publicAccessToken)}`
       );
     } catch (error) {
       console.error("Scalev checkout error:", error);
@@ -528,6 +537,11 @@ export default function CheckoutPage({ params }: PageProps) {
                 <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
                   <CreditCard size={20} aria-hidden="true" /> Metode Pembayaran
                 </h2>
+                {paymentConfig.paymentNotice ? (
+                  <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    {paymentConfig.paymentNotice}
+                  </div>
+                ) : null}
                 <div className="space-y-3">
                   {paymentConfig.paymentOptions.map((option) => (
                     <label

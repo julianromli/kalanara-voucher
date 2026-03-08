@@ -15,13 +15,13 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/context/ToastContext";
 import { downloadPDF, generateVoucherPDF } from "@/lib/pdf";
 import type { PublicOrderStatusPayload } from "@/lib/scalev/types";
-import { generateWhatsAppUrl, type WhatsAppVoucherData } from "@/lib/utils/whatsapp";
 
 function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { showToast } = useToast();
   const orderId = searchParams.get("order_id");
+  const token = searchParams.get("token");
 
   const [payload, setPayload] = useState<PublicOrderStatusPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,8 +29,8 @@ function SuccessContent() {
   const paymentLink = payload?.paymentLink;
 
   useEffect(() => {
-    if (!orderId) {
-      setError("Order ID tidak ditemukan.");
+    if (!orderId || !token) {
+      setError("Link status pembayaran tidak valid atau sudah kedaluwarsa.");
       setIsLoading(false);
       return;
     }
@@ -43,7 +43,7 @@ function SuccessContent() {
     const poll = async () => {
       try {
         const response = await fetch(
-          `/api/orders/public-status?order_id=${encodeURIComponent(orderId)}`,
+          `/api/orders/public-status?order_id=${encodeURIComponent(orderId)}&token=${encodeURIComponent(token)}`,
           { cache: "no-store" }
         );
 
@@ -86,7 +86,7 @@ function SuccessContent() {
       cancelled = true;
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [orderId]);
+  }, [orderId, token]);
 
   const voucher = payload?.voucher;
 
@@ -110,27 +110,39 @@ function SuccessContent() {
   };
 
   const handleResendWhatsApp = () => {
-    if (!voucher) return;
+    if (!voucher || !orderId || !token) return;
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-    const whatsappData: WhatsAppVoucherData = {
-      recipientPhone: voucher.recipientPhone,
-      recipientName: voucher.recipientName,
-      senderName: voucher.senderName,
-      senderMessage: voucher.senderMessage || "",
-      voucherCode: voucher.voucherCode,
-      serviceName: voucher.serviceName,
-      serviceDuration: voucher.serviceDuration,
-      amount: voucher.amount,
-      expiryDate: voucher.expiryDate,
-      verifyUrl: `${baseUrl}/verify?code=${voucher.voucherCode}`,
-    };
+    void (async () => {
+      try {
+        const response = await fetch("/api/whatsapp/send-voucher", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId,
+            token,
+          }),
+        });
 
-    window.open(generateWhatsAppUrl(whatsappData), "_blank");
+        const result = (await response.json()) as {
+          success?: boolean;
+          whatsappUrl?: string;
+          error?: string;
+        };
+
+        if (!response.ok || !result.success || !result.whatsappUrl) {
+          throw new Error(result.error || "Gagal menyiapkan WhatsApp.");
+        }
+
+        window.open(result.whatsappUrl, "_blank");
+      } catch (whatsappError) {
+        console.error("Failed to resend WhatsApp:", whatsappError);
+        showToast("Gagal menyiapkan WhatsApp. Silakan coba lagi.", "error");
+      }
+    })();
   };
 
   const handleResendEmail = async () => {
-    if (!voucher?.recipientEmail) {
+    if (!voucher?.recipientEmail || !orderId || !token) {
       showToast("Email penerima tidak tersedia.", "error");
       return;
     }
@@ -140,15 +152,8 @@ function SuccessContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          recipientEmail: voucher.recipientEmail,
-          recipientName: voucher.recipientName,
-          senderName: voucher.senderName,
-          senderMessage: voucher.senderMessage,
-          voucherCode: voucher.voucherCode,
-          serviceName: voucher.serviceName,
-          serviceDuration: voucher.serviceDuration,
-          amount: voucher.amount,
-          expiryDate: voucher.expiryDate,
+          orderId,
+          token,
         }),
       });
 

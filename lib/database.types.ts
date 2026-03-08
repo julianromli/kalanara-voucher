@@ -133,6 +133,7 @@ export type Database = {
           created_at: string;
           // Payment gateway fields
           payment_order_id: string | null;
+          public_access_token: string;
           payment_transaction_id: string | null;
           payment_type: string | null;
           payment_transaction_time: string | null;
@@ -168,6 +169,7 @@ export type Database = {
           created_at?: string;
           // Payment gateway fields
           payment_order_id?: string | null;
+          public_access_token?: string;
           payment_transaction_id?: string | null;
           payment_type?: string | null;
           payment_transaction_time?: string | null;
@@ -203,6 +205,7 @@ export type Database = {
           created_at?: string;
           // Payment gateway fields
           payment_order_id?: string | null;
+          public_access_token?: string;
           payment_transaction_id?: string | null;
           payment_type?: string | null;
           payment_transaction_time?: string | null;

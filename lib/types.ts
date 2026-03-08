@@ -124,6 +124,20 @@ export interface Voucher {
   readonly amount: number;
 }
 
+export interface PublicVoucherLookup {
+  readonly id: string;
+  readonly code: string;
+  readonly recipientName: string;
+  readonly expiryDate: string;
+  readonly isRedeemed: boolean;
+  readonly amount: number;
+  readonly service: {
+    readonly name: string;
+    readonly duration: number;
+    readonly image: string;
+  };
+}
+
 /**
  * Purchase order for a voucher
  */

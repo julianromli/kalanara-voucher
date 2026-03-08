@@ -26,12 +26,10 @@ import type {
 // Server actions
 import { getServices } from '@/lib/actions/services';
 import {
-  getVouchers,
-  getVoucherByCode as getVoucherByCodeAction,
   createVoucher as createVoucherAction,
   redeemVoucher as redeemVoucherAction,
 } from '@/lib/actions/vouchers';
-import { getOrders, createOrder as createOrderAction } from '@/lib/actions/orders';
+import { createOrder as createOrderAction } from '@/lib/actions/orders';
 import { getReviews, createReview as createReviewAction } from '@/lib/actions/reviews';
 
 // ============================================================================
@@ -228,29 +226,21 @@ export function StoreProvider({ children }: StoreProviderProps) {
       setIsLoading(true);
       setError(null);
 
-      const [dbServices, dbVouchers, dbOrders, dbReviews] = await Promise.all([
+      const [dbServices, dbReviews] = await Promise.all([
         getServices(),
-        getVouchers(),
-        getOrders(),
         getReviews(),
       ]);
 
       // Convert DB types to frontend types
       const frontendServices = dbServices.map(adaptDBServiceToFrontend);
-      const frontendVouchers = dbVouchers.map(adaptDBVoucherToFrontend);
-      const frontendOrders = dbOrders.map(adaptDBOrderToFrontend);
       const frontendReviews = dbReviews.map(adaptDBReviewToFrontend);
 
       setServices(frontendServices);
-      setVouchers(frontendVouchers);
-      setOrders(frontendOrders);
       setReviews(frontendReviews);
 
       // Cache in localStorage for offline support
       if (typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_KEYS.SERVICES, JSON.stringify(frontendServices));
-        localStorage.setItem(STORAGE_KEYS.VOUCHERS, JSON.stringify(frontendVouchers));
-        localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(frontendOrders));
         localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(frontendReviews));
       }
     } catch (err) {
@@ -260,13 +250,9 @@ export function StoreProvider({ children }: StoreProviderProps) {
       // Fallback to localStorage cache
       if (typeof window !== 'undefined') {
         const cachedServices = parseStoredServices(localStorage.getItem(STORAGE_KEYS.SERVICES));
-        const cachedVouchers = parseStoredVouchers(localStorage.getItem(STORAGE_KEYS.VOUCHERS));
-        const cachedOrders = parseStoredOrders(localStorage.getItem(STORAGE_KEYS.ORDERS));
         const cachedReviews = parseStoredReviews(localStorage.getItem(STORAGE_KEYS.REVIEWS));
 
         if (cachedServices.length > 0) setServices(cachedServices);
-        if (cachedVouchers.length > 0) setVouchers(cachedVouchers);
-        if (cachedOrders.length > 0) setOrders(cachedOrders);
         if (cachedReviews.length > 0) setReviews(cachedReviews);
       }
     } finally {

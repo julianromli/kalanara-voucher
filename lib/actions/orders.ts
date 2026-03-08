@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -39,6 +40,10 @@ function generatePaymentOrderId(): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `KSP-${timestamp}-${random}`;
+}
+
+function generatePublicAccessToken(): string {
+  return randomBytes(24).toString("base64url");
 }
 
 export async function getOrders(): Promise<OrderWithVoucher[]> {
@@ -181,6 +186,7 @@ export async function createPendingOrder(
     payment_status: "PENDING",
     total_amount: data.total_amount,
     payment_order_id: paymentOrderId,
+    public_access_token: generatePublicAccessToken(),
     service_id: data.service_id,
     recipient_name: data.recipient_name,
     recipient_email: data.recipient_email || null,
@@ -219,6 +225,26 @@ export async function getOrderByPaymentOrderId(
 
   if (error) {
     console.error("Error fetching order by payment order ID:", error);
+    return null;
+  }
+
+  return data as OrderWithService;
+}
+
+export async function getOrderByPaymentOrderIdAndAccessToken(
+  paymentOrderId: string,
+  publicAccessToken: string
+): Promise<OrderWithService | null> {
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .select("*, services(*)")
+    .eq("payment_order_id", paymentOrderId)
+    .eq("public_access_token", publicAccessToken)
+    .single();
+
+  if (error) {
+    console.error("Error fetching order by payment order ID and access token:", error);
     return null;
   }
 
@@ -280,13 +306,15 @@ export async function getOrderByScalevPgReferenceId(
 }
 
 export async function getPublicOrderDetails(
-  paymentOrderId: string
+  paymentOrderId: string,
+  publicAccessToken: string
 ): Promise<OrderWithVoucher | null> {
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("orders")
     .select("*, vouchers(*, services(*))")
     .eq("payment_order_id", paymentOrderId)
+    .eq("public_access_token", publicAccessToken)
     .single();
 
   if (error) {

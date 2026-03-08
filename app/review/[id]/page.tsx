@@ -1,12 +1,13 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Star, Send, CheckCircle } from "lucide-react";
 import { useStore } from "@/context/StoreContext";
 import { useToast } from "@/context/ToastContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { PublicVoucherLookup } from "@/lib/types";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -15,7 +16,7 @@ interface PageProps {
 export default function ReviewPage({ params }: PageProps) {
   const { id } = use(params);
   const router = useRouter();
-  const { getVoucherByCode, addReview } = useStore();
+  const { addReview } = useStore();
   const { showToast } = useToast();
 
   const [rating, setRating] = useState(0);
@@ -24,11 +25,60 @@ export default function ReviewPage({ params }: PageProps) {
   const [customerName, setCustomerName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [voucher, setVoucher] = useState<PublicVoucherLookup | null>(null);
+  const [isVoucherLoading, setIsVoucherLoading] = useState(true);
 
-  const voucher = getVoucherByCode(id);
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadVoucher() {
+      try {
+        setIsVoucherLoading(true);
+        const response = await fetch(
+          `/api/vouchers/public-lookup?code=${encodeURIComponent(id)}`,
+          { cache: "no-store" }
+        );
+
+        if (!response.ok) {
+          if (!cancelled) {
+            setVoucher(null);
+          }
+          return;
+        }
+
+        const result = (await response.json()) as {
+          found: boolean;
+          voucher?: PublicVoucherLookup;
+        };
+
+        if (!cancelled) {
+          setVoucher(result.found && result.voucher ? result.voucher : null);
+        }
+      } catch (error) {
+        console.error("Failed to load voucher for review:", error);
+        if (!cancelled) {
+          setVoucher(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsVoucherLoading(false);
+        }
+      }
+    }
+
+    loadVoucher();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!voucher) {
+      showToast("Voucher tidak ditemukan.", "error");
+      return;
+    }
     if (rating === 0) {
       showToast("Please select a rating", "error");
       return;
@@ -37,9 +87,9 @@ export default function ReviewPage({ params }: PageProps) {
     setIsSubmitting(true);
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    addReview({
+    await addReview({
       id: `rev-${Date.now()}`,
-      voucherId: id,
+      voucherId: voucher.id,
       rating,
       comment,
       customerName: customerName || "Anonymous Guest",
@@ -102,6 +152,12 @@ export default function ReviewPage({ params }: PageProps) {
             </div>
           </div>
         )}
+
+        {!isVoucherLoading && !voucher ? (
+          <div className="animate-scale-in bg-card rounded-2xl border border-border p-6 text-center text-muted-foreground">
+            Voucher tidak ditemukan atau tidak dapat direview.
+          </div>
+        ) : null}
 
         <form onSubmit={handleSubmit} className="animate-fade-slide-up animate-stagger-2 bg-card p-8 rounded-2xl shadow-spa">
           {/* Rating */}
@@ -169,7 +225,7 @@ export default function ReviewPage({ params }: PageProps) {
 
           <Button
             type="submit"
-            disabled={isSubmitting || rating === 0}
+            disabled={isSubmitting || rating === 0 || !voucher}
             className="btn-hover-lift w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 flex items-center justify-center gap-2"
           >
             {isSubmitting ? (

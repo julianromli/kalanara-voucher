@@ -70,7 +70,7 @@ export async function createVoucherOnPaymentSuccess(
     }
 
     // Trigger delivery based on order preferences
-    await triggerVoucherDelivery(order, voucher);
+    await triggerVoucherDelivery(order);
 
     return {
       success: true,
@@ -87,8 +87,7 @@ export async function createVoucherOnPaymentSuccess(
 }
 
 async function triggerVoucherDelivery(
-  order: OrderWithService,
-  voucher: Voucher
+  order: OrderWithService
 ): Promise<void> {
   const { delivery_method, send_to } = order;
   
@@ -101,17 +100,14 @@ async function triggerVoucherDelivery(
     : order.customer_phone;
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const serviceName = order.services?.name || "Layanan Spa";
-  const serviceDuration = order.services?.duration || 60;
+  if (!order.payment_order_id || !order.public_access_token) {
+    console.error(`[VoucherService] Missing public access credentials for order ${order.id}`);
+    return;
+  }
+
   const deliveryPayload = {
-    recipientName: order.recipient_name || order.customer_name,
-    senderName: order.customer_name,
-    senderMessage: order.sender_message || undefined,
-    voucherCode: voucher.code,
-    serviceName,
-    serviceDuration,
-    amount: voucher.amount,
-    expiryDate: voucher.expiry_date,
+    orderId: order.payment_order_id,
+    token: order.public_access_token,
   };
 
   // Send via Email
@@ -121,10 +117,7 @@ async function triggerVoucherDelivery(
         const response = await fetch(`${appUrl}/api/email/send-voucher`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            recipientEmail,
-            ...deliveryPayload,
-          }),
+          body: JSON.stringify(deliveryPayload),
         });
         if (!response.ok) {
           const errorText = await response.text().catch(() => "");
@@ -148,10 +141,7 @@ async function triggerVoucherDelivery(
         const response = await fetch(`${appUrl}/api/whatsapp/send-voucher`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            recipientPhone,
-            ...deliveryPayload,
-          }),
+          body: JSON.stringify(deliveryPayload),
         });
         if (!response.ok) {
           const errorText = await response.text().catch(() => "");
