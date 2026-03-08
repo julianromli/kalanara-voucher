@@ -304,6 +304,68 @@ export type Database = {
         };
         Relationships: [];
       };
+      scalev_webhook_events: {
+        Row: {
+          id: string;
+          provider: string;
+          event_type: string;
+          external_event_hash: string;
+          signature: string | null;
+          payload: Json | null;
+          order_id: string | null;
+          scalev_order_pk: number | null;
+          scalev_order_id: string | null;
+          scalev_pg_reference_id: string | null;
+          payment_status: string | null;
+          processing_status: string;
+          processing_message: string | null;
+          processed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          provider?: string;
+          event_type: string;
+          external_event_hash: string;
+          signature?: string | null;
+          payload?: Json | null;
+          order_id?: string | null;
+          scalev_order_pk?: number | null;
+          scalev_order_id?: string | null;
+          scalev_pg_reference_id?: string | null;
+          payment_status?: string | null;
+          processing_status?: string;
+          processing_message?: string | null;
+          processed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          provider?: string;
+          event_type?: string;
+          external_event_hash?: string;
+          signature?: string | null;
+          payload?: Json | null;
+          order_id?: string | null;
+          scalev_order_pk?: number | null;
+          scalev_order_id?: string | null;
+          scalev_pg_reference_id?: string | null;
+          payment_status?: string | null;
+          processing_status?: string;
+          processing_message?: string | null;
+          processed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "scalev_webhook_events_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -354,6 +416,13 @@ export type ReviewUpdate = Database["public"]["Tables"]["reviews"]["Update"];
 export type Admin = Database["public"]["Tables"]["admins"]["Row"];
 export type AdminInsert = Database["public"]["Tables"]["admins"]["Insert"];
 export type AdminUpdate = Database["public"]["Tables"]["admins"]["Update"];
+
+export type ScalevWebhookEvent =
+  Database["public"]["Tables"]["scalev_webhook_events"]["Row"];
+export type ScalevWebhookEventInsert =
+  Database["public"]["Tables"]["scalev_webhook_events"]["Insert"];
+export type ScalevWebhookEventUpdate =
+  Database["public"]["Tables"]["scalev_webhook_events"]["Update"];
 
 export type ServiceCategory = Database["public"]["Enums"]["service_category"];
 export type PaymentMethod = Database["public"]["Enums"]["payment_method"];
