@@ -15,10 +15,12 @@ const DEFAULT_API_BASE_URL = "https://api.scalev.id/v2";
 export interface ScalevConfig {
   apiBaseUrl: string;
   apiKey: string;
+  webhookSigningSecret?: string;
   storeUniqueId: string;
   storeNameSearch: string;
   fallbackPaymentMethods: ScalevPaymentMethod[];
   fallbackVABanks: ScalevVABankCode[];
+  disabledPaymentMethods: ScalevPaymentMethod[];
 }
 
 class ScalevConfigError extends Error {
@@ -66,11 +68,27 @@ function parseVABanks(value: string | undefined): ScalevVABankCode[] {
   return parsed.length > 0 ? parsed : [...SCALEV_VA_BANK_CODES];
 }
 
+function parseDisabledPaymentMethods(
+  value: string | undefined
+): ScalevPaymentMethod[] {
+  const source = value ?? "invoice";
+  const allowed = new Set<ScalevPaymentMethod>(SCALEV_PAYMENT_METHODS);
+  const parsed = source
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter((item): item is ScalevPaymentMethod =>
+      allowed.has(item as ScalevPaymentMethod)
+    );
+
+  return [...new Set(parsed)];
+}
+
 export function getScalevConfig(): ScalevConfig {
   return {
     apiBaseUrl:
       process.env.SCALEV_API_BASE_URL?.trim() || DEFAULT_API_BASE_URL,
     apiKey: requireEnv("SCALEV_API_KEY", process.env.SCALEV_API_KEY),
+    webhookSigningSecret: process.env.SCALEV_WEBHOOK_SIGNING_SECRET?.trim(),
     storeUniqueId:
       process.env.SCALEV_STORE_UNIQUE_ID?.trim() || DEFAULT_STORE_UNIQUE_ID,
     storeNameSearch: process.env.SCALEV_STORE_NAME?.trim() || "Kalanara Spa",
@@ -78,6 +96,9 @@ export function getScalevConfig(): ScalevConfig {
       process.env.SCALEV_PAYMENT_METHODS
     ),
     fallbackVABanks: parseVABanks(process.env.SCALEV_VA_BANKS),
+    disabledPaymentMethods: parseDisabledPaymentMethods(
+      process.env.SCALEV_DISABLED_PAYMENT_METHODS
+    ),
   };
 }
 
@@ -106,16 +127,22 @@ function labelForMethod(method: ScalevPaymentMethod): string {
 
 export function buildCheckoutConfig(
   paymentMethods: ScalevPaymentMethod[],
-  subPaymentMethods: ScalevVABankCode[]
+  subPaymentMethods: ScalevVABankCode[],
+  disabledPaymentMethods: ScalevPaymentMethod[] = []
 ): ScalevCheckoutConfig {
   const options: ScalevPaymentOption[] = paymentMethods.map((method) => ({
     code: method,
     label: labelForMethod(method),
     subMethods: method === "va" ? subPaymentMethods : undefined,
   }));
+  const hasDisabledMethods = disabledPaymentMethods.length > 0;
 
   return {
     storeUniqueId: getScalevConfig().storeUniqueId,
     paymentOptions: options,
+    disabledPaymentMethods,
+    paymentNotice: hasDisabledMethods
+      ? "Beberapa metode pembayaran sementara disembunyikan karena kendala provider. Gunakan metode yang tersedia."
+      : undefined,
   };
 }

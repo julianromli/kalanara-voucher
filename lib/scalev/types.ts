@@ -235,3 +235,29 @@ export interface ScalevApiEnvelope<T> {
   status: string;
   data: T;
 }
+
+export interface ScalevWebhookPaymentStatusHistoryItem {
+  at?: string | null;
+  status?: string | null;
+}
+
+export interface ScalevWebhookPaymentStatusChangedData {
+  id?: number;
+  order_id?: string;
+  payment_status?: string | null;
+  payment_method?: string | null;
+  sub_payment_method?: string | null;
+  pg_reference_id?: string | null;
+  paid_time?: string | null;
+  settled_time?: string | null;
+  conflict_time?: string | null;
+  unpaid_time?: string | null;
+  last_updated_at?: string | null;
+  payment_status_history?: ScalevWebhookPaymentStatusHistoryItem[] | null;
+}
+
+export interface ScalevWebhookPayload {
+  event: string;
+  timestamp?: string;
+  data?: ScalevWebhookPaymentStatusChangedData | Record<string, unknown>;
+}

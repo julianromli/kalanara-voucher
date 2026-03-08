@@ -305,6 +305,24 @@ export async function getOrderByScalevPgReferenceId(
   return data as OrderWithService;
 }
 
+export async function getOrderByScalevOrderId(
+  scalevOrderId: string
+): Promise<OrderWithService | null> {
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .select("*, services(*)")
+    .eq("scalev_order_id", scalevOrderId)
+    .single();
+
+  if (error) {
+    console.error("Error fetching order by Scalev order id:", error);
+    return null;
+  }
+
+  return data as OrderWithService;
+}
+
 export async function getPublicOrderDetails(
   paymentOrderId: string,
   publicAccessToken: string
