@@ -14,6 +14,60 @@ import type {
   ScalevStoreRecord,
 } from "@/lib/scalev/types";
 
+class ScalevApiError extends Error {
+  status: number;
+  path: string;
+  responseBody: unknown;
+
+  constructor(path: string, status: number, responseBody: unknown) {
+    super(
+      `Scalev request failed: ${status} ${path}${
+        responseBody ? ` | ${formatScalevErrorBody(responseBody)}` : ""
+      }`
+    );
+    this.name = "ScalevApiError";
+    this.status = status;
+    this.path = path;
+    this.responseBody = responseBody;
+  }
+}
+
+function formatScalevErrorBody(value: unknown) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function normalizeScalevMetaThumbnail(metaThumbnail?: string) {
+  if (!metaThumbnail) {
+    return undefined;
+  }
+
+  try {
+    const url = new URL(metaThumbnail);
+    const isSignedSupabaseObject =
+      url.pathname.includes("/storage/v1/object/sign/") &&
+      url.searchParams.has("token");
+
+    if (isSignedSupabaseObject) {
+      console.warn(
+        "[Scalev] Skipping signed Supabase meta_thumbnail because Scalev /products returns 500 for this URL shape."
+      );
+      return undefined;
+    }
+  } catch {
+    return metaThumbnail;
+  }
+
+  return metaThumbnail;
+}
+
 async function scalevRequest<T>(
   path: string,
   init?: RequestInit
@@ -29,13 +83,27 @@ async function scalevRequest<T>(
     cache: "no-store",
   });
 
-  const json = (await response.json().catch(() => null)) as
+  const rawText = await response.text().catch(() => "");
+  const parsedJson = rawText
+    ? (() => {
+        try {
+          return JSON.parse(rawText);
+        } catch {
+          return null;
+        }
+      })()
+    : null;
+  const json = parsedJson as
     | ScalevApiEnvelope<T>
     | T
     | null;
 
   if (!response.ok || !json) {
-    throw new Error(`Scalev request failed: ${response.status} ${path}`);
+    throw new ScalevApiError(
+      path,
+      response.status,
+      json || rawText || null
+    );
   }
 
   if (typeof json === "object" && json !== null && "data" in json) {
@@ -117,17 +185,19 @@ export async function getScalevProduct(id: number) {
 }
 
 export async function createScalevProduct(input: ScalevCatalogProductInput) {
+  const metaThumbnail = normalizeScalevMetaThumbnail(input.metaThumbnail);
+  const normalizedInput = { ...input, metaThumbnail };
+
   const product = await scalevRequest<ScalevProductRecord>("/products", {
     method: "POST",
     body: JSON.stringify({
-      name: input.name,
-      description: input.description,
-      public_name: input.publicName,
-      rich_description: input.richDescription,
-      item_type: input.itemType,
-      meta_thumbnail: input.metaThumbnail,
-      variants: input.variants.map((variant) => ({
-        name: variant.name,
+      name: normalizedInput.name,
+      description: normalizedInput.description,
+      public_name: normalizedInput.publicName,
+      rich_description: normalizedInput.richDescription,
+      item_type: normalizedInput.itemType,
+      meta_thumbnail: normalizedInput.metaThumbnail,
+      variants: normalizedInput.variants.map((variant) => ({
         price: variant.price,
         weight: variant.weight,
         metadata: variant.metadata,
@@ -148,21 +218,23 @@ export async function updateScalevProduct(
   id: number,
   input: ScalevCatalogProductInput
 ) {
+  const metaThumbnail = normalizeScalevMetaThumbnail(input.metaThumbnail);
+  const normalizedInput = { ...input, metaThumbnail };
+
   const product = await scalevRequest<ScalevProductRecord>(`/products/${id}`, {
     method: "PATCH",
     body: JSON.stringify({
-      name: input.name,
-      description: input.description,
-      public_name: input.publicName,
-      rich_description: input.richDescription,
-      item_type: input.itemType,
-      meta_thumbnail: input.metaThumbnail,
-      variants: input.variants.map((variant) => ({
+      name: normalizedInput.name,
+      description: normalizedInput.description,
+      public_name: normalizedInput.publicName,
+      rich_description: normalizedInput.richDescription,
+      item_type: normalizedInput.itemType,
+      meta_thumbnail: normalizedInput.metaThumbnail,
+      variants: normalizedInput.variants.map((variant) => ({
         variant_id: variant.variantId,
         price: variant.price,
         weight: variant.weight,
         metadata: variant.metadata,
-        name: variant.name,
         is_checked: true,
       })),
     }),

@@ -55,9 +55,9 @@ function SuccessContent() {
         if (cancelled) return;
 
         setPayload(result);
+        setIsLoading(false);
 
         if (result.status === "completed" || result.status === "failed") {
-          setIsLoading(false);
           return;
         }
 

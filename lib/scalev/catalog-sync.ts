@@ -1,6 +1,12 @@
 import "server-only";
 
-import { attachProductToScalevStore, createScalevProduct, getScalevProduct, updateScalevProduct } from "@/lib/scalev/client";
+import {
+  attachProductToScalevStore,
+  createScalevProduct,
+  getScalevProduct,
+  listScalevProducts,
+  updateScalevProduct,
+} from "@/lib/scalev/client";
 import { type ScalevCatalogProductInput } from "@/lib/scalev/types";
 import type { Service } from "@/lib/database.types";
 import {
@@ -32,6 +38,24 @@ function buildProductPayload(service: Service, variantId?: number): ScalevCatalo
   };
 }
 
+async function findExistingScalevProductForService(service: Service) {
+  const products = await listScalevProducts(service.name);
+
+  return (
+    products.find((product) =>
+      product.variants.some((variant) => {
+        const metadata = variant.metadata as
+          | { service_id?: string; service_name?: string }
+          | undefined;
+
+        return metadata?.service_id === service.id;
+      })
+    ) ||
+    products.find((product) => product.name === service.name) ||
+    null
+  );
+}
+
 export async function ensureScalevServiceMapping(service: Service) {
   if (service.scalev_product_id && service.scalev_variant_id) {
     const product = await getScalevProduct(service.scalev_product_id);
@@ -42,6 +66,25 @@ export async function ensureScalevServiceMapping(service: Service) {
     const updated = await updateScalevProduct(
       product.id,
       buildProductPayload(service, variant?.id)
+    );
+
+    await updateServiceScalevMapping(service.id, {
+      scalev_product_id: updated.product.id,
+      scalev_variant_id: updated.primaryVariant.id,
+      scalev_variant_unique_id: updated.primaryVariant.unique_id,
+      scalev_sync_status: "synced",
+      scalev_last_synced_at: new Date().toISOString(),
+    });
+
+    return updated;
+  }
+
+  const existingProduct = await findExistingScalevProductForService(service);
+  if (existingProduct) {
+    const existingVariant = existingProduct.variants[0];
+    const updated = await updateScalevProduct(
+      existingProduct.id,
+      buildProductPayload(service, existingVariant?.id)
     );
 
     await updateServiceScalevMapping(service.id, {
