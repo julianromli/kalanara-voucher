@@ -142,18 +142,30 @@ export const resolveScalevStore = cache(async (): Promise<ScalevStoreRecord> => 
 
 export async function getScalevCheckoutAvailability() {
   const config = getScalevConfig();
+  const filterDisabledMethods = (methods: string[]) =>
+    methods.filter(
+      (method): method is (typeof config.fallbackPaymentMethods)[number] =>
+        !config.disabledPaymentMethods.includes(method as (typeof config.fallbackPaymentMethods)[number])
+    );
 
   try {
     const store = await resolveScalevStore();
     const paymentMethods = await scalevRequest<string[]>(
       `/stores/${store.id}/payment-methods`
     );
+    const allowedRuntimeMethods = filterDisabledMethods(
+      Array.isArray(paymentMethods) ? paymentMethods : []
+    );
+    const fallbackEnabledMethods = config.fallbackPaymentMethods.filter(
+      (method) => !config.disabledPaymentMethods.includes(method)
+    );
 
     return {
       store,
-      paymentMethods: Array.isArray(paymentMethods)
-        ? paymentMethods
-        : config.fallbackPaymentMethods,
+      paymentMethods:
+        allowedRuntimeMethods.length > 0
+          ? allowedRuntimeMethods
+          : fallbackEnabledMethods,
       subPaymentMethods: store.sub_payment_methods || config.fallbackVABanks,
     };
   } catch (error) {
@@ -165,7 +177,9 @@ export async function getScalevCheckoutAvailability() {
         name: config.storeNameSearch,
         unique_id: config.storeUniqueId,
       },
-      paymentMethods: config.fallbackPaymentMethods,
+      paymentMethods: config.fallbackPaymentMethods.filter(
+        (method) => !config.disabledPaymentMethods.includes(method)
+      ),
       subPaymentMethods: config.fallbackVABanks,
     };
   }

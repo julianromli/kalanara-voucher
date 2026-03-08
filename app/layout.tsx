@@ -64,6 +64,7 @@ export default function RootLayout({
   return (
     <html lang="id" className="scroll-smooth" suppressHydrationWarning>
       <body
+        suppressHydrationWarning
         className={`${inter.variable} ${playfair.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <AuthProvider>

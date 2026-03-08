@@ -6,23 +6,30 @@ import type { ScalevPaymentMethod, ScalevVABankCode } from "@/lib/scalev/types";
 export async function GET() {
   try {
     const availability = await getScalevCheckoutAvailability();
+    const config = getScalevConfig();
 
     return NextResponse.json({
       success: true,
       config: buildCheckoutConfig(
         availability.paymentMethods as ScalevPaymentMethod[],
-        availability.subPaymentMethods as ScalevVABankCode[]
+        availability.subPaymentMethods as ScalevVABankCode[],
+        config.disabledPaymentMethods
       ),
     });
   } catch (error) {
     console.error("[Scalev] Failed to load payment options:", error);
 
     const fallback = getScalevConfig();
+    const fallbackMethods = fallback.fallbackPaymentMethods.filter(
+      (method) => !fallback.disabledPaymentMethods.includes(method)
+    );
+
     return NextResponse.json({
       success: true,
       config: buildCheckoutConfig(
-        fallback.fallbackPaymentMethods,
-        fallback.fallbackVABanks
+        fallbackMethods,
+        fallback.fallbackVABanks,
+        fallback.disabledPaymentMethods
       ),
     });
   }
