@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Kalanara Voucher
+
+Platform voucher spa berbasis Next.js 16 + Supabase.
 
 ## Getting Started
 
 First, run the development server:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+bun run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Sentry Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Project ini sudah terhubung dengan `@sentry/nextjs` untuk error logging di:
 
-## Learn More
+- Client-side render errors
+- App Router error boundaries
+- Server runtime dan Edge runtime lewat `instrumentation.ts`
 
-To learn more about Next.js, take a look at the following resources:
+Isi environment variable berikut di `.env.local`:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```env
+NEXT_PUBLIC_SENTRY_DSN=
+NEXT_PUBLIC_SENTRY_ENV=development
+SENTRY_DSN=
+SENTRY_ENV=development
+SENTRY_AUTH_TOKEN=
+SENTRY_ORG=
+SENTRY_PROJECT=
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Catatan:
 
-## Deploy on Vercel
+- `NEXT_PUBLIC_SENTRY_DSN` cukup untuk mengirim error dari browser.
+- `SENTRY_DSN` opsional jika ingin memisahkan DSN server dari client.
+- `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, dan `SENTRY_PROJECT` dibutuhkan saat ingin upload source map pada build production.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Validation
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+bunx tsc --noEmit
+bun run lint
+```
+
+`bun run lint` saat ini masih gagal karena ada error lama di file lain di luar perubahan Sentry.
+
+## Relevant Files
+
+- `instrumentation.ts`
+- `instrumentation-client.ts`
+- `sentry.server.config.ts`
+- `sentry.edge.config.ts`
+- `app/error.tsx`
+- `app/global-error.tsx`
+- `app/admin/error.tsx`
+- `next.config.ts`
+
+Dokumentasi Sentry Next.js: [docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup](https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup)

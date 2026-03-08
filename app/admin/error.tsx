@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Alert01Icon, RefreshIcon, DashboardSquare01Icon } from "@hugeicons/core-free-icons";
@@ -13,6 +14,7 @@ export default function AdminError({
   reset: () => void;
 }) {
   useEffect(() => {
+    Sentry.captureException(error);
     console.error("Admin section error:", error);
   }, [error]);
 
