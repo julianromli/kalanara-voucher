@@ -108,6 +108,7 @@ export function buildPublicOrderStatus(
     paymentStatus: order.payment_status,
     paymentMethod: order.scalev_payment_method || order.payment_type,
     provider: order.payment_provider,
+    paymentLink: order.payment_link,
     message:
       status === "pending"
         ? "Pembayaran masih diverifikasi."

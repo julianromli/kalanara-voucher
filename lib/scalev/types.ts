@@ -209,6 +209,7 @@ export interface PublicOrderStatusPayload {
   paymentMethod?: string | null;
   provider?: string | null;
   message?: string;
+  paymentLink?: string | null;
   voucher?: {
     voucherCode: string;
     paymentOrderId: string;

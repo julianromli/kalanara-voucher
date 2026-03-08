@@ -187,6 +187,7 @@ export default function CheckoutPage({ params }: PageProps) {
     }
 
     setIsProcessing(true);
+    const paymentWindow = window.open("", "_blank");
 
     try {
       const requestBody: ScalevCheckoutRequest = {
@@ -213,14 +214,31 @@ export default function CheckoutPage({ params }: PageProps) {
       const result = (await response.json()) as {
         success: boolean;
         paymentLink?: string;
+        paymentOrderId?: string;
         error?: string;
       };
 
-      if (!response.ok || !result.success || !result.paymentLink) {
+      if (
+        !response.ok ||
+        !result.success ||
+        !result.paymentLink ||
+        !result.paymentOrderId
+      ) {
         throw new Error(result.error || "Gagal membuat pembayaran.");
       }
 
-      window.location.assign(result.paymentLink);
+      if (paymentWindow) {
+        paymentWindow.location.href = result.paymentLink;
+      } else {
+        showToast(
+          "Popup pembayaran diblokir browser. Buka halaman pembayaran dari tombol di halaman berikutnya.",
+          "info"
+        );
+      }
+
+      router.push(
+        `/checkout/success?order_id=${encodeURIComponent(result.paymentOrderId)}`
+      );
     } catch (error) {
       console.error("Scalev checkout error:", error);
       showToast(
@@ -229,8 +247,9 @@ export default function CheckoutPage({ params }: PageProps) {
           : "Gagal memproses pembayaran. Silakan coba lagi.",
         "error"
       );
-      setIsProcessing(false);
+      paymentWindow?.close();
     }
+    setIsProcessing(false);
   };
 
   if (servicesLoading || !paymentConfig) {

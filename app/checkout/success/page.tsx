@@ -26,6 +26,7 @@ function SuccessContent() {
   const [payload, setPayload] = useState<PublicOrderStatusPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const paymentLink = payload?.paymentLink;
 
   useEffect(() => {
     if (!orderId) {
@@ -162,6 +163,15 @@ function SuccessContent() {
     }
   };
 
+  const handleOpenPaymentPage = () => {
+    if (!paymentLink) {
+      showToast("Link pembayaran belum tersedia.", "error");
+      return;
+    }
+
+    window.open(paymentLink, "_blank");
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
@@ -190,6 +200,11 @@ function SuccessContent() {
           {error || payload?.message || "Pembayaran masih diverifikasi."}
         </p>
         <div className="flex w-full max-w-sm flex-col gap-3">
+          {paymentLink ? (
+            <Button onClick={handleOpenPaymentPage}>
+              Buka Halaman Pembayaran
+            </Button>
+          ) : null}
           <Button onClick={() => window.location.reload()}>Coba Lagi</Button>
           <Button variant="outline" onClick={() => router.push("/")}>
             Kembali ke Beranda
