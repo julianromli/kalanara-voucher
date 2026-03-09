@@ -42,10 +42,15 @@ function SuccessContent() {
 
     const poll = async () => {
       try {
-        const response = await fetch(
-          `/api/orders/public-status?order_id=${encodeURIComponent(orderId)}&token=${encodeURIComponent(token)}`,
-          { cache: "no-store" }
-        );
+        const response = await fetch("/api/orders/public-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+          body: JSON.stringify({
+            orderId,
+            token,
+          }),
+        });
 
         if (!response.ok) {
           throw new Error("Gagal memuat status pesanan.");

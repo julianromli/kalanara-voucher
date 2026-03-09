@@ -116,7 +116,7 @@ export function ReviewsClient({ initialReviews }: ReviewsClientProps) {
 
                   {review.comment && (
                     <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
-                      "{review.comment}"
+                      &ldquo;{review.comment}&rdquo;
                     </p>
                   )}
 

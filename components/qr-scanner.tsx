@@ -19,6 +19,11 @@ export default function QRScanner({ onScan, onError }: QRScannerProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const onScanRef = useRef(onScan);
+
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
 
   const stopScanning = useCallback(() => {
     if (animationRef.current) {
@@ -31,39 +36,6 @@ export default function QRScanner({ onScan, onError }: QRScannerProps) {
     }
     setIsScanning(false);
   }, []);
-
-  const scanQRCode = useCallback(() => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-
-    if (!video || !canvas || !isScanning) return;
-
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    if (!context) return;
-
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: "dontInvert",
-      });
-
-      if (code && code.data) {
-        // Check if it looks like a voucher code (KSP-YYYY-XXXXXXXX)
-        const voucherCodePattern = /^KSP-\d{4}-[A-Z0-9]{8}$/;
-        if (voucherCodePattern.test(code.data)) {
-          stopScanning();
-          onScan(code.data);
-          return;
-        }
-      }
-    }
-
-    animationRef.current = requestAnimationFrame(scanQRCode);
-  }, [isScanning, onScan, stopScanning]);
 
   const startScanning = useCallback(async () => {
     setErrorMessage(null);
@@ -99,14 +71,51 @@ export default function QRScanner({ onScan, onError }: QRScannerProps) {
 
   useEffect(() => {
     if (isScanning) {
-      animationRef.current = requestAnimationFrame(scanQRCode);
+      const scanFrame = () => {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+
+        if (!video || !canvas || !isScanning) {
+          return;
+        }
+
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) {
+          return;
+        }
+
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "dontInvert",
+          });
+
+          if (code?.data) {
+            const voucherCodePattern = /^KSP-\d{4}-[A-Z0-9]{8}$/;
+            if (voucherCodePattern.test(code.data)) {
+              stopScanning();
+              onScanRef.current(code.data);
+              return;
+            }
+          }
+        }
+
+        animationRef.current = requestAnimationFrame(scanFrame);
+      };
+
+      animationRef.current = requestAnimationFrame(scanFrame);
     }
+
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isScanning, scanQRCode]);
+  }, [isScanning, stopScanning]);
 
   useEffect(() => {
     return () => {

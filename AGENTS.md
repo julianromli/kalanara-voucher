@@ -101,21 +101,25 @@ SUPABASE_SERVICE_ROLE_KEY=
 RESEND_API_KEY=
 NEXT_PUBLIC_APP_URL=  # For email/WhatsApp links
 
-# Mayar Payment Gateway
-MAYAR_API_KEY=                 # Server-side only (from web.mayar.club for sandbox)
-MAYAR_IS_PRODUCTION=false      # Set to "true" for production
+# Scalev Payment Gateway
+SCALEV_API_KEY=
+SCALEV_API_BASE_URL=https://api.scalev.id/v2
+SCALEV_STORE_UNIQUE_ID=
+SCALEV_STORE_NAME=
+SCALEV_PAYMENT_METHODS=
+SCALEV_VA_BANKS=
+SCALEV_PUBLIC_BASE_URL=https://app.scalev.id
+SCALEV_WEBHOOK_SIGNING_SECRET=
 ```
 
-See [docs/mayar-setup.md](docs/mayar-setup.md) for detailed Mayar configuration guide.
-
 ## Payment Gateway Notes
-- **Sandbox vs Production**: Mayar uses different domains - `api.mayar.club` (sandbox) vs `api.mayar.id` (production)
+- **Single provider**: Runtime checkout uses Scalev only
 - **Webhook testing**: Use ngrok (`ngrok http 3000`) to expose localhost for webhook callbacks
 - **Column naming**: Use generic `payment_*` columns, not vendor-specific names, for easier future migrations
-- **Mayar Sandbox Quirks**: Sandbox status is `created` (not `paid`) and overwrites `description` field with "Penagihan"
+- **Historical compatibility**: old Mayar-related columns and migrations may remain, but no active runtime path should reference Mayar
 - **Files that change together** when switching payment gateways:
-  - `lib/{gateway}/` modules
-  - `app/api/{gateway}/` routes  
+  - `lib/scalev/` modules
+  - `app/api/scalev/` routes
   - `lib/actions/orders.ts` (order ID functions)
   - `lib/database.types.ts` (column types)
   - `app/checkout/[id]/page.tsx` (payment flow)

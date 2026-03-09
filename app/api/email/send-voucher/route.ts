@@ -52,7 +52,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body: VoucherEmailRequest = await request.json();
+    const body = (await request.json().catch((error: unknown) => {
+      throw error;
+    })) as VoucherEmailRequest;
 
     const { orderId, token } = body;
 
@@ -209,6 +211,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, messageId: data?.id });
   } catch (error) {
     console.error("Email API error:", error);
+
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

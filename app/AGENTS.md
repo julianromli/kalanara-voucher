@@ -87,8 +87,9 @@ export async function POST(request: NextRequest) {
 |-------|--------|---------|
 | `/api/email/send-voucher` | POST | Send voucher via Resend |
 | `/api/whatsapp/send-voucher` | POST | Generate WhatsApp URL |
-| `/api/mayar/create-payment` | POST | Create Mayar payment link, returns redirect URL |
-| `/api/mayar/webhook` | POST | Webhook for Mayar payment notifications |
+| `/api/scalev/create-payment` | POST | Create Scalev payment link and return redirect URL |
+| `/api/scalev/webhook` | POST | Webhook for Scalev payment notifications |
+| `/api/orders/public-status` | POST | Reconcile and return public payment status |
 
 ### Webhook Pattern
 ```tsx

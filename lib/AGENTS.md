@@ -16,10 +16,10 @@ lib/
 │   ├── orders.ts      # Order management
 │   ├── services.ts    # Service queries
 │   └── reviews.ts     # Review operations
-├── mayar/             # Mayar payment gateway integration
+├── scalev/            # Scalev payment gateway integration
 │   ├── config.ts      # Environment-aware configuration
-│   ├── types.ts       # Mayar-specific TypeScript types
-│   └── client.ts      # HTTP client for Mayar API
+│   ├── types.ts       # Scalev-specific TypeScript types
+│   └── client.ts      # HTTP client for Scalev API
 ├── payment/           # Payment processing utilities
 │   └── voucher-service.ts  # Voucher creation on payment success
 ├── supabase/          # Supabase client setup
@@ -132,14 +132,14 @@ generateVoucherMessage(data) // Formatted voucher message
 generateVoucherPDF(voucher)  // Returns jspdf document
 ```
 
-### `mayar/` (Payment Gateway)
+### `scalev/` (Payment Gateway)
 ```typescript
 // config.ts
-getMayarConfig()  // Get environment-aware config (sandbox/production)
+getScalevConfig()                  // Get environment-aware config
 
 // client.ts
-createMayarPayment(request)  // Create payment link via Mayar API
-calculatePaymentExpiry()     // Get expiry datetime (24 hours from now)
+createScalevOrder(request)         // Create Scalev order
+createScalevPaymentIntent(orderId) // Create payment intent for checkout
 ```
 
 ### `payment/` (Payment Processing)

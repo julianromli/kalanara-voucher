@@ -10,12 +10,18 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { PlusSignIcon, PencilEdit01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
-import { createAdminUser, updateAdminUserRole, deactivateAdminUser } from "@/lib/actions/admin-users";
-import type { Admin } from "@/lib/database.types";
+import { PlusSignIcon, PencilEdit01Icon } from "@hugeicons/core-free-icons";
+import { createAdminUser, updateAdminUserRole } from "@/lib/actions/admin-users";
+import type { Admin, AdminRole } from "@/lib/database.types";
 
 interface AdminUsersClientProps {
   initialUsers: Admin[];
+}
+
+interface NewUserFormState {
+  email: string;
+  name: string;
+  role: AdminRole;
 }
 
 const ROLE_COLORS = {
@@ -30,9 +36,9 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
   const { showToast } = useToast();
   const [users, setUsers] = useState(initialUsers);
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("ALL");
+  const [roleFilter, setRoleFilter] = useState<AdminRole | "ALL">("ALL");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [newUserForm, setNewUserForm] = useState({
+  const [newUserForm, setNewUserForm] = useState<NewUserFormState>({
     email: "",
     name: "",
     role: "STAFF" as const
@@ -66,14 +72,12 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
     }
   };
 
-  const handleRoleUpdate = async (userId: string, newRole: string) => {
+  const handleRoleUpdate = async (userId: string, newRole: AdminRole) => {
     const previousUsers = [...users];
-    setUsers(users.map(user => 
-      user.id === userId ? { ...user, role: newRole as any } : user
-    ));
+    setUsers(users.map((user) => (user.id === userId ? { ...user, role: newRole } : user)));
 
     try {
-      const result = await updateAdminUserRole(userId, newRole as any);
+      const result = await updateAdminUserRole(userId, newRole);
       if (!result) {
         setUsers(previousUsers);
         showToast("Failed to update user role", "error");
@@ -113,7 +117,7 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
               />
               <select
                 value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
+                onChange={(e) => setRoleFilter(e.target.value as AdminRole | "ALL")}
                 className="px-3 py-2 border border-border rounded-lg"
               >
                 <option value="ALL">All Roles</option>
@@ -157,7 +161,7 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
                         <div className="flex items-center justify-end gap-2">
                           <select
                             value={user.role}
-                            onChange={(e) => handleRoleUpdate(user.id, e.target.value)}
+                            onChange={(e) => handleRoleUpdate(user.id, e.target.value as AdminRole)}
                             className="px-2 py-1 text-sm border border-border rounded"
                           >
                             <option value="SUPER_ADMIN">Super Admin</option>
@@ -215,7 +219,12 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
               <label className="block text-sm font-medium mb-1">Role</label>
               <select
                 value={newUserForm.role}
-                onChange={(e) => setNewUserForm({...newUserForm, role: e.target.value as any})}
+                onChange={(e) =>
+                  setNewUserForm({
+                    ...newUserForm,
+                    role: e.target.value as AdminRole,
+                  })
+                }
                 className="w-full px-3 py-2 border border-border rounded-lg"
               >
                 <option value="SUPER_ADMIN">Super Admin</option>

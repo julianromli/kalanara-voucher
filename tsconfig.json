@@ -27,9 +27,15 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "docs", "orchestrator", "droids", "ai-dev-tasks-main", "tasks"]
+  "exclude": [
+    "node_modules",
+    ".next",
+    "docs",
+    "orchestrator",
+    "droids",
+    "ai-dev-tasks-main",
+    "tasks"
+  ]
 }
