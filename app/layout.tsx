@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Inter, Playfair_Display, Geist_Mono } from "next/font/google";
+import { Outfit, Playfair_Display, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { StoreProvider } from "@/context/StoreContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ToastProvider } from "@/context/ToastContext";
 import Navbar from "@/components/navbar";
 
-const inter = Inter({
-  variable: "--font-inter",
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
   display: "swap",
 });
@@ -65,7 +65,7 @@ export default function RootLayout({
     <html lang="id" className="scroll-smooth" suppressHydrationWarning>
       <body
         suppressHydrationWarning
-        className={`${inter.variable} ${playfair.variable} ${geistMono.variable} font-sans antialiased`}
+        className={`${outfit.variable} ${playfair.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <AuthProvider>
           <StoreProvider>

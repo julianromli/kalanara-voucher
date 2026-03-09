@@ -6,9 +6,9 @@
 @theme inline {
     --color-background: var(--background);
     --color-foreground: var(--foreground);
-    --font-sans: Outfit, sans-serif;
-    --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-    --font-mono: monospace;
+    --font-sans: var(--font-outfit), sans-serif;
+    --font-serif: var(--font-playfair), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    --font-mono: var(--font-geist-mono), monospace;
 
     /* Sage Color Palette - Organic spa greens */
     --color-sage-50: #f6f7f4;
@@ -147,9 +147,9 @@
     --sidebar-border: oklch(0.9037 0 0); /* sage-200 */
     --sidebar-ring: oklch(0.8348 0.1302 160.908); /* sage-500 */
     --destructive-foreground: oklch(0.9934 0.0032 17.2118);
-    --font-sans: Outfit, sans-serif;
-    --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-    --font-mono: monospace;
+    --font-sans: var(--font-outfit), sans-serif;
+    --font-serif: var(--font-playfair), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    --font-mono: var(--font-geist-mono), monospace;
     --shadow-color: #000000;
     --shadow-opacity: 0.17;
     --shadow-blur: 3px;
@@ -224,9 +224,9 @@
     --sidebar-ring: oklch(0.8003 0.1821 151.711); /* sage-400 */
     --destructive-foreground: oklch(0.9368 0.0045 34.3092);
     --radius: 0.5rem;
-    --font-sans: Outfit, sans-serif;
-    --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-    --font-mono: monospace;
+    --font-sans: var(--font-outfit), sans-serif;
+    --font-serif: var(--font-playfair), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    --font-mono: var(--font-geist-mono), monospace;
     --shadow-color: #000000;
     --shadow-opacity: 0.17;
     --shadow-blur: 3px;
