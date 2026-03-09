@@ -10,6 +10,47 @@ interface VoucherPDFData {
   expiryDate: string;
 }
 
+interface TextMeasurer {
+  getTextWidth(text: string): number;
+  splitTextToSize(text: string, maxWidth: number): string[];
+}
+
+interface FontConfig {
+  fileName: string;
+  fontName: string;
+  fontStyle: "normal" | "bold";
+  localPath: string;
+}
+
+interface RegisteredFonts {
+  primary: {
+    normal: boolean;
+    bold: boolean;
+  };
+  serif: {
+    normal: boolean;
+    bold: boolean;
+  };
+}
+
+interface BoxTextOptions {
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  paddingX: number;
+  fontSize: number;
+  minFontSize: number;
+  maxLines: number;
+  color: [number, number, number];
+}
+
+interface InlineTextOptions {
+  text: string;
+  maxWidth: number;
+}
+
 // Design System Colors from Figma
 const COLORS = {
   gold: [230, 191, 109] as [number, number, number], // #e6bf6d
@@ -26,9 +67,28 @@ const COLORS = {
 // Page dimensions from Figma
 const PAGE_WIDTH = 1772;
 const PAGE_HEIGHT = 1181;
+const BOX_TEXT_BASELINE_OFFSET_RATIO = 0.34;
 
-// Helper to convert ArrayBuffer to Base64 (Isomorphic)
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
+const FONT_CONFIGS: Record<"primary" | "serif", FontConfig[]> = {
+  primary: [
+    {
+      fileName: "PlusJakartaSans-Regular.ttf",
+      fontName: "PlusJakartaSans",
+      fontStyle: "normal",
+      localPath: "/fonts/PlusJakartaSans-Regular.ttf",
+    },
+    {
+      fileName: "PlusJakartaSans-Bold.ttf",
+      fontName: "PlusJakartaSans",
+      fontStyle: "bold",
+      localPath: "/fonts/PlusJakartaSans-Bold.ttf",
+    },
+  ],
+  serif: [],
+};
+
+// jsPDF expects custom fonts as binary strings inside its virtual file system.
+function arrayBufferToBinaryString(buffer: ArrayBuffer): string {
   if (typeof window !== "undefined") {
     let binary = "";
     const bytes = new Uint8Array(buffer);
@@ -36,9 +96,9 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
     for (let i = 0; i < len; i++) {
       binary += String.fromCharCode(bytes[i]);
     }
-    return window.btoa(binary);
+    return binary;
   } else {
-    return Buffer.from(buffer).toString("base64");
+    return Buffer.from(buffer).toString("latin1");
   }
 }
 
@@ -91,14 +151,6 @@ function formatDate(dateString: string): string {
   return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-// Font configuration for jsPDF
-interface FontConfig {
-  fileName: string;        // The filename to register with VFS
-  fontName: string;        // Font family name 
-  fontStyle: string;       // 'normal', 'bold', 'italic', 'bolditalic'
-  localPath: string;       // Path in public folder
-}
-
 async function loadFontFile(localPath: string): Promise<string | null> {
   try {
     if (typeof window !== "undefined") {
@@ -106,7 +158,7 @@ async function loadFontFile(localPath: string): Promise<string | null> {
       const response = await fetch(localPath);
       if (!response.ok) return null;
       const buffer = await response.arrayBuffer();
-      return arrayBufferToBase64(buffer);
+      return arrayBufferToBinaryString(buffer);
     } else {
       // Server-side: use fs
       const fs = await import("fs");
@@ -120,12 +172,128 @@ async function loadFontFile(localPath: string): Promise<string | null> {
       }
 
       const buffer = await fs.promises.readFile(fullPath);
-      return buffer.toString("base64");
+      return buffer.toString("latin1");
     }
   } catch (error) {
     console.warn(`Failed to load font from ${localPath}:`, error);
     return null;
   }
+}
+
+export function wrapTextToLines(
+  measurer: TextMeasurer,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+): string[] {
+  const normalizedText = text.trim().replace(/\s+/g, " ");
+  if (!normalizedText) return [];
+
+  const lines = measurer
+    .splitTextToSize(normalizedText, maxWidth)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length <= maxLines) {
+    return lines;
+  }
+
+  const truncatedLines = lines.slice(0, maxLines);
+  const ellipsis = "...";
+  let lastLine = truncatedLines[maxLines - 1] ?? "";
+
+  while (lastLine && measurer.getTextWidth(`${lastLine}${ellipsis}`) > maxWidth) {
+    lastLine = lastLine.slice(0, -1).trimEnd();
+  }
+
+  truncatedLines[maxLines - 1] = lastLine ? `${lastLine}${ellipsis}` : ellipsis;
+  return truncatedLines;
+}
+
+async function registerCustomFonts(doc: jsPDF): Promise<RegisteredFonts> {
+  const registeredFonts: RegisteredFonts = {
+    primary: { normal: false, bold: false },
+    serif: { normal: false, bold: false },
+  };
+
+  for (const [family, configs] of Object.entries(FONT_CONFIGS) as Array<[
+    keyof typeof FONT_CONFIGS,
+    FontConfig[],
+  ]>) {
+    for (const config of configs) {
+      const fontBase64 = await loadFontFile(config.localPath);
+      if (!fontBase64) continue;
+
+      try {
+        doc.addFileToVFS(config.fileName, fontBase64);
+        doc.addFont(config.fileName, config.fontName, config.fontStyle);
+        registeredFonts[family][config.fontStyle] = true;
+      } catch (error) {
+        console.warn(`Failed to register PDF font ${config.fontName} (${config.fontStyle})`, error);
+      }
+    }
+  }
+
+  return registeredFonts;
+}
+
+function drawTextInBox(
+  doc: jsPDF,
+  options: BoxTextOptions,
+): void {
+  const normalizedText = options.text.trim().replace(/\s+/g, " ");
+  if (!normalizedText) return;
+
+  for (let fontSize = options.fontSize; fontSize >= options.minFontSize; fontSize -= 1) {
+    doc.setFontSize(fontSize);
+
+    const lineHeight = Math.round(fontSize * 1.2);
+    const availableWidth = Math.max(options.width - options.paddingX * 2, 1);
+    const lines = wrapTextToLines(doc, normalizedText, availableWidth, options.maxLines);
+    const totalHeight = fontSize + lineHeight * Math.max(lines.length - 1, 0);
+    const availableHeight = options.height - 24;
+
+    if (totalHeight > availableHeight && fontSize > options.minFontSize) {
+      continue;
+    }
+
+    const firstLineBaseline =
+      options.y +
+      (options.height / 2) -
+      (lineHeight * Math.max(lines.length - 1, 0)) / 2 +
+      fontSize * BOX_TEXT_BASELINE_OFFSET_RATIO;
+
+    doc.setTextColor(...options.color);
+    doc.text(lines, options.x + options.paddingX, firstLineBaseline, {
+      baseline: "alphabetic",
+      lineHeightFactor: 1.2,
+    });
+    return;
+  }
+}
+
+function fitInlineText(
+  doc: jsPDF,
+  options: InlineTextOptions,
+): { text: string; width: number } {
+  const normalizedText = options.text.trim().replace(/\s+/g, " ");
+  if (!normalizedText) {
+    return { text: "", width: 0 };
+  }
+
+  if (doc.getTextWidth(normalizedText) <= options.maxWidth) {
+    return { text: normalizedText, width: doc.getTextWidth(normalizedText) };
+  }
+
+  let truncated = normalizedText;
+  const ellipsis = "...";
+
+  while (truncated && doc.getTextWidth(`${truncated}${ellipsis}`) > options.maxWidth) {
+    truncated = truncated.slice(0, -1).trimEnd();
+  }
+
+  const text = truncated ? `${truncated}${ellipsis}` : ellipsis;
+  return { text, width: doc.getTextWidth(text) };
 }
 
 export async function generateVoucherPDF(data: VoucherPDFData): Promise<Blob> {
@@ -135,14 +303,19 @@ export async function generateVoucherPDF(data: VoucherPDFData): Promise<Blob> {
     format: [PAGE_WIDTH, PAGE_HEIGHT],
   });
 
-  // Use jsPDF built-in fonts for server-side reliability
-  // helvetica for sans-serif, times for serif
-  // Custom Google Fonts (Plus Jakarta Sans, Playfair Display) would require special processing 
-  // to work with jsPDF in a server environment, so we use built-in fonts as a reliable fallback.
+  const registeredFonts = await registerCustomFonts(doc);
 
   // Helper function to set font with proper style
   const setFont = (fontFamily: "primary" | "serif", style: "normal" | "bold") => {
     try {
+      if (registeredFonts[fontFamily][style]) {
+        const config = FONT_CONFIGS[fontFamily].find((font) => font.fontStyle === style);
+        if (config) {
+          doc.setFont(config.fontName, style);
+          return;
+        }
+      }
+
       if (fontFamily === "primary") {
         doc.setFont("helvetica", style);
       } else if (fontFamily === "serif") {
@@ -239,10 +412,19 @@ export async function generateVoucherPDF(data: VoucherPDFData): Promise<Blob> {
 
   // Value: Recipient Name 
   // Figma: x=979, y=208 (Text start)
-  doc.setTextColor(...COLORS.brown); // #8e734a
   setFont("primary", "normal");
-  doc.setFontSize(35);
-  doc.text(data.recipientName, 979, 181 + (boxHeight / 2) + 12); // Vertically centered
+  drawTextInBox(doc, {
+    text: data.recipientName,
+    x: 926,
+    y: 181,
+    width: 755,
+    height: boxHeight,
+    paddingX: 53,
+    fontSize: 35,
+    minFontSize: 24,
+    maxLines: 2,
+    color: COLORS.brown,
+  });
 
   // --- Row 2: Service ---
   // Label removed per user request
@@ -253,10 +435,19 @@ export async function generateVoucherPDF(data: VoucherPDFData): Promise<Blob> {
 
   // Value: Service Name
   // Figma: x=979, y=312
-  doc.setTextColor(...COLORS.brown);
   setFont("primary", "normal");
-  doc.setFontSize(35);
-  doc.text(data.serviceName, 979, 289 + (boxHeight / 2) + 12);
+  drawTextInBox(doc, {
+    text: data.serviceName,
+    x: 926,
+    y: 289,
+    width: 755,
+    height: boxHeight,
+    paddingX: 53,
+    fontSize: 35,
+    minFontSize: 24,
+    maxLines: 2,
+    color: COLORS.brown,
+  });
 
   // --- Row 3: Valid & Code ---
   // Label removed per user request
@@ -297,9 +488,12 @@ export async function generateVoucherPDF(data: VoucherPDFData): Promise<Blob> {
     const msgY = 578 + 40;
     const msgWidth = 1076 - 80;
 
-    const messageLines = doc.splitTextToSize(data.senderMessage, msgWidth);
-    // Limit lines?
-    doc.text(messageLines, msgX, msgY + 28);
+    const lineHeight = Math.round(28 * 1.35);
+    const maxLines = Math.max(Math.floor((519 - 80) / lineHeight), 1);
+    const messageLines = wrapTextToLines(doc, data.senderMessage, msgWidth, maxLines);
+    doc.text(messageLines, msgX, msgY + 28, {
+      lineHeightFactor: 1.35,
+    });
   }
 
   // =========================================================================
@@ -311,16 +505,31 @@ export async function generateVoucherPDF(data: VoucherPDFData): Promise<Blob> {
   // We'll place it bottom-right of the Message Box.
   // Message Box bottom is 578 + 519 = 1097.
   const signatureY = 1060;
-  const signatureX = 1680; // Right aligned
+  const messageBoxRight = 670 + 1076;
+  const signatureRight = messageBoxRight - 48;
+  const signatureGap = 20;
 
   doc.setFontSize(24);
-  setFont("primary", "normal"); // italic?
+  setFont("primary", "bold");
+  const sender = fitInlineText(doc, {
+    text: data.senderName,
+    maxWidth: 240,
+  });
+
+  setFont("primary", "normal");
+  const fromLabel = fitInlineText(doc, {
+    text: "from:",
+    maxWidth: 80,
+  });
+
+  const labelRight = signatureRight - sender.width - signatureGap;
+
   doc.setTextColor(...COLORS.black);
-  doc.text("from:", signatureX - 20, signatureY, { align: "right" });
+  doc.text(fromLabel.text, labelRight, signatureY, { align: "right" });
 
   setFont("primary", "bold");
   doc.setTextColor(...COLORS.darkTeal);
-  doc.text(data.senderName, signatureX, signatureY, { align: "left" });
+  doc.text(sender.text, signatureRight, signatureY, { align: "right" });
 
 
   // =========================================================================
