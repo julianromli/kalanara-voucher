@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
     `;
 
     const { data, error } = await resend.emails.send({
-      from: "Kalanara Spa <voucher@kalanaraspa.com>",
+      from: "Kalanara Spa <noreply@voucher.kalanaraspa.com>",
       to: [recipientEmail],
       subject: `🎁 ${senderName} sent you a gift from Kalanara Spa!`,
       html: emailHtml,
