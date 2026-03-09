@@ -2,6 +2,7 @@
 
 import { Star, Quote } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
+import { SiteContainer } from "@/components/site-container";
 import type { Review } from "@/lib/types";
 
 interface TestimonialsSectionProps {
@@ -24,8 +25,8 @@ export function TestimonialsSection({ reviews }: TestimonialsSectionProps) {
   }
 
   return (
-    <section ref={testimonialsRef} className="py-24 px-4 sm:px-6 lg:px-8 bg-card">
-      <div className="max-w-7xl mx-auto">
+    <section ref={testimonialsRef} className="bg-card py-24">
+      <SiteContainer>
         <div className={`text-center mb-16 ${testimonialsInView ? "animate-fade-slide-up" : "opacity-0"}`}>
           <h2 className="font-sans font-semibold text-4xl text-foreground mb-4">
             Kata Mereka
@@ -73,7 +74,7 @@ export function TestimonialsSection({ reviews }: TestimonialsSectionProps) {
             </div>
           ))}
         </div>
-      </div>
+      </SiteContainer>
     </section>
   );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Menu, X, ShoppingBag, ShieldCheck } from "lucide-react";
+import { SiteContainer } from "@/components/site-container";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -54,7 +55,7 @@ export default function Navbar() {
           : "bg-transparent border-b border-transparent text-primary-foreground"
         }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <SiteContainer>
         <div className="flex justify-between h-20 items-center">
           {/* Logo */}
           <Link
@@ -132,7 +133,7 @@ export default function Navbar() {
             </button>
           </div>
         </div>
-      </div>
+      </SiteContainer>
 
       {/* Mobile Menu with slide animation */}
       <div

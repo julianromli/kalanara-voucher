@@ -5,6 +5,7 @@ import { Footer13 } from "@/components/footer13";
 import { TrustFeatures } from "@/components/trust-features";
 import { ServicesSection } from "@/components/services-section";
 import { TestimonialsSection } from "@/components/testimonials-section";
+import { SiteContainer } from "@/components/site-container";
 import { getServices } from "@/lib/actions/services";
 import { getReviews } from "@/lib/actions/reviews";
 import { ServiceCategory } from "@/lib/types";
@@ -45,8 +46,8 @@ export default async function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Hero Section - Full Width Desktop */}
-      <section className="relative min-h-screen flex items-center overflow-hidden">
+      {/* Hero Section */}
+      <section className="relative flex min-h-[100dvh] items-center overflow-hidden">
         {/* Background */}
         <div className="absolute inset-0 bg-primary">
           <Image
@@ -62,39 +63,41 @@ export default async function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-primary via-transparent to-primary/30" />
         </div>
 
-        {/* Content - Full width on desktop */}
-        <div className="relative z-10 w-full px-6 sm:px-8 lg:px-16 xl:px-24 pt-20">
-          <div className="max-w-none lg:max-w-[50%]">
-            <span className="animate-fade-slide-up text-primary-foreground/60 tracking-[0.3em] text-xs md:text-sm uppercase mb-6 block">
-              Selamat Datang di Kalanara
-            </span>
-            <h1 className="animate-fade-slide-up animate-stagger-1 font-sans font-semibold text-4xl sm:text-5xl md:text-6xl lg:text-6xl xl:text-7xl text-primary-foreground mb-8 leading-[1.2] text-wrap-balance max-w-2xl hero-headline">
-              Hadiah Spesial<br />
-              untuk{" "}
-              <span className="italic font-normal text-primary-foreground/70">
-                Me Time
+        {/* Content aligned to the same container as the navbar */}
+        <div className="relative z-10 w-full pt-20">
+          <SiteContainer>
+            <div className="max-w-3xl">
+              <span className="animate-fade-slide-up text-primary-foreground/60 tracking-[0.3em] text-xs md:text-sm uppercase mb-6 block">
+                Selamat Datang di Kalanara
               </span>
-            </h1>
-            <p className="animate-fade-slide-up animate-stagger-2 text-primary-foreground/80 text-base sm:text-lg md:text-xl mb-10 max-w-xl font-light leading-relaxed">
-              Voucher spa premium untuk diri sendiri atau orang tersayang.
-              Nikmati perawatan terbaik dari terapis profesional di Kalanara Spa Galaxy, Bekasi.
-            </p>
-            <div className="animate-fade-slide-up animate-stagger-3 flex flex-col sm:flex-row items-start gap-4">
-              <a
-                href="#services"
-                className="btn-hover-lift inline-flex items-center gap-3 bg-accent text-accent-foreground px-8 py-4 rounded-lg text-base sm:text-lg font-medium hover:bg-accent/90 transition-all shadow-xl"
-              >
-                Lihat Paket Voucher
-                <ArrowRight size={20} />
-              </a>
-              <Link
-                href="/verify"
-                className="inline-flex items-center gap-2 text-primary-foreground/70 hover:text-primary-foreground px-4 py-4 text-base font-medium transition-colors"
-              >
-                Cek Voucher Kamu
-              </Link>
+              <h1 className="animate-fade-slide-up animate-stagger-1 font-sans font-semibold text-4xl sm:text-5xl md:text-6xl lg:text-6xl xl:text-7xl text-primary-foreground mb-8 leading-[1.2] text-wrap-balance max-w-2xl hero-headline">
+                Hadiah Spesial<br />
+                untuk{" "}
+                <span className="italic font-normal text-primary-foreground/70">
+                  Me Time
+                </span>
+              </h1>
+              <p className="animate-fade-slide-up animate-stagger-2 text-primary-foreground/80 text-base sm:text-lg md:text-xl mb-10 max-w-xl font-light leading-relaxed">
+                Voucher spa premium untuk diri sendiri atau orang tersayang.
+                Nikmati perawatan terbaik dari terapis profesional di Kalanara Spa Galaxy, Bekasi.
+              </p>
+              <div className="animate-fade-slide-up animate-stagger-3 flex flex-col sm:flex-row items-start gap-4">
+                <a
+                  href="#services"
+                  className="btn-hover-lift inline-flex items-center gap-3 bg-accent text-accent-foreground px-8 py-4 rounded-lg text-base sm:text-lg font-medium hover:bg-accent/90 transition-all shadow-xl"
+                >
+                  Lihat Paket Voucher
+                  <ArrowRight size={20} />
+                </a>
+                <Link
+                  href="/verify"
+                  className="inline-flex items-center gap-2 text-primary-foreground/70 hover:text-primary-foreground px-4 py-4 text-base font-medium transition-colors"
+                >
+                  Cek Voucher Kamu
+                </Link>
+              </div>
             </div>
-          </div>
+          </SiteContainer>
         </div>
       </section>
 

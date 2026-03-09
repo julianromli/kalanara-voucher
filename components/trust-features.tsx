@@ -2,6 +2,7 @@
 
 import { Zap, CalendarCheck, ShieldCheck, LucideIcon } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
+import { SiteContainer } from "@/components/site-container";
 
 interface FeatureItem {
   icon: LucideIcon;
@@ -32,7 +33,7 @@ const TrustFeatures = () => {
   const [sectionRef, isInView] = useInView<HTMLElement>({ threshold: 0.1 });
 
   return (
-    <section ref={sectionRef} className="relative py-24 px-4 sm:px-6 lg:px-8 bg-primary text-primary-foreground overflow-hidden">
+    <section ref={sectionRef} className="relative overflow-hidden bg-primary py-24 text-primary-foreground">
       {/* Gradient Mesh - Soft organic shapes */}
       <div className="absolute inset-0 opacity-30">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl" />
@@ -43,7 +44,7 @@ const TrustFeatures = () => {
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/50 to-primary" />
 
       {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto">
+      <SiteContainer className="relative z-10">
         <div className={`text-center mb-16 ${isInView ? "animate-fade-slide-up" : "opacity-0"}`}>
           <h2 className="font-sans font-semibold text-4xl mb-4">
             Kenapa Pilih Kami
@@ -72,7 +73,7 @@ const TrustFeatures = () => {
             </div>
           ))}
         </div>
-      </div>
+      </SiteContainer>
     </section>
   );
 };

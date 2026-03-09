@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Clock, ArrowRight } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
+import { SiteContainer } from "@/components/site-container";
 import { formatCurrency } from "@/lib/constants";
 import type { Service } from "@/lib/types";
 
@@ -18,7 +19,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
     <section
       ref={servicesRef}
       id="services"
-      className="relative py-24 px-4 sm:px-6 lg:px-8 bg-background overflow-hidden"
+      className="relative overflow-hidden bg-background py-24"
     >
       {/* Gradient Mesh Background */}
       <div className="absolute inset-0 pointer-events-none">
@@ -27,7 +28,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-sage-100/30 dark:bg-sage-900/20 rounded-full blur-3xl opacity-50" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto">
+      <SiteContainer className="relative z-10">
         <div className={`text-center mb-16 ${servicesInView ? "animate-fade-slide-up" : "opacity-0"}`}>
           <h2 className="font-sans font-semibold text-4xl text-foreground mb-4">
             Pilihan Paket Voucher
@@ -93,7 +94,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
             </div>
           )}
         </div>
-      </div>
+      </SiteContainer>
     </section>
   );
 }
