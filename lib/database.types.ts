@@ -19,6 +19,11 @@ export type Database = {
           category: "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE";
           image_url: string | null;
           is_active: boolean;
+          scalev_product_id: number | null;
+          scalev_variant_id: number | null;
+          scalev_variant_unique_id: string | null;
+          scalev_sync_status: string | null;
+          scalev_last_synced_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -31,6 +36,11 @@ export type Database = {
           category: "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE";
           image_url?: string | null;
           is_active?: boolean;
+          scalev_product_id?: number | null;
+          scalev_variant_id?: number | null;
+          scalev_variant_unique_id?: string | null;
+          scalev_sync_status?: string | null;
+          scalev_last_synced_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -43,6 +53,11 @@ export type Database = {
           category?: "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE";
           image_url?: string | null;
           is_active?: boolean;
+          scalev_product_id?: number | null;
+          scalev_variant_id?: number | null;
+          scalev_variant_unique_id?: string | null;
+          scalev_sync_status?: string | null;
+          scalev_last_synced_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -113,14 +128,25 @@ export type Database = {
           customer_phone: string;
           payment_method: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
           payment_status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
+          payment_provider: string;
           total_amount: number;
           created_at: string;
           // Payment gateway fields
           payment_order_id: string | null;
+          public_access_token: string;
           payment_transaction_id: string | null;
           payment_type: string | null;
           payment_transaction_time: string | null;
           payment_link: string | null;
+          scalev_order_pk: number | null;
+          scalev_order_id: string | null;
+          scalev_pg_reference_id: string | null;
+          scalev_payment_method: string | null;
+          scalev_sub_payment_method: string | null;
+          scalev_store_unique_id: string | null;
+          scalev_last_checked_at: string | null;
+          scalev_raw_status: string | null;
+          scalev_raw_payment_status: string | null;
           // Recipient info for voucher creation
           service_id: string | null;
           recipient_name: string | null;
@@ -138,14 +164,25 @@ export type Database = {
           customer_phone: string;
           payment_method: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
+          payment_provider?: string;
           total_amount: number;
           created_at?: string;
           // Payment gateway fields
           payment_order_id?: string | null;
+          public_access_token?: string;
           payment_transaction_id?: string | null;
           payment_type?: string | null;
           payment_transaction_time?: string | null;
           payment_link?: string | null;
+          scalev_order_pk?: number | null;
+          scalev_order_id?: string | null;
+          scalev_pg_reference_id?: string | null;
+          scalev_payment_method?: string | null;
+          scalev_sub_payment_method?: string | null;
+          scalev_store_unique_id?: string | null;
+          scalev_last_checked_at?: string | null;
+          scalev_raw_status?: string | null;
+          scalev_raw_payment_status?: string | null;
           // Recipient info for voucher creation
           service_id?: string | null;
           recipient_name?: string | null;
@@ -163,14 +200,25 @@ export type Database = {
           customer_phone?: string;
           payment_method?: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
+          payment_provider?: string;
           total_amount?: number;
           created_at?: string;
           // Payment gateway fields
           payment_order_id?: string | null;
+          public_access_token?: string;
           payment_transaction_id?: string | null;
           payment_type?: string | null;
           payment_transaction_time?: string | null;
           payment_link?: string | null;
+          scalev_order_pk?: number | null;
+          scalev_order_id?: string | null;
+          scalev_pg_reference_id?: string | null;
+          scalev_payment_method?: string | null;
+          scalev_sub_payment_method?: string | null;
+          scalev_store_unique_id?: string | null;
+          scalev_last_checked_at?: string | null;
+          scalev_raw_status?: string | null;
+          scalev_raw_payment_status?: string | null;
           // Recipient info for voucher creation
           service_id?: string | null;
           recipient_name?: string | null;
@@ -256,6 +304,68 @@ export type Database = {
         };
         Relationships: [];
       };
+      scalev_webhook_events: {
+        Row: {
+          id: string;
+          provider: string;
+          event_type: string;
+          external_event_hash: string;
+          signature: string | null;
+          payload: Json | null;
+          order_id: string | null;
+          scalev_order_pk: number | null;
+          scalev_order_id: string | null;
+          scalev_pg_reference_id: string | null;
+          payment_status: string | null;
+          processing_status: string;
+          processing_message: string | null;
+          processed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          provider?: string;
+          event_type: string;
+          external_event_hash: string;
+          signature?: string | null;
+          payload?: Json | null;
+          order_id?: string | null;
+          scalev_order_pk?: number | null;
+          scalev_order_id?: string | null;
+          scalev_pg_reference_id?: string | null;
+          payment_status?: string | null;
+          processing_status?: string;
+          processing_message?: string | null;
+          processed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          provider?: string;
+          event_type?: string;
+          external_event_hash?: string;
+          signature?: string | null;
+          payload?: Json | null;
+          order_id?: string | null;
+          scalev_order_pk?: number | null;
+          scalev_order_id?: string | null;
+          scalev_pg_reference_id?: string | null;
+          payment_status?: string | null;
+          processing_status?: string;
+          processing_message?: string | null;
+          processed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "scalev_webhook_events_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -306,6 +416,13 @@ export type ReviewUpdate = Database["public"]["Tables"]["reviews"]["Update"];
 export type Admin = Database["public"]["Tables"]["admins"]["Row"];
 export type AdminInsert = Database["public"]["Tables"]["admins"]["Insert"];
 export type AdminUpdate = Database["public"]["Tables"]["admins"]["Update"];
+
+export type ScalevWebhookEvent =
+  Database["public"]["Tables"]["scalev_webhook_events"]["Row"];
+export type ScalevWebhookEventInsert =
+  Database["public"]["Tables"]["scalev_webhook_events"]["Insert"];
+export type ScalevWebhookEventUpdate =
+  Database["public"]["Tables"]["scalev_webhook_events"]["Update"];
 
 export type ServiceCategory = Database["public"]["Enums"]["service_category"];
 export type PaymentMethod = Database["public"]["Enums"]["payment_method"];

@@ -10,6 +10,7 @@ import type {
   VoucherInsert,
   VoucherWithService,
 } from "@/lib/database.types";
+import type { PublicVoucherLookup } from "@/lib/types";
 
 /**
  * Generates a cryptographically secure voucher code.
@@ -45,7 +46,7 @@ export async function getVouchers(): Promise<VoucherWithService[]> {
 export async function getVoucherByCode(
   code: string
 ): Promise<VoucherWithService | null> {
-  const supabase = await createClient();
+  const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("vouchers")
     .select(`*, services(*)`)
@@ -63,7 +64,7 @@ export async function getVoucherByCode(
 export async function getVoucherById(
   id: string
 ): Promise<VoucherWithService | null> {
-  const supabase = await createClient();
+  const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("vouchers")
     .select(`*, services(*)`)
@@ -76,6 +77,29 @@ export async function getVoucherById(
   }
 
   return data as VoucherWithService;
+}
+
+export async function getPublicVoucherLookupByCode(
+  code: string
+): Promise<PublicVoucherLookup | null> {
+  const voucher = await getVoucherByCode(code);
+  if (!voucher) {
+    return null;
+  }
+
+  return {
+    id: voucher.id,
+    code: voucher.code,
+    recipientName: voucher.recipient_name,
+    expiryDate: voucher.expiry_date,
+    isRedeemed: voucher.is_redeemed,
+    amount: voucher.amount,
+    service: {
+      name: voucher.services.name,
+      duration: voucher.services.duration,
+      image: voucher.services.image_url ?? "/images/services/placeholder.jpg",
+    },
+  };
 }
 
 export async function createVoucher(

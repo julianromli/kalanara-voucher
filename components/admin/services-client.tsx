@@ -213,6 +213,11 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
       category: formData.category,
       image_url: formData.image_url || null,
       is_active: true,
+      scalev_product_id: null,
+      scalev_variant_id: null,
+      scalev_variant_unique_id: null,
+      scalev_sync_status: null,
+      scalev_last_synced_at: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateWhatsAppUrl, WhatsAppVoucherData } from "@/lib/utils/whatsapp";
-import { getVoucherByCode } from "@/lib/actions/vouchers";
+import { getAuthorizedVoucherDelivery } from "@/lib/payment/public-voucher-delivery";
 
 // Simple in-memory rate limiter (for production, consider Redis/Upstash)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -23,15 +23,8 @@ function checkRateLimit(ip: string, limit = 10, windowMs = 60000): boolean {
  * Request body for sending voucher via WhatsApp
  */
 interface SendWhatsAppRequest {
-  recipientPhone: string;
-  recipientName: string;
-  senderName: string;
-  senderMessage?: string;
-  voucherCode: string;
-  serviceName: string;
-  serviceDuration: number;
-  amount: number;
-  expiryDate: string;
+  orderId: string;
+  token: string;
 }
 
 /**
@@ -48,42 +41,14 @@ interface SendWhatsAppResponse {
  */
 function validateRequest(body: Partial<SendWhatsAppRequest>): string | null {
   const requiredFields: (keyof SendWhatsAppRequest)[] = [
-    "recipientPhone",
-    "recipientName",
-    "senderName",
-    "voucherCode",
-    "serviceName",
-    "serviceDuration",
-    "amount",
-    "expiryDate",
+    "orderId",
+    "token",
   ];
 
   for (const field of requiredFields) {
     if (!body[field]) {
       return `Missing required field: ${field}`;
     }
-  }
-
-  // Validate phone number format (basic check)
-  const phone = body.recipientPhone!;
-  if (!/^[\d\s+()-]+$/.test(phone) || phone.replace(/\D/g, "").length < 8) {
-    return "Invalid phone number format";
-  }
-
-  // Validate amount is positive
-  if (body.amount! <= 0) {
-    return "Amount must be a positive number";
-  }
-
-  // Validate duration is positive
-  if (body.serviceDuration! <= 0) {
-    return "Service duration must be a positive number";
-  }
-
-  // Validate expiry date is a valid date
-  const expiryDate = new Date(body.expiryDate!);
-  if (isNaN(expiryDate.getTime())) {
-    return "Invalid expiry date format";
   }
 
   return null;
@@ -122,23 +87,12 @@ export async function POST(
       );
     }
 
-    const {
-      recipientPhone,
-      recipientName,
-      senderName,
-      senderMessage,
-      voucherCode,
-      serviceName,
-      serviceDuration,
-      amount,
-      expiryDate,
-    } = body as SendWhatsAppRequest;
+    const { orderId, token } = body as SendWhatsAppRequest;
 
-    // Validate voucher exists in database (prevents arbitrary URL generation abuse)
-    const voucher = await getVoucherByCode(voucherCode);
-    if (!voucher) {
+    const delivery = await getAuthorizedVoucherDelivery(orderId, token);
+    if (!delivery || !delivery.recipientPhone) {
       return NextResponse.json(
-        { success: false, error: "Invalid voucher code" },
+        { success: false, error: "Voucher tidak valid atau nomor tujuan tidak tersedia." },
         { status: 400 }
       );
     }
@@ -146,19 +100,19 @@ export async function POST(
     // Construct verification URL
     const baseUrl =
       process.env.NEXT_PUBLIC_APP_URL || "https://kalanara-spa.vercel.app";
-    const verifyUrl = `${baseUrl}/verify?code=${encodeURIComponent(voucherCode)}`;
+    const verifyUrl = `${baseUrl}/verify?code=${encodeURIComponent(delivery.voucherCode)}`;
 
     // Prepare voucher data for WhatsApp message generation
     const voucherData: WhatsAppVoucherData = {
-      recipientPhone,
-      recipientName,
-      senderName,
-      senderMessage,
-      voucherCode,
-      serviceName,
-      serviceDuration,
-      amount,
-      expiryDate,
+      recipientPhone: delivery.recipientPhone,
+      recipientName: delivery.recipientName,
+      senderName: delivery.senderName,
+      senderMessage: delivery.senderMessage || undefined,
+      voucherCode: delivery.voucherCode,
+      serviceName: delivery.serviceName,
+      serviceDuration: delivery.serviceDuration,
+      amount: delivery.amount,
+      expiryDate: delivery.expiryDate,
       verifyUrl,
     };
 

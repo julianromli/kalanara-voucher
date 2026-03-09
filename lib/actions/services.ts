@@ -52,6 +52,22 @@ export async function getServiceById(id: string): Promise<Service | null> {
   return data;
 }
 
+export async function getActiveServicesForScalevSync(): Promise<Service[]> {
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from("services")
+    .select("*")
+    .eq("is_active", true)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching services for Scalev sync:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
 export async function createService(service: ServiceInsert): Promise<Service | null> {
   const supabase = getAdminClient();
   const { data, error } = await supabase
@@ -87,6 +103,33 @@ export async function updateService(
   }
 
   revalidateTag("dashboard-stats", "max");
+  return data;
+}
+
+export async function updateServiceScalevMapping(
+  id: string,
+  updates: Pick<
+    ServiceUpdate,
+    | "scalev_product_id"
+    | "scalev_variant_id"
+    | "scalev_variant_unique_id"
+    | "scalev_sync_status"
+    | "scalev_last_synced_at"
+  >
+): Promise<Service | null> {
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from("services")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating service Scalev mapping:", error);
+    return null;
+  }
+
   return data;
 }
 

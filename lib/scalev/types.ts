@@ -1,0 +1,263 @@
+import type { DeliveryMethod, SendTo } from "@/lib/types";
+
+export const SCALEV_PAYMENT_METHODS = [
+  "qris",
+  "invoice",
+  "va",
+  "gopay",
+  "ovo",
+  "dana",
+  "shopeepay",
+  "linkaja",
+] as const;
+
+export const SCALEV_VA_BANK_CODES = [
+  "BCA",
+  "BNI",
+  "BRI",
+  "MANDIRI",
+  "PERMATA",
+  "BSI",
+  "BJB",
+  "CIMB",
+  "SAHABAT_SAMPOERNA",
+  "ARTAJASA",
+] as const;
+
+export type ScalevPaymentMethod = (typeof SCALEV_PAYMENT_METHODS)[number];
+export type ScalevVABankCode = (typeof SCALEV_VA_BANK_CODES)[number];
+
+export type ScalevNormalizedPaymentStatus =
+  | "PENDING"
+  | "COMPLETED"
+  | "FAILED"
+  | "REFUNDED";
+
+export type ScalevPublicStatus = "loading" | "pending" | "completed" | "failed";
+
+export interface ScalevPaymentSelection {
+  paymentMethod: ScalevPaymentMethod;
+  subPaymentMethod?: ScalevVABankCode;
+}
+
+export interface ScalevCheckoutRequest extends ScalevPaymentSelection {
+  serviceId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  recipientName: string;
+  recipientEmail?: string;
+  recipientPhone: string;
+  senderMessage?: string;
+  deliveryMethod: DeliveryMethod;
+  sendTo: SendTo;
+}
+
+export interface ScalevCreatePaymentResponse {
+  success: boolean;
+  paymentLink?: string;
+  orderId?: string;
+  paymentOrderId?: string;
+  publicAccessToken?: string;
+  paymentMethod?: ScalevPaymentMethod;
+  subPaymentMethod?: ScalevVABankCode;
+  error?: string;
+}
+
+export interface ScalevPendingOrderData {
+  service_id: string;
+  customer_email: string;
+  customer_name: string;
+  customer_phone: string;
+  recipient_name: string;
+  recipient_email?: string;
+  recipient_phone: string;
+  sender_message?: string;
+  delivery_method: DeliveryMethod;
+  send_to: SendTo;
+  total_amount: number;
+  payment_method?: ScalevPaymentMethod;
+  sub_payment_method?: ScalevVABankCode;
+}
+
+export interface ScalevPaymentOption {
+  code: ScalevPaymentMethod;
+  label: string;
+  subMethods?: ScalevVABankCode[];
+}
+
+export interface ScalevCheckoutConfig {
+  storeUniqueId: string;
+  paymentOptions: ScalevPaymentOption[];
+  disabledPaymentMethods?: ScalevPaymentMethod[];
+  paymentNotice?: string;
+}
+
+export interface ScalevProductVariantInput {
+  name: string;
+  price: number;
+  weight: number;
+  metadata?: Record<string, unknown>;
+  variantId?: number;
+}
+
+export interface ScalevCatalogProductInput {
+  name: string;
+  description?: string;
+  publicName?: string;
+  richDescription?: string;
+  itemType: "digital";
+  metaThumbnail?: string;
+  variants: ScalevProductVariantInput[];
+}
+
+export interface ScalevProductVariant {
+  id: number;
+  unique_id: string;
+  name: string;
+  price: number;
+  weight: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ScalevProductRecord {
+  id: number;
+  name: string;
+  display?: string;
+  item_type?: string;
+  variants: ScalevProductVariant[];
+}
+
+export interface ScalevStoreRecord {
+  id: number;
+  name: string;
+  unique_id: string;
+  payment_methods?: ScalevPaymentMethod[];
+  sub_payment_methods?: ScalevVABankCode[];
+}
+
+export interface ScalevOrderVariantLine {
+  variant_unique_id: string;
+  quantity: number;
+}
+
+export interface ScalevOrderCreateInput extends ScalevPaymentSelection {
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  store_unique_id: string;
+  ordervariants: ScalevOrderVariantLine[];
+  notes?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ScalevOrderRecord {
+  id: number;
+  order_id?: string;
+  payment_status?: string | null;
+  status?: string | null;
+  payment_method?: string | null;
+  sub_payment_method?: string | null;
+  pg_reference_id?: string | null;
+  invoice_url?: string | null;
+  payment_link?: string | null;
+  secret_slug?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface ScalevPaymentIntentResponse {
+  payment_url?: string;
+  invoice_url?: string;
+  reference_id?: string;
+  pg_reference_id?: string;
+  [key: string]: unknown;
+}
+
+export interface ScalevPaymentStatusResponse {
+  id?: number;
+  order_id?: string;
+  payment_status?: string | null;
+  status?: string | null;
+  pg_reference_id?: string | null;
+  payment_method?: string | null;
+  sub_payment_method?: string | null;
+  invoice_url?: string | null;
+  secret_slug?: string | null;
+}
+
+export interface ScalevSettlementStatusResponse {
+  id?: number;
+  order_id?: string;
+  payment_status?: string | null;
+  status?: string | null;
+  pg_reference_id?: string | null;
+}
+
+export interface ScalevPaymentSnapshot {
+  orderPk?: number | null;
+  orderId?: string | null;
+  pgReferenceId?: string | null;
+  paymentLink?: string | null;
+  paymentMethod?: string | null;
+  subPaymentMethod?: string | null;
+  rawPaymentStatus?: string | null;
+  rawStatus?: string | null;
+  normalizedStatus: ScalevNormalizedPaymentStatus;
+}
+
+export interface PublicOrderStatusPayload {
+  status: ScalevPublicStatus;
+  orderId: string;
+  paymentStatus: ScalevNormalizedPaymentStatus;
+  paymentMethod?: string | null;
+  provider?: string | null;
+  message?: string;
+  paymentLink?: string | null;
+  voucher?: {
+    voucherCode: string;
+    paymentOrderId: string;
+    recipientName: string;
+    recipientEmail?: string | null;
+    recipientPhone: string;
+    senderName: string;
+    senderMessage?: string | null;
+    serviceName: string;
+    serviceDuration: number;
+    amount: number;
+    expiryDate: string;
+    deliveryMethod: DeliveryMethod;
+    sendTo: SendTo;
+  };
+}
+
+export interface ScalevApiEnvelope<T> {
+  code: number;
+  status: string;
+  data: T;
+}
+
+export interface ScalevWebhookPaymentStatusHistoryItem {
+  at?: string | null;
+  status?: string | null;
+}
+
+export interface ScalevWebhookPaymentStatusChangedData {
+  id?: number;
+  order_id?: string;
+  payment_status?: string | null;
+  payment_method?: string | null;
+  sub_payment_method?: string | null;
+  pg_reference_id?: string | null;
+  paid_time?: string | null;
+  settled_time?: string | null;
+  conflict_time?: string | null;
+  unpaid_time?: string | null;
+  last_updated_at?: string | null;
+  payment_status_history?: ScalevWebhookPaymentStatusHistoryItem[] | null;
+}
+
+export interface ScalevWebhookPayload {
+  event: string;
+  timestamp?: string;
+  data?: ScalevWebhookPaymentStatusChangedData | Record<string, unknown>;
+}

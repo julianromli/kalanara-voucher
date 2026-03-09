@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { X, CreditCard, Clock, Hash, Wallet } from "lucide-react";
+import { X, CreditCard, Clock, Hash, Wallet, Building2 } from "lucide-react";
 import type { OrderWithVoucher } from "@/lib/database.types";
 
 interface PurchasesClientProps {
@@ -44,7 +44,12 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     const previousOrders = [...orders];
     const optimisticOrders = orders.map(order =>
-      order.id === orderId ? { ...order, payment_status: newStatus as any } : order
+      order.id === orderId
+        ? {
+            ...order,
+            payment_status: newStatus as OrderWithVoucher["payment_status"],
+          }
+        : order
     );
     setOrders(optimisticOrders);
 
@@ -108,6 +113,7 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
                     <TableHead>Order ID</TableHead>
                     <TableHead>Voucher Code</TableHead>
                     <TableHead>Amount</TableHead>
+                    <TableHead>Provider</TableHead>
                     <TableHead>Payment</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
@@ -133,8 +139,13 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
                       </TableCell>
                       <TableCell>{formatCurrency(order.total_amount)}</TableCell>
                       <TableCell>
+                        <p className="text-sm uppercase">
+                          {order.payment_provider || "-"}
+                        </p>
+                      </TableCell>
+                      <TableCell>
                         <p className="text-sm capitalize">
-                          {order.payment_type?.replace(/_/g, " ") || "-"}
+                          {(order.scalev_payment_method || order.payment_type)?.replace(/_/g, " ") || "-"}
                         </p>
                       </TableCell>
                       <TableCell>
@@ -213,6 +224,12 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
                     <span className="font-medium">{formatCurrency(selectedOrder.total_amount)}</span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-muted-foreground">Provider</span>
+                    <span className="font-medium uppercase">
+                      {selectedOrder.payment_provider || "-"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-muted-foreground">Status</span>
                     <Badge variant={
                       selectedOrder.payment_status === 'COMPLETED' ? 'default' :
@@ -260,7 +277,25 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
                       Payment Type
                     </span>
                     <span className="capitalize">
-                      {selectedOrder.payment_type?.replace(/_/g, " ") || "-"}
+                      {(selectedOrder.scalev_payment_method || selectedOrder.payment_type)?.replace(/_/g, " ") || "-"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Building2 size={14} />
+                      External Order
+                    </span>
+                    <span className="font-mono text-xs text-right break-all max-w-[200px]">
+                      {selectedOrder.scalev_order_id || "-"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Hash size={14} />
+                      PG Reference
+                    </span>
+                    <span className="font-mono text-xs text-right break-all max-w-[200px]">
+                      {selectedOrder.scalev_pg_reference_id || "-"}
                     </span>
                   </div>
                   <div className="flex justify-between">
