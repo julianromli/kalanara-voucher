@@ -79,6 +79,24 @@ export async function getVoucherById(
   return data as VoucherWithService;
 }
 
+export async function getVoucherBySourceOrderId(
+  sourceOrderId: string
+): Promise<VoucherWithService | null> {
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from("vouchers")
+    .select("*, services(*)")
+    .eq("source_order_id", sourceOrderId)
+    .single();
+
+  if (error) {
+    console.error("Error fetching voucher by source order ID:", error);
+    return null;
+  }
+
+  return data as VoucherWithService;
+}
+
 export async function getPublicVoucherLookupByCode(
   code: string
 ): Promise<PublicVoucherLookup | null> {
@@ -132,6 +150,17 @@ export async function createVoucher(
     .single();
 
   if (error) {
+    if (
+      voucherData.source_order_id &&
+      "code" in error &&
+      error.code === "23505"
+    ) {
+      const existingVoucher = await getVoucherBySourceOrderId(
+        voucherData.source_order_id
+      );
+      return existingVoucher;
+    }
+
     console.error("Error creating voucher:", error);
     return null;
   }

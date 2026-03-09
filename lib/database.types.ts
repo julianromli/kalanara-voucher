@@ -67,6 +67,7 @@ export type Database = {
         Row: {
           id: string;
           code: string;
+          source_order_id: string | null;
           service_id: string;
           recipient_name: string;
           recipient_email: string;
@@ -82,6 +83,7 @@ export type Database = {
         Insert: {
           id?: string;
           code: string;
+          source_order_id?: string | null;
           service_id: string;
           recipient_name: string;
           recipient_email: string;
@@ -97,6 +99,7 @@ export type Database = {
         Update: {
           id?: string;
           code?: string;
+          source_order_id?: string | null;
           service_id?: string;
           recipient_name?: string;
           recipient_email?: string;
@@ -110,6 +113,13 @@ export type Database = {
           created_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "vouchers_source_order_id_fkey";
+            columns: ["source_order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "vouchers_service_id_fkey";
             columns: ["service_id"];

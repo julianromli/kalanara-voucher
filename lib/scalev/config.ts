@@ -84,13 +84,17 @@ function parseDisabledPaymentMethods(
 }
 
 export function getScalevConfig(): ScalevConfig {
+  const isProduction = process.env.NODE_ENV === "production";
+  const storeUniqueId = isProduction
+    ? requireEnv("SCALEV_STORE_UNIQUE_ID", process.env.SCALEV_STORE_UNIQUE_ID)
+    : process.env.SCALEV_STORE_UNIQUE_ID?.trim() || DEFAULT_STORE_UNIQUE_ID;
+
   return {
     apiBaseUrl:
       process.env.SCALEV_API_BASE_URL?.trim() || DEFAULT_API_BASE_URL,
     apiKey: requireEnv("SCALEV_API_KEY", process.env.SCALEV_API_KEY),
     webhookSigningSecret: process.env.SCALEV_WEBHOOK_SIGNING_SECRET?.trim(),
-    storeUniqueId:
-      process.env.SCALEV_STORE_UNIQUE_ID?.trim() || DEFAULT_STORE_UNIQUE_ID,
+    storeUniqueId,
     storeNameSearch: process.env.SCALEV_STORE_NAME?.trim() || "Kalanara Spa",
     fallbackPaymentMethods: parsePaymentMethods(
       process.env.SCALEV_PAYMENT_METHODS

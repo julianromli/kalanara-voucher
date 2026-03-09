@@ -13,14 +13,29 @@ export async function createScalevWebhookEvent(
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("scalev_webhook_events")
-    .upsert(event, {
-      onConflict: "external_event_hash",
-      ignoreDuplicates: false,
-    })
+    .insert(event)
     .select()
     .single();
 
   if (error) {
+    if ("code" in error && error.code === "23505") {
+      const { data: existing, error: existingError } = await supabase
+        .from("scalev_webhook_events")
+        .select("*")
+        .eq("external_event_hash", event.external_event_hash)
+        .single();
+
+      if (existingError) {
+        console.error(
+          "Error fetching duplicate scalev webhook event:",
+          existingError
+        );
+        return null;
+      }
+
+      return existing;
+    }
+
     console.error("Error creating scalev webhook event:", error);
     return null;
   }

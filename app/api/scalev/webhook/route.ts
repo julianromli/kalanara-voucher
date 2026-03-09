@@ -253,6 +253,13 @@ export async function POST(request: NextRequest) {
     processing_status: "received",
   });
 
+  if (
+    webhookEvent?.processed_at &&
+    ["processed", "ignored"].includes(webhookEvent.processing_status)
+  ) {
+    return NextResponse.json({ status: "ok", message: "Duplicate event ignored" });
+  }
+
   if (body.event === "business.test_event") {
     if (webhookEvent) {
       await updateScalevWebhookEvent(webhookEvent.id, {

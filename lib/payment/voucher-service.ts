@@ -3,9 +3,9 @@
  * @description Handles voucher creation and delivery after successful payment
  */
 
-import { createVoucher } from "@/lib/actions/vouchers";
+import { createVoucher, getVoucherBySourceOrderId } from "@/lib/actions/vouchers";
 import { updateOrderVoucherId } from "@/lib/actions/orders";
-import type { OrderWithService, Voucher, VoucherInsert } from "@/lib/database.types";
+import type { OrderWithService, VoucherInsert } from "@/lib/database.types";
 
 export interface VoucherCreationResult {
   success: boolean;
@@ -18,6 +18,16 @@ function calculateExpiryDate(): string {
   const expiryDate = new Date();
   expiryDate.setFullYear(expiryDate.getFullYear() + 1);
   return expiryDate.toISOString();
+}
+
+function getServerAppUrl(): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+
+  if (!appUrl) {
+    throw new Error("Missing required environment variable: NEXT_PUBLIC_APP_URL");
+  }
+
+  return appUrl.replace(/\/+$/, "");
 }
 
 export async function createVoucherOnPaymentSuccess(
@@ -44,8 +54,21 @@ export async function createVoucherOnPaymentSuccess(
   }
 
   try {
+    const existingVoucher = await getVoucherBySourceOrderId(order.id);
+    if (existingVoucher) {
+      await updateOrderVoucherId(order.id, existingVoucher.id);
+
+      return {
+        success: true,
+        voucherId: existingVoucher.id,
+        voucherCode: existingVoucher.code,
+        error: "Voucher already created",
+      };
+    }
+
     // Prepare voucher data
     const voucherData: Omit<VoucherInsert, "code"> = {
+      source_order_id: order.id,
       service_id: order.service_id,
       recipient_name: order.recipient_name,
       recipient_email: order.recipient_email || order.customer_email,
@@ -99,7 +122,7 @@ async function triggerVoucherDelivery(
     ? order.recipient_phone
     : order.customer_phone;
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const appUrl = getServerAppUrl();
   if (!order.payment_order_id || !order.public_access_token) {
     console.error(`[VoucherService] Missing public access credentials for order ${order.id}`);
     return;
