@@ -212,7 +212,7 @@ export async function createPendingOrder(
     service_id: data.service_id,
     recipient_name: data.recipient_name,
     recipient_email: data.recipient_email || null,
-    recipient_phone: data.recipient_phone,
+    recipient_phone: data.recipient_phone || null,
     sender_message: data.sender_message || null,
     delivery_method: data.delivery_method,
     send_to: data.send_to,

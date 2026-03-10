@@ -47,7 +47,7 @@ export interface ScalevCheckoutRequest extends ScalevPaymentSelection {
   customerPhone: string;
   recipientName: string;
   recipientEmail?: string;
-  recipientPhone: string;
+  recipientPhone?: string;
   senderMessage?: string;
   deliveryMethod: DeliveryMethod;
   sendTo: SendTo;
@@ -71,7 +71,7 @@ export interface ScalevPendingOrderData {
   customer_phone: string;
   recipient_name: string;
   recipient_email?: string;
-  recipient_phone: string;
+  recipient_phone?: string | null;
   sender_message?: string;
   delivery_method: DeliveryMethod;
   send_to: SendTo;

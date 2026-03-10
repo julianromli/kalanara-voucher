@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { ToastProvider } from "@/context/ToastContext";
 import CheckoutSuccessPage from "@/app/checkout/success/page";
+import { ToastProvider } from "@/context/ToastContext";
 
 const push = vi.fn();
 
@@ -25,7 +25,7 @@ describe("CheckoutSuccessPage", () => {
     push.mockReset();
   });
 
-  test("shows QRIS instructions on the local success page while payment is still pending", async () => {
+  test("shows QRIS instructions and refresh CTA while payment is pending", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -52,9 +52,86 @@ describe("CheckoutSuccessPage", () => {
       </ToastProvider>
     );
 
-    expect(await screen.findByText("Scan QRIS untuk membayar")).toBeInTheDocument();
+    expect(await screen.findByText("Lanjutkan Pembayaran")).toBeInTheDocument();
+    expect(screen.getByText("Scan QRIS untuk membayar")).toBeInTheDocument();
     expect(screen.getByText("Nominal Rp 10.000")).toBeInTheDocument();
-    expect(screen.queryByText("Buka Halaman Pembayaran")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Saya Sudah Bayar" })
+    ).toBeInTheDocument();
+  });
+
+  test("shows hosted payment CTA for external payment links", async () => {
+    const openMock = vi.fn();
+    vi.stubGlobal("open", openMock);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          status: "pending",
+          orderId: "KSP-123",
+          paymentStatus: "PENDING",
+          paymentLink: "https://checkout.scalev.id/pay/hosted-123",
+        }),
+      })
+    );
+
+    render(
+      <ToastProvider>
+        <CheckoutSuccessPage />
+      </ToastProvider>
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Buka Halaman Pembayaran" }));
+    expect(openMock).toHaveBeenCalledWith(
+      "https://checkout.scalev.id/pay/hosted-123",
+      "_blank"
+    );
+  });
+
+  test("shows delivery summary and resend state on completed orders", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          status: "completed",
+          orderId: "KSP-123",
+          paymentStatus: "COMPLETED",
+          voucher: {
+            voucherCode: "KSPV-001",
+            paymentOrderId: "KSP-123",
+            recipientName: "Penerima",
+            recipientEmail: null,
+            recipientPhone: "",
+            senderName: "Faiz",
+            senderMessage: "Selamat menikmati",
+            serviceName: "Balinese Massage",
+            serviceDuration: 90,
+            amount: 450000,
+            expiryDate: "2026-03-12T04:05:55.854402Z",
+            deliveryMethod: "WHATSAPP",
+            sendTo: "PURCHASER",
+          },
+        }),
+      })
+    );
+
+    render(
+      <ToastProvider>
+        <CheckoutSuccessPage />
+      </ToastProvider>
+    );
+
+    expect(await screen.findByText("Voucher dikirim ke WhatsApp kamu")).toBeInTheDocument();
+    expect(screen.getByText("Butuh kirim ulang?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Email" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "WhatsApp" })).toBeEnabled();
+    expect(
+      screen.getByText(
+        "Email tidak aktif untuk pesanan ini atau alamat email tujuan tidak tersedia."
+      )
+    ).toBeInTheDocument();
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith("/api/orders/public-status", {

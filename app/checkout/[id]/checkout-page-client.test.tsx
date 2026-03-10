@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { ToastProvider } from "@/context/ToastContext";
 import { CheckoutPageClient } from "@/app/checkout/[id]/checkout-page-client";
+import { ToastProvider } from "@/context/ToastContext";
 import { ServiceCategory } from "@/lib/types";
 
 const push = vi.fn();
@@ -24,6 +24,14 @@ const service = {
   image: "https://example.com/service.jpg",
 };
 
+function renderCheckout() {
+  render(
+    <ToastProvider>
+      <CheckoutPageClient service={service} />
+    </ToastProvider>
+  );
+}
+
 describe("CheckoutPageClient", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -32,49 +40,76 @@ describe("CheckoutPageClient", () => {
     back.mockReset();
   });
 
-  test("keeps recipient email field responsive while typing after email delivery is selected", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        success: true,
-        config: {
-          paymentNotice: null,
-          paymentOptions: [{ code: "qris", label: "QRIS" }],
-        },
-      }),
-    });
+  test("renders checkout shell while payment config is still loading", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
 
-    vi.stubGlobal("fetch", fetchMock);
+    renderCheckout();
 
-    render(
-      <ToastProvider>
-        <CheckoutPageClient service={service} />
-      </ToastProvider>
+    expect(screen.getByText("Selesaikan Pembelian")).toBeInTheDocument();
+    expect(screen.getByText("Ringkasan Pesanan")).toBeInTheDocument();
+    expect(screen.getByText("Sedang menyiapkan metode pembayaran...")).toBeInTheDocument();
+    expect(screen.queryByText("Memproses Pembayaran...")).not.toBeInTheDocument();
+  });
+
+  test("shows conditional recipient contact fields based on sendTo and delivery method", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: true,
+          config: {
+            paymentNotice: null,
+            paymentOptions: [{ code: "qris", label: "QRIS" }],
+          },
+        }),
+      })
     );
 
+    renderCheckout();
+
     expect(await screen.findByText("QRIS")).toBeInTheDocument();
+    expect(screen.getByText("WhatsApp Penerima")).toBeInTheDocument();
+    expect(screen.queryByText("Email Penerima")).not.toBeInTheDocument();
 
     const emailDeliveryRadio = screen
       .getAllByRole("radio")
       .find((element) => (element as HTMLInputElement).value === "EMAIL");
-
-    expect(emailDeliveryRadio).toBeTruthy();
     fireEvent.click(emailDeliveryRadio!);
 
-    const recipientEmailInput = await screen.findByPlaceholderText("penerima@email.com");
-    fireEvent.change(recipientEmailInput, {
-      target: { value: "p" },
-    });
+    expect(await screen.findByText("Email Penerima")).toBeInTheDocument();
+    expect(screen.queryByText("WhatsApp Penerima")).not.toBeInTheDocument();
+
+    const bothDeliveryRadio = screen
+      .getAllByRole("radio")
+      .find((element) => (element as HTMLInputElement).value === "BOTH");
+    fireEvent.click(bothDeliveryRadio!);
+
+    expect(await screen.findByText("Email Penerima")).toBeInTheDocument();
+    expect(screen.getByText("WhatsApp Penerima")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Kirim ke Saya" }));
 
     await waitFor(() => {
-      expect(recipientEmailInput).toHaveValue("p");
+      expect(screen.queryByText("Email Penerima")).not.toBeInTheDocument();
+      expect(screen.queryByText("WhatsApp Penerima")).not.toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "Voucher tetap memakai nama penerima di voucher, tetapi pengiriman akan dikirim ke kontak kamu."
+        )
+      ).toBeInTheDocument();
     });
   });
 
-  test("does not open the broken hosted Scalev page when the payment link is a public order URL", async () => {
+  test("submits purchaser WhatsApp checkout without recipient contact and writes popup shell", async () => {
     const popup = {
       close: vi.fn(),
       location: { href: "" },
+      document: {
+        open: vi.fn(),
+        write: vi.fn(),
+        close: vi.fn(),
+      },
     };
 
     const fetchMock = vi
@@ -102,31 +137,42 @@ describe("CheckoutPageClient", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("open", vi.fn(() => popup as never));
 
-    render(
-      <ToastProvider>
-        <CheckoutPageClient service={service} />
-      </ToastProvider>
-    );
+    renderCheckout();
 
     expect(await screen.findByText("QRIS")).toBeInTheDocument();
 
+    fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {
+      target: { value: "Penerima" },
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "Kirim ke Saya" }));
     fireEvent.change(screen.getByPlaceholderText("Nama kamu"), {
       target: { value: "Faiz" },
     });
     fireEvent.change(screen.getByPlaceholderText("nama@email.com"), {
       target: { value: "faiz@example.com" },
     });
-    fireEvent.change(screen.getAllByPlaceholderText("+62 812 3456 7890")[0], {
-      target: { value: "081234567890" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {
-      target: { value: "Penerima" },
-    });
-    fireEvent.change(screen.getAllByPlaceholderText("+62 812 3456 7890")[1], {
-      target: { value: "081234567891" },
+    fireEvent.change(screen.getByPlaceholderText("+62 812 3456 7890"), {
+      target: { value: "0812-3456 7890" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Lanjut ke Pembayaran" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Lanjut ke Pembayaran" })[0]);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    const secondCall = fetchMock.mock.calls[1];
+    expect(secondCall?.[0]).toBe("/api/scalev/create-payment");
+    expect(JSON.parse(secondCall?.[1]?.body as string)).toEqual(
+      expect.objectContaining({
+        sendTo: "PURCHASER",
+        deliveryMethod: "WHATSAPP",
+        customerPhone: "0812 3456 7890",
+      })
+    );
+    expect(JSON.parse(secondCall?.[1]?.body as string)).not.toHaveProperty(
+      "recipientPhone"
+    );
 
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith(
@@ -134,6 +180,7 @@ describe("CheckoutPageClient", () => {
       );
     });
 
+    expect(popup.document.write).toHaveBeenCalled();
     expect(popup.close).toHaveBeenCalled();
     expect(popup.location.href).toBe("");
   });

@@ -37,35 +37,64 @@ function isVABank(value: string): value is ScalevVABankCode {
   return SCALEV_VA_BANK_CODES.includes(value as ScalevVABankCode);
 }
 
+function getOptionalString(value: unknown) {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  return normalized ? normalized : undefined;
+}
+
 function validateRequest(body: unknown): ScalevCheckoutRequest | null {
   if (typeof body !== "object" || body === null) {
     return null;
   }
 
   const data = body as Record<string, unknown>;
+  const serviceId = getOptionalString(data.serviceId);
+  const customerName = getOptionalString(data.customerName);
+  const customerEmail = getOptionalString(data.customerEmail);
+  const customerPhone = getOptionalString(data.customerPhone);
+  const recipientName = getOptionalString(data.recipientName);
+  const deliveryMethodValue = getOptionalString(data.deliveryMethod);
+  const sendToValue = getOptionalString(data.sendTo);
   const paymentMethod =
     typeof data.paymentMethod === "string" ? data.paymentMethod : "";
 
   if (
-    !data.serviceId ||
-    !data.customerName ||
-    !data.customerEmail ||
-    !data.customerPhone ||
-    !data.recipientName ||
-    !data.recipientPhone ||
-    !data.deliveryMethod ||
-    !data.sendTo ||
+    !serviceId ||
+    !customerName ||
+    !customerEmail ||
+    !customerPhone ||
+    !recipientName ||
+    !deliveryMethodValue ||
+    !sendToValue ||
     !isPaymentMethod(paymentMethod)
   ) {
     return null;
   }
 
   if (
-    !Object.values(DeliveryMethod).includes(
-      data.deliveryMethod as DeliveryMethod
-    ) ||
-    !Object.values(SendTo).includes(data.sendTo as SendTo)
+    !Object.values(DeliveryMethod).includes(deliveryMethodValue as DeliveryMethod) ||
+    !Object.values(SendTo).includes(sendToValue as SendTo)
   ) {
+    return null;
+  }
+
+  const deliveryMethod = deliveryMethodValue as DeliveryMethod;
+  const sendTo = sendToValue as SendTo;
+  const recipientPhone = getOptionalString(data.recipientPhone);
+  const recipientEmail = getOptionalString(data.recipientEmail);
+  const requiresRecipientPhone =
+    sendTo === SendTo.RECIPIENT &&
+    (deliveryMethod === DeliveryMethod.WHATSAPP ||
+      deliveryMethod === DeliveryMethod.BOTH);
+  const requiresRecipientEmail =
+    sendTo === SendTo.RECIPIENT &&
+    (deliveryMethod === DeliveryMethod.EMAIL || deliveryMethod === DeliveryMethod.BOTH);
+
+  if ((requiresRecipientPhone && !recipientPhone) || (requiresRecipientEmail && !recipientEmail)) {
     return null;
   }
 
@@ -80,18 +109,18 @@ function validateRequest(body: unknown): ScalevCheckoutRequest | null {
   }
 
   return {
-    serviceId: String(data.serviceId),
-    customerName: String(data.customerName),
-    customerEmail: String(data.customerEmail),
-    customerPhone: normalizeScalevPhoneNumber(String(data.customerPhone)),
-    recipientName: String(data.recipientName),
-    recipientEmail:
-      typeof data.recipientEmail === "string" ? data.recipientEmail : undefined,
-    recipientPhone: normalizeScalevPhoneNumber(String(data.recipientPhone)),
-    senderMessage:
-      typeof data.senderMessage === "string" ? data.senderMessage : undefined,
-    deliveryMethod: data.deliveryMethod as DeliveryMethod,
-    sendTo: data.sendTo as SendTo,
+    serviceId,
+    customerName,
+    customerEmail,
+    customerPhone: normalizeScalevPhoneNumber(customerPhone),
+    recipientName,
+    recipientEmail,
+    recipientPhone: recipientPhone
+      ? normalizeScalevPhoneNumber(recipientPhone)
+      : undefined,
+    senderMessage: getOptionalString(data.senderMessage),
+    deliveryMethod,
+    sendTo,
     paymentMethod,
     subPaymentMethod:
       paymentMethod === "va" && subPaymentMethodRaw
@@ -168,7 +197,7 @@ export async function POST(
       customer_phone: validatedData.customerPhone,
       recipient_name: validatedData.recipientName,
       recipient_email: validatedData.recipientEmail,
-      recipient_phone: validatedData.recipientPhone,
+      recipient_phone: validatedData.recipientPhone || null,
       sender_message: validatedData.senderMessage,
       delivery_method: validatedData.deliveryMethod,
       send_to: validatedData.sendTo,

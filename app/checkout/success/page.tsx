@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
@@ -17,6 +17,32 @@ import { formatCurrency } from "@/lib/constants";
 import { downloadPDF, generateVoucherPDF } from "@/lib/pdf";
 import type { PublicOrderStatusPayload } from "@/lib/scalev/types";
 import { isScalevHostedPublicOrderUrl } from "@/lib/scalev/urls";
+import { DeliveryMethod, SendTo } from "@/lib/types";
+
+function getDeliverySummary(
+  sendTo: SendTo,
+  deliveryMethod: DeliveryMethod
+): string {
+  if (sendTo === SendTo.PURCHASER) {
+    switch (deliveryMethod) {
+      case DeliveryMethod.WHATSAPP:
+        return "Voucher dikirim ke WhatsApp kamu";
+      case DeliveryMethod.EMAIL:
+        return "Voucher dikirim ke email kamu";
+      case DeliveryMethod.BOTH:
+        return "Voucher dikirim ke email dan WhatsApp kamu";
+    }
+  }
+
+  switch (deliveryMethod) {
+    case DeliveryMethod.WHATSAPP:
+      return "Voucher dikirim ke WhatsApp penerima";
+    case DeliveryMethod.EMAIL:
+      return "Voucher dikirim ke email penerima";
+    case DeliveryMethod.BOTH:
+      return "Voucher dikirim ke email dan WhatsApp penerima";
+  }
+}
 
 function SuccessContent() {
   const searchParams = useSearchParams();
@@ -28,8 +54,55 @@ function SuccessContent() {
   const [payload, setPayload] = useState<PublicOrderStatusPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
   const paymentLink = payload?.paymentLink;
   const paymentInstructions = payload?.paymentInstructions;
+  const voucher = payload?.voucher;
+  const deliverySummary = useMemo(() => {
+    if (!voucher) {
+      return null;
+    }
+
+    return getDeliverySummary(voucher.sendTo, voucher.deliveryMethod);
+  }, [voucher]);
+
+  const canResendEmail = Boolean(
+    voucher &&
+      (voucher.deliveryMethod === DeliveryMethod.EMAIL ||
+        voucher.deliveryMethod === DeliveryMethod.BOTH) &&
+      (voucher.sendTo === SendTo.PURCHASER || voucher.recipientEmail)
+  );
+  const canResendWhatsApp = Boolean(
+    voucher &&
+      (voucher.deliveryMethod === DeliveryMethod.WHATSAPP ||
+        voucher.deliveryMethod === DeliveryMethod.BOTH) &&
+      (voucher.sendTo === SendTo.PURCHASER || voucher.recipientPhone)
+  );
+
+  const fetchStatus = useCallback(async () => {
+    if (!orderId || !token) {
+      setError("Link status pembayaran tidak valid atau sudah kedaluwarsa.");
+      setIsLoading(false);
+      return;
+    }
+
+    const response = await fetch("/api/orders/public-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({
+        orderId,
+        token,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Gagal memuat status pesanan.");
+    }
+
+    return (await response.json()) as PublicOrderStatusPayload;
+  }, [orderId, token]);
 
   useEffect(() => {
     if (!orderId || !token) {
@@ -45,24 +118,13 @@ function SuccessContent() {
 
     const poll = async () => {
       try {
-        const response = await fetch("/api/orders/public-status", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          cache: "no-store",
-          body: JSON.stringify({
-            orderId,
-            token,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Gagal memuat status pesanan.");
+        const result = await fetchStatus();
+        if (!result || cancelled) {
+          return;
         }
 
-        const result = (await response.json()) as PublicOrderStatusPayload;
-        if (cancelled) return;
-
         setPayload(result);
+        setError(null);
         setIsLoading(false);
 
         if (result.status === "completed" || result.status === "failed") {
@@ -71,10 +133,7 @@ function SuccessContent() {
 
         attempts += 1;
         if (attempts >= maxAttempts) {
-          setError(
-            "Pembayaran masih diverifikasi. Silakan cek lagi beberapa saat lagi."
-          );
-          setIsLoading(false);
+          setError("Kami belum menerima konfirmasi terbaru. Cek lagi beberapa saat lagi.");
           return;
         }
 
@@ -82,21 +141,28 @@ function SuccessContent() {
       } catch (pollError) {
         console.error("Public status polling failed:", pollError);
         if (!cancelled) {
-          setError("Terjadi kesalahan saat memeriksa status pembayaran.");
+          setError("Kami belum menerima konfirmasi terbaru. Cek lagi beberapa saat lagi.");
           setIsLoading(false);
         }
       }
     };
 
-    poll();
+    setIsLoading(true);
+    void poll();
 
     return () => {
       cancelled = true;
-      if (timeoutId) clearTimeout(timeoutId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
-  }, [orderId, token]);
+  }, [fetchStatus, orderId, refreshKey, token]);
 
-  const voucher = payload?.voucher;
+  const handleCheckStatusAgain = () => {
+    setError(null);
+    setIsLoading(true);
+    setRefreshKey((value) => value + 1);
+  };
 
   const handleDownloadPDF = async () => {
     if (!voucher) return;
@@ -118,7 +184,10 @@ function SuccessContent() {
   };
 
   const handleResendWhatsApp = () => {
-    if (!voucher || !orderId || !token) return;
+    if (!voucher || !orderId || !token || !canResendWhatsApp) {
+      showToast("Tujuan WhatsApp tidak tersedia untuk pesanan ini.", "error");
+      return;
+    }
 
     void (async () => {
       try {
@@ -150,8 +219,8 @@ function SuccessContent() {
   };
 
   const handleResendEmail = async () => {
-    if (!voucher?.recipientEmail || !orderId || !token) {
-      showToast("Email penerima tidak tersedia.", "error");
+    if (!voucher || !orderId || !token || !canResendEmail) {
+      showToast("Tujuan email tidak tersedia untuk pesanan ini.", "error");
       return;
     }
 
@@ -190,28 +259,30 @@ function SuccessContent() {
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
         <Loader2 className="mb-4 size-12 animate-spin text-primary" />
         <h2 className="text-xl font-semibold text-foreground">
-          Memproses Pembayaran...
+          Memeriksa status pembayaran...
         </h2>
         <p className="mt-2 max-w-md text-center text-muted-foreground">
-          Mohon tunggu sebentar, kami sedang memverifikasi pembayaran dan
-          menyiapkan voucher Anda.
+          Mohon tunggu sebentar, kami sedang mengambil update terbaru untuk pesanan kamu.
         </p>
       </div>
     );
   }
 
-  if (error || payload?.status === "pending") {
+  if (payload?.status === "pending" || error) {
+    const isPending = payload?.status === "pending" && !error;
+    const title = isPending ? "Lanjutkan Pembayaran" : "Pembayaran Masih Dicek";
+    const subtitle = isPending
+      ? "Pesanan berhasil dibuat. Selesaikan pembayaran untuk mengaktifkan voucher."
+      : error || "Kami belum menerima konfirmasi terbaru. Cek lagi beberapa saat lagi.";
+    const secondaryActionLabel = isPending ? "Cek Status Lagi" : "Coba Lagi";
+
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
         <div className="mb-4 rounded-full bg-muted p-4">
           <AlertCircle className="size-12 text-muted-foreground" />
         </div>
-        <h2 className="mb-2 text-xl font-semibold text-foreground">
-          Verifikasi Pembayaran
-        </h2>
-        <p className="mb-6 max-w-md text-center text-muted-foreground">
-          {error || payload?.message || "Pembayaran masih diverifikasi."}
-        </p>
+        <h2 className="mb-2 text-xl font-semibold text-foreground">{title}</h2>
+        <p className="mb-6 max-w-md text-center text-muted-foreground">{subtitle}</p>
         {paymentInstructions?.kind === "qris" ? (
           <div className="mb-6 w-full max-w-sm rounded-2xl border border-border bg-card p-5 text-center shadow-sm">
             <p className="text-sm font-medium text-foreground">Scan QRIS untuk membayar</p>
@@ -225,19 +296,20 @@ function SuccessContent() {
             </div>
             {paymentInstructions.expiresAt ? (
               <p className="mt-3 text-xs text-muted-foreground">
-                Berlaku sampai{" "}
-                {new Date(paymentInstructions.expiresAt).toLocaleString("id-ID")}
+                Berlaku sampai {new Date(paymentInstructions.expiresAt).toLocaleString("id-ID")}
               </p>
             ) : null}
           </div>
         ) : null}
         <div className="flex w-full max-w-sm flex-col gap-3">
-          {paymentLink && !isScalevHostedPublicOrderUrl(paymentLink) ? (
-            <Button onClick={handleOpenPaymentPage}>
-              Buka Halaman Pembayaran
-            </Button>
+          {paymentInstructions?.kind === "qris" ? (
+            <Button onClick={handleCheckStatusAgain}>Saya Sudah Bayar</Button>
+          ) : paymentLink && !isScalevHostedPublicOrderUrl(paymentLink) ? (
+            <Button onClick={handleOpenPaymentPage}>Buka Halaman Pembayaran</Button>
           ) : null}
-          <Button onClick={() => window.location.reload()}>Coba Lagi</Button>
+          <Button variant="outline" onClick={handleCheckStatusAgain}>
+            {secondaryActionLabel}
+          </Button>
           <Button variant="outline" onClick={() => router.push("/")}>
             Kembali ke Beranda
           </Button>
@@ -263,9 +335,16 @@ function SuccessContent() {
     );
   }
 
-  if (!voucher) {
+  if (!voucher || !deliverySummary) {
     return null;
   }
+
+  const resendEmailHint = canResendEmail
+    ? "Kirim ulang ke tujuan email yang aktif."
+    : "Email tidak aktif untuk pesanan ini atau alamat email tujuan tidak tersedia.";
+  const resendWhatsAppHint = canResendWhatsApp
+    ? "Kirim ulang ke tujuan WhatsApp yang aktif."
+    : "WhatsApp tidak aktif untuk pesanan ini atau nomor tujuan tidak tersedia.";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-primary px-4 py-8">
@@ -277,11 +356,14 @@ function SuccessContent() {
         <h1 className="mb-2 font-sans text-3xl font-semibold text-foreground">
           Pembayaran Berhasil!
         </h1>
-        <p className="mb-8 text-muted-foreground">
-          Voucher Anda sudah aktif dan siap digunakan.
+        <p className="text-muted-foreground">
+          Voucher kamu sudah aktif dan siap digunakan.
+        </p>
+        <p className="mt-3 rounded-2xl bg-background px-4 py-3 text-sm font-medium text-foreground">
+          {deliverySummary}
         </p>
 
-        <div className="mb-6 rounded-2xl bg-background p-6">
+        <div className="mb-6 mt-8 rounded-2xl bg-background p-6">
           <p className="mb-2 text-sm text-muted-foreground">Order ID</p>
           <p className="break-all font-mono text-lg font-bold tracking-wider text-foreground">
             {voucher.paymentOrderId}
@@ -310,12 +392,15 @@ function SuccessContent() {
           Download Voucher PDF
         </Button>
 
-        <div className="mb-6 rounded-xl bg-muted p-4">
-          <p className="mb-3 text-sm text-muted-foreground">Kirim Ulang Voucher</p>
-          <div className="flex gap-3">
+        <div className="mb-6 rounded-xl bg-muted p-4 text-left">
+          <p className="text-sm font-semibold text-foreground">Butuh kirim ulang?</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Gunakan tombol di bawah untuk mengirim ulang voucher ke tujuan pengiriman yang aktif.
+          </p>
+          <div className="mt-4 flex gap-3">
             <Button
               onClick={handleResendEmail}
-              disabled={!voucher.recipientEmail}
+              disabled={!canResendEmail}
               variant="outline"
               className="flex-1 gap-2 border-border text-muted-foreground"
             >
@@ -324,13 +409,16 @@ function SuccessContent() {
             </Button>
             <Button
               onClick={handleResendWhatsApp}
+              disabled={!canResendWhatsApp}
               variant="outline"
-              className="flex-1 gap-2 border-success text-success hover:bg-success/10"
+              className="flex-1 gap-2 border-success text-success hover:bg-success/10 disabled:border-border disabled:text-muted-foreground"
             >
               <MessageCircle size={18} />
               WhatsApp
             </Button>
           </div>
+          <p className="mt-3 text-xs text-muted-foreground">{resendEmailHint}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{resendWhatsAppHint}</p>
         </div>
 
         <div className="space-y-3">
