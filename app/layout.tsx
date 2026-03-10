@@ -25,6 +25,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://voucher.kalanaraspa.com"),
   title: "Kalanara Spa Galaxy Bekasi | Voucher Spa Premium untuk Wanita",
   description:
     "Beli voucher spa premium di Kalanara Spa Galaxy, Bekasi. Hadiah spesial untuk diri sendiri atau orang tersayang. Terapis profesional, khusus wanita. Langsung dikirim via WhatsApp dan Email.",
@@ -44,8 +45,30 @@ export const metadata: Metadata = {
     title: "Kalanara Spa Galaxy Bekasi | Voucher Spa Premium",
     description:
       "Hadiah spesial untuk me time. Voucher spa premium dari Kalanara Spa Galaxy, Bekasi. Khusus wanita, terapis profesional.",
+    url: "https://voucher.kalanaraspa.com",
+    siteName: "Kalanara Spa",
     type: "website",
     locale: "id_ID",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Voucher premium Kalanara Spa Galaxy Bekasi",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Kalanara Spa Galaxy Bekasi | Voucher Spa Premium",
+    description:
+      "Hadiah spesial untuk me time. Voucher spa premium dari Kalanara Spa Galaxy, Bekasi. Khusus wanita, terapis profesional.",
+    images: ["/og-image.png"],
+  },
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
   },
   alternates: {
     canonical: "https://voucher.kalanaraspa.com",
