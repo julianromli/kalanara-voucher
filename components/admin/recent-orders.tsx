@@ -12,7 +12,7 @@ interface Order {
   id: string;
   customerName: string;
   serviceName: string;
-  totalAmount: number;
+  totalAmount: number | null;
   createdAt: string;
 }
 
@@ -91,10 +91,10 @@ export function RecentOrders({ orders, animationDelay = 0 }: RecentOrdersProps) 
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-medium text-foreground">
-                      {formatCurrency(order.totalAmount)}
-                    </p>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-medium text-foreground">
+                        {order.totalAmount === null ? "-" : formatCurrency(order.totalAmount)}
+                      </p>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <HugeiconsIcon icon={Calendar01Icon} className="size-3" />
                       {new Date(order.createdAt).toLocaleDateString("en-US", {

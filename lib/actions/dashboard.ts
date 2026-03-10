@@ -1,9 +1,16 @@
 "use server";
 
+import {
+  AdminPermission,
+  hasPermissionForRole,
+} from "@/lib/auth/admin-rbac";
+import { requireAdminPermission } from "@/lib/auth/admin-rbac-server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { cacheLife, cacheTag } from "next/cache";
 
 export interface DashboardStats {
+  canViewBusinessMetrics: boolean;
+  canManageReviews: boolean;
   totalRevenue: number;
   activeVouchers: number;
   redeemedVouchers: number;
@@ -22,7 +29,7 @@ export interface DashboardStats {
     id: string;
     customerName: string;
     serviceName: string;
-    totalAmount: number;
+    totalAmount: number | null;
     createdAt: string;
   }[];
   recentReviews: {
@@ -33,12 +40,59 @@ export interface DashboardStats {
   }[];
 }
 
+interface OperationalOrderRow {
+  id: string;
+  customer_name: string;
+  created_at: string;
+  vouchers: {
+    services: {
+      name: string;
+      duration: number;
+    } | null;
+  } | null;
+}
+
+interface BusinessOrderRow extends OperationalOrderRow {
+  total_amount: number | null;
+}
+
 export async function getDashboardStats(): Promise<DashboardStats> {
   "use cache: private";
   cacheLife("minutes");
   cacheTag("dashboard-stats");
 
+  const access = await requireAdminPermission(
+    AdminPermission.DASHBOARD_VIEW_OPERATIONAL
+  );
+  const canViewBusinessMetrics = hasPermissionForRole(
+    access.role,
+    AdminPermission.DASHBOARD_VIEW_BUSINESS
+  );
+  const canManageReviews = hasPermissionForRole(
+    access.role,
+    AdminPermission.REVIEWS_MANAGE
+  );
+
   const supabase = getAdminClient();
+  const ordersPromise = canViewBusinessMetrics
+    ? supabase
+        .from("orders")
+        .select(
+          "id, customer_name, total_amount, created_at, vouchers:vouchers!orders_voucher_id_fkey(services(name, duration))"
+        )
+        .order("created_at", { ascending: false })
+    : supabase
+        .from("orders")
+        .select(
+          "id, customer_name, created_at, vouchers:vouchers!orders_voucher_id_fkey(services(name, duration))"
+        )
+        .order("created_at", { ascending: false });
+  const servicesPromise = canViewBusinessMetrics
+    ? supabase.from("services").select("id", { count: "exact" })
+    : Promise.resolve({ data: [], count: 0, error: null });
+  const reviewsPromise = canManageReviews
+    ? supabase.from("reviews").select("*").order("created_at", { ascending: false })
+    : Promise.resolve({ data: [], error: null });
 
   // Parallel queries for better performance
   const [
@@ -47,16 +101,20 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     ordersResult,
     reviewsResult,
   ] = await Promise.all([
-    supabase.from("services").select("id", { count: "exact" }),
+    servicesPromise,
     supabase.from("vouchers").select("*, services(name, duration)"),
-    supabase.from("orders").select("*, vouchers(*, services(name, duration))").order("created_at", { ascending: false }),
-    supabase.from("reviews").select("*").order("created_at", { ascending: false }),
+    ordersPromise,
+    reviewsPromise,
   ]);
 
   const services = servicesResult.data || [];
   const vouchers = vouchersResult.data || [];
-  const orders = ordersResult.data || [];
+  const orders = (ordersResult.data || []) as OperationalOrderRow[];
+  const businessOrders = canViewBusinessMetrics ? (orders as BusinessOrderRow[]) : [];
   const reviews = reviewsResult.data || [];
+  const businessOrderAmounts = new Map(
+    businessOrders.map((order) => [order.id, order.total_amount ?? 0])
+  );
 
   // Calculate voucher stats
   const now = new Date();
@@ -69,7 +127,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   ).length;
 
   // Calculate total revenue
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+  const totalRevenue = canViewBusinessMetrics
+    ? businessOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0)
+    : 0;
 
   // Calculate average rating
   const avgRating =
@@ -78,26 +138,31 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       : 0;
 
   // Generate revenue data for last 7 days
-  const revenueData = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (6 - i));
-    const dayOrders = orders.filter((o) => {
-      const orderDate = new Date(o.created_at);
-      return orderDate.toDateString() === date.toDateString();
-    });
-    return {
-      day: date.toLocaleDateString("en-US", { weekday: "short" }),
-      revenue: dayOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0),
-      orders: dayOrders.length,
-    };
-  });
+  const revenueData = canViewBusinessMetrics
+    ? Array.from({ length: 7 }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() - (6 - i));
+        const dayOrders = businessOrders.filter((order) => {
+          const orderDate = new Date(order.created_at);
+          return orderDate.toDateString() === date.toDateString();
+        });
+        return {
+          day: date.toLocaleDateString("en-US", { weekday: "short" }),
+          revenue: dayOrders.reduce(
+            (sum, order) => sum + (order.total_amount || 0),
+            0
+          ),
+          orders: dayOrders.length,
+        };
+      })
+    : [];
 
   // Recent orders (top 5)
   const recentOrders = orders.slice(0, 5).map((order) => ({
     id: order.id,
     customerName: order.customer_name,
     serviceName: order.vouchers?.services?.name || "Service",
-    totalAmount: order.total_amount,
+    totalAmount: canViewBusinessMetrics ? (businessOrderAmounts.get(order.id) ?? 0) : null,
     createdAt: order.created_at,
   }));
 
@@ -110,6 +175,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   }));
 
   return {
+    canViewBusinessMetrics,
+    canManageReviews,
     totalRevenue,
     activeVouchers,
     redeemedVouchers,

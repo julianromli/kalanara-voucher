@@ -9,6 +9,12 @@ import {
   type ReactNode,
 } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import {
+  type AdminPermission,
+  hasPermissionForRole,
+  normalizeAdminRole,
+  type CanonicalAdminRole,
+} from '@/lib/auth/admin-rbac';
 import type { User as SupabaseUser, AuthError } from '@supabase/supabase-js';
 
 // ============================================================================
@@ -19,7 +25,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'SUPER_ADMIN' | 'MANAGER' | 'STAFF' | 'ADMIN';
+  role: CanonicalAdminRole | null;
 }
 
 export interface LoginResult {
@@ -31,6 +37,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  hasPermission: (permission: AdminPermission) => boolean;
   login: (email: string, password: string) => Promise<LoginResult>;
   logout: () => Promise<void>;
 }
@@ -43,18 +50,40 @@ interface AuthProviderProps {
 // Helpers
 // ============================================================================
 
-/**
- * Extract User data from Supabase user object
- */
-function extractUserFromSupabaseUser(supabaseUser: SupabaseUser): User {
+async function extractUserFromSupabaseUser(
+  supabaseUser: SupabaseUser
+): Promise<User | null> {
   const metadata = supabaseUser.user_metadata || {};
-  
-  return {
-    id: supabaseUser.id,
-    email: supabaseUser.email || '',
-    name: metadata.name || metadata.full_name || supabaseUser.email?.split('@')[0] || 'User',
-    role: metadata.role || 'STAFF',
-  };
+  const supabase = createClient();
+  const fallbackName =
+    metadata.name || metadata.full_name || supabaseUser.email?.split('@')[0] || 'User';
+  let name = fallbackName;
+
+  try {
+    const { data: admin } = await supabase
+      .from('admins')
+      .select('name, role')
+      .eq('id', supabaseUser.id)
+      .maybeSingle();
+
+    const role = normalizeAdminRole(admin?.role);
+
+    if (!admin || !role) {
+      return null;
+    }
+
+    name = admin?.name || fallbackName;
+
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email || '',
+      name,
+      role,
+    };
+  } catch (error) {
+    console.error('Error resolving admin access from database:', error);
+    return null;
+  }
 }
 
 /**
@@ -105,7 +134,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
-          setUser(extractUserFromSupabaseUser(session.user));
+          const resolvedUser = await extractUserFromSupabaseUser(session.user);
+          setUser(resolvedUser);
         } else {
           setUser(null);
         }
@@ -127,13 +157,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { data } = supabase.auth.onAuthStateChange(
         async (event, session) => {
           if (event === 'SIGNED_IN' && session?.user) {
-            setUser(extractUserFromSupabaseUser(session.user));
+            setUser(await extractUserFromSupabaseUser(session.user));
           } else if (event === 'SIGNED_OUT') {
             setUser(null);
           } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-            setUser(extractUserFromSupabaseUser(session.user));
+            setUser(await extractUserFromSupabaseUser(session.user));
           } else if (event === 'USER_UPDATED' && session?.user) {
-            setUser(extractUserFromSupabaseUser(session.user));
+            setUser(await extractUserFromSupabaseUser(session.user));
           }
         }
       );
@@ -165,8 +195,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       if (data.user) {
-        setUser(extractUserFromSupabaseUser(data.user));
-        return { success: true };
+        const resolvedUser = await extractUserFromSupabaseUser(data.user);
+
+        if (!resolvedUser) {
+          await supabase.auth.signOut();
+          setUser(null);
+          return {
+            success: false,
+            error: 'Akun ini tidak memiliki akses admin.',
+          };
+        }
+
+        setUser(resolvedUser);
+        return { success: true }; 
       }
 
       return {
@@ -197,8 +238,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const value: AuthContextType = {
     user,
-    isAuthenticated: user !== null,
+    isAuthenticated: user?.role !== null,
     isLoading,
+    hasPermission: (permission) => hasPermissionForRole(user?.role, permission),
     login,
     logout,
   };

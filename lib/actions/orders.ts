@@ -2,7 +2,11 @@
 
 import { randomBytes } from "node:crypto";
 import { revalidateTag } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { AdminPermission } from "@/lib/auth/admin-rbac";
+import {
+  logAdminAudit,
+  requireAdminPermission,
+} from "@/lib/auth/admin-rbac-server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { mapScalevPaymentMethodToLocal } from "@/lib/scalev/mappers";
 import type {
@@ -50,7 +54,9 @@ function generatePublicAccessToken(): string {
 }
 
 export async function getOrders(): Promise<OrderWithVoucher[]> {
-  const supabase = await createClient();
+  await requireAdminPermission(AdminPermission.ORDERS_VIEW);
+
+  const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("orders")
     .select(ORDER_VOUCHER_SELECT)
@@ -65,7 +71,9 @@ export async function getOrders(): Promise<OrderWithVoucher[]> {
 }
 
 export async function getOrderById(id: string): Promise<OrderWithVoucher | null> {
-  const supabase = await createClient();
+  await requireAdminPermission(AdminPermission.ORDERS_VIEW);
+
+  const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("orders")
     .select(ORDER_VOUCHER_SELECT)
@@ -101,6 +109,10 @@ export async function updateOrderStatus(
   id: string,
   status: PaymentStatus
 ): Promise<boolean> {
+  const access = await requireAdminPermission(
+    AdminPermission.ORDERS_UPDATE_PAYMENT_STATUS
+  );
+
   const supabase = getAdminClient();
   const { error } = await supabase
     .from("orders")
@@ -112,6 +124,12 @@ export async function updateOrderStatus(
     return false;
   }
 
+  logAdminAudit(access, {
+    action: "order.payment_status_update",
+    target: id,
+    details: { status },
+  });
+
   revalidateTag("dashboard-stats", "max");
   return true;
 }
@@ -122,7 +140,9 @@ export async function getOrderStats(): Promise<{
   completedOrders: number;
   pendingOrders: number;
 }> {
-  const supabase = await createClient();
+  await requireAdminPermission(AdminPermission.ORDERS_VIEW);
+
+  const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("orders")
     .select("total_amount, payment_status");

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  LockIcon,
   Mail01Icon,
   ViewIcon,
   ViewOffIcon,

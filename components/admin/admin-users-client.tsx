@@ -32,7 +32,7 @@ const ROLE_COLORS = {
 
 export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user: currentUser, isAuthenticated, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
   const [users, setUsers] = useState(initialUsers);
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,6 +58,8 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
     return matchesSearch && matchesRole;
   });
 
+  const superAdminCount = users.filter((user) => user.role === "SUPER_ADMIN").length;
+
   const handleCreateUser = async () => {
     try {
       const result = await createAdminUser(newUserForm);
@@ -67,7 +69,7 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
         setNewUserForm({ email: "", name: "", role: "STAFF" });
         showToast("Admin user created successfully", "success");
       }
-    } catch (error) {
+    } catch {
       showToast("Failed to create admin user", "error");
     }
   };
@@ -139,11 +141,16 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-accent/50">
-                      <td className="p-4">
-                        <div className="font-medium">{user.name}</div>
-                      </td>
+                  {filteredUsers.map((user) => {
+                    const isCurrentUser = currentUser?.id === user.id;
+                    const isLastSuperAdmin =
+                      user.role === "SUPER_ADMIN" && superAdminCount === 1;
+
+                    return (
+                      <tr key={user.id} className="hover:bg-accent/50">
+                        <td className="p-4">
+                          <div className="font-medium">{user.name}</div>
+                        </td>
                       <td className="p-4">
                         <div className="text-sm text-muted-foreground">{user.email}</div>
                       </td>
@@ -162,6 +169,7 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
                           <select
                             value={user.role}
                             onChange={(e) => handleRoleUpdate(user.id, e.target.value as AdminRole)}
+                            disabled={isCurrentUser || isLastSuperAdmin}
                             className="px-2 py-1 text-sm border border-border rounded"
                           >
                             <option value="SUPER_ADMIN">Super Admin</option>
@@ -172,9 +180,17 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
                             <HugeiconsIcon icon={PencilEdit01Icon} className="w-4 h-4" />
                           </Button>
                         </div>
+                        {(isCurrentUser || isLastSuperAdmin) && (
+                          <p className="mt-2 text-right text-xs text-muted-foreground">
+                            {isCurrentUser
+                              ? "Anda tidak bisa mengubah role akun sendiri"
+                              : "Super admin terakhir harus tetap aktif"}
+                          </p>
+                        )}
                       </td>
-                    </tr>
-                  ))}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

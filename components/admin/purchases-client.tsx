@@ -14,9 +14,13 @@ import type { OrderWithVoucher } from "@/lib/database.types";
 
 interface PurchasesClientProps {
   initialOrders: OrderWithVoucher[];
+  canUpdatePaymentStatus: boolean;
 }
 
-export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
+export function PurchasesClient({
+  initialOrders,
+  canUpdatePaymentStatus,
+}: PurchasesClientProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [orders, setOrders] = useState(initialOrders);
@@ -160,7 +164,7 @@ export function PurchasesClient({ initialOrders }: PurchasesClientProps) {
                       <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          {order.payment_status === 'PENDING' && (
+                          {canUpdatePaymentStatus && order.payment_status === 'PENDING' && (
                             <Button 
                               size="sm" 
                               onClick={() => updateOrderStatus(order.id, 'COMPLETED')}

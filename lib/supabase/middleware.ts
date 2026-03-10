@@ -44,18 +44,6 @@ export async function updateSession(request: NextRequest) {
       url.pathname = "/admin/login";
       return NextResponse.redirect(url);
     }
-
-    // Role-based authorization: Verify user has admin role
-    const role = user.user_metadata?.role;
-    const allowedRoles = ["SUPER_ADMIN", "MANAGER", "STAFF", "ADMIN"];
-
-    if (!role || !allowedRoles.includes(role)) {
-      // Redirect unauthorized users to login with error
-      const url = request.nextUrl.clone();
-      url.pathname = "/admin/login";
-      url.searchParams.set("error", "unauthorized");
-      return NextResponse.redirect(url);
-    }
   }
 
   return supabaseResponse;

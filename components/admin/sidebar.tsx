@@ -18,6 +18,7 @@ import {
   UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
+import { AdminPermission } from "@/lib/auth/admin-rbac";
 import {
   Sidebar,
   SidebarContent,
@@ -40,31 +41,37 @@ const navItems = [
     icon: DashboardSquare01Icon,
     label: "Dashboard",
     href: "/admin/dashboard",
+    requiredPermission: AdminPermission.DASHBOARD_VIEW_OPERATIONAL,
   },
   {
     icon: SparklesIcon,
     label: "Services",
     href: "/admin/services",
+    requiredPermission: AdminPermission.SERVICES_MANAGE,
   },
   {
     icon: ShoppingBag01Icon,
     label: "Purchases",
     href: "/admin/purchases",
+    requiredPermission: AdminPermission.ORDERS_VIEW,
   },
   {
     icon: StarIcon,
     label: "Reviews",
     href: "/admin/reviews",
+    requiredPermission: AdminPermission.REVIEWS_MANAGE,
   },
   {
     icon: Ticket01Icon,
     label: "Vouchers",
     href: "/admin/vouchers",
+    requiredPermission: AdminPermission.VOUCHERS_MANAGE,
   },
   {
     icon: UserGroupIcon,
     label: "Users",
     href: "/admin/users",
+    requiredPermission: AdminPermission.USERS_MANAGE,
   },
 ];
 
@@ -73,8 +80,9 @@ export function AdminSidebar({
 }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout, user } = useAuth();
+  const { hasPermission, logout, user } = useAuth();
   const [isMounted, setIsMounted] = useState(false);
+  const visibleNavItems = navItems.filter((item) => hasPermission(item.requiredPermission));
 
   useEffect(() => {
     const timer = setTimeout(() => setIsMounted(true), 100);
@@ -130,7 +138,7 @@ export function AdminSidebar({
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item, index) => {
+              {visibleNavItems.map((item, index) => {
                 const isActive = pathname === item.href;
                 return (
                   <SidebarMenuItem 
@@ -162,14 +170,16 @@ export function AdminSidebar({
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild className="h-9 text-sm">
-                  <Link href="/admin/settings">
-                    <HugeiconsIcon icon={Settings02Icon} size={16} />
-                    <span>Settings</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {hasPermission(AdminPermission.SETTINGS_MANAGE_SENSITIVE) && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild className="h-9 text-sm">
+                    <Link href="/admin/settings">
+                      <HugeiconsIcon icon={Settings02Icon} size={16} />
+                      <span>Settings</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               <SidebarMenuItem>
                 <SidebarMenuButton asChild className="h-9 text-sm">
                   <Link href="/admin/help">

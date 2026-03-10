@@ -321,7 +321,7 @@ export async function generateVoucherPDF(data: VoucherPDFData): Promise<Blob> {
       } else if (fontFamily === "serif") {
         doc.setFont("times", style);
       }
-    } catch (e) {
+    } catch {
       // Ultimate fallback
       doc.setFont("helvetica", "normal");
     }
@@ -353,7 +353,7 @@ export async function generateVoucherPDF(data: VoucherPDFData): Promise<Blob> {
     if (logo) {
       doc.addImage(logo, "PNG", 116, 62, 266, 236);
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
 

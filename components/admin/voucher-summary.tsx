@@ -27,10 +27,16 @@ interface Review {
 interface VoucherSummaryProps {
   stats: VoucherStats;
   reviews?: Review[];
+  showReviews?: boolean;
   animationDelay?: number;
 }
 
-export function VoucherSummary({ stats, reviews = [], animationDelay = 0 }: VoucherSummaryProps) {
+export function VoucherSummary({
+  stats,
+  reviews = [],
+  showReviews = true,
+  animationDelay = 0,
+}: VoucherSummaryProps) {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -78,50 +84,52 @@ export function VoucherSummary({ stats, reviews = [], animationDelay = 0 }: Vouc
       </div>
 
       {/* Recent Reviews */}
-      <div 
-        className={cn(
-          "rounded-xl border border-border bg-card p-5",
-          isMounted ? "animate-scale-in" : "opacity-0"
-        )}
-        style={{ animationDelay: `${animationDelay + 100}ms` }}
-      >
-        <h3 className="font-medium text-foreground mb-4 flex items-center gap-2">
-          <HugeiconsIcon icon={StarIcon} className="size-4 text-primary" />
-          Recent Reviews
-        </h3>
-        {reviews.length > 0 ? (
-          <div className="space-y-3">
-            {reviews.slice(0, 3).map((review) => (
-              <div
-                key={review.id}
-                className="text-sm border-l-2 border-border pl-3"
-              >
-                <div className="flex items-center gap-1 mb-1">
-                  {[...Array(5)].map((_, i) => (
-                    <HugeiconsIcon
-                      key={i}
-                      icon={StarIcon}
-                      className={`size-3 ${
-                        i < review.rating
-                          ? "text-warning fill-warning"
-                          : "text-muted-foreground"
-                      }`}
-                    />
-                  ))}
+      {showReviews && (
+        <div 
+          className={cn(
+            "rounded-xl border border-border bg-card p-5",
+            isMounted ? "animate-scale-in" : "opacity-0"
+          )}
+          style={{ animationDelay: `${animationDelay + 100}ms` }}
+        >
+          <h3 className="font-medium text-foreground mb-4 flex items-center gap-2">
+            <HugeiconsIcon icon={StarIcon} className="size-4 text-primary" />
+            Recent Reviews
+          </h3>
+          {reviews.length > 0 ? (
+            <div className="space-y-3">
+              {reviews.slice(0, 3).map((review) => (
+                <div
+                  key={review.id}
+                  className="text-sm border-l-2 border-border pl-3"
+                >
+                  <div className="flex items-center gap-1 mb-1">
+                    {[...Array(5)].map((_, i) => (
+                      <HugeiconsIcon
+                        key={i}
+                        icon={StarIcon}
+                        className={`size-3 ${
+                          i < review.rating
+                            ? "text-warning fill-warning"
+                            : "text-muted-foreground"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-muted-foreground line-clamp-1">
+                    {review.comment || "No comment"}
+                  </p>
+                  <p className="text-muted-foreground text-xs mt-1">
+                    {review.customerName}
+                  </p>
                 </div>
-                <p className="text-muted-foreground line-clamp-1">
-                  {review.comment || "No comment"}
-                </p>
-                <p className="text-muted-foreground text-xs mt-1">
-                  {review.customerName}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-muted-foreground text-sm">No reviews yet</p>
-        )}
-      </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-sm">No reviews yet</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

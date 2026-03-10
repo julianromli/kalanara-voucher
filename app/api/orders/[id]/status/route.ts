@@ -9,7 +9,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { AdminPermission } from "@/lib/auth/admin-rbac";
+import {
+  isAdminPermissionError,
+  requireAdminPermission,
+} from "@/lib/auth/admin-rbac-server";
 import { updateOrderStatus } from "@/lib/actions/orders";
 import type { PaymentStatus } from "@/lib/database.types";
 
@@ -32,30 +36,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Check admin authentication
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    // Verify user is an admin
-    const { data: admin, error: adminError } = await supabase
-      .from("admins")
-      .select("id, role")
-      .eq("id", user.id)
-      .single();
-
-    if (adminError || !admin) {
-      return NextResponse.json(
-        { success: false, error: "Forbidden - Admin access required" },
-        { status: 403 }
-      );
-    }
+    const access = await requireAdminPermission(
+      AdminPermission.ORDERS_UPDATE_PAYMENT_STATUS
+    );
 
     // Parse and validate request body
     let body: { status?: string };
@@ -90,13 +73,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    console.log(`[Order Status] Admin ${user.email} updated order ${orderId} to ${status}`);
+    console.log(
+      `[Order Status] Admin ${access.email} (${access.role}) updated order ${orderId} to ${status}`
+    );
 
     return NextResponse.json({
       success: true,
       data: { orderId, status }
     });
   } catch (error) {
+    if (isAdminPermissionError(error)) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 403 }
+      );
+    }
+
     console.error("[Order Status API] Unexpected error:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },

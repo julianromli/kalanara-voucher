@@ -1,5 +1,7 @@
 "use server";
 
+import { AdminPermission } from "@/lib/auth/admin-rbac";
+import { requireAdminPermission } from "@/lib/auth/admin-rbac-server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import {
   getServiceImageBucket,
@@ -8,6 +10,8 @@ import {
 } from "@/lib/utils/serviceImages";
 
 export async function deleteServiceImageByUrl(imageUrl: string | null | undefined) {
+  await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
+
   if (!isSupabaseServiceImageUrl(imageUrl)) {
     return { success: true };
   }

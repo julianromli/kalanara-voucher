@@ -1,7 +1,11 @@
 "use server";
 
 import crypto from "crypto";
-import { createClient } from "@/lib/supabase/server";
+import { AdminPermission } from "@/lib/auth/admin-rbac";
+import {
+  logAdminAudit,
+  requireAdminPermission,
+} from "@/lib/auth/admin-rbac-server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { revalidateTag } from "next/cache";
 import type {
@@ -29,7 +33,9 @@ function generateVoucherCode(): string {
 }
 
 export async function getVouchers(): Promise<VoucherWithService[]> {
-  const supabase = await createClient();
+  await requireAdminPermission(AdminPermission.VOUCHERS_MANAGE);
+
+  const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("vouchers")
     .select(`*, services(*)`)
@@ -176,6 +182,8 @@ export async function createVoucher(
 export async function redeemVoucher(
   code: string
 ): Promise<{ success: boolean; message: string }> {
+  const access = await requireAdminPermission(AdminPermission.VOUCHERS_MANAGE);
+
   const supabase = getAdminClient();
 
   // First, get the voucher
@@ -214,6 +222,12 @@ export async function redeemVoucher(
     return { success: false, message: "Failed to redeem voucher." };
   }
 
+  logAdminAudit(access, {
+    action: "voucher.redeem",
+    target: voucher.id,
+    details: { code: voucher.code },
+  });
+
   revalidateTag("dashboard-stats", "max");
   return { success: true, message: `Voucher ${code} redeemed successfully!` };
 }
@@ -222,6 +236,8 @@ export async function extendVoucher(
   id: string,
   days: number
 ): Promise<boolean> {
+  const access = await requireAdminPermission(AdminPermission.VOUCHERS_MANAGE);
+
   const supabase = getAdminClient();
 
   const { data: voucher, error: fetchError } = await supabase
@@ -240,11 +256,20 @@ export async function extendVoucher(
     .update({ expiry_date: currentExpiry.toISOString() })
     .eq("id", id);
 
-  if (!error) revalidateTag("dashboard-stats", "max");
+  if (!error) {
+    logAdminAudit(access, {
+      action: "voucher.extend",
+      target: id,
+      details: { days },
+    });
+    revalidateTag("dashboard-stats", "max");
+  }
   return !error;
 }
 
 export async function voidVoucher(id: string): Promise<boolean> {
+  const access = await requireAdminPermission(AdminPermission.VOUCHERS_MANAGE);
+
   const supabase = getAdminClient();
 
   // Set expiry to past date to void it
@@ -253,6 +278,12 @@ export async function voidVoucher(id: string): Promise<boolean> {
     .update({ expiry_date: new Date("2000-01-01").toISOString() })
     .eq("id", id);
 
-  if (!error) revalidateTag("dashboard-stats", "max");
+  if (!error) {
+    logAdminAudit(access, {
+      action: "voucher.void",
+      target: id,
+    });
+    revalidateTag("dashboard-stats", "max");
+  }
   return !error;
 }

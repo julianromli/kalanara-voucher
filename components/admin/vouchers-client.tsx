@@ -365,7 +365,6 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                     const isOptimistic = optimisticIds.has(voucher.id);
                     const status = getVoucherStatus(voucher);
                     const config = STATUS_CONFIG[status];
-                    const StatusIcon = config.icon;
 
                     return (
                       <tr

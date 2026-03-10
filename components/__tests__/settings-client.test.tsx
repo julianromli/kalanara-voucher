@@ -11,13 +11,6 @@
 
 describe('SettingsClient', () => {
   test.skip('should render settings form sections - requires SidebarProvider setup', () => {
-    const mockSettings = {
-      businessHours: { start: '09:00', end: '18:00' },
-      emailTemplates: { confirmation: 'Template' },
-      voucherExpiration: 30,
-      paymentMethods: ['BANK_TRANSFER', 'E_WALLET']
-    };
-
     // Test requires SidebarProvider wrapper
     // render(<SettingsClient initialSettings={mockSettings} />);
     expect(true).toBe(true);

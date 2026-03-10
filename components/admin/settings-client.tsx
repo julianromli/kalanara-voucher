@@ -41,9 +41,9 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
     
     try {
       // TODO: Implement actual settings save to backend
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
       showToast("Settings saved successfully", "success");
-    } catch (error) {
+    } catch {
       showToast("Failed to save settings", "error");
     } finally {
       setIsSaving(false);

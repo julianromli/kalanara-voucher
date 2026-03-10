@@ -14,13 +14,10 @@ import type {
   Order as FrontendOrder,
   Review as FrontendReview,
 } from '@/lib/types';
-import { ServiceCategory, PaymentMethod, PaymentStatus } from '@/lib/types';
+import { ServiceCategory } from '@/lib/types';
 import type {
   Service as DBService,
-  Voucher as DBVoucher,
   Review as DBReview,
-  VoucherWithService,
-  OrderWithVoucher,
 } from '@/lib/database.types';
 
 // Server actions
@@ -83,43 +80,6 @@ function adaptDBServiceToFrontend(dbService: DBService): FrontendService {
     price: dbService.price,
     category: dbService.category as ServiceCategory,
     image: dbService.image_url ?? '/images/services/placeholder.jpg',
-  };
-}
-
-/**
- * Converts a database VoucherWithService to a frontend Voucher
- */
-function adaptDBVoucherToFrontend(dbVoucher: VoucherWithService): FrontendVoucher {
-  return {
-    id: dbVoucher.id,
-    code: dbVoucher.code,
-    service: adaptDBServiceToFrontend(dbVoucher.services),
-    recipientName: dbVoucher.recipient_name,
-    recipientEmail: dbVoucher.recipient_email,
-    senderName: dbVoucher.sender_name,
-    senderMessage: dbVoucher.sender_message ?? '',
-    purchaseDate: new Date(dbVoucher.purchase_date),
-    expiryDate: new Date(dbVoucher.expiry_date),
-    isRedeemed: dbVoucher.is_redeemed,
-    redeemedDate: dbVoucher.redeemed_at ? new Date(dbVoucher.redeemed_at) : undefined,
-    amount: dbVoucher.amount,
-  };
-}
-
-/**
- * Converts a database OrderWithVoucher to a frontend Order
- */
-function adaptDBOrderToFrontend(dbOrder: OrderWithVoucher): FrontendOrder {
-  return {
-    id: dbOrder.id,
-    voucher: dbOrder.vouchers ? adaptDBVoucherToFrontend(dbOrder.vouchers) : null as unknown as FrontendVoucher,
-    customerEmail: dbOrder.customer_email,
-    customerName: dbOrder.customer_name,
-    customerPhone: dbOrder.customer_phone,
-    paymentMethod: dbOrder.payment_method as PaymentMethod,
-    paymentStatus: dbOrder.payment_status as PaymentStatus,
-    createdAt: new Date(dbOrder.created_at),
-    totalAmount: dbOrder.total_amount,
   };
 }
 

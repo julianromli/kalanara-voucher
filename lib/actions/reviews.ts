@@ -1,5 +1,10 @@
 "use server";
 
+import { AdminPermission } from "@/lib/auth/admin-rbac";
+import {
+  logAdminAudit,
+  requireAdminPermission,
+} from "@/lib/auth/admin-rbac-server";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { Review, ReviewInsert } from "@/lib/database.types";
@@ -35,6 +40,23 @@ export async function getReviewsByRating(minRating: number): Promise<Review[]> {
   return (data as Review[]) || [];
 }
 
+export async function getAdminReviews(): Promise<Review[]> {
+  await requireAdminPermission(AdminPermission.REVIEWS_MANAGE);
+
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching admin reviews:", error);
+    return [];
+  }
+
+  return (data as Review[]) || [];
+}
+
 export async function createReview(review: ReviewInsert): Promise<Review | null> {
   const supabase = getAdminClient();
   const { data, error } = await supabase
@@ -52,11 +74,20 @@ export async function createReview(review: ReviewInsert): Promise<Review | null>
 }
 
 export async function deleteReview(id: string): Promise<boolean> {
+  const access = await requireAdminPermission(AdminPermission.REVIEWS_MANAGE);
+
   const supabase = getAdminClient();
   const { error } = await supabase
     .from("reviews")
     .delete()
     .eq("id", id);
+
+  if (!error) {
+    logAdminAudit(access, {
+      action: "review.delete",
+      target: id,
+    });
+  }
 
   return !error;
 }

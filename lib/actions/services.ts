@@ -1,5 +1,10 @@
 "use server";
 
+import { AdminPermission } from "@/lib/auth/admin-rbac";
+import {
+  logAdminAudit,
+  requireAdminPermission,
+} from "@/lib/auth/admin-rbac-server";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { revalidateTag } from "next/cache";
@@ -22,6 +27,8 @@ export async function getServices(): Promise<Service[]> {
 }
 
 export async function getAllServices(): Promise<Service[]> {
+  await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("services")
@@ -69,6 +76,8 @@ export async function getActiveServicesForScalevSync(): Promise<Service[]> {
 }
 
 export async function createService(service: ServiceInsert): Promise<Service | null> {
+  const access = await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
+
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("services")
@@ -81,6 +90,12 @@ export async function createService(service: ServiceInsert): Promise<Service | n
     return null;
   }
 
+  logAdminAudit(access, {
+    action: "service.create",
+    target: data.id,
+    details: { name: data.name },
+  });
+
   revalidateTag("dashboard-stats", "max");
   return data;
 }
@@ -89,6 +104,8 @@ export async function updateService(
   id: string,
   updates: ServiceUpdate
 ): Promise<Service | null> {
+  const access = await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
+
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("services")
@@ -101,6 +118,12 @@ export async function updateService(
     console.error("Error updating service:", error);
     return null;
   }
+
+  logAdminAudit(access, {
+    action: "service.update",
+    target: data.id,
+    details: { name: data.name },
+  });
 
   revalidateTag("dashboard-stats", "max");
   return data;
@@ -117,6 +140,8 @@ export async function updateServiceScalevMapping(
     | "scalev_last_synced_at"
   >
 ): Promise<Service | null> {
+  await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
+
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("services")
@@ -134,6 +159,8 @@ export async function updateServiceScalevMapping(
 }
 
 export async function deleteService(id: string): Promise<boolean> {
+  const access = await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
+
   const supabase = getAdminClient();
   // Soft delete by setting is_active to false
   const { error } = await supabase
@@ -145,6 +172,11 @@ export async function deleteService(id: string): Promise<boolean> {
     console.error("Error deleting service:", error);
     return false;
   }
+
+  logAdminAudit(access, {
+    action: "service.deactivate",
+    target: id,
+  });
 
   revalidateTag("dashboard-stats", "max");
   return true;

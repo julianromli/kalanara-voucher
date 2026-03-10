@@ -38,6 +38,8 @@ export function DashboardClient({ stats }: DashboardClientProps) {
   }
 
   const {
+    canManageReviews,
+    canViewBusinessMetrics,
     totalRevenue,
     activeVouchers,
     redeemedVouchers,
@@ -65,77 +67,120 @@ export function DashboardClient({ stats }: DashboardClientProps) {
         <div className="mx-auto w-full space-y-6">
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              title="Total Revenue"
-              value={formatCurrency(totalRevenue)}
-              icon="revenue"
-              badge="All Time"
-              animationDelay={0}
-            />
+            {canViewBusinessMetrics ? (
+              <StatCard
+                title="Total Revenue"
+                value={formatCurrency(totalRevenue)}
+                icon="revenue"
+                badge="All Time"
+                animationDelay={0}
+              />
+            ) : null}
             <StatCard
               title="Active Vouchers"
               value={activeVouchers}
               icon="active"
-              badge="Current"
-              animationDelay={75}
+              badge={canViewBusinessMetrics ? "Current" : "Operational"}
+              animationDelay={canViewBusinessMetrics ? 75 : 0}
             />
             <StatCard
               title="Total Orders"
               value={totalOrders}
               icon="orders"
-              badge="All Time"
-              animationDelay={150}
+              badge={canViewBusinessMetrics ? "All Time" : "Read Only"}
+              animationDelay={canViewBusinessMetrics ? 150 : 75}
             />
-            <StatCard
-              title="Avg. Rating"
-              value={`${avgRating || "N/A"} / 5`}
-              icon="rating"
-              badge="Reviews"
-              animationDelay={225}
-            />
-          </div>
-
-          {/* Charts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <ChartCard data={revenueData} animationDelay={300} />
-            <RecentOrders orders={recentOrders} animationDelay={375} />
-          </div>
-
-          {/* Bottom Row */}
-          <div className={cn(
-            "grid grid-cols-1 lg:grid-cols-3 gap-6",
-            isMounted ? "animate-fade-slide-up" : "opacity-0"
-          )} style={{ animationDelay: "450ms" }}>
-            <div className="lg:col-span-2">
-              {/* Quick Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <StatCard
-                  title="Services"
-                  value={totalServices}
-                  icon="services"
-                  animationDelay={500}
-                />
+            {canViewBusinessMetrics ? (
+              <StatCard
+                title="Avg. Rating"
+                value={`${avgRating || "N/A"} / 5`}
+                icon="rating"
+                badge="Reviews"
+                animationDelay={225}
+              />
+            ) : (
+              <>
                 <StatCard
                   title="Total Vouchers"
                   value={totalVouchers}
                   icon="vouchers"
-                  animationDelay={575}
+                  badge="All Time"
+                  animationDelay={150}
                 />
                 <StatCard
                   title="Redeemed"
                   value={redeemedVouchers}
                   icon="redeemed"
-                  animationDelay={650}
+                  badge="All Time"
+                  animationDelay={225}
+                />
+              </>
+            )}
+          </div>
+
+          {/* Charts Row */}
+          <div className={cn(
+            "grid grid-cols-1 gap-6",
+            canViewBusinessMetrics ? "lg:grid-cols-2" : ""
+          )}>
+            {canViewBusinessMetrics ? (
+              <ChartCard data={revenueData} animationDelay={300} />
+            ) : null}
+            <RecentOrders orders={recentOrders} animationDelay={375} />
+          </div>
+
+          {/* Bottom Row */}
+          <div className={cn(
+            "grid grid-cols-1 gap-6",
+            canViewBusinessMetrics ? "lg:grid-cols-3" : "lg:grid-cols-2",
+            isMounted ? "animate-fade-slide-up" : "opacity-0"
+          )} style={{ animationDelay: "450ms" }}>
+            <div className={canViewBusinessMetrics ? "lg:col-span-2" : undefined}>
+              {/* Quick Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {canViewBusinessMetrics ? (
+                  <StatCard
+                    title="Services"
+                    value={totalServices}
+                    icon="services"
+                    animationDelay={500}
+                  />
+                ) : null}
+                <StatCard
+                  title="Total Vouchers"
+                  value={totalVouchers}
+                  icon="vouchers"
+                  animationDelay={canViewBusinessMetrics ? 575 : 500}
                 />
                 <StatCard
-                  title="Reviews"
-                  value={totalReviews}
-                  icon="rating"
-                  animationDelay={725}
+                  title="Redeemed"
+                  value={redeemedVouchers}
+                  icon="redeemed"
+                  animationDelay={canViewBusinessMetrics ? 650 : 575}
                 />
+                {canViewBusinessMetrics ? (
+                  <StatCard
+                    title="Reviews"
+                    value={totalReviews}
+                    icon="rating"
+                    animationDelay={725}
+                  />
+                ) : (
+                  <StatCard
+                    title="Expired"
+                    value={expiredVouchers}
+                    icon="expired"
+                    animationDelay={650}
+                  />
+                )}
               </div>
             </div>
-            <VoucherSummary stats={voucherStats} reviews={recentReviews} animationDelay={500} />
+            <VoucherSummary
+              stats={voucherStats}
+              reviews={recentReviews}
+              showReviews={canManageReviews}
+              animationDelay={500}
+            />
           </div>
         </div>
       </div>
