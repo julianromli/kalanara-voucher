@@ -25,13 +25,13 @@
   },
   "include": [
     "next-env.d.ts",
+    ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx",
     "**/*.mts"
   ],
   "exclude": [
     "node_modules",
-    ".next",
     "docs",
     "orchestrator",
     "droids",

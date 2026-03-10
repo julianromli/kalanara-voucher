@@ -13,17 +13,26 @@ export default async function ReviewPage({ params }: PageProps) {
   return (
     <ReviewPageClient
       voucher={voucher}
-      submitReview={async ({ voucherId, rating, comment, customerName }) => {
+      submitReview={async ({ rating, comment, customerName }) => {
         "use server";
 
+        const serverVoucher = await getPublicVoucherLookupByCode(id);
+        if (!serverVoucher) {
+          return { success: false, error: "Voucher tidak ditemukan." };
+        }
+
         const review = await createReview({
-          voucher_id: voucherId,
+          voucher_id: serverVoucher.id,
           rating,
           comment: comment || null,
           customer_name: customerName,
         });
 
-        return { success: Boolean(review) };
+        if (!review) {
+          return { success: false, error: "Gagal mengirim review. Silakan coba lagi." };
+        }
+
+        return { success: true };
       }}
     />
   );

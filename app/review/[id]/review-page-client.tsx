@@ -12,11 +12,10 @@ import type { PublicVoucherLookup } from "@/lib/types";
 interface ReviewPageClientProps {
   voucher: PublicVoucherLookup | null;
   submitReview: (input: {
-    voucherId: string;
     rating: number;
     comment: string;
     customerName: string;
-  }) => Promise<{ success: boolean }>;
+  }) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function ReviewPageClient({
@@ -46,20 +45,27 @@ export function ReviewPageClient({
     }
 
     startTransition(async () => {
-      const result = await submitReview({
-        voucherId: voucher.id,
-        rating,
-        comment,
-        customerName: customerName || "Anonymous Guest",
-      });
+      try {
+        const result = await submitReview({
+          rating,
+          comment,
+          customerName: customerName || "Anonymous Guest",
+        });
 
-      if (!result.success) {
+        if (!result.success) {
+          showToast(
+            result.error || "Gagal mengirim review. Silakan coba lagi.",
+            "error"
+          );
+          return;
+        }
+
+        setIsSuccess(true);
+        showToast("Terima kasih atas review Anda!", "success");
+      } catch (error) {
+        console.error("Failed to submit review:", error);
         showToast("Gagal mengirim review. Silakan coba lagi.", "error");
-        return;
       }
-
-      setIsSuccess(true);
-      showToast("Terima kasih atas review Anda!", "success");
     });
   };
 
@@ -136,6 +142,8 @@ export function ReviewPageClient({
                 <button
                   key={star}
                   type="button"
+                  aria-label={`Beri rating ${star} bintang`}
+                  aria-pressed={rating === star}
                   onClick={() => setRating(star)}
                   onMouseEnter={() => setHoverRating(star)}
                   onMouseLeave={() => setHoverRating(0)}

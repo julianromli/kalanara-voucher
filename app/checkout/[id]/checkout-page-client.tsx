@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { type SubmitErrorHandler, useForm } from "react-hook-form";
 import {
   ChevronLeft,
   CreditCard,
@@ -174,12 +174,6 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
   }, [paymentMethod, selectedPaymentOption, subPaymentMethod]);
 
   const onSubmit = async (data: CheckoutForm) => {
-    const errorFields = Object.keys(errors);
-    if (errorFields.length > 0) {
-      setFocus(errorFields[0] as keyof CheckoutForm);
-      return;
-    }
-
     if (!paymentMethod) {
       showToast("Pilih metode pembayaran terlebih dahulu.", "error");
       return;
@@ -259,6 +253,13 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
     }
   };
 
+  const onInvalid: SubmitErrorHandler<CheckoutForm> = (submitErrors) => {
+    const firstField = Object.keys(submitErrors)[0] as keyof CheckoutForm | undefined;
+    if (firstField) {
+      setFocus(firstField);
+    }
+  };
+
   if (!paymentConfig) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -294,7 +295,7 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
         </h1>
 
         <form
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={handleSubmit(onSubmit, onInvalid)}
           className="mt-8 space-y-8"
           aria-label="Form checkout voucher"
         >
