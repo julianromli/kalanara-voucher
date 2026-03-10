@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -100,6 +100,15 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
+  const searchInputId = useId();
+  const categoryFilterId = useId();
+  const serviceNameId = useId();
+  const serviceDescriptionId = useId();
+  const serviceDurationId = useId();
+  const servicePriceId = useId();
+  const serviceCategoryId = useId();
+  const serviceImageId = useId();
+  const uploadErrorId = useId();
 
   const [services, setServices] = useState<Service[]>(initialServices);
   const [searchQuery, setSearchQuery] = useState("");
@@ -458,19 +467,27 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
   const isBusy = isSaving || uploadStatus === "uploading";
 
   return (
-    <>
+    <main aria-labelledby="services-page-title" className="contents">
       <DashboardHeader title="Service Management" showActions={false} />
-      <div className="w-full h-full overflow-y-auto overflow-x-hidden p-4 md:p-6">
+      <div className="h-full w-full overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-4 md:px-6">
         <div
           className={cn(
-            "mb-6 flex items-center justify-between",
+            "mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
             isMounted ? "animate-fade-slide-down" : "opacity-0"
           )}
         >
-          <p className="text-sm text-muted-foreground">
-            Manage spa services, pricing, and availability
-          </p>
-          <Button onClick={handleOpenCreate} size="sm" className="btn-hover-lift">
+          <div className="min-w-0">
+            <h2 id="services-page-title" className="text-lg font-semibold text-foreground sm:text-xl">
+              Kelola layanan spa
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Manage spa services, pricing, and availability
+            </p>
+          </div>
+          <Button
+            onClick={handleOpenCreate}
+            className="btn-hover-lift min-h-11 w-full sm:w-auto"
+          >
             <HugeiconsIcon icon={PlusSignIcon} size={16} className="mr-2" />
             Add Service
           </Button>
@@ -478,49 +495,79 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
 
         <div
           className={cn(
-            "mb-6 rounded-2xl border border-border bg-card p-4 shadow-spa",
+            "mb-6 rounded-2xl border border-border bg-card p-4 shadow-spa sm:p-5",
             isMounted ? "animate-fade-slide-up" : "opacity-0"
           )}
           style={{ animationDelay: "100ms" }}
         >
-          <div className="flex flex-col gap-4 md:flex-row">
-            <div className="relative flex-1">
+          <form
+            role="search"
+            aria-label="Filter services"
+            className="flex flex-col gap-4 lg:flex-row lg:items-end"
+            onSubmit={(event) => event.preventDefault()}
+          >
+            <div className="flex-1 space-y-2">
+              <label htmlFor={searchInputId} className="text-sm font-medium text-foreground">
+                Search services
+              </label>
+              <div className="relative flex-1">
               <HugeiconsIcon
                 icon={Search01Icon}
                 size={18}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               />
               <Input
+                id={searchInputId}
                 placeholder="Search services..."
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                className="pl-10"
+                aria-describedby="services-results-status"
+                className="h-11 pl-10"
               />
             </div>
-            <Select
-              value={categoryFilter}
-              onValueChange={(value) => setCategoryFilter(value as ServiceCategory | "ALL")}
-            >
-              <SelectTrigger className="w-full md:w-[200px]">
+            </div>
+
+            <div className="space-y-2 lg:w-[240px]">
+              <label htmlFor={categoryFilterId} className="text-sm font-medium text-foreground">
+                Category
+              </label>
+              <Select
+                value={categoryFilter}
+                onValueChange={(value) => setCategoryFilter(value as ServiceCategory | "ALL")}
+              >
+                <SelectTrigger id={categoryFilterId} aria-label="Filter by category" className="min-h-11 w-full">
                 <HugeiconsIcon icon={FilterIcon} size={16} className="mr-2" />
                 <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Categories</SelectItem>
-                {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Categories</SelectItem>
+                  {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <p
+              id="services-results-status"
+              className="text-sm text-muted-foreground lg:min-w-[180px] lg:text-right"
+              aria-live="polite"
+            >
+              {filteredServices.length} service{filteredServices.length === 1 ? "" : "s"} shown
+            </p>
+          </form>
         </div>
 
         {filteredServices.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-card p-12 text-center shadow-spa">
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-2xl border border-border bg-card px-6 py-10 text-center shadow-spa sm:px-8 sm:py-12"
+          >
             <HugeiconsIcon icon={Tag01Icon} size={48} className="mx-auto mb-4 text-muted-foreground" />
-            <h3 className="mb-2 text-lg font-medium text-muted-foreground">
+            <h3 className="mb-2 text-lg font-medium text-foreground">
               No services found
             </h3>
             <p className="mb-6 text-muted-foreground">
@@ -529,28 +576,30 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
                 : "Create your first service to get started"}
             </p>
             {!searchQuery && categoryFilter === "ALL" && (
-              <Button onClick={handleOpenCreate} className="bg-primary hover:bg-primary/90">
+              <Button onClick={handleOpenCreate} className="min-h-11 bg-primary hover:bg-primary/90">
                 <HugeiconsIcon icon={PlusSignIcon} size={18} className="mr-2" />
                 Create Service
               </Button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <section aria-label="Services list" aria-busy={isBusy}>
+            <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
             {filteredServices.map((service, index) => {
               const isOptimistic = optimisticIds.has(service.id);
               return (
-                <div
+                <article
                   key={service.id}
                   className={cn(
-                    "card-hover-lift overflow-hidden rounded-2xl border border-border bg-card shadow-spa transition-all hover:shadow-spa-lg",
+                    "card-hover-lift overflow-hidden rounded-2xl border border-border bg-card shadow-spa transition-all duration-200 hover:shadow-spa-lg focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
                     !service.is_active && "opacity-60",
                     isOptimistic && "opacity-70 saturate-50",
                     isMounted ? "animate-fade-slide-up" : "opacity-0"
                   )}
                   style={{ animationDelay: `${200 + index * 75}ms` }}
+                  aria-labelledby={`service-name-${service.id}`}
                 >
-                  <div className="relative h-40">
+                  <div className="relative h-44 sm:h-40">
                     <Image
                       src={service.image_url || FALLBACK_SERVICE_IMAGE}
                       alt={service.name}
@@ -558,9 +607,12 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       className="object-cover"
                     />
-                    <div className="absolute right-3 top-3 flex gap-2">
+                    <div className="absolute right-3 top-3 flex flex-wrap justify-end gap-2">
                       {isOptimistic && (
-                        <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">
+                        <span
+                          className="flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground"
+                          aria-live="polite"
+                        >
                           <HugeiconsIcon icon={Loading03Icon} size={12} className="animate-spin" />
                           Syncing
                         </span>
@@ -577,21 +629,21 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
                       </span>
                     </div>
                     <div className="absolute bottom-3 left-3">
-                      <span className="rounded-full bg-card/90 px-2 py-1 text-xs text-muted-foreground backdrop-blur">
+                      <span className="rounded-full bg-card/95 px-2 py-1 text-xs font-medium text-foreground backdrop-blur">
                         {CATEGORY_LABELS[service.category]}
                       </span>
                     </div>
                   </div>
 
-                  <div className="p-5">
-                    <h3 className="mb-1 font-sans text-xl font-semibold text-foreground">
+                  <div className="p-4 sm:p-5">
+                    <h3 id={`service-name-${service.id}`} className="mb-1 font-sans text-lg font-semibold text-foreground sm:text-xl">
                       {service.name}
                     </h3>
-                    <p className="mb-4 min-h-[40px] line-clamp-2 text-sm text-muted-foreground">
+                    <p className="mb-4 min-h-[40px] line-clamp-3 text-sm leading-6 text-muted-foreground">
                       {service.description || "No description"}
                     </p>
 
-                    <div className="mb-4 flex items-center justify-between">
+                    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <HugeiconsIcon icon={Clock01Icon} size={16} />
                         <span className="text-sm">{service.duration} mins</span>
@@ -601,22 +653,22 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
                       </span>
                     </div>
 
-                    <div className="flex gap-2 border-t border-border pt-4">
+                    <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row">
                       <Button
-                        size="sm"
                         onClick={() => handleOpenEdit(service)}
                         disabled={isOptimistic}
-                        className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                        className="min-h-11 flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                        aria-label={`Edit ${service.name}`}
                       >
                         <HugeiconsIcon icon={PencilEdit01Icon} size={14} className="mr-1" />
                         Edit
                       </Button>
                       <Button
                         variant="outline"
-                        size="sm"
                         onClick={() => handleDelete(service.id)}
                         disabled={isDeleting === service.id || isOptimistic}
-                        className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        className="min-h-11 w-full border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto sm:min-w-11"
+                        aria-label={`Delete ${service.name}`}
                       >
                         {isDeleting === service.id ? (
                           <HugeiconsIcon icon={Loading03Icon} size={14} className="animate-spin" />
@@ -626,15 +678,16 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
                       </Button>
                     </div>
                   </div>
-                </div>
+                </article>
               );
             })}
-          </div>
+            </div>
+          </section>
         )}
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-sans text-xl font-semibold">
               {isEditing ? "Edit Service" : "Create New Service"}
@@ -643,39 +696,47 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
 
           <div className="space-y-5 py-4">
             <div>
-              <label className="mb-1.5 block text-sm text-muted-foreground">
+              <label htmlFor={serviceNameId} className="mb-1.5 block text-sm font-medium text-foreground">
                 Service Name *
               </label>
               <Input
+                id={serviceNameId}
                 value={formData.name}
                 onChange={(event) =>
                   setFormData((prev) => ({ ...prev, name: event.target.value }))
                 }
                 placeholder="e.g., Balinese Massage"
+                className="min-h-11"
+                aria-required="true"
               />
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm text-muted-foreground">
+              <label
+                htmlFor={serviceDescriptionId}
+                className="mb-1.5 block text-sm font-medium text-foreground"
+              >
                 Description
               </label>
               <textarea
+                id={serviceDescriptionId}
                 value={formData.description}
                 onChange={(event) =>
                   setFormData((prev) => ({ ...prev, description: event.target.value }))
                 }
                 placeholder="Describe the service..."
                 rows={3}
-                className="w-full resize-none rounded-lg border border-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm leading-6 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-sm text-muted-foreground">
+                <label htmlFor={serviceDurationId} className="mb-1.5 block text-sm font-medium text-foreground">
                   Duration (mins) *
                 </label>
                 <Input
+                  id={serviceDurationId}
                   type="number"
                   min={15}
                   step={15}
@@ -686,13 +747,16 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
                       duration: parseInt(event.target.value, 10) || 60,
                     }))
                   }
+                  className="min-h-11"
+                  aria-required="true"
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm text-muted-foreground">
+                <label htmlFor={servicePriceId} className="mb-1.5 block text-sm font-medium text-foreground">
                   Price (IDR) *
                 </label>
                 <Input
+                  id={servicePriceId}
                   type="number"
                   min={0}
                   step={50000}
@@ -703,12 +767,14 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
                       price: parseInt(event.target.value, 10) || 0,
                     }))
                   }
+                  className="min-h-11"
+                  aria-required="true"
                 />
               </div>
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm text-muted-foreground">
+              <label htmlFor={serviceCategoryId} className="mb-1.5 block text-sm font-medium text-foreground">
                 Category *
               </label>
               <Select
@@ -717,7 +783,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
                   setFormData((prev) => ({ ...prev, category: value as ServiceCategory }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger id={serviceCategoryId} className="min-h-11" aria-required="true">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -732,7 +798,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="block text-sm text-muted-foreground">
+                <label htmlFor={serviceImageId} className="block text-sm font-medium text-foreground">
                   Service Image
                 </label>
                 <span className="text-xs text-muted-foreground">
@@ -741,11 +807,14 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
               </div>
 
               <Input
+                id={serviceImageId}
                 key={fileInputKey}
                 type="file"
                 accept={getAllowedServiceImageTypes().join(",")}
                 onChange={handleSelectImage}
                 disabled={isBusy}
+                className="min-h-11"
+                aria-describedby={uploadError ? uploadErrorId : undefined}
               />
 
               <div className="overflow-hidden rounded-xl border border-dashed border-border bg-muted/20">
@@ -767,18 +836,19 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleRemoveImage}
                   disabled={isBusy || (!imagePreviewUrl && !originalImageUrl)}
+                  className="min-h-11 w-full sm:w-auto"
                 >
                   <HugeiconsIcon icon={ImageDelete01Icon} size={16} className="mr-2" />
                   Remove Image
                 </Button>
                 {uploadStatus === "uploading" && (
-                  <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
                     <HugeiconsIcon icon={Loading03Icon} size={14} className="animate-spin" />
                     Uploading image...
                   </span>
@@ -792,16 +862,19 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
               )}
 
               {uploadError && (
-                <p className="text-sm text-destructive">{uploadError}</p>
+                <p id={uploadErrorId} className="text-sm text-destructive" role="alert">
+                  {uploadError}
+                </p>
               )}
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 border-t border-border pt-4">
+          <div className="flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:justify-end">
             <Button
               variant="outline"
               onClick={() => setIsDialogOpen(false)}
               disabled={isBusy}
+              className="min-h-11 w-full sm:w-auto"
             >
               <HugeiconsIcon icon={Cancel01Icon} size={16} className="mr-1" />
               Cancel
@@ -809,7 +882,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
             <Button
               onClick={handleSave}
               disabled={isBusy}
-              className="bg-primary hover:bg-primary/90"
+              className="min-h-11 w-full bg-primary hover:bg-primary/90 sm:w-auto"
             >
               {isBusy ? (
                 <HugeiconsIcon icon={Loading03Icon} size={16} className="mr-1 animate-spin" />
@@ -821,6 +894,6 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </main>
   );
 }
