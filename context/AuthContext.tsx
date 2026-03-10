@@ -117,6 +117,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isAuthenticated = user?.role != null;
 
   // Initialize auth state on mount
   useEffect(() => {
@@ -238,7 +239,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const value: AuthContextType = {
     user,
-    isAuthenticated: user?.role !== null,
+    isAuthenticated,
     isLoading,
     hasPermission: (permission) => hasPermissionForRole(user?.role, permission),
     login,
