@@ -1,0 +1,16 @@
+$ next dev
+ ⚠ Port 3000 is in use by process 25288, using available port 3001 instead.
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+   ▲ Next.js 16.0.10 (Turbopack, Cache Components)
+   - Local:         http://localhost:3001
+   - Network:       http://192.168.101.12:3001
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · clientTraceMetadata
+
+ ✓ Starting...
+ ⨯ Unable to acquire lock at D:\Projects\Vibe Code\kalanaraspa\.next\dev\lock, is another instance of next dev running?
+   Suggestion: If you intended to restart next dev, terminate the other process, and then try again.
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[?25h
+error: script "dev" exited with code 1
