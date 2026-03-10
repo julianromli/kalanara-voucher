@@ -29,6 +29,7 @@ export const metadata: Metadata = {
   title: "Kalanara Spa Galaxy Bekasi | Voucher Spa Premium untuk Wanita",
   description:
     "Beli voucher spa premium di Kalanara Spa Galaxy, Bekasi. Hadiah spesial untuk diri sendiri atau orang tersayang. Terapis profesional, khusus wanita. Langsung dikirim via WhatsApp dan Email.",
+  themeColor: "#f6f1eb",
   keywords: [
     "voucher spa bekasi",
     "gift card spa",
@@ -90,13 +91,19 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${outfit.variable} ${playfair.variable} ${geistMono.variable} font-sans antialiased`}
       >
+        <a
+          href="#main-content"
+          className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-4 focus-visible:top-4 focus-visible:z-[60] focus-visible:rounded-md focus-visible:bg-background focus-visible:px-4 focus-visible:py-2 focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          Lewati ke konten utama
+        </a>
         <AuthProvider>
           <StoreProvider>
             <ToastProvider>
               <Suspense fallback={null}>
                 <Navbar />
               </Suspense>
-              <main>{children}</main>
+              <main id="main-content">{children}</main>
             </ToastProvider>
           </StoreProvider>
         </AuthProvider>

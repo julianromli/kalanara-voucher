@@ -92,10 +92,10 @@ const Footer13 = () => {
                   isInView ? "animate-fade-slide-up animate-stagger-3" : "opacity-0"
                 }`}
               >
-                <Button asChild size="lg" className="btn-hover-lift group bg-accent text-accent-foreground hover:bg-accent/90">
+                <Button asChild size="lg" className="btn-hover-lift group bg-accent text-accent-foreground hover:bg-accent/90 focus-visible:ring-accent-foreground/70 focus-visible:ring-offset-primary">
                   <Link href="/#services" className="flex items-center gap-2">
-                    Buy Voucher Sekarang
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    Beli Voucher Sekarang
+                    <ArrowRight aria-hidden="true" className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </Link>
                 </Button>
               </div>
@@ -118,18 +118,25 @@ const Footer13 = () => {
                   ke paket treatment baru.
                 </p>
               </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <form className="flex flex-col gap-3 sm:flex-row" onSubmit={(event) => event.preventDefault()}>
                 <div className="relative grow">
+                  <label htmlFor="newsletter-email" className="sr-only">
+                    Alamat Email
+                  </label>
                   <Input
+                    id="newsletter-email"
+                    name="email"
                     type="email"
-                    placeholder="Alamat email kamu"
+                    autoComplete="email"
+                    placeholder="contoh@kalanara.com…"
+                    spellCheck={false}
                     className="border-border bg-muted/50 h-12 pl-4"
                   />
                 </div>
                 <Button type="submit" className="btn-hover-lift h-12 px-6 bg-primary text-primary-foreground hover:bg-primary/90">
                   Langganan
                 </Button>
-              </div>
+              </form>
             </div>
           </div>
 
@@ -147,7 +154,7 @@ const Footer13 = () => {
                     <li key={link.name}>
                       <Link
                         href={link.href}
-                        className="text-muted-foreground hover:text-primary inline-block transition-colors duration-200 hover:translate-x-1 transform"
+                        className="inline-block transform text-muted-foreground transition-[color,transform] duration-200 hover:translate-x-1 hover:text-primary focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       >
                         {link.name}
                       </Link>
@@ -175,13 +182,14 @@ const Footer13 = () => {
                     aria-label={link.label}
                     key={link.href}
                     href={link.href}
-                    className={`text-muted-foreground hover:text-primary transition-all ${
-                      isInView ? "animate-scale-in" : "opacity-0"
-                    }`}
+                    className={`text-muted-foreground transition-[color,transform,opacity] hover:text-primary focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                       isInView ? "animate-scale-in" : "opacity-0"
+                     }`}
                     style={{ animationDelay: isInView ? `${950 + index * 50}ms` : "0ms" }}
                   >
                     <link.icon
                       size={20}
+                      aria-hidden="true"
                       className="transition-transform hover:scale-125"
                     />
                   </a>

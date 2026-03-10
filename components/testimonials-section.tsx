@@ -49,12 +49,14 @@ export function TestimonialsSection({ reviews }: TestimonialsSectionProps) {
               <Quote
                 className="absolute top-6 right-6 text-muted-foreground/30"
                 size={40}
+                aria-hidden="true"
               />
-              <div className="flex items-center gap-1 mb-4">
+              <div className="mb-4 flex items-center gap-1" role="img" aria-label={`Rating ${review.rating} dari 5 bintang`}>
                 {[...Array(5)].map((_, i) => (
                   <Star
                     key={i}
                     size={16}
+                    aria-hidden="true"
                     className={`${
                       i < review.rating
                         ? "text-accent fill-accent"
@@ -63,8 +65,8 @@ export function TestimonialsSection({ reviews }: TestimonialsSectionProps) {
                   />
                 ))}
               </div>
-              <p className="text-muted-foreground italic mb-6 min-h-[80px]">
-                &quot;{review.comment}&quot;
+              <p className="mb-6 min-h-[80px] break-words text-muted-foreground italic">
+                “{review.comment}”
               </p>
               <div className="border-t border-border pt-4">
                 <p className="font-bold text-foreground">
