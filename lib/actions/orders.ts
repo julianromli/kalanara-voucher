@@ -16,6 +16,9 @@ import type {
 } from "@/lib/database.types";
 import type { ScalevPendingOrderData } from "@/lib/scalev/types";
 
+const ORDER_VOUCHER_SELECT =
+  "*, vouchers:vouchers!orders_voucher_id_fkey(*, services(*))";
+
 interface GatewayPaymentUpdate {
   transactionId?: string | null;
   paymentType?: string | null;
@@ -50,7 +53,7 @@ export async function getOrders(): Promise<OrderWithVoucher[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("orders")
-    .select("*, vouchers(*, services(*))")
+    .select(ORDER_VOUCHER_SELECT)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -65,7 +68,7 @@ export async function getOrderById(id: string): Promise<OrderWithVoucher | null>
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("orders")
-    .select("*, vouchers(*, services(*))")
+    .select(ORDER_VOUCHER_SELECT)
     .eq("id", id)
     .single();
 
@@ -329,7 +332,7 @@ export async function getPublicOrderDetails(
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("orders")
-    .select("*, vouchers(*, services(*))")
+    .select(ORDER_VOUCHER_SELECT)
     .eq("payment_order_id", paymentOrderId)
     .eq("public_access_token", publicAccessToken)
     .single();

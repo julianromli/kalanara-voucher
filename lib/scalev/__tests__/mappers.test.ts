@@ -77,7 +77,40 @@ describe("buildPaymentSnapshot", () => {
     );
 
     expect(snapshot.paymentLink).toBe(
-      "https://app.scalev.id/order/public/secret-token/success"
+      "https://app.scalev.id/order/public/secret-token"
     );
+  });
+
+  it("extracts QRIS instructions from pg_payment_info when no hosted link is available", () => {
+    const snapshot = buildPaymentSnapshot(
+      {
+        id: 789,
+        order_id: "ORD-3",
+        payment_status: "unpaid",
+        status: "pending",
+        pg_payment_info: {
+          amount: 10000,
+          payment_method: {
+            qr_code: {
+              amount: 10000,
+              channel_code: "XENDIT",
+              channel_properties: {
+                expires_at: "2026-03-12T04:05:55.854402Z",
+                qr_string: "00020101021226TESTQRSTRING6304ABCD",
+              },
+            },
+          },
+        },
+      },
+      null
+    );
+
+    expect(snapshot.paymentInstructions).toEqual({
+      kind: "qris",
+      amount: 10000,
+      channelCode: "XENDIT",
+      expiresAt: "2026-03-12T04:05:55.854402Z",
+      qrString: "00020101021226TESTQRSTRING6304ABCD",
+    });
   });
 });

@@ -78,8 +78,6 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
 
   const sendTo = watch("sendTo");
   const deliveryMethod = watch("deliveryMethod");
-  const recipientEmail = watch("recipientEmail");
-
   const showRecipientEmail =
     (deliveryMethod === DeliveryMethod.EMAIL ||
       deliveryMethod === DeliveryMethod.BOTH) &&
@@ -155,12 +153,6 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
       announceToScreenReader("Email penerima tidak lagi wajib diisi.");
     }
   }, [clearErrors, showRecipientEmail, trigger]);
-
-  useEffect(() => {
-    if (showRecipientEmail && recipientEmail && errors.recipientEmail) {
-      void trigger("recipientEmail");
-    }
-  }, [errors.recipientEmail, recipientEmail, showRecipientEmail, trigger]);
 
   useEffect(() => {
     if (paymentMethod !== "va") {
@@ -510,6 +502,19 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                               message: "Format email tidak valid",
                             }
                           : undefined,
+                        onBlur: () => {
+                          if (showRecipientEmail) {
+                            void trigger("recipientEmail");
+                          }
+                        },
+                        onChange: (event) => {
+                          if (
+                            showRecipientEmail &&
+                            /^\S+@\S+$/i.test(event.target.value as string)
+                          ) {
+                            clearErrors("recipientEmail");
+                          }
+                        },
                       })}
                       type="email"
                       placeholder="penerima@email.com"

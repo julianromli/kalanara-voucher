@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 import { getScalevConfig } from "@/lib/scalev/config";
+import { ensureScalevIpv4First } from "@/lib/scalev/network";
 import type {
   ScalevApiEnvelope,
   ScalevCatalogProductInput,
@@ -72,6 +73,7 @@ async function scalevRequest<T>(
   path: string,
   init?: RequestInit
 ): Promise<T> {
+  ensureScalevIpv4First();
   const config = getScalevConfig();
   const response = await fetch(`${config.apiBaseUrl}${path}`, {
     ...init,

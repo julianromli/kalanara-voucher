@@ -28,5 +28,5 @@ export function buildScalevPublicOrderUrl(secretSlug?: string | null) {
     return `${baseUrl}/${trimmedPath}`;
   }
 
-  return `${baseUrl}/order/public/${trimmedPath}/success`;
+  return `${baseUrl}/order/public/${trimmedPath}`;
 }
