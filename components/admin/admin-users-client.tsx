@@ -13,6 +13,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { PlusSignIcon, PencilEdit01Icon } from "@hugeicons/core-free-icons";
 import {
   createAdminUser,
+  updateAdminUserProfile,
   updateAdminUserRole,
   type AdminOnboardingMode,
 } from "@/lib/actions/admin-users";
@@ -31,6 +32,16 @@ interface NewUserFormState {
   confirmPassword: string;
 }
 
+interface EditUserFormState {
+  id: string;
+  email: string;
+  name: string;
+  password: string;
+  confirmPassword: string;
+}
+
+const MIN_PASSWORD_LENGTH = 8;
+
 const ROLE_COLORS = {
   SUPER_ADMIN: "bg-red-100 text-red-800",
   MANAGER: "bg-blue-100 text-blue-800",
@@ -46,6 +57,34 @@ const INITIAL_NEW_USER_FORM: NewUserFormState = {
   confirmPassword: "",
 };
 
+const INITIAL_EDIT_USER_FORM: EditUserFormState = {
+  id: "",
+  email: "",
+  name: "",
+  password: "",
+  confirmPassword: "",
+};
+
+function getPasswordError(password: string, confirmPassword: string) {
+  if (!password && !confirmPassword) {
+    return "";
+  }
+
+  if (!password || !confirmPassword) {
+    return "Password dan konfirmasi password wajib diisi bersama.";
+  }
+
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return `Password minimal ${MIN_PASSWORD_LENGTH} karakter.`;
+  }
+
+  if (password !== confirmPassword) {
+    return "Konfirmasi password harus sama dengan password.";
+  }
+
+  return "";
+}
+
 export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
   const router = useRouter();
   const { user: currentUser, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -56,6 +95,9 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [newUserForm, setNewUserForm] = useState<NewUserFormState>(INITIAL_NEW_USER_FORM);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isUpdatingUser, setIsUpdatingUser] = useState(false);
+  const [editUserForm, setEditUserForm] = useState<EditUserFormState>(INITIAL_EDIT_USER_FORM);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -74,18 +116,26 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
   const superAdminCount = users.filter((user) => user.role === "SUPER_ADMIN").length;
 
   const isManualMode = newUserForm.onboardingMode === "manual";
-  const passwordsMatch =
-    !isManualMode || newUserForm.password === newUserForm.confirmPassword;
+  const createPasswordError = isManualMode
+    ? getPasswordError(newUserForm.password, newUserForm.confirmPassword)
+    : "";
   const isCreateDisabled =
     isCreatingUser ||
     !newUserForm.name.trim() ||
     !newUserForm.email.trim() ||
-    (isManualMode && (!newUserForm.password || !newUserForm.confirmPassword || !passwordsMatch));
+    Boolean(createPasswordError);
+
+  const editPasswordError = getPasswordError(
+    editUserForm.password,
+    editUserForm.confirmPassword
+  );
+  const isEditDisabled =
+    isUpdatingUser || !editUserForm.name.trim() || Boolean(editPasswordError);
 
   const handleCreateUser = async () => {
     if (isCreateDisabled) {
-      if (isManualMode && !passwordsMatch) {
-        showToast("Konfirmasi password tidak cocok", "error");
+      if (createPasswordError) {
+        showToast(createPasswordError, "error");
       }
       return;
     }
@@ -110,6 +160,55 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
       );
     } finally {
       setIsCreatingUser(false);
+    }
+  };
+
+  const openEditDialog = (user: Admin) => {
+    setEditUserForm({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      password: "",
+      confirmPassword: "",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const closeEditDialog = () => {
+    setIsEditDialogOpen(false);
+    setEditUserForm(INITIAL_EDIT_USER_FORM);
+  };
+
+  const handleUpdateUser = async () => {
+    if (isEditDisabled) {
+      if (editPasswordError) {
+        showToast(editPasswordError, "error");
+      }
+      return;
+    }
+
+    setIsUpdatingUser(true);
+
+    try {
+      const updatedUser = await updateAdminUserProfile(editUserForm);
+      setUsers((previousUsers) =>
+        previousUsers.map((user) => (user.id === updatedUser.id ? updatedUser : user))
+      );
+      closeEditDialog();
+      showToast(
+        editUserForm.password
+          ? "Profil admin dan password berhasil diperbarui"
+          : "Profil admin berhasil diperbarui",
+        "success"
+      );
+      router.refresh();
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Gagal memperbarui profil admin",
+        "error"
+      );
+    } finally {
+      setIsUpdatingUser(false);
     }
   };
 
@@ -140,18 +239,18 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <p className="text-muted-foreground text-sm">
-              Manage admin users and permissions
+              Kelola admin, akses, dan onboarding akun tim.
             </p>
             <Button onClick={() => setIsCreateDialogOpen(true)}>
               <HugeiconsIcon icon={PlusSignIcon} className="w-4 h-4 mr-2" />
-              Add User
+              Tambah Admin
             </Button>
           </div>
 
           <div className="bg-card rounded-2xl shadow-spa border border-border p-4">
             <div className="flex flex-col md:flex-row gap-4 mb-6">
               <Input
-                placeholder="Search users..."
+                placeholder="Cari nama atau email admin..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1"
@@ -161,7 +260,7 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
                 onChange={(e) => setRoleFilter(e.target.value as AdminRole | "ALL")}
                 className="px-3 py-2 border border-border rounded-lg"
               >
-                <option value="ALL">All Roles</option>
+                <option value="ALL">Semua Role</option>
                 <option value="SUPER_ADMIN">Super Admin</option>
                 <option value="MANAGER">Manager</option>
                 <option value="STAFF">Staff</option>
@@ -172,11 +271,11 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-accent/50">
-                    <th className="text-left p-4">Name</th>
-                    <th className="text-left p-4">Email</th>
-                    <th className="text-left p-4">Role</th>
-                    <th className="text-left p-4">Created</th>
-                    <th className="text-right p-4">Actions</th>
+                     <th className="text-left p-4">Nama</th>
+                     <th className="text-left p-4">Email</th>
+                     <th className="text-left p-4">Role</th>
+                     <th className="text-left p-4">Dibuat</th>
+                     <th className="text-right p-4">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -215,9 +314,13 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
                             <option value="MANAGER">Manager</option>
                             <option value="STAFF">Staff</option>
                           </select>
-                          <Button size="sm" variant="outline">
-                            <HugeiconsIcon icon={PencilEdit01Icon} className="w-4 h-4" />
-                          </Button>
+                           <Button
+                             size="sm"
+                             variant="outline"
+                             onClick={() => openEditDialog(user)}
+                           >
+                             <HugeiconsIcon icon={PencilEdit01Icon} className="w-4 h-4" />
+                           </Button>
                         </div>
                         {(isCurrentUser || isLastSuperAdmin) && (
                           <p className="mt-2 text-right text-xs text-muted-foreground">
@@ -235,11 +338,11 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
             </div>
 
             {filteredUsers.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No admin users found</p>
-              </div>
-            )}
-          </div>
+                <div className="text-center py-12">
+                 <p className="text-muted-foreground">Tidak ada admin yang cocok.</p>
+                </div>
+              )}
+            </div>
         </div>
       </div>
 
@@ -247,31 +350,31 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Create New Admin User</DialogTitle>
+            <DialogTitle>Tambah Admin Baru</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Name</label>
-              <Input
-                value={newUserForm.name}
-                onChange={(e) => setNewUserForm({...newUserForm, name: e.target.value})}
-                placeholder="Enter full name"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
-              <Input
-                type="email"
-                value={newUserForm.email}
-                onChange={(e) => setNewUserForm({...newUserForm, email: e.target.value})}
-                placeholder="Enter email address"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Role</label>
+               <label className="block text-sm font-medium mb-1">Nama</label>
+               <Input
+                 value={newUserForm.name}
+                  onChange={(e) => setNewUserForm({...newUserForm, name: e.target.value})}
+                 placeholder="Masukkan nama lengkap"
+               />
+             </div>
+             
+             <div>
+               <label className="block text-sm font-medium mb-1">Email</label>
+               <Input
+                 type="email"
+                 value={newUserForm.email}
+                  onChange={(e) => setNewUserForm({...newUserForm, email: e.target.value})}
+                 placeholder="Masukkan email admin"
+               />
+             </div>
+             
+             <div>
+               <label className="block text-sm font-medium mb-1">Role</label>
               <select
                 value={newUserForm.role}
                 onChange={(e) =>
@@ -368,12 +471,12 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
                     minLength={8}
                     placeholder="Ulangi password"
                   />
-                  {!passwordsMatch && newUserForm.confirmPassword ? (
-                    <p className="mt-1 text-xs text-destructive">
-                      Konfirmasi password harus sama dengan password awal.
-                    </p>
-                  ) : null}
-                </div>
+                   {createPasswordError ? (
+                     <p className="mt-1 text-xs text-destructive">
+                       {createPasswordError}
+                     </p>
+                   ) : null}
+                 </div>
               </>
             ) : (
               <div className="rounded-lg border border-border bg-accent/30 p-3 text-xs text-muted-foreground">
@@ -390,10 +493,90 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
                 }}
                 disabled={isCreatingUser}
               >
-                Cancel
-              </Button>
+                 Batal
+               </Button>
               <Button onClick={handleCreateUser} disabled={isCreateDisabled}>
-                {isCreatingUser ? "Creating..." : "Create User"}
+                 {isCreatingUser ? "Menyimpan..." : "Buat Admin"}
+               </Button>
+             </div>
+           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => (open ? setIsEditDialogOpen(true) : closeEditDialog())}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Admin</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium">Nama</label>
+              <Input
+                value={editUserForm.name}
+                onChange={(event) =>
+                  setEditUserForm((currentForm) => ({
+                    ...currentForm,
+                    name: event.target.value,
+                  }))
+                }
+                placeholder="Masukkan nama admin"
+                disabled={isUpdatingUser}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">Email</label>
+              <Input value={editUserForm.email} disabled readOnly className="bg-accent/20" />
+            </div>
+
+            <div className="rounded-lg border border-border bg-accent/20 p-3 text-xs text-muted-foreground">
+              Kosongkan password jika hanya ingin memperbarui nama admin.
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">Password baru</label>
+              <Input
+                type="password"
+                value={editUserForm.password}
+                onChange={(event) =>
+                  setEditUserForm((currentForm) => ({
+                    ...currentForm,
+                    password: event.target.value,
+                  }))
+                }
+                minLength={MIN_PASSWORD_LENGTH}
+                placeholder="Isi untuk reset password"
+                disabled={isUpdatingUser}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">Konfirmasi password</label>
+              <Input
+                type="password"
+                value={editUserForm.confirmPassword}
+                onChange={(event) =>
+                  setEditUserForm((currentForm) => ({
+                    ...currentForm,
+                    confirmPassword: event.target.value,
+                  }))
+                }
+                minLength={MIN_PASSWORD_LENGTH}
+                placeholder="Ulangi password baru"
+                disabled={isUpdatingUser}
+              />
+              {editPasswordError ? (
+                <p className="mt-1 text-xs text-destructive">{editPasswordError}</p>
+              ) : null}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button variant="outline" onClick={closeEditDialog} disabled={isUpdatingUser}>
+                Batal
+              </Button>
+              <Button onClick={handleUpdateUser} disabled={isEditDisabled}>
+                {isUpdatingUser ? "Menyimpan..." : "Simpan Perubahan"}
               </Button>
             </div>
           </div>

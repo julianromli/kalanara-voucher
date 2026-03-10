@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -18,8 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
-function getLoginNotice(search: string) {
-  const authError = new URLSearchParams(search).get("error");
+function getLoginNotice(authError: string | null) {
 
   switch (authError) {
     case "invite_invalid":
@@ -33,6 +32,7 @@ function getLoginNotice(search: string) {
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
 
@@ -49,7 +49,7 @@ export default function AdminLoginPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  const notice = isMounted ? getLoginNotice(window.location.search) : "";
+  const notice = getLoginNotice(searchParams.get("error"));
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -80,11 +80,11 @@ export default function AdminLoginPage() {
     const result = await login(email, password);
 
     if (result.success) {
-      showToast("Welcome back!", "success");
+      showToast("Selamat datang kembali!", "success");
       router.push("/admin/dashboard");
     } else {
-      setError(result.error || "Login failed");
-      showToast(result.error || "Login failed", "error");
+      setError(result.error || "Login gagal");
+      showToast(result.error || "Login gagal", "error");
     }
 
     setIsSubmitting(false);
@@ -107,15 +107,15 @@ export default function AdminLoginPage() {
                 <span className="font-semibold text-lg text-foreground">
                   Kalanara Spa
                 </span>
-                <p className="text-xs text-muted-foreground">Admin Portal</p>
+                <p className="text-xs text-muted-foreground">Portal Admin</p>
               </div>
             </div>
 
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
-              Welcome back
+              Masuk ke dashboard admin
             </h1>
             <p className="text-base mt-3 text-muted-foreground text-balance">
-              Sign in to access your admin dashboard and manage spa operations.
+              Gunakan akun admin aktif untuk mengelola voucher, pesanan, dan operasional spa.
             </p>
           </div>
 
@@ -128,13 +128,13 @@ export default function AdminLoginPage() {
               )}
               style={{ animationDelay: "110ms" }}
             >
-              Jika Anda diundang sebagai admin baru, buka link di email undangan untuk mengatur password terlebih dahulu.
+              Jika Anda menerima undangan admin baru, buka link pada email undangan terlebih dahulu untuk mengatur password.
             </div>
 
             {notice ? (
               <div
                 className={cn(
-                  "bg-accent text-foreground px-4 py-3 rounded-lg text-sm",
+                  "rounded-lg bg-accent px-4 py-3 text-sm text-foreground",
                   isMounted ? "animate-fade-slide-up" : "opacity-0",
                 )}
                 style={{ animationDelay: "130ms" }}
@@ -163,7 +163,7 @@ export default function AdminLoginPage() {
                 htmlFor="email"
                 className="block text-sm font-medium text-muted-foreground mb-1.5"
               >
-                Email Address
+                 Email
               </label>
               <div className="relative">
                 <HugeiconsIcon
@@ -176,7 +176,7 @@ export default function AdminLoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder="admin@kalanaraspa.com"
                   className="pl-10 h-10 bg-background border-border ring-1 ring-border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   required
                   disabled={isSubmitting}
@@ -202,7 +202,7 @@ export default function AdminLoginPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Masukkan password"
                   className="h-10 pr-10 bg-background border-border ring-1 ring-border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   required
                   disabled={isSubmitting}
@@ -214,7 +214,7 @@ export default function AdminLoginPage() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   disabled={isSubmitting}
                   tabIndex={-1}
-                  aria-label="Toggle password visibility"
+                  aria-label="Tampilkan atau sembunyikan password"
                 >
                   {showPassword ? (
                     <HugeiconsIcon icon={ViewOffIcon} size={16} />
@@ -244,7 +244,7 @@ export default function AdminLoginPage() {
                 htmlFor="remember"
                 className="text-sm font-medium text-muted-foreground cursor-pointer select-none"
               >
-                Remember me for 30 days
+                Ingat saya selama 30 hari
               </label>
             </div>
 
@@ -261,10 +261,10 @@ export default function AdminLoginPage() {
               {isSubmitting ? (
                 <>
                   <HugeiconsIcon icon={Loading03Icon} className="size-4 mr-2 animate-spin" />
-                  Signing in...
+                  Memproses...
                 </>
               ) : (
-                "Sign in"
+                "Masuk"
               )}
             </Button>
           </form>
@@ -292,11 +292,11 @@ export default function AdminLoginPage() {
         >
           <div className="max-w-lg">
             <p className="text-xl md:text-2xl lg:text-3xl font-semibold text-primary-foreground text-balance leading-snug">
-              Elevate your guests&apos; experience with seamless voucher
-              management.
+              Kelola pengalaman tamu dengan sistem voucher yang rapi,
+              cepat, dan mudah diawasi.
             </p>
             <p className="text-base mt-4 text-primary-foreground/80 text-balance">
-              Kalanara Spa — Where wellness meets hospitality.
+              Kalanara Spa - operasional admin yang selaras dengan layanan premium.
             </p>
           </div>
         </div>

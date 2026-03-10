@@ -24,6 +24,15 @@ export interface CreateAdminUserResult {
   onboardingMode: AdminOnboardingMode;
 }
 
+export interface UpdateAdminUserInput {
+  id: string;
+  name: string;
+  password?: string;
+  confirmPassword?: string;
+}
+
+const MIN_ADMIN_PASSWORD_LENGTH = 8;
+
 async function getSuperAdminCount() {
   const supabase = getAdminClient();
   const { count, error } = await supabase
@@ -76,13 +85,7 @@ export async function createAdminUser(
 
   const manualPassword = userData.onboardingMode === "manual" ? userData.password : undefined;
 
-  if (manualPassword && manualPassword.length < 8) {
-    throw new Error("Password admin minimal 8 karakter.");
-  }
-
-  if (manualPassword && manualPassword !== userData.confirmPassword) {
-    throw new Error("Konfirmasi password admin tidak cocok.");
-  }
+  validateAdminPassword(manualPassword, userData.confirmPassword);
 
   const { data: existingAdmin } = await supabase
     .from("admins")
@@ -172,6 +175,92 @@ export async function createAdminUser(
   };
 }
 
+export async function updateAdminUserProfile(
+  input: UpdateAdminUserInput
+): Promise<Admin> {
+  const access = await requireAdminPermission(AdminPermission.USERS_MANAGE);
+  const supabase = getAdminClient();
+
+  const normalizedName = input.name.trim();
+  const nextPassword = input.password || undefined;
+  const nextConfirmPassword = input.confirmPassword || undefined;
+
+  if (!input.id) {
+    throw new Error("Admin tidak ditemukan.");
+  }
+
+  if (!normalizedName) {
+    throw new Error("Nama admin wajib diisi.");
+  }
+
+  validateAdminPassword(nextPassword, nextConfirmPassword);
+
+  const { data: existingAdmin, error: existingAdminError } = await supabase
+    .from("admins")
+    .select("*")
+    .eq("id", input.id)
+    .single();
+
+  if (existingAdminError || !existingAdmin) {
+    console.error("Error loading admin user for profile update:", existingAdminError);
+    throw new Error("Admin tidak ditemukan.");
+  }
+
+  const { data: updatedAdmin, error: updateError } = await supabase
+    .from("admins")
+    .update({ name: normalizedName })
+    .eq("id", input.id)
+    .select()
+    .single();
+
+  if (updateError || !updatedAdmin) {
+    console.error("Error updating admin profile:", updateError);
+    throw new Error("Gagal memperbarui profil admin.");
+  }
+
+  const authPayload: Parameters<typeof supabase.auth.admin.updateUserById>[1] = {
+    user_metadata: {
+      name: updatedAdmin.name,
+      role: updatedAdmin.role,
+    },
+  };
+
+  if (nextPassword) {
+    authPayload.password = nextPassword;
+  }
+
+  const { error: authError } = await supabase.auth.admin.updateUserById(input.id, authPayload);
+
+  if (authError) {
+    console.error("Error syncing admin auth profile:", authError);
+
+    logAdminAudit(access, {
+      action: "admin_user.profile_update_failed",
+      target: updatedAdmin.id,
+      details: {
+        email: updatedAdmin.email,
+        passwordChanged: Boolean(nextPassword),
+        reason: "auth_sync_failed",
+      },
+    });
+
+    throw new Error(
+      "Profil admin sudah diperbarui, tetapi sinkronisasi akun login gagal. Hubungi tim teknis untuk tindak lanjut manual."
+    );
+  }
+
+  logAdminAudit(access, {
+    action: "admin_user.profile_update",
+    target: updatedAdmin.id,
+    details: {
+      email: updatedAdmin.email,
+      passwordChanged: Boolean(nextPassword),
+    },
+  });
+
+  return updatedAdmin;
+}
+
 function buildAdminInviteRedirectUrl() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
 
@@ -198,6 +287,20 @@ function getAdminUserCreationErrorMessage(message?: string) {
   }
 
   return "Gagal membuat akun admin baru.";
+}
+
+function validateAdminPassword(password?: string, confirmPassword?: string) {
+  if (!password) {
+    return;
+  }
+
+  if (password.length < MIN_ADMIN_PASSWORD_LENGTH) {
+    throw new Error(`Password admin minimal ${MIN_ADMIN_PASSWORD_LENGTH} karakter.`);
+  }
+
+  if (password !== confirmPassword) {
+    throw new Error("Konfirmasi password admin tidak cocok.");
+  }
 }
 
 function getAdminInsertErrorMessage(message?: string) {

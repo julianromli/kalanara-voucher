@@ -20,11 +20,25 @@ export function AdminSetPasswordForm({ email, name }: AdminSetPasswordFormProps)
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const validatePassword = () => {
+    if (password.length < 8) {
+      return "Password minimal 8 karakter.";
+    }
+
+    if (password !== confirmPassword) {
+      return "Konfirmasi password harus sama.";
+    }
+
+    return "";
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (password !== confirmPassword) {
-      setError("Konfirmasi password harus sama.");
+    const validationError = validatePassword();
+
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -40,6 +54,28 @@ export function AdminSetPasswordForm({ email, name }: AdminSetPasswordFormProps)
       if (updateError) {
         setError(updateError.message || "Gagal menyimpan password baru.");
         showToast(updateError.message || "Gagal menyimpan password baru.", "error");
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        await supabase.auth.signOut();
+        router.replace("/admin/login?error=invite_invalid");
+        return;
+      }
+
+      const { data: admin } = await supabase
+        .from("admins")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!admin) {
+        await supabase.auth.signOut();
+        router.replace("/admin/login?error=no_admin_access");
         return;
       }
 
