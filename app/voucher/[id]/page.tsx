@@ -62,10 +62,11 @@ export default async function VoucherDetailPage({ params }: PageProps) {
       <div className="max-w-7xl mx-auto px-4 pt-8 animate-slide-in-left">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group"
+          className="group inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <ChevronLeft
             size={20}
+            aria-hidden="true"
             className="group-hover:-translate-x-1 transition-transform"
           />
           <span>Kembali</span>
@@ -87,7 +88,7 @@ export default async function VoucherDetailPage({ params }: PageProps) {
               className="object-cover"
             />
             <div className="absolute top-4 right-4 bg-card/90 backdrop-blur px-4 py-2 rounded-full flex items-center gap-2 shadow-sm">
-              <Clock size={16} className="text-muted-foreground" />
+              <Clock size={16} aria-hidden="true" className="text-muted-foreground" />
               <span className="font-medium text-foreground">
                 {service.duration} menit
               </span>
@@ -109,7 +110,7 @@ export default async function VoucherDetailPage({ params }: PageProps) {
               <div className="animate-scale-in animate-stagger-3 bg-card p-4 rounded-xl border border-border card-hover-lift">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
-                    <Clock size={20} className="text-muted-foreground" />
+                     <Clock size={20} aria-hidden="true" className="text-muted-foreground" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Durasi</p>
@@ -122,7 +123,7 @@ export default async function VoucherDetailPage({ params }: PageProps) {
               <div className="animate-scale-in animate-stagger-4 bg-card p-4 rounded-xl border border-border card-hover-lift">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
-                    <Calendar size={20} className="text-muted-foreground" />
+                     <Calendar size={20} aria-hidden="true" className="text-muted-foreground" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Masa Berlaku</p>
@@ -144,19 +145,19 @@ export default async function VoucherDetailPage({ params }: PageProps) {
                     {formatCurrency(service.price)}
                   </p>
                 </div>
-                <div className="flex items-center gap-1 text-accent">
+                <div className="flex items-center gap-1 text-accent" role="img" aria-label="Rating 5 dari 5 bintang">
                   {[...Array(5)].map((_, index) => (
-                    <Star key={index} size={16} className="fill-current" />
+                    <Star key={index} size={16} aria-hidden="true" className="fill-current" />
                   ))}
                 </div>
               </div>
 
-              <Link href={`/checkout/${service.id}`}>
-                <Button className="btn-hover-lift w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg flex items-center justify-center gap-2">
-                  <Gift size={20} />
+              <Button asChild className="btn-hover-lift w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg flex items-center justify-center gap-2">
+                <Link href={`/checkout/${service.id}`}>
+                  <Gift size={20} aria-hidden="true" />
                   Beli Voucher
-                </Button>
-              </Link>
+                </Link>
+              </Button>
 
               <p className="text-center text-muted-foreground text-sm mt-4">
                 Langsung dikirim via Email dan WhatsApp

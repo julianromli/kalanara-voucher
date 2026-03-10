@@ -169,6 +169,7 @@ export default function AdminLoginPage() {
                 <HugeiconsIcon
                   icon={Mail01Icon}
                   size={16}
+                  aria-hidden="true"
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
                 />
                 <Input
@@ -176,8 +177,9 @@ export default function AdminLoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@kalanaraspa.com"
-                  className="pl-10 h-10 bg-background border-border ring-1 ring-border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                   placeholder="admin@kalanaraspa.com…"
+                   spellCheck={false}
+                   className="pl-10 h-10 bg-background border-border ring-1 ring-border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-[border-color,box-shadow]"
                   required
                   disabled={isSubmitting}
                   autoComplete="email"
@@ -202,8 +204,8 @@ export default function AdminLoginPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Masukkan password"
-                  className="h-10 pr-10 bg-background border-border ring-1 ring-border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                   placeholder="Masukkan password…"
+                   className="h-10 pr-10 bg-background border-border ring-1 ring-border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-[border-color,box-shadow]"
                   required
                   disabled={isSubmitting}
                   autoComplete="current-password"
@@ -211,15 +213,14 @@ export default function AdminLoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   disabled={isSubmitting}
-                  tabIndex={-1}
                   aria-label="Tampilkan atau sembunyikan password"
                 >
                   {showPassword ? (
-                    <HugeiconsIcon icon={ViewOffIcon} size={16} />
+                    <HugeiconsIcon icon={ViewOffIcon} size={16} aria-hidden="true" />
                   ) : (
-                    <HugeiconsIcon icon={ViewIcon} size={16} />
+                    <HugeiconsIcon icon={ViewIcon} size={16} aria-hidden="true" />
                   )}
                 </button>
               </div>

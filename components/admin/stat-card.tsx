@@ -46,7 +46,7 @@ export function StatCard({ title, value, icon, badge, className, animationDelay 
   return (
     <div 
       className={cn(
-        "relative overflow-hidden rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:shadow-spa hover:border-border/80 group card-hover-lift",
+        "relative overflow-hidden rounded-xl border border-border bg-card p-5 transition-[border-color,box-shadow,transform,opacity] duration-300 hover:shadow-spa hover:border-border/80 group card-hover-lift",
         isMounted ? "animate-fade-slide-up" : "opacity-0",
         className
       )}

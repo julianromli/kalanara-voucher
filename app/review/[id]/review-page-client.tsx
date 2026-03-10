@@ -71,23 +71,23 @@ export function ReviewPageClient({
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-primary flex items-center justify-center px-4">
-        <div className="animate-scale-in bg-card rounded-3xl p-8 md:p-12 max-w-lg w-full text-center shadow-2xl">
-          <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6 animate-checkmark-pop">
-            <CheckCircle size={40} className="text-muted-foreground" />
-          </div>
-          <h1 className="font-sans font-semibold text-3xl text-foreground mb-2">
-            Thank You!
-          </h1>
-          <p className="text-muted-foreground mb-8">
-            Your feedback helps us improve our services.
-          </p>
-          <Button
-            onClick={() => router.push("/")}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3"
-          >
-            Back to Home
-          </Button>
+        <div className="flex min-h-screen items-center justify-center bg-primary px-4">
+         <div className="animate-scale-in w-full max-w-lg rounded-3xl bg-card p-8 text-center shadow-2xl md:p-12">
+           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-muted animate-checkmark-pop">
+             <CheckCircle size={40} aria-hidden="true" className="text-muted-foreground" />
+           </div>
+           <h1 className="font-sans font-semibold text-3xl text-foreground mb-2">
+             Terima Kasih!
+           </h1>
+           <p className="text-muted-foreground mb-8">
+             Masukan kamu membantu kami meningkatkan kualitas layanan.
+           </p>
+           <Button
+             onClick={() => router.push("/")}
+             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3"
+           >
+             Kembali ke Beranda
+           </Button>
         </div>
       </div>
     );
@@ -95,13 +95,13 @@ export function ReviewPageClient({
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted to-background py-12">
-      <div className="max-w-xl mx-auto px-4">
-        <div className="animate-fade-slide-up text-center mb-8">
+      <div className="mx-auto max-w-xl px-4">
+        <div className="animate-fade-slide-up mb-8 text-center">
           <h1 className="font-sans font-semibold text-4xl text-foreground mb-2">
-            Share Your Experience
+            Bagikan Pengalaman Kamu
           </h1>
           <p className="text-muted-foreground">
-            We&apos;d love to hear about your spa journey
+            Ceritakan pengalaman spa kamu bersama Kalanara.
           </p>
         </div>
 
@@ -120,22 +120,22 @@ export function ReviewPageClient({
               />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Reviewing</p>
+               <p className="text-sm text-muted-foreground">Sedang Direview</p>
               <p className="font-semibold text-foreground">
                 {voucher.service.name}
               </p>
             </div>
           </div>
         ) : (
-          <div className="animate-scale-in bg-card rounded-2xl border border-border p-6 text-center text-muted-foreground">
+          <div className="animate-scale-in rounded-2xl border border-border bg-card p-6 text-center text-muted-foreground">
             Voucher tidak ditemukan atau tidak dapat direview.
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="animate-fade-slide-up animate-stagger-2 bg-card p-8 rounded-2xl shadow-spa">
+        <form onSubmit={handleSubmit} className="animate-fade-slide-up animate-stagger-2 rounded-2xl bg-card p-8 shadow-spa">
           <div className="mb-8">
-            <label className="block text-foreground font-medium mb-4 text-center">
-              How was your experience?
+            <label className="mb-4 block text-center font-medium text-foreground">
+              Bagaimana pengalaman kamu?
             </label>
             <div className="flex justify-center gap-2">
               {[1, 2, 3, 4, 5].map((star) => (
@@ -147,10 +147,11 @@ export function ReviewPageClient({
                   onClick={() => setRating(star)}
                   onMouseEnter={() => setHoverRating(star)}
                   onMouseLeave={() => setHoverRating(0)}
-                  className="p-1 transition-transform hover:scale-110"
+                  className="p-1 transition-transform hover:scale-110 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   <Star
                     size={40}
+                    aria-hidden="true"
                     className={`transition-colors ${
                       star <= (hoverRating || rating)
                         ? "text-accent fill-accent"
@@ -162,36 +163,41 @@ export function ReviewPageClient({
             </div>
             {rating > 0 ? (
               <p className="text-center text-muted-foreground mt-2 text-sm">
-                {rating === 5 && "Excellent!"}
-                {rating === 4 && "Great!"}
-                {rating === 3 && "Good"}
-                {rating === 2 && "Fair"}
-                {rating === 1 && "Poor"}
-              </p>
-            ) : null}
+                 {rating === 5 && "Luar biasa!"}
+                 {rating === 4 && "Bagus sekali!"}
+                 {rating === 3 && "Baik"}
+                 {rating === 2 && "Cukup"}
+                 {rating === 1 && "Kurang puas"}
+               </p>
+             ) : null}
           </div>
 
           <div className="mb-6">
-            <label className="block text-muted-foreground text-sm mb-2">
-              Your Name (Optional)
+            <label htmlFor="reviewer-name" className="mb-2 block text-sm text-muted-foreground">
+              Nama Kamu (Opsional)
             </label>
             <Input
+              id="reviewer-name"
+              name="customerName"
+              autoComplete="name"
               value={customerName}
               onChange={(event) => setCustomerName(event.target.value)}
-              placeholder="How should we call you?"
+              placeholder="Tulis nama kamu…"
             />
           </div>
 
           <div className="mb-8">
-            <label className="block text-muted-foreground text-sm mb-2">
-              Tell us more (Optional)
+            <label htmlFor="review-comment" className="mb-2 block text-sm text-muted-foreground">
+              Ceritakan Lebih Lanjut (Opsional)
             </label>
             <textarea
+              id="review-comment"
+              name="comment"
               value={comment}
               onChange={(event) => setComment(event.target.value)}
-              placeholder="What did you enjoy most about your experience?"
+              placeholder="Apa yang paling kamu sukai dari pengalaman ini?…"
               rows={4}
-              className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring resize-none placeholder:text-muted-foreground placeholder:transition-opacity focus:placeholder:text-transparent"
+              className="w-full resize-none rounded-xl border border-border px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground placeholder:transition-opacity focus:placeholder:text-transparent"
             />
           </div>
 
@@ -200,13 +206,13 @@ export function ReviewPageClient({
             disabled={isPending || rating === 0 || !voucher}
             className="btn-hover-lift w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 flex items-center justify-center gap-2"
           >
-            {isPending ? (
-              "Submitting..."
-            ) : (
-              <>
-                <Send size={18} /> Submit Review
-              </>
-            )}
+              {isPending ? (
+               "Mengirim…"
+              ) : (
+                <>
+                 <Send size={18} aria-hidden="true" /> Kirim Review
+                </>
+              )}
           </Button>
         </form>
       </div>
