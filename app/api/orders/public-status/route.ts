@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { reconcilePublicOrderStatus } from "@/lib/scalev/reconcile";
 
-export async function GET(request: NextRequest) {
-  const orderId = request.nextUrl.searchParams.get("order_id");
-  const token = request.nextUrl.searchParams.get("token");
+interface PublicStatusRequest {
+  orderId?: string;
+  token?: string;
+}
+
+export async function POST(request: NextRequest) {
+  const body = (await request.json().catch(() => null)) as PublicStatusRequest | null;
+  const orderId = body?.orderId;
+  const token = body?.token;
 
   if (!orderId || !token) {
     return NextResponse.json(
-      { error: "order_id and token are required" },
+      { error: "orderId and token are required" },
       { status: 400 }
     );
   }

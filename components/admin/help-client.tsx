@@ -178,7 +178,7 @@ export function HelpClient() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Can't find what you're looking for? Contact our support team.
+                    Can&apos;t find what you&apos;re looking for? Contact our support team.
                   </p>
                   <Button onClick={handleContactSupport} className="w-full">
                     <HugeiconsIcon icon={SearchIcon} className="w-4 h-4 mr-2" />

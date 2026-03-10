@@ -171,8 +171,7 @@ export async function generateUniquePaymentOrderId(): Promise<string> {
 }
 
 export async function createPendingOrder(
-  data: ScalevPendingOrderData,
-  paymentProvider = "scalev"
+  data: ScalevPendingOrderData
 ): Promise<Order | null> {
   const supabase = getAdminClient();
   const paymentOrderId = await generateUniquePaymentOrderId();
@@ -194,7 +193,7 @@ export async function createPendingOrder(
     sender_message: data.sender_message || null,
     delivery_method: data.delivery_method,
     send_to: data.send_to,
-    payment_provider: paymentProvider,
+    payment_provider: "scalev",
     scalev_payment_method: data.payment_method || null,
     scalev_sub_payment_method: data.sub_payment_method || null,
   };
@@ -435,29 +434,3 @@ export async function updateOrderVoucherId(
   return true;
 }
 
-export async function updateOrderPaymentLink(
-  orderId: string,
-  paymentLink: string,
-  transactionId?: string
-): Promise<boolean> {
-  const supabase = getAdminClient();
-  const updateData: OrderUpdate = {
-    payment_link: paymentLink,
-  };
-
-  if (transactionId) {
-    updateData.payment_transaction_id = transactionId;
-  }
-
-  const { error } = await supabase
-    .from("orders")
-    .update(updateData)
-    .eq("id", orderId);
-
-  if (error) {
-    console.error("Error updating order payment link:", error);
-    return false;
-  }
-
-  return true;
-}

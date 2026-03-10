@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   ArrowRight,
   Facebook,
@@ -92,10 +93,10 @@ const Footer13 = () => {
                 }`}
               >
                 <Button asChild size="lg" className="btn-hover-lift group bg-accent text-accent-foreground hover:bg-accent/90">
-                  <a href="/#services" className="flex items-center gap-2">
+                  <Link href="/#services" className="flex items-center gap-2">
                     Buy Voucher Sekarang
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </a>
+                  </Link>
                 </Button>
               </div>
             </div>
@@ -144,12 +145,12 @@ const Footer13 = () => {
                 <ul className="space-y-4">
                   {section.links.map((link) => (
                     <li key={link.name}>
-                      <a
+                      <Link
                         href={link.href}
                         className="text-muted-foreground hover:text-primary inline-block transition-colors duration-200 hover:translate-x-1 transform"
                       >
                         {link.name}
-                      </a>
+                      </Link>
                     </li>
                   ))}
                 </ul>
