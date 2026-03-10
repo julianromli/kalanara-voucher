@@ -1,96 +1,201 @@
-/**
- * Admin User Management Tests
- * 
- * NOTE: These tests are skipped because they require complex mocking:
- * - Supabase auth.admin API
- * - Full Supabase client with auth methods
- * 
- * TODO: Set up proper Supabase mocking infrastructure
- */
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
-import { describe, test, expect, vi, beforeEach } from 'vitest';
+const {
+  createUserMock,
+  inviteUserByEmailMock,
+  updateUserByIdMock,
+  deleteUserMock,
+  maybeSingleMock,
+  insertSingleMock,
+  logAdminAuditMock,
+  requireAdminPermissionMock,
+} = vi.hoisted(() => ({
+  createUserMock: vi.fn(),
+  inviteUserByEmailMock: vi.fn(),
+  updateUserByIdMock: vi.fn(),
+  deleteUserMock: vi.fn(),
+  maybeSingleMock: vi.fn(),
+  insertSingleMock: vi.fn(),
+  logAdminAuditMock: vi.fn(),
+  requireAdminPermissionMock: vi.fn(),
+}));
 
-// Mock Supabase admin client
-vi.mock('@/lib/supabase/admin', () => ({
+vi.mock("@/lib/auth/admin-rbac-server", () => ({
+  logAdminAudit: logAdminAuditMock,
+  requireAdminPermission: requireAdminPermissionMock,
+}));
+
+vi.mock("@/lib/supabase/admin", () => ({
   getAdminClient: () => ({
     auth: {
       admin: {
-        createUser: vi.fn(() => Promise.resolve({
-          data: { user: { id: 'test-user-id' } },
-          error: null
-        }))
-      }
+        createUser: createUserMock,
+        inviteUserByEmail: inviteUserByEmailMock,
+        updateUserById: updateUserByIdMock,
+        deleteUser: deleteUserMock,
+      },
     },
     from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: maybeSingleMock,
+        })),
+      })),
       insert: vi.fn(() => ({
         select: vi.fn(() => ({
-          single: vi.fn(() => Promise.resolve({
-            data: {
-              id: 'test-id',
-              email: 'test@test.com',
-              name: 'Test Admin',
-              role: 'MANAGER',
-              created_at: '2025-12-01'
-            },
-            error: null
-          }))
-        }))
+          single: insertSingleMock,
+        })),
       })),
-      select: vi.fn(() => ({
-        order: vi.fn(() => Promise.resolve({
-          data: [
-            {
-              id: 'test-id',
-              email: 'test@test.com',
-              name: 'Test Admin',
-              role: 'MANAGER',
-              created_at: '2025-12-01'
-            }
-          ],
-          error: null
-        }))
-      })),
-      update: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          select: vi.fn(() => ({
-            single: vi.fn(() => Promise.resolve({
-              data: null,
-              error: { message: 'Invalid UUID' }
-            }))
-          }))
-        }))
-      }))
-    }))
-  })
+    })),
+  }),
 }));
 
-// Import after mocking
-import { createAdminUser, getAdminUsers, updateAdminUserRole } from '../admin-users';
+import { createAdminUser } from "../admin-users";
 
-describe('Admin User Management', () => {
+describe("createAdminUser", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
+    process.env.NEXT_PUBLIC_APP_URL = "https://voucher.kalanaraspa.com";
 
-  test('should create new admin user', async () => {
-    const uniqueEmail = `test-admin-${Date.now()}@test.com`;
-    const result = await createAdminUser({
-      email: uniqueEmail,
-      name: 'Test Admin',
-      role: 'MANAGER'
+    requireAdminPermissionMock.mockResolvedValue({
+      userId: "super-admin-id",
+      email: "owner@kalanaraspa.com",
+      role: "SUPER_ADMIN",
     });
-    // With mocked client, result will be the mocked data
-    expect(result).toBeDefined();
+
+    maybeSingleMock.mockResolvedValue({ data: null, error: null });
+    updateUserByIdMock.mockResolvedValue({ error: null });
+    deleteUserMock.mockResolvedValue({ error: null });
   });
 
-  test('should get all admin users', async () => {
-    const result = await getAdminUsers();
-    expect(Array.isArray(result)).toBe(true);
+  test("sends Supabase invite email for invite onboarding", async () => {
+    inviteUserByEmailMock.mockResolvedValue({
+      data: { user: { id: "auth-user-id" } },
+      error: null,
+    });
+    insertSingleMock.mockResolvedValue({
+      data: {
+        id: "auth-user-id",
+        email: "invite-admin@test.com",
+        name: "Invite Admin",
+        role: "MANAGER",
+        created_at: "2026-03-10T00:00:00.000Z",
+      },
+      error: null,
+    });
+
+    const result = await createAdminUser({
+      email: "invite-admin@test.com",
+      name: "Invite Admin",
+      role: "MANAGER",
+      onboardingMode: "invite",
+    });
+
+    expect(inviteUserByEmailMock).toHaveBeenCalledWith("invite-admin@test.com", {
+      data: {
+        name: "Invite Admin",
+        role: "MANAGER",
+      },
+      redirectTo: "https://voucher.kalanaraspa.com/auth/callback",
+    });
+    expect(createUserMock).not.toHaveBeenCalled();
+    expect(result.onboardingMode).toBe("invite");
+    expect(result.admin.email).toBe("invite-admin@test.com");
   });
 
-  test('should handle update with invalid UUID gracefully', async () => {
-    const result = await updateAdminUserRole('invalid-uuid', 'MANAGER');
-    // Should return null due to invalid UUID (mocked error)
-    expect(result).toBeNull();
+  test("creates a manual password user when manual onboarding is selected", async () => {
+    createUserMock.mockResolvedValue({
+      data: { user: { id: "manual-auth-user" } },
+      error: null,
+    });
+    insertSingleMock.mockResolvedValue({
+      data: {
+        id: "manual-auth-user",
+        email: "manual-admin@test.com",
+        name: "Manual Admin",
+        role: "STAFF",
+        created_at: "2026-03-10T00:00:00.000Z",
+      },
+      error: null,
+    });
+
+    const result = await createAdminUser({
+      email: "manual-admin@test.com",
+      name: "Manual Admin",
+      role: "STAFF",
+      onboardingMode: "manual",
+      password: "Supabase123!",
+      confirmPassword: "Supabase123!",
+    });
+
+    expect(createUserMock).toHaveBeenCalledWith({
+      email: "manual-admin@test.com",
+      password: "Supabase123!",
+      email_confirm: true,
+      user_metadata: {
+        name: "Manual Admin",
+        role: "STAFF",
+      },
+    });
+    expect(inviteUserByEmailMock).not.toHaveBeenCalled();
+    expect(result.onboardingMode).toBe("manual");
+  });
+
+  test("rejects duplicate admin emails before creating auth users", async () => {
+    maybeSingleMock.mockResolvedValueOnce({
+      data: { id: "existing-admin" },
+      error: null,
+    });
+
+    await expect(
+      createAdminUser({
+        email: "existing-admin@test.com",
+        name: "Existing Admin",
+        role: "MANAGER",
+        onboardingMode: "invite",
+      })
+    ).rejects.toThrow("Email tersebut sudah terdaftar sebagai admin.");
+
+    expect(inviteUserByEmailMock).not.toHaveBeenCalled();
+    expect(createUserMock).not.toHaveBeenCalled();
+  });
+
+  test("rejects mismatched manual passwords before hitting Supabase Auth", async () => {
+    await expect(
+      createAdminUser({
+        email: "manual-admin@test.com",
+        name: "Manual Admin",
+        role: "STAFF",
+        onboardingMode: "manual",
+        password: "Supabase123!",
+        confirmPassword: "Supabase321!",
+      })
+    ).rejects.toThrow("Konfirmasi password admin tidak cocok.");
+
+    expect(createUserMock).not.toHaveBeenCalled();
+  });
+
+  test("cleans up auth user when admin insert fails", async () => {
+    createUserMock.mockResolvedValue({
+      data: { user: { id: "cleanup-auth-user" } },
+      error: null,
+    });
+    insertSingleMock.mockResolvedValue({
+      data: null,
+      error: { message: "duplicate key value violates unique constraint" },
+    });
+
+    await expect(
+      createAdminUser({
+        email: "cleanup-admin@test.com",
+        name: "Cleanup Admin",
+        role: "MANAGER",
+        onboardingMode: "manual",
+        password: "Supabase123!",
+        confirmPassword: "Supabase123!",
+      })
+    ).rejects.toThrow("Email tersebut sudah terdaftar sebagai admin.");
+
+    expect(deleteUserMock).toHaveBeenCalledWith("cleanup-auth-user");
   });
 });

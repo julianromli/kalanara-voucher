@@ -18,6 +18,19 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
+function getLoginNotice(search: string) {
+  const authError = new URLSearchParams(search).get("error");
+
+  switch (authError) {
+    case "invite_invalid":
+      return "Link undangan sudah tidak valid atau sudah kedaluwarsa. Minta super admin mengirim ulang undangan.";
+    case "no_admin_access":
+      return "Akun ini tidak lagi memiliki akses admin. Hubungi super admin untuk bantuan.";
+    default:
+      return "";
+  }
+}
+
 export default function AdminLoginPage() {
   const router = useRouter();
   const { login, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -35,6 +48,8 @@ export default function AdminLoginPage() {
     const timer = setTimeout(() => setIsMounted(true), 100);
     return () => clearTimeout(timer);
   }, []);
+
+  const notice = isMounted ? getLoginNotice(window.location.search) : "";
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -106,6 +121,28 @@ export default function AdminLoginPage() {
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="mt-10 space-y-5">
+            <div
+              className={cn(
+                "rounded-lg border border-border bg-accent/30 px-4 py-3 text-sm text-muted-foreground",
+                isMounted ? "animate-fade-slide-up" : "opacity-0",
+              )}
+              style={{ animationDelay: "110ms" }}
+            >
+              Jika Anda diundang sebagai admin baru, buka link di email undangan untuk mengatur password terlebih dahulu.
+            </div>
+
+            {notice ? (
+              <div
+                className={cn(
+                  "bg-accent text-foreground px-4 py-3 rounded-lg text-sm",
+                  isMounted ? "animate-fade-slide-up" : "opacity-0",
+                )}
+                style={{ animationDelay: "130ms" }}
+              >
+                {notice}
+              </div>
+            ) : null}
+
             {error && (
               <div
                 className={cn(

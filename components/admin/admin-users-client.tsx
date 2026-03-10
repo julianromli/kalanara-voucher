@@ -11,7 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { PlusSignIcon, PencilEdit01Icon } from "@hugeicons/core-free-icons";
-import { createAdminUser, updateAdminUserRole } from "@/lib/actions/admin-users";
+import {
+  createAdminUser,
+  updateAdminUserRole,
+  type AdminOnboardingMode,
+} from "@/lib/actions/admin-users";
 import type { Admin, AdminRole } from "@/lib/database.types";
 
 interface AdminUsersClientProps {
@@ -22,6 +26,9 @@ interface NewUserFormState {
   email: string;
   name: string;
   role: AdminRole;
+  onboardingMode: AdminOnboardingMode;
+  password: string;
+  confirmPassword: string;
 }
 
 const ROLE_COLORS = {
@@ -29,6 +36,15 @@ const ROLE_COLORS = {
   MANAGER: "bg-blue-100 text-blue-800",
   STAFF: "bg-gray-100 text-gray-800"
 } as const;
+
+const INITIAL_NEW_USER_FORM: NewUserFormState = {
+  email: "",
+  name: "",
+  role: "STAFF",
+  onboardingMode: "invite",
+  password: "",
+  confirmPassword: "",
+};
 
 export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
   const router = useRouter();
@@ -38,11 +54,8 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<AdminRole | "ALL">("ALL");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [newUserForm, setNewUserForm] = useState<NewUserFormState>({
-    email: "",
-    name: "",
-    role: "STAFF" as const
-  });
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [newUserForm, setNewUserForm] = useState<NewUserFormState>(INITIAL_NEW_USER_FORM);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -60,17 +73,43 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
 
   const superAdminCount = users.filter((user) => user.role === "SUPER_ADMIN").length;
 
+  const isManualMode = newUserForm.onboardingMode === "manual";
+  const passwordsMatch =
+    !isManualMode || newUserForm.password === newUserForm.confirmPassword;
+  const isCreateDisabled =
+    isCreatingUser ||
+    !newUserForm.name.trim() ||
+    !newUserForm.email.trim() ||
+    (isManualMode && (!newUserForm.password || !newUserForm.confirmPassword || !passwordsMatch));
+
   const handleCreateUser = async () => {
+    if (isCreateDisabled) {
+      if (isManualMode && !passwordsMatch) {
+        showToast("Konfirmasi password tidak cocok", "error");
+      }
+      return;
+    }
+
+    setIsCreatingUser(true);
+
     try {
       const result = await createAdminUser(newUserForm);
-      if (result) {
-        setUsers([result, ...users]);
-        setIsCreateDialogOpen(false);
-        setNewUserForm({ email: "", name: "", role: "STAFF" });
-        showToast("Admin user created successfully", "success");
-      }
-    } catch {
-      showToast("Failed to create admin user", "error");
+      setUsers((previousUsers) => [result.admin, ...previousUsers]);
+      setIsCreateDialogOpen(false);
+      setNewUserForm(INITIAL_NEW_USER_FORM);
+      showToast(
+        result.onboardingMode === "invite"
+          ? "Undangan admin berhasil dikirim"
+          : "Admin berhasil dibuat dan bisa login sekarang",
+        "success"
+      );
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Gagal membuat admin user",
+        "error"
+      );
+    } finally {
+      setIsCreatingUser(false);
     }
   };
 
@@ -248,16 +287,113 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
                 <option value="STAFF">Staff</option>
               </select>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Metode onboarding</label>
+              <div className="space-y-2 rounded-lg border border-border p-3">
+                <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 transition-colors hover:bg-accent/40">
+                  <input
+                    type="radio"
+                    name="onboardingMode"
+                    value="invite"
+                    checked={newUserForm.onboardingMode === "invite"}
+                    onChange={() =>
+                      setNewUserForm((currentForm) => ({
+                        ...currentForm,
+                        onboardingMode: "invite",
+                        password: "",
+                        confirmPassword: "",
+                      }))
+                    }
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="text-sm font-medium">Kirim undangan email</p>
+                    <p className="text-xs text-muted-foreground">
+                      Admin baru menerima link Supabase untuk set password sendiri.
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 transition-colors hover:bg-accent/40">
+                  <input
+                    type="radio"
+                    name="onboardingMode"
+                    value="manual"
+                    checked={newUserForm.onboardingMode === "manual"}
+                    onChange={() =>
+                      setNewUserForm((currentForm) => ({
+                        ...currentForm,
+                        onboardingMode: "manual",
+                      }))
+                    }
+                    className="mt-1"
+                  />
+                  <div>
+                    <p className="text-sm font-medium">Atur password manual</p>
+                    <p className="text-xs text-muted-foreground">
+                      Super admin menetapkan password awal agar akun bisa login langsung.
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {isManualMode ? (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Password awal</label>
+                  <Input
+                    type="password"
+                    value={newUserForm.password}
+                    onChange={(e) =>
+                      setNewUserForm({ ...newUserForm, password: e.target.value })
+                    }
+                    minLength={8}
+                    placeholder="Minimal sesuai kebijakan Supabase"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Konfirmasi password</label>
+                  <Input
+                    type="password"
+                    value={newUserForm.confirmPassword}
+                    onChange={(e) =>
+                      setNewUserForm({
+                        ...newUserForm,
+                        confirmPassword: e.target.value,
+                      })
+                    }
+                    minLength={8}
+                    placeholder="Ulangi password"
+                  />
+                  {!passwordsMatch && newUserForm.confirmPassword ? (
+                    <p className="mt-1 text-xs text-destructive">
+                      Konfirmasi password harus sama dengan password awal.
+                    </p>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <div className="rounded-lg border border-border bg-accent/30 p-3 text-xs text-muted-foreground">
+                Link undangan akan dikirim ke email admin baru untuk set password dan masuk ke dashboard.
+              </div>
+            )}
             
             <div className="flex justify-end gap-3 pt-4">
               <Button
                 variant="outline"
-                onClick={() => setIsCreateDialogOpen(false)}
+                onClick={() => {
+                  setIsCreateDialogOpen(false);
+                  setNewUserForm(INITIAL_NEW_USER_FORM);
+                }}
+                disabled={isCreatingUser}
               >
                 Cancel
               </Button>
-              <Button onClick={handleCreateUser}>
-                Create User
+              <Button onClick={handleCreateUser} disabled={isCreateDisabled}>
+                {isCreatingUser ? "Creating..." : "Create User"}
               </Button>
             </div>
           </div>

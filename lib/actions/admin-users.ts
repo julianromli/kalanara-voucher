@@ -8,6 +8,22 @@ import {
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { Admin, AdminRole } from "@/lib/database.types";
 
+export type AdminOnboardingMode = "invite" | "manual";
+
+export interface CreateAdminUserInput {
+  email: string;
+  name: string;
+  role: AdminRole;
+  onboardingMode: AdminOnboardingMode;
+  password?: string;
+  confirmPassword?: string;
+}
+
+export interface CreateAdminUserResult {
+  admin: Admin;
+  onboardingMode: AdminOnboardingMode;
+}
+
 async function getSuperAdminCount() {
   const supabase = getAdminClient();
   const { count, error } = await supabase
@@ -37,37 +53,79 @@ function logAdminLifecycleDenied(
 }
 
 export async function createAdminUser(
-  userData: {
-    email: string;
-    name: string;
-    role: AdminRole;
-  }
-): Promise<Admin | null> {
+  userData: CreateAdminUserInput
+): Promise<CreateAdminUserResult> {
   const access = await requireAdminPermission(AdminPermission.USERS_MANAGE);
 
   const supabase = getAdminClient();
-  
-  // Create auth user first without admin role metadata.
-  const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-    email: userData.email,
-    password: generateTempPassword(),
-    email_confirm: true,
-    user_metadata: {
-      name: userData.name,
-    },
-  });
+
+  const normalizedEmail = userData.email.trim().toLowerCase();
+  const normalizedName = userData.name.trim();
+
+  if (!normalizedEmail) {
+    throw new Error("Email admin wajib diisi.");
+  }
+
+  if (!normalizedName) {
+    throw new Error("Nama admin wajib diisi.");
+  }
+
+  if (userData.onboardingMode === "manual" && !userData.password) {
+    throw new Error("Password admin wajib diisi untuk mode manual.");
+  }
+
+  const manualPassword = userData.onboardingMode === "manual" ? userData.password : undefined;
+
+  if (manualPassword && manualPassword.length < 8) {
+    throw new Error("Password admin minimal 8 karakter.");
+  }
+
+  if (manualPassword && manualPassword !== userData.confirmPassword) {
+    throw new Error("Konfirmasi password admin tidak cocok.");
+  }
+
+  const { data: existingAdmin } = await supabase
+    .from("admins")
+    .select("id")
+    .eq("email", normalizedEmail)
+    .maybeSingle();
+
+  if (existingAdmin) {
+    throw new Error("Email tersebut sudah terdaftar sebagai admin.");
+  }
+
+  const authResponse =
+    userData.onboardingMode === "invite"
+      ? await supabase.auth.admin.inviteUserByEmail(normalizedEmail, {
+          data: {
+            name: normalizedName,
+            role: userData.role,
+          },
+          redirectTo: buildAdminInviteRedirectUrl(),
+        })
+      : await supabase.auth.admin.createUser({
+          email: normalizedEmail,
+          password: manualPassword!,
+          email_confirm: true,
+          user_metadata: {
+            name: normalizedName,
+            role: userData.role,
+          },
+        });
+
+  const { data: authUser, error: authError } = authResponse;
 
   if (authError || !authUser.user) {
     console.error("Error creating auth user:", authError);
-    return null;
+    throw new Error(getAdminUserCreationErrorMessage(authError?.message));
   }
 
   const { data, error } = await supabase
     .from("admins")
     .insert({
       id: authUser.user.id,
-      email: userData.email,
-      name: userData.name,
+      email: normalizedEmail,
+      name: normalizedName,
       role: userData.role
     })
     .select()
@@ -81,14 +139,14 @@ export async function createAdminUser(
       console.error("Error cleaning up auth user after admin insert failure:", cleanupError);
     }
 
-    return null;
+    throw new Error(getAdminInsertErrorMessage(error?.message));
   }
 
   const { error: metadataSyncError } = await supabase.auth.admin.updateUserById(
     authUser.user.id,
     {
       user_metadata: {
-        name: userData.name,
+        name: normalizedName,
         role: userData.role,
       },
     }
@@ -101,14 +159,53 @@ export async function createAdminUser(
   logAdminAudit(access, {
     action: "admin_user.create",
     target: data.id,
-    details: { role: data.role, email: data.email },
+    details: {
+      role: data.role,
+      email: data.email,
+      onboardingMode: userData.onboardingMode,
+    },
   });
 
-  return data;
+  return {
+    admin: data,
+    onboardingMode: userData.onboardingMode,
+  };
 }
 
-function generateTempPassword(): string {
-  return Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+function buildAdminInviteRedirectUrl() {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+
+  if (!appUrl) {
+    throw new Error("NEXT_PUBLIC_APP_URL belum dikonfigurasi untuk link undangan admin.");
+  }
+
+  return `${appUrl.replace(/\/$/, "")}/auth/callback`;
+}
+
+function getAdminUserCreationErrorMessage(message?: string) {
+  if (!message) {
+    return "Gagal membuat akun admin baru.";
+  }
+
+  const normalizedMessage = message.toLowerCase();
+
+  if (normalizedMessage.includes("already been registered")) {
+    return "Email tersebut sudah terdaftar di sistem autentikasi.";
+  }
+
+  if (normalizedMessage.includes("password")) {
+    return "Password admin tidak memenuhi syarat keamanan.";
+  }
+
+  return "Gagal membuat akun admin baru.";
+}
+
+function getAdminInsertErrorMessage(message?: string) {
+  if (message?.toLowerCase().includes("duplicate key")) {
+    return "Email tersebut sudah terdaftar sebagai admin.";
+  }
+
+  return "Gagal menyimpan data admin baru.";
 }
 
 export async function getAdminUsers(): Promise<Admin[]> {
@@ -246,15 +343,10 @@ export async function deactivateAdminUser(id: string): Promise<Admin | null> {
     return null;
   }
 
-  const { error: authError } = await supabase.auth.admin.updateUserById(id, {
-    user_metadata: {
-      name: existingAdmin.name,
-      role: null,
-    },
-  });
+  const { error: authError } = await supabase.auth.admin.deleteUser(id);
 
   if (authError) {
-    console.error("Error syncing deactivated admin role:", authError);
+    console.error("Error removing auth user during admin deactivation:", authError);
   }
 
   logAdminAudit(access, {
