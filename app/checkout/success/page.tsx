@@ -13,8 +13,10 @@ import {
 import QRCode from "react-qr-code";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/context/ToastContext";
+import { formatCurrency } from "@/lib/constants";
 import { downloadPDF, generateVoucherPDF } from "@/lib/pdf";
 import type { PublicOrderStatusPayload } from "@/lib/scalev/types";
+import { isScalevHostedPublicOrderUrl } from "@/lib/scalev/urls";
 
 function SuccessContent() {
   const searchParams = useSearchParams();
@@ -27,6 +29,7 @@ function SuccessContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const paymentLink = payload?.paymentLink;
+  const paymentInstructions = payload?.paymentInstructions;
 
   useEffect(() => {
     if (!orderId || !token) {
@@ -209,8 +212,27 @@ function SuccessContent() {
         <p className="mb-6 max-w-md text-center text-muted-foreground">
           {error || payload?.message || "Pembayaran masih diverifikasi."}
         </p>
+        {paymentInstructions?.kind === "qris" ? (
+          <div className="mb-6 w-full max-w-sm rounded-2xl border border-border bg-card p-5 text-center shadow-sm">
+            <p className="text-sm font-medium text-foreground">Scan QRIS untuk membayar</p>
+            {paymentInstructions.amount ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Nominal {formatCurrency(paymentInstructions.amount)}
+              </p>
+            ) : null}
+            <div className="mx-auto mt-4 w-fit rounded-2xl border border-border bg-white p-4">
+              <QRCode value={paymentInstructions.qrString} size={208} />
+            </div>
+            {paymentInstructions.expiresAt ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Berlaku sampai{" "}
+                {new Date(paymentInstructions.expiresAt).toLocaleString("id-ID")}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         <div className="flex w-full max-w-sm flex-col gap-3">
-          {paymentLink ? (
+          {paymentLink && !isScalevHostedPublicOrderUrl(paymentLink) ? (
             <Button onClick={handleOpenPaymentPage}>
               Buka Halaman Pembayaran
             </Button>

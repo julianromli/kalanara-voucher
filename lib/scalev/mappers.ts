@@ -1,4 +1,5 @@
 import {
+  type PublicOrderPaymentInstructions,
   type PublicOrderStatusPayload,
   type ScalevNormalizedPaymentStatus,
   type ScalevPaymentMethod,
@@ -67,6 +68,25 @@ export function extractScalevPaymentMethods(store: ScalevStoreRecord): {
   };
 }
 
+function extractScalevPaymentInstructions(
+  payment: ScalevPaymentStatusResponse | null
+): PublicOrderPaymentInstructions | undefined {
+  const qrCode = payment?.pg_payment_info?.payment_method?.qr_code;
+  const qrString = qrCode?.channel_properties?.qr_string?.trim();
+
+  if (!qrString) {
+    return undefined;
+  }
+
+  return {
+    kind: "qris",
+    qrString,
+    amount: qrCode?.amount ?? payment?.pg_payment_info?.amount ?? null,
+    expiresAt: qrCode?.channel_properties?.expires_at ?? null,
+    channelCode: qrCode?.channel_code ?? null,
+  };
+}
+
 export function buildPaymentSnapshot(
   payment: ScalevPaymentStatusResponse | null,
   settlement: ScalevSettlementStatusResponse | null
@@ -83,6 +103,7 @@ export function buildPaymentSnapshot(
       payment?.invoice_url ??
       buildScalevPublicOrderUrl(payment?.secret_slug) ??
       null,
+    paymentInstructions: extractScalevPaymentInstructions(payment),
     paymentMethod: payment?.payment_method ?? null,
     subPaymentMethod: payment?.sub_payment_method ?? null,
     rawPaymentStatus: paymentStatus,
@@ -92,7 +113,8 @@ export function buildPaymentSnapshot(
 }
 
 export function buildPublicOrderStatus(
-  order: OrderWithVoucher
+  order: OrderWithVoucher,
+  paymentInstructions?: PublicOrderPaymentInstructions
 ): PublicOrderStatusPayload {
   const voucher = order.vouchers;
   const status =
@@ -109,6 +131,7 @@ export function buildPublicOrderStatus(
     paymentMethod: order.scalev_payment_method || order.payment_type,
     provider: order.payment_provider,
     paymentLink: order.payment_link,
+    paymentInstructions,
     message:
       status === "pending"
         ? "Pembayaran masih diverifikasi."

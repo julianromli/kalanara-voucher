@@ -30,3 +30,16 @@ export function buildScalevPublicOrderUrl(secretSlug?: string | null) {
 
   return `${baseUrl}/order/public/${trimmedPath}`;
 }
+
+export function isScalevHostedPublicOrderUrl(urlValue?: string | null) {
+  if (!urlValue) {
+    return false;
+  }
+
+  try {
+    const url = new URL(urlValue);
+    return url.pathname.startsWith("/order/public/");
+  } catch {
+    return false;
+  }
+}

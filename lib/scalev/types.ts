@@ -173,6 +173,26 @@ export interface ScalevPaymentIntentResponse {
   [key: string]: unknown;
 }
 
+export interface ScalevQrCodeProperties {
+  expires_at?: string | null;
+  qr_string?: string | null;
+}
+
+export interface ScalevQrCodeInfo {
+  amount?: number | null;
+  channel_code?: string | null;
+  channel_properties?: ScalevQrCodeProperties | null;
+}
+
+export interface ScalevGatewayPaymentMethodInfo {
+  qr_code?: ScalevQrCodeInfo | null;
+}
+
+export interface ScalevGatewayPaymentInfo {
+  amount?: number | null;
+  payment_method?: ScalevGatewayPaymentMethodInfo | null;
+}
+
 export interface ScalevPaymentStatusResponse {
   id?: number;
   order_id?: string;
@@ -183,6 +203,7 @@ export interface ScalevPaymentStatusResponse {
   sub_payment_method?: string | null;
   invoice_url?: string | null;
   secret_slug?: string | null;
+  pg_payment_info?: ScalevGatewayPaymentInfo | null;
 }
 
 export interface ScalevSettlementStatusResponse {
@@ -198,12 +219,23 @@ export interface ScalevPaymentSnapshot {
   orderId?: string | null;
   pgReferenceId?: string | null;
   paymentLink?: string | null;
+  paymentInstructions?: PublicOrderPaymentInstructions;
   paymentMethod?: string | null;
   subPaymentMethod?: string | null;
   rawPaymentStatus?: string | null;
   rawStatus?: string | null;
   normalizedStatus: ScalevNormalizedPaymentStatus;
 }
+
+export interface PublicOrderQrisInstructions {
+  kind: "qris";
+  qrString: string;
+  amount?: number | null;
+  expiresAt?: string | null;
+  channelCode?: string | null;
+}
+
+export type PublicOrderPaymentInstructions = PublicOrderQrisInstructions;
 
 export interface PublicOrderStatusPayload {
   status: ScalevPublicStatus;
@@ -213,6 +245,7 @@ export interface PublicOrderStatusPayload {
   provider?: string | null;
   message?: string;
   paymentLink?: string | null;
+  paymentInstructions?: PublicOrderPaymentInstructions;
   voucher?: {
     voucherCode: string;
     paymentOrderId: string;

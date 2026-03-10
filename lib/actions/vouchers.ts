@@ -90,6 +90,10 @@ export async function getVoucherBySourceOrderId(
     .single();
 
   if (error) {
+    if ("code" in error && error.code === "PGRST116") {
+      return null;
+    }
+
     console.error("Error fetching voucher by source order ID:", error);
     return null;
   }

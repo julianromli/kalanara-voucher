@@ -177,5 +177,7 @@ export async function reconcilePublicOrderStatus(
   }
 
   const refreshed = await getPublicOrderDetails(paymentOrderId, publicAccessToken);
-  return refreshed ? buildPublicOrderStatus(refreshed) : null;
+  return refreshed
+    ? buildPublicOrderStatus(refreshed, snapshot.paymentInstructions)
+    : null;
 }

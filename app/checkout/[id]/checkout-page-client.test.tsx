@@ -70,4 +70,71 @@ describe("CheckoutPageClient", () => {
       expect(recipientEmailInput).toHaveValue("p");
     });
   });
+
+  test("does not open the broken hosted Scalev page when the payment link is a public order URL", async () => {
+    const popup = {
+      close: vi.fn(),
+      location: { href: "" },
+    };
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          config: {
+            paymentNotice: null,
+            paymentOptions: [{ code: "qris", label: "QRIS" }],
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          paymentLink: "https://app.scalev.id/order/public/secret-token",
+          paymentOrderId: "KSP-123",
+          publicAccessToken: "public-token",
+        }),
+      });
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("open", vi.fn(() => popup as never));
+
+    render(
+      <ToastProvider>
+        <CheckoutPageClient service={service} />
+      </ToastProvider>
+    );
+
+    expect(await screen.findByText("QRIS")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText("Nama kamu"), {
+      target: { value: "Faiz" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("nama@email.com"), {
+      target: { value: "faiz@example.com" },
+    });
+    fireEvent.change(screen.getAllByPlaceholderText("+62 812 3456 7890")[0], {
+      target: { value: "081234567890" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {
+      target: { value: "Penerima" },
+    });
+    fireEvent.change(screen.getAllByPlaceholderText("+62 812 3456 7890")[1], {
+      target: { value: "081234567891" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Lanjut ke Pembayaran" }));
+
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith(
+        "/checkout/success?order_id=KSP-123&token=public-token"
+      );
+    });
+
+    expect(popup.close).toHaveBeenCalled();
+    expect(popup.location.href).toBe("");
+  });
 });

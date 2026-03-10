@@ -23,6 +23,7 @@ import {
   type ScalevPaymentMethod,
   type ScalevVABankCode,
 } from "@/lib/scalev/types";
+import { isScalevHostedPublicOrderUrl } from "@/lib/scalev/urls";
 import { DeliveryMethod, SendTo, type Service } from "@/lib/types";
 import { useToast } from "@/context/ToastContext";
 
@@ -219,9 +220,13 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
         throw new Error(result.error || "Gagal membuat pembayaran.");
       }
 
-      if (paymentWindow) {
+      const shouldOpenHostedPage = !isScalevHostedPublicOrderUrl(result.paymentLink);
+
+      if (paymentWindow && shouldOpenHostedPage) {
         paymentWindow.location.href = result.paymentLink;
-      } else {
+      } else if (paymentWindow) {
+        paymentWindow.close();
+      } else if (shouldOpenHostedPage) {
         showToast(
           "Popup pembayaran diblokir browser. Buka halaman pembayaran dari tombol di halaman berikutnya.",
           "info"
