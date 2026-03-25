@@ -7,19 +7,31 @@ import { ServicesSection } from "@/components/services-section";
 import { TestimonialsSection } from "@/components/testimonials-section";
 import { SiteContainer } from "@/components/site-container";
 import { getServices } from "@/lib/actions/services";
+import type { ServiceWithCategory } from "@/lib/actions/services";
 import { getReviews } from "@/lib/actions/reviews";
-import { ServiceCategory } from "@/lib/types";
 import type { Service, Review } from "@/lib/types";
-import type { Service as DBService, Review as DBReview } from "@/lib/database.types";
+import type { Review as DBReview } from "@/lib/database.types";
 
-function adaptDBServiceToFrontend(dbService: DBService): Service {
+function adaptDBServiceToFrontend(dbService: ServiceWithCategory): Service {
   return {
     id: dbService.id,
     name: dbService.name,
     description: dbService.description ?? "",
     duration: dbService.duration,
     price: dbService.price,
-    category: dbService.category as ServiceCategory,
+    category: dbService.category_relation
+      ? {
+          id: dbService.category_relation.id,
+          slug: dbService.category_relation.slug,
+          name: dbService.category_relation.name,
+          isActive: dbService.category_relation.is_active,
+        }
+      : {
+          id: dbService.category_id ?? "",
+          slug: "",
+          name: "Layanan",
+          isActive: true,
+        },
     image: dbService.image_url ?? "/images/services/placeholder.jpg",
   };
 }

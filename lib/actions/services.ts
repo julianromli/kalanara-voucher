@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath, revalidateTag } from "next/cache";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 import {
   logAdminAudit,
@@ -7,14 +8,31 @@ import {
 } from "@/lib/auth/admin-rbac-server";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { revalidateTag } from "next/cache";
-import type { Service, ServiceInsert, ServiceUpdate } from "@/lib/database.types";
+import type { Database, Service, ServiceInsert, ServiceUpdate } from "@/lib/database.types";
 
-export async function getServices(): Promise<Service[]> {
+export type ServiceCategoryRelation =
+  Database["public"]["Tables"]["service_categories"]["Row"];
+
+export type ServiceWithCategory = Service & {
+  category_relation: ServiceCategoryRelation | null;
+};
+
+const SERVICE_WITH_CATEGORY_SELECT =
+  "*, category_relation:service_categories!services_category_id_fkey(*)";
+
+function revalidateServiceCatalogData() {
+  revalidateTag("dashboard-stats", "max");
+  revalidatePath("/", "page");
+  revalidatePath("/admin/services", "page");
+  revalidatePath("/checkout/[id]", "page");
+  revalidatePath("/voucher/[id]", "page");
+}
+
+export async function getServices(): Promise<ServiceWithCategory[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("services")
-    .select("*")
+    .select(SERVICE_WITH_CATEGORY_SELECT)
     .eq("is_active", true)
     .order("created_at", { ascending: true });
 
@@ -23,16 +41,16 @@ export async function getServices(): Promise<Service[]> {
     return [];
   }
 
-  return data || [];
+  return (data as ServiceWithCategory[]) || [];
 }
 
-export async function getAllServices(): Promise<Service[]> {
+export async function getAllServices(): Promise<ServiceWithCategory[]> {
   await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
 
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("services")
-    .select("*")
+    .select(SERVICE_WITH_CATEGORY_SELECT)
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -40,14 +58,14 @@ export async function getAllServices(): Promise<Service[]> {
     return [];
   }
 
-  return data || [];
+  return (data as ServiceWithCategory[]) || [];
 }
 
-export async function getServiceById(id: string): Promise<Service | null> {
+export async function getServiceById(id: string): Promise<ServiceWithCategory | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("services")
-    .select("*")
+    .select(SERVICE_WITH_CATEGORY_SELECT)
     .eq("id", id)
     .single();
 
@@ -59,11 +77,11 @@ export async function getServiceById(id: string): Promise<Service | null> {
   return data;
 }
 
-export async function getActiveServicesForScalevSync(): Promise<Service[]> {
+export async function getActiveServicesForScalevSync(): Promise<ServiceWithCategory[]> {
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("services")
-    .select("*")
+    .select(SERVICE_WITH_CATEGORY_SELECT)
     .eq("is_active", true)
     .order("created_at", { ascending: true });
 
@@ -72,17 +90,17 @@ export async function getActiveServicesForScalevSync(): Promise<Service[]> {
     return [];
   }
 
-  return data || [];
+  return (data as ServiceWithCategory[]) || [];
 }
 
-export async function createService(service: ServiceInsert): Promise<Service | null> {
+export async function createService(service: ServiceInsert): Promise<ServiceWithCategory | null> {
   const access = await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
 
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("services")
     .insert(service)
-    .select()
+    .select(SERVICE_WITH_CATEGORY_SELECT)
     .single();
 
   if (error) {
@@ -96,14 +114,14 @@ export async function createService(service: ServiceInsert): Promise<Service | n
     details: { name: data.name },
   });
 
-  revalidateTag("dashboard-stats", "max");
-  return data;
+  revalidateServiceCatalogData();
+  return data as ServiceWithCategory;
 }
 
 export async function updateService(
   id: string,
   updates: ServiceUpdate
-): Promise<Service | null> {
+): Promise<ServiceWithCategory | null> {
   const access = await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
 
   const supabase = getAdminClient();
@@ -111,7 +129,7 @@ export async function updateService(
     .from("services")
     .update(updates)
     .eq("id", id)
-    .select()
+    .select(SERVICE_WITH_CATEGORY_SELECT)
     .single();
 
   if (error) {
@@ -125,8 +143,8 @@ export async function updateService(
     details: { name: data.name },
   });
 
-  revalidateTag("dashboard-stats", "max");
-  return data;
+  revalidateServiceCatalogData();
+  return data as ServiceWithCategory;
 }
 
 export async function updateServiceScalevMapping(
@@ -155,6 +173,7 @@ export async function updateServiceScalevMapping(
     return null;
   }
 
+  revalidateServiceCatalogData();
   return data;
 }
 
@@ -178,6 +197,6 @@ export async function deleteService(id: string): Promise<boolean> {
     target: id,
   });
 
-  revalidateTag("dashboard-stats", "max");
+  revalidateServiceCatalogData();
   return true;
 }

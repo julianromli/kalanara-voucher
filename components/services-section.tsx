@@ -60,6 +60,11 @@ export function ServicesSection({ services }: ServicesSectionProps) {
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover"
                   />
+                  {service.category?.name && (
+                    <div className="absolute top-4 left-4 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium shadow-sm">
+                      {service.category.name}
+                    </div>
+                  )}
                   <div className="absolute top-4 right-4 bg-card/90 backdrop-blur text-foreground px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 shadow-sm">
                     <Clock size={14} />
                     {service.duration} menit

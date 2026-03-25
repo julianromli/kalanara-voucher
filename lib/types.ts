@@ -8,14 +8,54 @@
 // ============================================================================
 
 /**
- * Categories of spa services offered
+ * Resolved spa service category used by frontend rendering and filtering.
  */
-export enum ServiceCategory {
-  MASSAGE = "MASSAGE",
-  FACIAL = "FACIAL",
-  BODY_TREATMENT = "BODY_TREATMENT",
-  PACKAGE = "PACKAGE",
+export interface ServiceCategory {
+  readonly id: string;
+  readonly slug: string;
+  readonly name: string;
+  readonly isActive: boolean;
 }
+
+/**
+ * Legacy category code constants kept for deterministic adapters.
+ */
+export const SERVICE_CATEGORY_CODES = {
+  MASSAGE: "MASSAGE",
+  FACIAL: "FACIAL",
+  BODY_TREATMENT: "BODY_TREATMENT",
+  PACKAGE: "PACKAGE",
+} as const;
+
+export type ServiceCategoryCode =
+  (typeof SERVICE_CATEGORY_CODES)[keyof typeof SERVICE_CATEGORY_CODES];
+
+export const ServiceCategory = {
+  MASSAGE: {
+    id: "massage",
+    slug: "massage",
+    name: "Massage",
+    isActive: true,
+  },
+  FACIAL: {
+    id: "facial",
+    slug: "facial",
+    name: "Facial",
+    isActive: true,
+  },
+  BODY_TREATMENT: {
+    id: "body-treatment",
+    slug: "body-treatment",
+    name: "Body Treatment",
+    isActive: true,
+  },
+  PACKAGE: {
+    id: "package",
+    slug: "package",
+    name: "Package",
+    isActive: true,
+  },
+} as const satisfies Record<ServiceCategoryCode, ServiceCategory>;
 
 /**
  * Available payment methods for voucher purchases

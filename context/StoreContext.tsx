@@ -14,11 +14,8 @@ import type {
   Order as FrontendOrder,
   Review as FrontendReview,
 } from '@/lib/types';
-import { ServiceCategory } from '@/lib/types';
-import type {
-  Service as DBService,
-  Review as DBReview,
-} from '@/lib/database.types';
+import type { Review as DBReview } from '@/lib/database.types';
+import type { ServiceWithCategory } from '@/lib/actions/services';
 
 // Server actions
 import { getServices } from '@/lib/actions/services';
@@ -68,17 +65,35 @@ const STORAGE_KEYS = {
 // Type Adapters: DB → Frontend
 // ============================================================================
 
+function resolveServiceCategory(
+  dbService: ServiceWithCategory
+): FrontendService['category'] {
+  return dbService.category_relation
+    ? {
+        id: dbService.category_relation.id,
+        slug: dbService.category_relation.slug,
+        name: dbService.category_relation.name,
+        isActive: dbService.category_relation.is_active,
+      }
+    : {
+        id: dbService.category_id ?? '',
+        slug: '',
+        name: 'Layanan',
+        isActive: true,
+      };
+}
+
 /**
  * Converts a database Service to a frontend Service
  */
-function adaptDBServiceToFrontend(dbService: DBService): FrontendService {
+function adaptDBServiceToFrontend(dbService: ServiceWithCategory): FrontendService {
   return {
     id: dbService.id,
     name: dbService.name,
     description: dbService.description ?? '',
     duration: dbService.duration,
     price: dbService.price,
-    category: dbService.category as ServiceCategory,
+    category: resolveServiceCategory(dbService),
     image: dbService.image_url ?? '/images/services/placeholder.jpg',
   };
 }

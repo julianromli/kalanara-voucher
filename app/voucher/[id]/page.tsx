@@ -6,13 +6,14 @@ import { Clock, ChevronLeft, Gift, Star, Calendar } from "lucide-react";
 import { formatCurrency, APP_CONFIG } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { getServiceById } from "@/lib/actions/services";
-import { ServiceCategory, type Service } from "@/lib/types";
+import type { Service } from "@/lib/types";
+import type { ServiceWithCategory } from "@/lib/actions/services";
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-function toServiceModel(service: Awaited<ReturnType<typeof getServiceById>>): Service | null {
+function toServiceModel(service: ServiceWithCategory | null): Service | null {
   if (!service || !service.is_active) {
     return null;
   }
@@ -23,7 +24,19 @@ function toServiceModel(service: Awaited<ReturnType<typeof getServiceById>>): Se
     description: service.description ?? "",
     duration: service.duration,
     price: service.price,
-    category: service.category as ServiceCategory,
+    category: service.category_relation
+      ? {
+          id: service.category_relation.id,
+          slug: service.category_relation.slug,
+          name: service.category_relation.name,
+          isActive: service.category_relation.is_active,
+        }
+      : {
+          id: service.category_id ?? "",
+          slug: "",
+          name: "Layanan",
+          isActive: true,
+        },
     image: service.image_url ?? "/images/services/placeholder.jpg",
   };
 }
@@ -96,7 +109,7 @@ export default async function VoucherDetailPage({ params }: PageProps) {
 
           <div className="flex flex-col">
             <span className="animate-fade-slide-up text-muted-foreground uppercase tracking-wider text-sm mb-2">
-              {service.category.replace("_", " ")}
+              {service.category.name}
             </span>
             <h1 className="animate-fade-slide-up animate-stagger-1 font-sans font-semibold text-4xl lg:text-5xl text-foreground mb-6">
               {service.name}

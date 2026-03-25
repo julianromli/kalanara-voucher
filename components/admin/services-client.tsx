@@ -18,6 +18,7 @@ import {
   Upload04Icon,
   ImageDelete01Icon,
 } from "@hugeicons/core-free-icons";
+import { ChevronDown, ChevronUp, Edit2, Trash2, FolderOpen, EyeOff, Eye, Loader2, Plus } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { formatCurrency } from "@/lib/constants";
@@ -38,13 +39,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
 import {
   createService,
   updateService,
   deleteService,
 } from "@/lib/actions/services";
-import type { Service, ServiceInsert, ServiceUpdate } from "@/lib/database.types";
+import {
+  createServiceCategory,
+  updateServiceCategory,
+  deleteServiceCategory,
+} from "@/lib/actions/service-categories";
+import type { Database, ServiceInsert, ServiceUpdate } from "@/lib/database.types";
+import type { ServiceWithCategory } from "@/lib/actions/services";
 import { cn } from "@/lib/utils";
 import {
   buildServiceImagePath,
@@ -53,7 +62,7 @@ import {
   getServiceImageBucket,
 } from "@/lib/utils/serviceImages";
 
-type ServiceCategory = "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE";
+type ServiceCategoryRow = Database["public"]["Tables"]["service_categories"]["Row"];
 type UploadStatus = "idle" | "uploading" | "error";
 
 interface ServiceFormData {
@@ -61,22 +70,15 @@ interface ServiceFormData {
   description: string;
   duration: number;
   price: number;
-  category: ServiceCategory;
+  category_id: string;
 }
-
-const CATEGORY_LABELS: Record<ServiceCategory, string> = {
-  MASSAGE: "Massage",
-  FACIAL: "Facial",
-  BODY_TREATMENT: "Body Treatment",
-  PACKAGE: "Package",
-};
 
 const DEFAULT_FORM: ServiceFormData = {
   name: "",
   description: "",
   duration: 60,
   price: 500000,
-  category: "MASSAGE",
+  category_id: "",
 };
 
 const FALLBACK_SERVICE_IMAGE =
@@ -85,21 +87,34 @@ const FALLBACK_SERVICE_IMAGE =
 const MAX_IMAGE_SIZE_MB = Math.floor(getMaxServiceImageSizeBytes() / (1024 * 1024));
 
 interface ServicesClientProps {
-  initialServices: Service[];
+  initialServices: ServiceWithCategory[];
+  initialCategories: ServiceCategoryRow[];
 }
 
 function createDraftScopeId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return `draft/${crypto.randomUUID()}`;
   }
-
   return `draft/${Date.now()}`;
 }
 
-export function ServicesClient({ initialServices }: ServicesClientProps) {
+
+function getLegacyCategoryForSlug(slug?: string | null): "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE" | null {
+  if (!slug) return null;
+  switch (slug) {
+    case "massage": return "MASSAGE";
+    case "facial": return "FACIAL";
+    case "body-treatment": return "BODY_TREATMENT";
+    case "package": return "PACKAGE";
+    default: return null;
+  }
+}
+
+export function ServicesClient({ initialServices, initialCategories }: ServicesClientProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
+  
   const searchInputId = useId();
   const categoryFilterId = useId();
   const serviceNameId = useId();
@@ -110,18 +125,31 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
   const serviceImageId = useId();
   const uploadErrorId = useId();
 
-  const [services, setServices] = useState<Service[]>(initialServices);
+  const [services, setServices] = useState<ServiceWithCategory[]>(initialServices);
+  const [categories, setCategories] = useState<ServiceCategoryRow[]>(initialCategories);
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<ServiceCategory | "ALL">("ALL");
+  const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
 
+  // Service form state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<ServiceFormData>(DEFAULT_FORM);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  
+  // Category form state
+  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
+  const [isCatDialogOpen, setIsCatDialogOpen] = useState(false);
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [catName, setCatName] = useState("");
+  const [isCatBusy, setIsCatBusy] = useState(false);
+
+  // Layout & sync state
   const [isMounted, setIsMounted] = useState(false);
   const [optimisticIds, setOptimisticIds] = useState<Set<string>>(new Set());
+  
+  // Upload state
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
   const [originalImageUrl, setOriginalImageUrl] = useState("");
@@ -167,7 +195,6 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
     if (!imagePreviewUrl.startsWith("blob:")) {
       return;
     }
-
     return () => {
       URL.revokeObjectURL(imagePreviewUrl);
     };
@@ -178,7 +205,11 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
       service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       service.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory =
-      categoryFilter === "ALL" || service.category === categoryFilter;
+      categoryFilter === "ALL" 
+        ? true 
+        : categoryFilter === "LEGACY" 
+          ? !service.category_id 
+          : service.category_id === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
@@ -190,13 +221,13 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
     setIsDialogOpen(true);
   };
 
-  const handleOpenEdit = (service: Service) => {
+  const handleOpenEdit = (service: ServiceWithCategory) => {
     setFormData({
       name: service.name,
       description: service.description || "",
       duration: service.duration,
       price: service.price,
-      category: service.category,
+      category_id: service.category_id || "",
     });
     resetImageState(service.image_url || "");
     setIsEditing(true);
@@ -206,10 +237,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
 
   const handleSelectImage = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     const allowedTypes = getAllowedServiceImageTypes();
     if (!allowedTypes.includes(file.type as (typeof allowedTypes)[number])) {
@@ -246,7 +274,6 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
     if (!selectedImageFile) {
       return { uploadedImageUrl: null as string | null };
     }
-
     setUploadStatus("uploading");
     setUploadError(null);
 
@@ -274,12 +301,8 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
   };
 
   const cleanupImage = async (imageUrl: string | null) => {
-    if (!imageUrl) {
-      return;
-    }
-
+    if (!imageUrl) return;
     const result = await deleteServiceImageByUrl(imageUrl);
-
     if (!result.success) {
       throw new Error(result.error || "Failed to delete service image.");
     }
@@ -296,7 +319,6 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
     }
 
     setIsSaving(true);
-
     let uploadedImageUrl: string | null = null;
     let nextImageUrl: string | null = removeCurrentImage ? null : originalImageUrl || null;
 
@@ -317,7 +339,8 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
                 description: formData.description || null,
                 duration: formData.duration,
                 price: formData.price,
-                category: formData.category,
+                category_id: formData.category_id || null,
+                category_relation: categories.find(c => c.id === formData.category_id) || service.category_relation,
                 image_url: nextImageUrl,
                 updated_at: new Date().toISOString(),
               }
@@ -328,12 +351,22 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
         setOptimistic(editingId, true);
 
         try {
+          const selectedCategory = categories.find(c => c.id === formData.category_id);
+          const previousService = previous.find(s => s.id === editingId);
+          const mappedLegacy = getLegacyCategoryForSlug(selectedCategory?.slug);
+          
+          // CRITICAL: For custom categories (mappedLegacy is null), we MUST preserve the 
+          // existing service's legacy category. The database trigger sync_service_category_id_from_legacy
+          // overwrites category_id if the legacy category changes. Preserving it prevents this.
+          const legacyCategory = mappedLegacy || previousService?.category || "MASSAGE";
+
           const updated = await updateService(editingId, {
             name: formData.name,
             description: formData.description || null,
             duration: formData.duration,
             price: formData.price,
-            category: formData.category,
+            category: legacyCategory,
+            category_id: formData.category_id || null,
             image_url: nextImageUrl,
           } as ServiceUpdate);
 
@@ -356,30 +389,27 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
           }
         } catch (error) {
           setServices(previous);
-
           if (uploadedImageUrl) {
-            await cleanupImage(uploadedImageUrl).catch((cleanupError) => {
-              console.error(cleanupError);
-            });
+            await cleanupImage(uploadedImageUrl).catch(console.error);
           }
-
           throw error;
         } finally {
           setOptimistic(editingId, false);
         }
-
         return;
       }
 
       const tempId = `temp-${Date.now()}`;
       const previous = services;
-      const optimisticService: Service = {
+      const optimisticService: ServiceWithCategory = {
         id: tempId,
         name: formData.name,
         description: formData.description || null,
         duration: formData.duration,
         price: formData.price,
-        category: formData.category,
+        category: getLegacyCategoryForSlug(categories.find(c => c.id === formData.category_id)?.slug) || "MASSAGE",
+        category_id: formData.category_id || null,
+        category_relation: categories.find(c => c.id === formData.category_id) || null,
         image_url: nextImageUrl,
         is_active: true,
         scalev_product_id: null,
@@ -400,7 +430,8 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
           description: formData.description || null,
           duration: formData.duration,
           price: formData.price,
-          category: formData.category,
+          category: getLegacyCategoryForSlug(categories.find(c => c.id === formData.category_id)?.slug) || "MASSAGE",
+          category_id: formData.category_id || null,
           image_url: nextImageUrl,
         } as ServiceInsert);
 
@@ -415,20 +446,15 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
         showToast("Service created successfully", "success");
       } catch (error) {
         setServices(previous);
-
         if (uploadedImageUrl) {
-          await cleanupImage(uploadedImageUrl).catch((cleanupError) => {
-            console.error(cleanupError);
-          });
+          await cleanupImage(uploadedImageUrl).catch(console.error);
         }
-
         throw error;
       } finally {
         setOptimistic(tempId, false);
       }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to save service";
+      const message = error instanceof Error ? error.message : "Failed to save service";
       setUploadStatus(selectedImageFile ? "error" : "idle");
       setUploadError(selectedImageFile ? message : null);
       showToast(message, "error");
@@ -457,6 +483,71 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
     } finally {
       setIsDeleting(null);
       setOptimistic(id, false);
+    }
+  };
+
+  const handleSaveCategory = async () => {
+    if (!catName.trim()) return;
+    setIsCatBusy(true);
+    try {
+      if (editingCatId) {
+        const updated = await updateServiceCategory(editingCatId, { name: catName });
+        setCategories((prev) => prev.map((c) => (c.id === editingCatId ? updated : c)));
+        
+        // Update optimistic relations in services list
+        setServices(prev => prev.map(s => {
+          if (s.category_id === updated.id) {
+            return { ...s, category_relation: updated };
+          }
+          return s;
+        }));
+        
+        showToast("Kategori berhasil diperbarui", "success");
+      } else {
+        const created = await createServiceCategory({ name: catName, isActive: true });
+        setCategories((prev) => [...prev, created]);
+        showToast("Kategori berhasil ditambahkan", "success");
+      }
+      setIsCatDialogOpen(false);
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : "Gagal menyimpan kategori", "error");
+    } finally {
+      setIsCatBusy(false);
+    }
+  };
+
+  const handleToggleCategory = async (category: ServiceCategoryRow) => {
+    try {
+      const updated = await updateServiceCategory(category.id, { 
+        name: category.name, 
+        isActive: !category.is_active 
+      });
+      setCategories((prev) => prev.map((c) => (c.id === category.id ? updated : c)));
+      
+      // Update optimistic relations in services list
+      setServices(prev => prev.map(s => {
+        if (s.category_id === updated.id) {
+          return { ...s, category_relation: updated };
+        }
+        return s;
+      }));
+      
+      showToast(`Kategori ${updated.is_active ? 'diaktifkan' : 'dinonaktifkan'}`, "success");
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : "Gagal mengubah status kategori", "error");
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus kategori ini?")) return;
+    
+    try {
+      await deleteServiceCategory(id);
+      setCategories((prev) => prev.filter((c) => c.id !== id));
+      if (categoryFilter === id) setCategoryFilter("ALL");
+      showToast("Kategori berhasil dihapus", "success");
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : "Gagal menghapus kategori", "error");
     }
   };
 
@@ -492,6 +583,134 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
             Add Service
           </Button>
         </div>
+
+        {/* Category Management Block */}
+        <Collapsible
+          open={isCategoriesOpen}
+          onOpenChange={setIsCategoriesOpen}
+          className={cn(
+            "mb-6 rounded-2xl border border-border bg-card shadow-spa transition-all",
+            isMounted ? "animate-fade-slide-down" : "opacity-0"
+          )}
+          style={{ animationDelay: "50ms" }}
+        >
+          <div className="flex items-center justify-between p-4 sm:p-5">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-primary/10 p-2 text-primary">
+                <FolderOpen className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Kelola Kategori</h3>
+                <p className="text-sm text-muted-foreground">Tambah, ubah, atau nonaktifkan kategori layanan.</p>
+              </div>
+            </div>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="w-9 p-0">
+                {isCategoriesOpen ? (
+                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                )}
+                <span className="sr-only">Toggle Categories</span>
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+          <CollapsibleContent>
+            <div className="border-t border-border p-4 sm:p-5">
+              <div className="mb-4 flex justify-end">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditingCatId(null);
+                    setCatName("");
+                    setIsCatDialogOpen(true);
+                  }}
+                  className="btn-hover-lift h-9"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Tambah Kategori
+                </Button>
+              </div>
+              <div className="rounded-xl border border-border overflow-hidden">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead>Nama Kategori</TableHead>
+                      <TableHead className="w-[100px]">Status</TableHead>
+                      <TableHead className="w-[150px] text-right">Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {categories.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center text-muted-foreground py-6">
+                          Belum ada kategori kustom.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      categories.map((cat) => (
+                        <TableRow key={cat.id}>
+                          <TableCell className="font-medium text-foreground">{cat.name}</TableCell>
+                          <TableCell>
+                            <span
+                              className={cn(
+                                "rounded-full px-2 py-1 text-xs",
+                                cat.is_active
+                                  ? "bg-primary/10 text-primary"
+                                  : "bg-destructive/10 text-destructive"
+                              )}
+                            >
+                              {cat.is_active ? "Aktif" : "Nonaktif"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => handleToggleCategory(cat)}
+                                title={cat.is_active ? "Nonaktifkan" : "Aktifkan"}
+                              >
+                                {cat.is_active ? (
+                                  <EyeOff className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                ) : (
+                                  <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => {
+                                  setEditingCatId(cat.id);
+                                  setCatName(cat.name);
+                                  setIsCatDialogOpen(true);
+                                }}
+                                title="Edit Kategori"
+                              >
+                                <Edit2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() => handleDeleteCategory(cat.id)}
+                                title="Hapus Kategori"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         <div
           className={cn(
@@ -533,19 +752,20 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
               </label>
               <Select
                 value={categoryFilter}
-                onValueChange={(value) => setCategoryFilter(value as ServiceCategory | "ALL")}
+                onValueChange={(value) => setCategoryFilter(value)}
               >
                 <SelectTrigger id={categoryFilterId} aria-label="Filter by category" className="min-h-11 w-full">
                 <HugeiconsIcon icon={FilterIcon} size={16} className="mr-2" />
                 <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">All Categories</SelectItem>
-                  {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
+                  <SelectItem value="ALL">Semua Kategori</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
                     </SelectItem>
                   ))}
+                  <SelectItem value="LEGACY">Lainnya (Legacy)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -587,6 +807,8 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
             <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
             {filteredServices.map((service, index) => {
               const isOptimistic = optimisticIds.has(service.id);
+              const badgeLabel = service.category_relation?.name || "Layanan";
+              
               return (
                 <article
                   key={service.id}
@@ -630,7 +852,7 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
                     </div>
                     <div className="absolute bottom-3 left-3">
                       <span className="rounded-full bg-card/95 px-2 py-1 text-xs font-medium text-foreground backdrop-blur">
-                        {CATEGORY_LABELS[service.category]}
+                        {badgeLabel}
                       </span>
                     </div>
                   </div>
@@ -775,21 +997,23 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
 
             <div>
               <label htmlFor={serviceCategoryId} className="mb-1.5 block text-sm font-medium text-foreground">
-                Category *
+                Kategori *
               </label>
               <Select
-                value={formData.category}
+                value={formData.category_id}
                 onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, category: value as ServiceCategory }))
+                  setFormData((prev) => ({ ...prev, category_id: value }))
                 }
               >
                 <SelectTrigger id={serviceCategoryId} className="min-h-11" aria-required="true">
-                  <SelectValue />
+                  <SelectValue placeholder="Pilih Kategori" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
+                  {categories
+                    .filter((c) => c.is_active || c.id === formData.category_id)
+                    .map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name} {!cat.is_active && "(Nonaktif)"}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -890,6 +1114,36 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
                 <HugeiconsIcon icon={Tick02Icon} size={16} className="mr-1" />
               )}
               {isEditing ? "Update" : "Create"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Category Dialog */}
+      <Dialog open={isCatDialogOpen} onOpenChange={setIsCatDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="font-sans text-xl font-semibold">
+              {editingCatId ? "Ubah Kategori" : "Tambah Kategori"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="mb-1.5 block text-sm font-medium">Nama Kategori *</label>
+            <Input
+              value={catName}
+              onChange={(e) => setCatName(e.target.value)}
+              placeholder="Misal: Lulur Tradisional"
+              autoFocus
+              className="min-h-11"
+            />
+          </div>
+          <div className="flex justify-end gap-3 border-t border-border pt-4">
+            <Button variant="outline" onClick={() => setIsCatDialogOpen(false)} disabled={isCatBusy} className="min-h-11">
+              Batal
+            </Button>
+            <Button onClick={handleSaveCategory} disabled={isCatBusy || !catName.trim()} className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90">
+              {isCatBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Simpan
             </Button>
           </div>
         </DialogContent>

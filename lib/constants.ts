@@ -203,37 +203,6 @@ export const ADMIN_CREDENTIALS = {
 } as const;
 
 // ============================================================================
-// Service Categories Config
-// ============================================================================
-
-export const SERVICE_CATEGORIES = [
-  {
-    value: ServiceCategory.MASSAGE,
-    label: "Massage Therapy",
-    description: "Healing touch for body and soul",
-    icon: "Sparkles",
-  },
-  {
-    value: ServiceCategory.FACIAL,
-    label: "Facial Treatments",
-    description: "Radiance and rejuvenation",
-    icon: "Flower2",
-  },
-  {
-    value: ServiceCategory.BODY_TREATMENT,
-    label: "Body Treatments",
-    description: "Nourish and revitalize",
-    icon: "Leaf",
-  },
-  {
-    value: ServiceCategory.PACKAGE,
-    label: "Spa Packages",
-    description: "Complete wellness experiences",
-    icon: "Gift",
-  },
-] as const;
-
-// ============================================================================
 // Payment Methods Config
 // ============================================================================
 

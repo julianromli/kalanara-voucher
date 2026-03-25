@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      service_categories: {
+        Row: {
+          id: string;
+          slug: string;
+          name: string;
+          sort_order: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          name: string;
+          sort_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          slug?: string;
+          name?: string;
+          sort_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       services: {
         Row: {
           id: string;
@@ -17,6 +47,7 @@ export type Database = {
           duration: number;
           price: number;
           category: "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE";
+          category_id: string | null;
           image_url: string | null;
           is_active: boolean;
           scalev_product_id: number | null;
@@ -34,6 +65,7 @@ export type Database = {
           duration: number;
           price: number;
           category: "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE";
+          category_id?: string | null;
           image_url?: string | null;
           is_active?: boolean;
           scalev_product_id?: number | null;
@@ -51,6 +83,7 @@ export type Database = {
           duration?: number;
           price?: number;
           category?: "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE";
+          category_id?: string | null;
           image_url?: string | null;
           is_active?: boolean;
           scalev_product_id?: number | null;
@@ -61,7 +94,15 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "services_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "service_categories";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       vouchers: {
         Row: {
