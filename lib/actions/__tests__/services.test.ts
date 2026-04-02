@@ -7,6 +7,8 @@ const {
   logAdminAuditMock,
   revalidateTagMock,
   revalidatePathMock,
+  servicesFromMock,
+  serviceCategoriesFromMock,
   servicesSelectMock,
   servicesEqMock,
   servicesSingleMock,
@@ -14,6 +16,8 @@ const {
   servicesInsertMock,
   servicesUpdateMock,
   servicesUpdateEqMock,
+  serviceCategoriesSelectMock,
+  serviceCategoriesInMock,
 } = vi.hoisted(() => ({
   createClientMock: vi.fn(),
   getAdminClientMock: vi.fn(),
@@ -21,6 +25,8 @@ const {
   logAdminAuditMock: vi.fn(),
   revalidateTagMock: vi.fn(),
   revalidatePathMock: vi.fn(),
+  servicesFromMock: vi.fn(),
+  serviceCategoriesFromMock: vi.fn(),
   servicesSelectMock: vi.fn(),
   servicesEqMock: vi.fn(),
   servicesSingleMock: vi.fn(),
@@ -28,6 +34,8 @@ const {
   servicesInsertMock: vi.fn(),
   servicesUpdateMock: vi.fn(),
   servicesUpdateEqMock: vi.fn(),
+  serviceCategoriesSelectMock: vi.fn(),
+  serviceCategoriesInMock: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({
@@ -59,7 +67,12 @@ import {
 } from "@/lib/actions/services";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 
-const joinedSelect = "*, category_relation:service_categories!services_category_id_fkey(*)";
+const joinedSelect = "*, category_relation:service_categories!category_id(*)";
+const baseSelect = "*";
+const pgrst200Error = {
+  code: "PGRST200",
+  message: "Could not find a relationship between services and service_categories",
+};
 
 const categoryRow = {
   id: "category-1",
@@ -105,21 +118,63 @@ function createReadQueryChain() {
   return query;
 }
 
+function createCategoryQueryChain() {
+  const query = {
+    in: serviceCategoriesInMock,
+  };
+
+  serviceCategoriesSelectMock.mockReturnValue(query);
+
+  return query;
+}
+
 function createClientFromSelect() {
   return {
-    from: vi.fn(() => ({
-      select: servicesSelectMock,
-    })),
+    from: vi.fn((table: string) => {
+      if (table === "services") {
+        servicesFromMock(table);
+
+        return {
+          select: servicesSelectMock,
+        };
+      }
+
+      if (table === "service_categories") {
+        serviceCategoriesFromMock(table);
+
+        return {
+          select: serviceCategoriesSelectMock,
+        };
+      }
+
+      throw new Error(`Unexpected table ${table}`);
+    }),
   };
 }
 
 function createAdminClient() {
   return {
-    from: vi.fn(() => ({
-      select: servicesSelectMock,
-      insert: servicesInsertMock,
-      update: servicesUpdateMock,
-    })),
+    from: vi.fn((table: string) => {
+      if (table === "services") {
+        servicesFromMock(table);
+
+        return {
+          select: servicesSelectMock,
+          insert: servicesInsertMock,
+          update: servicesUpdateMock,
+        };
+      }
+
+      if (table === "service_categories") {
+        serviceCategoriesFromMock(table);
+
+        return {
+          select: serviceCategoriesSelectMock,
+        };
+      }
+
+      throw new Error(`Unexpected table ${table}`);
+    }),
   };
 }
 
@@ -127,9 +182,11 @@ beforeEach(() => {
   vi.clearAllMocks();
 
   createReadQueryChain();
+  createCategoryQueryChain();
 
   servicesSingleMock.mockResolvedValue({ data: serviceRow, error: null });
   servicesOrderMock.mockResolvedValue({ data: [serviceRow], error: null });
+  serviceCategoriesInMock.mockResolvedValue({ data: [categoryRow], error: null });
 
   servicesInsertMock.mockReturnValue({
     select: vi.fn(() => ({
@@ -220,6 +277,8 @@ describe("service actions", () => {
     expect(servicesInsertMock).toHaveBeenCalledWith(
       expect.objectContaining({ category_id: "category-1" })
     );
+    expect(serviceCategoriesSelectMock).toHaveBeenCalledWith(baseSelect);
+    expect(serviceCategoriesInMock).toHaveBeenCalledWith("id", ["category-1"]);
     expect(result?.category_relation).toEqual(categoryRow);
     expect(logAdminAuditMock).toHaveBeenCalledWith(
       expect.anything(),
@@ -248,6 +307,87 @@ describe("service actions", () => {
       expect.objectContaining({ action: "service.update" })
     );
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/services", "page");
+  });
+
+  it("falls back to stitched categories for public service list reads on PGRST200", async () => {
+    servicesOrderMock
+      .mockResolvedValueOnce({ data: null, error: pgrst200Error })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            ...serviceRow,
+            category_relation: undefined,
+          },
+        ],
+        error: null,
+      });
+
+    const result = await getServices();
+
+    expect(servicesSelectMock).toHaveBeenNthCalledWith(1, joinedSelect);
+    expect(servicesSelectMock).toHaveBeenNthCalledWith(2, baseSelect);
+    expect(serviceCategoriesSelectMock).toHaveBeenCalledWith(baseSelect);
+    expect(serviceCategoriesInMock).toHaveBeenCalledWith("id", ["category-1"]);
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: "service-1",
+        category_relation: categoryRow,
+      }),
+    ]);
+  });
+
+  it("falls back to stitched category data for service detail reads on PGRST200", async () => {
+    servicesSingleMock
+      .mockResolvedValueOnce({ data: null, error: pgrst200Error })
+      .mockResolvedValueOnce({
+        data: {
+          ...serviceRow,
+          category_relation: undefined,
+        },
+        error: null,
+      });
+
+    const result = await getServiceById("service-1");
+
+    expect(servicesSelectMock).toHaveBeenNthCalledWith(1, joinedSelect);
+    expect(servicesSelectMock).toHaveBeenNthCalledWith(2, baseSelect);
+    expect(serviceCategoriesInMock).toHaveBeenCalledWith("id", ["category-1"]);
+    expect(result?.category_relation).toEqual(categoryRow);
+  });
+
+  it("falls back to stitched category data after service update on PGRST200", async () => {
+    servicesSingleMock.mockResolvedValueOnce({ data: null, error: pgrst200Error });
+    servicesUpdateEqMock.mockReturnValueOnce({
+      select: vi.fn(() => ({
+        single: servicesSingleMock,
+      })),
+    });
+    servicesSingleMock.mockResolvedValueOnce({
+      data: {
+        ...serviceRow,
+        name: "Aromatherapy Massage",
+        category_id: "category-1",
+        category_relation: undefined,
+      },
+      error: null,
+    });
+
+    const result = await updateService("service-1", {
+      category_id: "category-1",
+      name: "Aromatherapy Massage",
+    });
+
+    expect(serviceCategoriesInMock).toHaveBeenCalledWith("id", ["category-1"]);
+    expect(result).toEqual(
+      expect.objectContaining({
+        name: "Aromatherapy Massage",
+        category_relation: categoryRow,
+      })
+    );
+    expect(logAdminAuditMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ action: "service.update" })
+    );
   });
 
   it("soft deactivates services and revalidates", async () => {
