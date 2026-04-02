@@ -7,10 +7,16 @@ import { Star, Send, CheckCircle } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { PublicVoucherLookup } from "@/lib/types";
+
+interface ReviewPageVoucherPreview {
+  service: {
+    name: string;
+    image: string;
+  };
+}
 
 interface ReviewPageClientProps {
-  voucher: PublicVoucherLookup | null;
+  voucher: ReviewPageVoucherPreview | null;
   submitReview: (input: {
     rating: number;
     comment: string;
