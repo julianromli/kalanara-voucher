@@ -1,0 +1,65 @@
+--- components/admin/services-client.tsx
++++ components/admin/services-client.tsx
+@@ -58,6 +58,16 @@
+   is_active: boolean;
+ }
+ 
++function deriveLegacyCategory(categoryName?: string): "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE" {
++  if (!categoryName) return "MASSAGE";
++  const upper = categoryName.toUpperCase();
++  if (upper.includes("FACIAL")) return "FACIAL";
++  if (upper.includes("BODY") || upper.includes("LULUR") || upper.includes("TREATMENT")) return "BODY_TREATMENT";
++  if (upper.includes("PACKAGE") || upper.includes("PAKET")) return "PACKAGE";
++  return "MASSAGE";
++}
++
+ export function ServicesClient({
+   initialServices,
+   initialCategories,
+@@ -330,6 +340,9 @@
+         setOptimistic(editingId, true);
+ 
+         try {
++          const selectedCategory = categories.find(c => c.id === formData.category_id);
++          const legacyCategory = deriveLegacyCategory(selectedCategory?.name || previous.find(s => s.id === editingId)?.category);
++
+           const updated = await updateService(editingId, {
+             name: formData.name,
+             description: formData.description || null,
+             duration: formData.duration,
+             price: formData.price,
+-            category: "MASSAGE", // Required by DB
++            category: legacyCategory, // Derived for DB compatibility
+             category_id: formData.category_id || null,
+             image_url: nextImageUrl,
+           } as ServiceUpdate);
+@@ -375,6 +388,9 @@
+         const tempId = `temp-${Date.now()}`;
+         const previous = services;
+ 
++        const selectedCategory = categories.find(c => c.id === formData.category_id);
++        const legacyCategory = deriveLegacyCategory(selectedCategory?.name);
++
+         const optimisticNew: ServiceRow = {
+           id: tempId,
+           name: formData.name,
+           description: formData.description || null,
+           duration: formData.duration,
+           price: formData.price,
+-          category: "MASSAGE",
++          category: legacyCategory,
+           category_id: formData.category_id || null,
+-          category_relation: categories.find(c => c.id === formData.category_id) || null,
++          category_relation: selectedCategory || null,
+           image_url: nextImageUrl,
+           is_active: true,
+           scalev_product_id: null,
+@@ -403,7 +419,7 @@
+           description: formData.description || null,
+           duration: formData.duration,
+           price: formData.price,
+-          category: "MASSAGE",
++          category: legacyCategory,
+           category_id: formData.category_id || null,
+           image_url: nextImageUrl,
+         } as ServiceInsert);

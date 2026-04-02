@@ -1,6 +1,8 @@
 import { ReviewPageClient } from "@/app/review/[id]/review-page-client";
-import { createReview } from "@/lib/actions/reviews";
-import { getPublicVoucherLookupByCode } from "@/lib/actions/vouchers";
+import {
+  createPublicReview,
+  getPublicReviewVoucherByCode,
+} from "@/lib/actions/reviews";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -8,7 +10,7 @@ interface PageProps {
 
 export default async function ReviewPage({ params }: PageProps) {
   const { id } = await params;
-  const voucher = await getPublicVoucherLookupByCode(id);
+  const voucher = await getPublicReviewVoucherByCode(id);
 
   return (
     <ReviewPageClient
@@ -16,23 +18,11 @@ export default async function ReviewPage({ params }: PageProps) {
       submitReview={async ({ rating, comment, customerName }) => {
         "use server";
 
-        const serverVoucher = await getPublicVoucherLookupByCode(id);
-        if (!serverVoucher) {
-          return { success: false, error: "Voucher tidak ditemukan." };
-        }
-
-        const review = await createReview({
-          voucher_id: serverVoucher.id,
+        return createPublicReview(id, {
           rating,
           comment: comment || null,
           customer_name: customerName,
         });
-
-        if (!review) {
-          return { success: false, error: "Gagal mengirim review. Silakan coba lagi." };
-        }
-
-        return { success: true };
       }}
     />
   );

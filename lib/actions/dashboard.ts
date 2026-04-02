@@ -44,6 +44,7 @@ interface OperationalOrderRow {
   id: string;
   customer_name: string;
   created_at: string;
+  payment_status: string;
   vouchers: {
     services: {
       name: string;
@@ -78,13 +79,13 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     ? supabase
         .from("orders")
         .select(
-          "id, customer_name, total_amount, created_at, vouchers:vouchers!orders_voucher_id_fkey(services(name, duration))"
+          "id, customer_name, total_amount, created_at, payment_status, vouchers:vouchers!orders_voucher_id_fkey(services(name, duration))"
         )
         .order("created_at", { ascending: false })
     : supabase
         .from("orders")
         .select(
-          "id, customer_name, created_at, vouchers:vouchers!orders_voucher_id_fkey(services(name, duration))"
+          "id, customer_name, created_at, payment_status, vouchers:vouchers!orders_voucher_id_fkey(services(name, duration))"
         )
         .order("created_at", { ascending: false });
   const servicesPromise = canViewBusinessMetrics
@@ -111,6 +112,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const vouchers = vouchersResult.data || [];
   const orders = (ordersResult.data || []) as OperationalOrderRow[];
   const businessOrders = canViewBusinessMetrics ? (orders as BusinessOrderRow[]) : [];
+  const completedBusinessOrders = businessOrders.filter(
+    (order) => order.payment_status === "COMPLETED"
+  );
   const reviews = reviewsResult.data || [];
   const businessOrderAmounts = new Map(
     businessOrders.map((order) => [order.id, order.total_amount ?? 0])
@@ -128,7 +132,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
   // Calculate total revenue
   const totalRevenue = canViewBusinessMetrics
-    ? businessOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0)
+    ? completedBusinessOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0)
     : 0;
 
   // Calculate average rating
@@ -142,7 +146,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     ? Array.from({ length: 7 }, (_, i) => {
         const date = new Date();
         date.setDate(date.getDate() - (6 - i));
-        const dayOrders = businessOrders.filter((order) => {
+        const dayOrders = completedBusinessOrders.filter((order) => {
           const orderDate = new Date(order.created_at);
           return orderDate.toDateString() === date.toDateString();
         });
