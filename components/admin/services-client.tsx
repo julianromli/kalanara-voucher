@@ -551,7 +551,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
     }
   };
 
-  if (authLoading || !isAuthenticated) {
+  if (!isAuthenticated && !authLoading) {
     return null;
   }
 
@@ -720,7 +720,6 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
           style={{ animationDelay: "100ms" }}
         >
           <form
-            role="search"
             aria-label="Filter services"
             className="flex flex-col gap-4 lg:flex-row lg:items-end"
             onSubmit={(event) => event.preventDefault()}
@@ -1128,8 +1127,9 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
             </DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <label className="mb-1.5 block text-sm font-medium">Nama Kategori *</label>
+            <label htmlFor="category-name" className="mb-1.5 block text-sm font-medium">Nama Kategori *</label>
             <Input
+              id="category-name"
               value={catName}
               onChange={(e) => setCatName(e.target.value)}
               placeholder="Misal: Lulur Tradisional"

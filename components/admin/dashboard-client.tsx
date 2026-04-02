@@ -32,8 +32,9 @@ export function DashboardClient({ stats }: DashboardClientProps) {
     return () => clearTimeout(timer);
   }, []);
 
-  // Redirect while checking auth
-  if (authLoading || !isAuthenticated) {
+  // The protected layout already authorizes this subtree on the server.
+  // Keep rendering while client auth hydrates to avoid production-only blank panels.
+  if (!isAuthenticated && !authLoading) {
     return null;
   }
 

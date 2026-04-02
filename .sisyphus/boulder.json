@@ -1,0 +1,75 @@
+{
+  "active_plan": "D:\\Projects\\Vibe Code\\kalanaraspa\\.sisyphus\\plans\\category-flexible-management.md",
+  "started_at": "2026-03-25T14:29:56.976Z",
+  "session_ids": [
+    "ses_2daafba02ffeq3epT54D6ddNgB",
+    "ses_2da959541fferCCY8GD4J9mPWa",
+    "ses_2da7c9836ffefXeG0G51TkP9VY",
+    "ses_2d934818cffe0yoCCO4CBdN83c",
+    "ses_2d92707aeffeO2LtJxL2xPiw3O",
+    "ses_2d9270865ffeNi92H3L0Cg4DTw",
+    "ses_2d90c9bd1ffenpjYeYpqvRR5RB",
+    "ses_2d90762b8ffe0vkNkah2R6OpYw",
+    "ses_2d90764d4ffeHEwv6yDC9eX2iG",
+    "ses_2d90762b7ffeIxJfJIhqyqHjYX",
+    "ses_2d8f1b95cffewjEvLm0JnMweib"
+  ],
+  "plan_name": "category-flexible-management",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Add Supabase category schema and transition-safe backfill",
+      "session_id": "ses_2da959541fferCCY8GD4J9mPWa",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-03-25T14:49:53.181Z"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "Update database and frontend type contracts for relational categories",
+      "session_id": "ses_2da7c9836ffefXeG0G51TkP9VY",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-03-25T15:14:27.562Z"
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "Refactor service and category server actions around joined relational data",
+      "session_id": "ses_2d934818cffe0yoCCO4CBdN83c",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-03-25T21:11:16.963Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "Embed dynamic category management into admin services experience",
+      "session_id": "ses_2d9270865ffeNi92H3L0Cg4DTw",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-03-25T21:23:29.952Z"
+    },
+    "todo:6": {
+      "task_key": "todo:6",
+      "task_label": "6",
+      "task_title": "Remove static category runtime usage and align secondary service adapters",
+      "session_id": "ses_2d90c9bd1ffenpjYeYpqvRR5RB",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-03-25T21:46:27.467Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "Plan Compliance Audit — oracle",
+      "session_id": "ses_2d8f1b95cffewjEvLm0JnMweib",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-03-25T22:15:57.443Z"
+    }
+  }
+}

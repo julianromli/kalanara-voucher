@@ -67,4 +67,28 @@ describe("AuthProvider", () => {
 
     expect(screen.getByTestId("authenticated")).toHaveTextContent("false");
   });
+
+  it("hydrates protected admin auth from bootstrap user before client session resolves", async () => {
+    render(
+      <AuthProvider
+        bootstrapUser={{
+          id: "admin-1",
+          email: "admin@kalanara.com",
+          name: "Admin",
+          role: "SUPER_ADMIN",
+        }}
+      >
+        <AuthStateProbe />
+      </AuthProvider>
+    );
+
+    expect(screen.getByTestId("loading")).toHaveTextContent("false");
+    expect(screen.getByTestId("authenticated")).toHaveTextContent("true");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading")).toHaveTextContent("false");
+    });
+
+    expect(screen.getByTestId("authenticated")).toHaveTextContent("true");
+  });
 });

@@ -65,6 +65,17 @@ const INITIAL_EDIT_USER_FORM: EditUserFormState = {
   confirmPassword: "",
 };
 
+const CREATE_NAME_INPUT_ID = "create-admin-name";
+const CREATE_EMAIL_INPUT_ID = "create-admin-email";
+const CREATE_ROLE_SELECT_ID = "create-admin-role";
+const CREATE_ONBOARDING_GROUP_ID = "create-admin-onboarding";
+const CREATE_PASSWORD_INPUT_ID = "create-admin-password";
+const CREATE_CONFIRM_PASSWORD_INPUT_ID = "create-admin-confirm-password";
+const EDIT_NAME_INPUT_ID = "edit-admin-name";
+const EDIT_EMAIL_INPUT_ID = "edit-admin-email";
+const EDIT_PASSWORD_INPUT_ID = "edit-admin-password";
+const EDIT_CONFIRM_PASSWORD_INPUT_ID = "edit-admin-confirm-password";
+
 function getPasswordError(password: string, confirmPassword: string) {
   if (!password && !confirmPassword) {
     return "";
@@ -228,7 +239,7 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
     }
   };
 
-  if (authLoading || !isAuthenticated) {
+  if (!isAuthenticated && !authLoading) {
     return null;
   }
 
@@ -355,30 +366,33 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
           
           <div className="space-y-4">
             <div>
-               <label className="block text-sm font-medium mb-1">Nama</label>
-               <Input
-                 value={newUserForm.name}
-                  onChange={(e) => setNewUserForm({...newUserForm, name: e.target.value})}
-                 placeholder="Masukkan nama lengkap"
-               />
+               <label htmlFor={CREATE_NAME_INPUT_ID} className="block text-sm font-medium mb-1">Nama</label>
+                <Input
+                  id={CREATE_NAME_INPUT_ID}
+                  value={newUserForm.name}
+                   onChange={(e) => setNewUserForm({...newUserForm, name: e.target.value})}
+                  placeholder="Masukkan nama lengkap"
+                />
              </div>
              
              <div>
-               <label className="block text-sm font-medium mb-1">Email</label>
-               <Input
-                 type="email"
-                 value={newUserForm.email}
-                  onChange={(e) => setNewUserForm({...newUserForm, email: e.target.value})}
+                <label htmlFor={CREATE_EMAIL_INPUT_ID} className="block text-sm font-medium mb-1">Email</label>
+                <Input
+                  id={CREATE_EMAIL_INPUT_ID}
+                  type="email"
+                  value={newUserForm.email}
+                   onChange={(e) => setNewUserForm({...newUserForm, email: e.target.value})}
                  placeholder="Masukkan email admin"
                />
              </div>
              
              <div>
-               <label className="block text-sm font-medium mb-1">Role</label>
-              <select
-                value={newUserForm.role}
-                onChange={(e) =>
-                  setNewUserForm({
+                <label htmlFor={CREATE_ROLE_SELECT_ID} className="block text-sm font-medium mb-1">Role</label>
+               <select
+                 id={CREATE_ROLE_SELECT_ID}
+                 value={newUserForm.role}
+                 onChange={(e) =>
+                   setNewUserForm({
                     ...newUserForm,
                     role: e.target.value as AdminRole,
                   })
@@ -392,8 +406,8 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Metode onboarding</label>
-              <div className="space-y-2 rounded-lg border border-border p-3">
+              <label htmlFor={CREATE_ONBOARDING_GROUP_ID} className="block text-sm font-medium mb-2">Metode onboarding</label>
+              <div id={CREATE_ONBOARDING_GROUP_ID} className="space-y-2 rounded-lg border border-border p-3">
                 <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 transition-colors hover:bg-accent/40">
                   <input
                     type="radio"
@@ -445,8 +459,9 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
             {isManualMode ? (
               <>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Password awal</label>
+                  <label htmlFor={CREATE_PASSWORD_INPUT_ID} className="block text-sm font-medium mb-1">Password awal</label>
                   <Input
+                    id={CREATE_PASSWORD_INPUT_ID}
                     type="password"
                     value={newUserForm.password}
                     onChange={(e) =>
@@ -458,8 +473,9 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Konfirmasi password</label>
+                  <label htmlFor={CREATE_CONFIRM_PASSWORD_INPUT_ID} className="block text-sm font-medium mb-1">Konfirmasi password</label>
                   <Input
+                    id={CREATE_CONFIRM_PASSWORD_INPUT_ID}
                     type="password"
                     value={newUserForm.confirmPassword}
                     onChange={(e) =>
@@ -511,8 +527,9 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
 
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium">Nama</label>
+              <label htmlFor={EDIT_NAME_INPUT_ID} className="mb-1 block text-sm font-medium">Nama</label>
               <Input
+                id={EDIT_NAME_INPUT_ID}
                 value={editUserForm.name}
                 onChange={(event) =>
                   setEditUserForm((currentForm) => ({
@@ -526,8 +543,8 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Email</label>
-              <Input value={editUserForm.email} disabled readOnly className="bg-accent/20" />
+              <label htmlFor={EDIT_EMAIL_INPUT_ID} className="mb-1 block text-sm font-medium">Email</label>
+              <Input id={EDIT_EMAIL_INPUT_ID} value={editUserForm.email} disabled readOnly className="bg-accent/20" />
             </div>
 
             <div className="rounded-lg border border-border bg-accent/20 p-3 text-xs text-muted-foreground">
@@ -535,8 +552,9 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Password baru</label>
+              <label htmlFor={EDIT_PASSWORD_INPUT_ID} className="mb-1 block text-sm font-medium">Password baru</label>
               <Input
+                id={EDIT_PASSWORD_INPUT_ID}
                 type="password"
                 value={editUserForm.password}
                 onChange={(event) =>
@@ -552,8 +570,9 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Konfirmasi password</label>
+              <label htmlFor={EDIT_CONFIRM_PASSWORD_INPUT_ID} className="mb-1 block text-sm font-medium">Konfirmasi password</label>
               <Input
+                id={EDIT_CONFIRM_PASSWORD_INPUT_ID}
                 type="password"
                 value={editUserForm.confirmPassword}
                 onChange={(event) =>

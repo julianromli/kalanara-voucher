@@ -94,7 +94,7 @@ export function HelpClient() {
     showToast("Support email: support@kalanara.com", "info");
   };
 
-  if (authLoading || !isAuthenticated) {
+  if (!isAuthenticated && !authLoading) {
     return null;
   }
 
@@ -122,8 +122,8 @@ export function HelpClient() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              {filteredSections.map((section, sectionIndex) => (
-                <Card key={sectionIndex}>
+              {filteredSections.map((section) => (
+                <Card key={section.title}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <HugeiconsIcon icon={SearchIcon} className="w-5 h-5" />
@@ -131,8 +131,8 @@ export function HelpClient() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {section.items.map((item, itemIndex) => (
-                      <div key={itemIndex} className="border-b border-border last:border-b-0 pb-4 last:pb-0">
+                    {section.items.map((item) => (
+                      <div key={item.question} className="border-b border-border last:border-b-0 pb-4 last:pb-0">
                         <h4 className="font-medium mb-2">{item.question}</h4>
                         <p className="text-sm text-muted-foreground">{item.answer}</p>
                       </div>
@@ -153,7 +153,7 @@ export function HelpClient() {
                 <CardContent className="space-y-2">
                   {FAQ_ITEMS.map((faq, index) => (
                     <Collapsible
-                      key={index}
+                      key={faq.question}
                       open={openFaq === `faq-${index}`}
                       onOpenChange={() => setOpenFaq(openFaq === `faq-${index}` ? null : `faq-${index}`)}
                     >
