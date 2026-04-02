@@ -1,7 +1,7 @@
 "use server";
 
 import { randomBytes } from "node:crypto";
-import { revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 import {
   logAdminAudit,
@@ -22,6 +22,24 @@ import type { ScalevPendingOrderData } from "@/lib/scalev/types";
 
 const ORDER_VOUCHER_SELECT =
   "*, vouchers:vouchers!orders_voucher_id_fkey(*, services(*))";
+
+export interface DestructiveOrderActionResult {
+  success: boolean;
+  message: string;
+  deletedOrderCount: number;
+  deletedVoucherCount: number;
+  deletedReviewCount: number;
+  deletedWebhookEventCount: number;
+}
+
+interface HardDeleteOrdersRpcRow {
+  success: boolean;
+  message: string;
+  deleted_order_count: number;
+  deleted_voucher_count: number;
+  deleted_review_count: number;
+  deleted_webhook_event_count: number;
+}
 
 interface GatewayPaymentUpdate {
   transactionId?: string | null;
@@ -51,6 +69,73 @@ function generatePaymentOrderId(): string {
 
 function generatePublicAccessToken(): string {
   return randomBytes(24).toString("base64url");
+}
+
+function revalidateOrderAdminData() {
+  revalidateTag("dashboard-stats", "max");
+  revalidatePath("/admin/dashboard", "page");
+  revalidatePath("/admin/purchases", "page");
+}
+
+function createDeleteFailureResult(message: string): DestructiveOrderActionResult {
+  return {
+    success: false,
+    message,
+    deletedOrderCount: 0,
+    deletedVoucherCount: 0,
+    deletedReviewCount: 0,
+    deletedWebhookEventCount: 0,
+  };
+}
+
+function normalizeHardDeleteResult(
+  payload: HardDeleteOrdersRpcRow | null | undefined
+): DestructiveOrderActionResult {
+  if (!payload) {
+    return createDeleteFailureResult(
+      "Fungsi penghapusan permanen belum tersedia di database. Jalankan migration terbaru terlebih dahulu."
+    );
+  }
+
+  return {
+    success: payload.success,
+    message: payload.message,
+    deletedOrderCount: payload.deleted_order_count,
+    deletedVoucherCount: payload.deleted_voucher_count,
+    deletedReviewCount: payload.deleted_review_count,
+    deletedWebhookEventCount: payload.deleted_webhook_event_count,
+  };
+}
+
+async function hardDeleteOrdersTransactional(
+  orderIds?: readonly string[]
+): Promise<DestructiveOrderActionResult> {
+  const supabase = getAdminClient();
+  const { data, error } = await supabase.rpc("hard_delete_orders", {
+    order_ids: orderIds && orderIds.length > 0 ? [...orderIds] : null,
+  });
+
+  if (error) {
+    console.error("Error hard deleting orders transactionally:", error);
+
+    if (error.code === "PGRST202") {
+      return createDeleteFailureResult(
+        "Fungsi penghapusan permanen belum tersedia di database. Jalankan migration terbaru terlebih dahulu."
+      );
+    }
+
+    return createDeleteFailureResult("Gagal menghapus pembelian secara permanen.");
+  }
+
+  const payload = Array.isArray(data) ? (data[0] ?? null) : null;
+
+  const result = normalizeHardDeleteResult(payload);
+
+  if (result.success) {
+    revalidateOrderAdminData();
+  }
+
+  return result;
 }
 
 export async function getOrders(): Promise<OrderWithVoucher[]> {
@@ -132,6 +217,51 @@ export async function updateOrderStatus(
 
   revalidateTag("dashboard-stats", "max");
   return true;
+}
+
+export async function deleteOrderHard(id: string): Promise<DestructiveOrderActionResult> {
+  const access = await requireAdminPermission(AdminPermission.ORDERS_DELETE_HARD);
+
+  const normalizedId = id.trim();
+  if (!normalizedId) {
+    return createDeleteFailureResult("ID pembelian tidak valid.");
+  }
+
+  const result = await hardDeleteOrdersTransactional([normalizedId]);
+
+  if (result.success) {
+    logAdminAudit(access, {
+      action: "order.hard_delete",
+      target: normalizedId,
+      details: {
+        deletedOrderCount: result.deletedOrderCount,
+        deletedVoucherCount: result.deletedVoucherCount,
+        deletedReviewCount: result.deletedReviewCount,
+        deletedWebhookEventCount: result.deletedWebhookEventCount,
+      },
+    });
+  }
+
+  return result;
+}
+
+export async function clearAllOrdersHard(): Promise<DestructiveOrderActionResult> {
+  const access = await requireAdminPermission(AdminPermission.ORDERS_DELETE_HARD);
+  const result = await hardDeleteOrdersTransactional();
+
+  if (result.success) {
+    logAdminAudit(access, {
+      action: "order.hard_delete_all",
+      details: {
+        deletedOrderCount: result.deletedOrderCount,
+        deletedVoucherCount: result.deletedVoucherCount,
+        deletedReviewCount: result.deletedReviewCount,
+        deletedWebhookEventCount: result.deletedWebhookEventCount,
+      },
+    });
+  }
+
+  return result;
 }
 
 export async function getOrderStats(): Promise<{

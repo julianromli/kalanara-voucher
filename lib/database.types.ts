@@ -422,6 +422,19 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      hard_delete_orders: {
+        Args: {
+          order_ids?: string[] | null;
+        };
+        Returns: {
+          success: boolean;
+          message: string;
+          deleted_order_count: number;
+          deleted_voucher_count: number;
+          deleted_review_count: number;
+          deleted_webhook_event_count: number;
+        }[];
+      };
       generate_voucher_code: {
         Args: Record<PropertyKey, never>;
         Returns: string;

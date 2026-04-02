@@ -11,12 +11,16 @@ export default async function AdminPurchasesPage() {
   const orders = await getOrders();
 
   return (
-    <PurchasesClient
-      initialOrders={orders}
-      canUpdatePaymentStatus={hasPermissionForRole(
-        access.role,
-        AdminPermission.ORDERS_UPDATE_PAYMENT_STATUS
-      )}
-    />
-  );
+      <PurchasesClient
+        initialOrders={orders}
+        canUpdatePaymentStatus={hasPermissionForRole(
+          access.role,
+          AdminPermission.ORDERS_UPDATE_PAYMENT_STATUS
+        )}
+        canDeletePurchases={hasPermissionForRole(
+          access.role,
+          AdminPermission.ORDERS_DELETE_HARD
+        )}
+      />
+    );
 }

@@ -41,14 +41,14 @@ export function RecentOrders({ orders, animationDelay = 0 }: RecentOrdersProps) 
         <div className="flex items-center gap-2">
           <HugeiconsIcon icon={ShoppingBag01Icon} className="size-4 text-muted-foreground" />
           <h2 className="text-[15px] font-normal text-foreground tracking-tight">
-            Recent Orders
+            Recent Purchases
           </h2>
         </div>
 
         <div className="relative">
           <HugeiconsIcon icon={Search01Icon} className="absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground z-10" />
           <Input
-            placeholder="Search orders..."
+            placeholder="Search purchases..."
             className="h-7 w-[140px] sm:w-[180px] md:w-[200px] pl-8 pr-2 text-sm text-muted-foreground"
           />
         </div>
@@ -58,7 +58,7 @@ export function RecentOrders({ orders, animationDelay = 0 }: RecentOrdersProps) 
         <div className="space-y-[8px]">
           {orders.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground text-sm">
-              No orders yet
+               No purchases yet
             </div>
           ) : (
             orders.map((order, index) => (

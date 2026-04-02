@@ -10,6 +10,7 @@ export const AdminPermission = {
   DASHBOARD_VIEW_BUSINESS: "dashboard.view_business",
   ORDERS_VIEW: "orders.view",
   ORDERS_UPDATE_PAYMENT_STATUS: "orders.update_payment_status",
+  ORDERS_DELETE_HARD: "orders.delete_hard",
   VOUCHERS_MANAGE: "vouchers.manage",
   SERVICES_MANAGE: "services.manage",
   REVIEWS_MANAGE: "reviews.manage",
