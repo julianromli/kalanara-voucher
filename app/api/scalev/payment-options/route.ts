@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { buildCheckoutConfig, getScalevConfig } from "@/lib/scalev/config";
 import { getScalevCheckoutAvailability } from "@/lib/scalev/client";
 import type { ScalevPaymentMethod, ScalevVABankCode } from "@/lib/scalev/types";
 
-export const dynamic = "force-dynamic";
-
 export async function GET() {
+  await connection();
+
   try {
     const availability = await getScalevCheckoutAvailability();
     const config = getScalevConfig();
