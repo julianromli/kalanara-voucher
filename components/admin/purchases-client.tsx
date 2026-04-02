@@ -73,7 +73,7 @@ export function PurchasesClient({
     }
   };
 
-  if (authLoading || !isAuthenticated) {
+  if (!isAuthenticated && !authLoading) {
     return null;
   }
 

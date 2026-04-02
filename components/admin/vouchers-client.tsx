@@ -75,6 +75,8 @@ interface VouchersClientProps {
   initialVouchers: VoucherWithService[];
 }
 
+const EXTEND_DAYS_SELECT_ID = "voucher-extend-days";
+
 export function VouchersClient({ initialVouchers }: VouchersClientProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -222,7 +224,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
     }
   };
 
-  if (authLoading || !isAuthenticated) {
+  if (!isAuthenticated && !authLoading) {
     return null;
   }
 
@@ -382,6 +384,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                               {voucher.code}
                             </code>
                             <button
+                              type="button"
                               onClick={() => handleCopyCode(voucher.code)}
                               className="text-muted-foreground hover:text-foreground transition-colors"
                             >
@@ -534,14 +537,14 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
 
               {actionType === "extend" && (
                 <div className="space-y-3">
-                  <label className="block text-sm text-muted-foreground">
+                  <label htmlFor={EXTEND_DAYS_SELECT_ID} className="block text-sm text-muted-foreground">
                     Extend by (days)
                   </label>
                   <Select
                     value={String(extendDays)}
                     onValueChange={(v) => setExtendDays(Number(v))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id={EXTEND_DAYS_SELECT_ID}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

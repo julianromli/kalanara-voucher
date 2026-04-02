@@ -56,7 +56,7 @@ export function ReviewsClient({ initialReviews }: ReviewsClientProps) {
     }
   };
 
-  if (authLoading || !isAuthenticated) {
+  if (!isAuthenticated && !authLoading) {
     return null;
   }
 
@@ -102,12 +102,12 @@ export function ReviewsClient({ initialReviews }: ReviewsClientProps) {
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold">{review.customer_name}</h3>
                     <div className="flex items-center gap-1">
-                      {[...Array(5)].map((_, i) => (
+                      {[1, 2, 3, 4, 5].map((ratingValue) => (
                         <HugeiconsIcon
-                          key={i}
+                          key={`${review.id}-${ratingValue}`}
                           icon={StarIcon}
                           className={`w-4 h-4 ${
-                            i < review.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
+                            ratingValue <= review.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
                           }`}
                         />
                       ))}

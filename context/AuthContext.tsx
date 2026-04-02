@@ -6,6 +6,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   type ReactNode,
 } from 'react';
 import { createClient } from '@/lib/supabase/client';
@@ -44,6 +45,7 @@ interface AuthContextType {
 
 interface AuthProviderProps {
   children: ReactNode;
+  bootstrapUser?: User | null;
 }
 
 // ============================================================================
@@ -114,9 +116,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Provider
 // ============================================================================
 
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export function AuthProvider({ children, bootstrapUser = null }: AuthProviderProps) {
+  const bootstrapUserRef = useRef<User | null>(bootstrapUser);
+  const hasBootstrapUser = bootstrapUserRef.current?.role != null;
+  const [user, setUser] = useState<User | null>(() => bootstrapUserRef.current);
+  const [isLoading, setIsLoading] = useState(() => !hasBootstrapUser);
   const isAuthenticated = user?.role != null;
 
   // Initialize auth state on mount
@@ -136,14 +140,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         if (session?.user) {
           const resolvedUser = await extractUserFromSupabaseUser(session.user);
-          setUser(resolvedUser);
-        } else {
+          setUser(resolvedUser ?? bootstrapUserRef.current);
+        } else if (!hasBootstrapUser) {
           setUser(null);
         }
       } catch (error) {
         // Handle storage access errors gracefully
         console.error('Error initializing auth:', error);
-        setUser(null);
+        if (!hasBootstrapUser) {
+          setUser(null);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -158,13 +164,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { data } = supabase.auth.onAuthStateChange(
         async (event, session) => {
           if (event === 'SIGNED_IN' && session?.user) {
-            setUser(await extractUserFromSupabaseUser(session.user));
+            setUser((await extractUserFromSupabaseUser(session.user)) ?? bootstrapUserRef.current);
           } else if (event === 'SIGNED_OUT') {
             setUser(null);
           } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-            setUser(await extractUserFromSupabaseUser(session.user));
+            setUser((await extractUserFromSupabaseUser(session.user)) ?? bootstrapUserRef.current);
           } else if (event === 'USER_UPDATED' && session?.user) {
-            setUser(await extractUserFromSupabaseUser(session.user));
+            setUser((await extractUserFromSupabaseUser(session.user)) ?? bootstrapUserRef.current);
           }
         }
       );
@@ -177,7 +183,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [hasBootstrapUser]);
 
   const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
     const supabase = createClient();

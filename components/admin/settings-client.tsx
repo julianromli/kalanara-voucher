@@ -50,7 +50,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
     }
   };
 
-  if (authLoading || !isAuthenticated) {
+  if (!isAuthenticated && !authLoading) {
     return null;
   }
 
@@ -73,6 +73,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
           <div className="w-full">
             <div className="flex border-b border-border">
               <button
+                type="button"
                 onClick={() => setActiveTab("business")}
                 className={`px-4 py-2 text-sm font-medium border-b-2 ${
                   activeTab === "business"
@@ -83,6 +84,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                 Business Hours
               </button>
               <button
+                type="button"
                 onClick={() => setActiveTab("email")}
                 className={`px-4 py-2 text-sm font-medium border-b-2 ${
                   activeTab === "email"
@@ -93,6 +95,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                 Email Templates
               </button>
               <button
+                type="button"
                 onClick={() => setActiveTab("vouchers")}
                 className={`px-4 py-2 text-sm font-medium border-b-2 ${
                   activeTab === "vouchers"
@@ -103,6 +106,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                 Vouchers
               </button>
               <button
+                type="button"
                 onClick={() => setActiveTab("payments")}
                 className={`px-4 py-2 text-sm font-medium border-b-2 ${
                   activeTab === "payments"
