@@ -3,6 +3,8 @@ import { buildCheckoutConfig, getScalevConfig } from "@/lib/scalev/config";
 import { getScalevCheckoutAvailability } from "@/lib/scalev/client";
 import type { ScalevPaymentMethod, ScalevVABankCode } from "@/lib/scalev/types";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const availability = await getScalevCheckoutAvailability();
