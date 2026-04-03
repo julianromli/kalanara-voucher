@@ -124,7 +124,7 @@ async function hardDeleteOrdersTransactional(
       );
     }
 
-    return createDeleteFailureResult("Gagal menghapus pembelian secara permanen.");
+    throw error;
   }
 
   const payload = Array.isArray(data) ? (data[0] ?? null) : null;
@@ -586,4 +586,3 @@ export async function updateOrderVoucherId(
 
   return true;
 }
-

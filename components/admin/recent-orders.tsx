@@ -30,7 +30,7 @@ export function RecentOrders({ orders, animationDelay = 0 }: RecentOrdersProps) 
   }, []);
 
   return (
-    <div 
+    <div
       className={cn(
         "relative overflow-hidden rounded-xl border border-border bg-card max-h-[400px] flex flex-col",
         isMounted ? "animate-scale-in" : "opacity-0"
@@ -41,14 +41,14 @@ export function RecentOrders({ orders, animationDelay = 0 }: RecentOrdersProps) 
         <div className="flex items-center gap-2">
           <HugeiconsIcon icon={ShoppingBag01Icon} className="size-4 text-muted-foreground" />
           <h2 className="text-[15px] font-normal text-foreground tracking-tight">
-            Recent Purchases
+            Pembelian Terbaru
           </h2>
         </div>
 
         <div className="relative">
           <HugeiconsIcon icon={Search01Icon} className="absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground z-10" />
           <Input
-            placeholder="Search purchases..."
+            placeholder="Cari pembelian..."
             className="h-7 w-[140px] sm:w-[180px] md:w-[200px] pl-8 pr-2 text-sm text-muted-foreground"
           />
         </div>
@@ -58,7 +58,7 @@ export function RecentOrders({ orders, animationDelay = 0 }: RecentOrdersProps) 
         <div className="space-y-[8px]">
           {orders.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground text-sm">
-               No purchases yet
+              Belum ada pembelian
             </div>
           ) : (
             orders.map((order, index) => (
@@ -73,9 +73,9 @@ export function RecentOrders({ orders, animationDelay = 0 }: RecentOrdersProps) 
                 <div className="flex items-center justify-between h-full gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <Avatar className="size-8 shrink-0">
-                      <AvatarImage 
-                        src={APP_CONFIG.defaultAvatarUrl} 
-                        alt={order.customerName} 
+                      <AvatarImage
+                        src={APP_CONFIG.defaultAvatarUrl}
+                        alt={order.customerName}
                       />
                       <AvatarFallback className="bg-muted text-muted-foreground text-xs">
                         {order.customerName.charAt(0).toUpperCase()}
@@ -97,7 +97,7 @@ export function RecentOrders({ orders, animationDelay = 0 }: RecentOrdersProps) 
                       </p>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <HugeiconsIcon icon={Calendar01Icon} className="size-3" />
-                      {new Date(order.createdAt).toLocaleDateString("en-US", {
+                      {new Date(order.createdAt).toLocaleDateString("id-ID", {
                         month: "short",
                         day: "numeric",
                       })}

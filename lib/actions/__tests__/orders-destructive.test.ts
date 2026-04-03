@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { AdminPermission, getPermissionsForRole, hasPermissionForRole } from "@/lib/auth/admin-rbac";
+import {
+  AdminPermission,
+  getPermissionsForRole,
+  hasPermissionForRole,
+} from "@/lib/auth/admin-rbac";
 
 const {
   requireAdminPermissionMock,
@@ -37,10 +41,18 @@ vi.mock("@/lib/scalev/mappers", () => ({
 
 describe("destructive order permissions", () => {
   test("grants hard delete permission only to super admin", () => {
-    expect(hasPermissionForRole("SUPER_ADMIN", AdminPermission.ORDERS_DELETE_HARD)).toBe(true);
-    expect(hasPermissionForRole("MANAGER", AdminPermission.ORDERS_DELETE_HARD)).toBe(false);
-    expect(hasPermissionForRole("STAFF", AdminPermission.ORDERS_DELETE_HARD)).toBe(false);
-    expect(getPermissionsForRole("SUPER_ADMIN")).toContain(AdminPermission.ORDERS_DELETE_HARD);
+    expect(
+      hasPermissionForRole("SUPER_ADMIN", AdminPermission.ORDERS_DELETE_HARD),
+    ).toBe(true);
+    expect(
+      hasPermissionForRole("MANAGER", AdminPermission.ORDERS_DELETE_HARD),
+    ).toBe(false);
+    expect(
+      hasPermissionForRole("STAFF", AdminPermission.ORDERS_DELETE_HARD),
+    ).toBe(false);
+    expect(getPermissionsForRole("SUPER_ADMIN")).toContain(
+      AdminPermission.ORDERS_DELETE_HARD,
+    );
   });
 });
 
@@ -74,7 +86,9 @@ describe("destructive order actions", () => {
 
     const result = await deleteOrderHard("order-1");
 
-    expect(requireAdminPermissionMock).toHaveBeenCalledWith(AdminPermission.ORDERS_DELETE_HARD);
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(
+      AdminPermission.ORDERS_DELETE_HARD,
+    );
     expect(rpcMock).toHaveBeenCalledWith("hard_delete_orders", {
       order_ids: ["order-1"],
     });
@@ -89,7 +103,7 @@ describe("destructive order actions", () => {
           deletedReviewCount: 2,
           deletedWebhookEventCount: 1,
         }),
-      })
+      }),
     );
     expect(revalidateTagMock).toHaveBeenCalledWith("dashboard-stats", "max");
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/dashboard", "page");
@@ -136,7 +150,7 @@ describe("destructive order actions", () => {
           deletedReviewCount: 2,
           deletedWebhookEventCount: 1,
         }),
-      })
+      }),
     );
     expect(result.deletedOrderCount).toBe(2);
   });
@@ -146,7 +160,8 @@ describe("destructive order actions", () => {
       data: [
         {
           success: false,
-          message: "Pembelian ini tidak dapat dihapus permanen karena voucher terkait masih dipakai pembelian lain.",
+          message:
+            "Pembelian ini tidak dapat dihapus permanen karena voucher terkait masih dipakai pembelian lain.",
           deleted_order_count: 0,
           deleted_voucher_count: 0,
           deleted_review_count: 0,
@@ -162,7 +177,8 @@ describe("destructive order actions", () => {
 
     expect(result).toEqual({
       success: false,
-      message: "Pembelian ini tidak dapat dihapus permanen karena voucher terkait masih dipakai pembelian lain.",
+      message:
+        "Pembelian ini tidak dapat dihapus permanen karena voucher terkait masih dipakai pembelian lain.",
       deletedOrderCount: 0,
       deletedVoucherCount: 0,
       deletedReviewCount: 0,
@@ -195,5 +211,24 @@ describe("destructive order actions", () => {
       deletedWebhookEventCount: 0,
     });
     expect(logAdminAuditMock).not.toHaveBeenCalled();
+  });
+
+  test("throws non-PGRST202 supabase errors so callers can handle infrastructure failures", async () => {
+    const rpcError = {
+      code: "57014",
+      message: "canceling statement due to statement timeout",
+    };
+
+    rpcMock.mockResolvedValueOnce({
+      data: null,
+      error: rpcError,
+    });
+
+    const { clearAllOrdersHard } = await import("@/lib/actions/orders");
+
+    await expect(clearAllOrdersHard()).rejects.toEqual(rpcError);
+    expect(logAdminAuditMock).not.toHaveBeenCalled();
+    expect(revalidateTagMock).not.toHaveBeenCalled();
+    expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 });
