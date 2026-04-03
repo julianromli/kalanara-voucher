@@ -290,6 +290,62 @@ export async function updateService(
   return data as ServiceWithCategory;
 }
 
+export async function setServiceActiveState(
+  id: string,
+  isActive: boolean
+): Promise<ServiceWithCategory | null> {
+  const access = await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
+
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from("services")
+    .update({ is_active: isActive })
+    .eq("id", id)
+    .select(SERVICE_WITH_CATEGORY_SELECT)
+    .single();
+
+  if (error) {
+    if (!isPgrstEmbedRelationMissing(error)) {
+      console.error("Error updating service active state:", error);
+      return null;
+    }
+
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from("services")
+      .select(SERVICE_BASE_SELECT)
+      .eq("id", id)
+      .single();
+
+    if (fallbackError || !fallbackData) {
+      if (fallbackError) {
+        console.error("Error updating service active state:", fallbackError);
+      }
+
+      return null;
+    }
+
+    const [serviceWithCategory] = await stitchCategoryRelations(supabase, [fallbackData]);
+
+    logAdminAudit(access, {
+      action: isActive ? "service.activate" : "service.deactivate",
+      target: serviceWithCategory.id,
+      details: { name: serviceWithCategory.name },
+    });
+
+    revalidateServiceCatalogData();
+    return serviceWithCategory;
+  }
+
+  logAdminAudit(access, {
+    action: isActive ? "service.activate" : "service.deactivate",
+    target: data.id,
+    details: { name: data.name },
+  });
+
+  revalidateServiceCatalogData();
+  return data as ServiceWithCategory;
+}
+
 export async function updateServiceScalevMapping(
   id: string,
   updates: Pick<
@@ -321,25 +377,6 @@ export async function updateServiceScalevMapping(
 }
 
 export async function deleteService(id: string): Promise<boolean> {
-  const access = await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
-
-  const supabase = getAdminClient();
-  // Soft delete by setting is_active to false
-  const { error } = await supabase
-    .from("services")
-    .update({ is_active: false })
-    .eq("id", id);
-
-  if (error) {
-    console.error("Error deleting service:", error);
-    return false;
-  }
-
-  logAdminAudit(access, {
-    action: "service.deactivate",
-    target: id,
-  });
-
-  revalidateServiceCatalogData();
-  return true;
+  const service = await setServiceActiveState(id, false);
+  return Boolean(service);
 }

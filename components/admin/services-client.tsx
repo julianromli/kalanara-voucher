@@ -7,7 +7,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   PlusSignIcon,
   PencilEdit01Icon,
-  Delete02Icon,
   Clock01Icon,
   Cancel01Icon,
   Tick02Icon,
@@ -45,7 +44,7 @@ import { DashboardHeader } from "@/components/admin/dashboard-header";
 import {
   createService,
   updateService,
-  deleteService,
+  setServiceActiveState,
 } from "@/lib/actions/services";
 import {
   createServiceCategory,
@@ -136,7 +135,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<ServiceFormData>(DEFAULT_FORM);
   const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   
   // Category form state
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
@@ -463,26 +462,41 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
     }
   };
 
-  const handleDelete = async (id: string) => {
-    setIsDeleting(id);
-    setOptimistic(id, true);
+  const handleToggleService = async (service: ServiceWithCategory) => {
+    setStatusUpdatingId(service.id);
+    setOptimistic(service.id, true);
     const previous = services;
+    const nextIsActive = !service.is_active;
 
-    setServices((prev) => prev.filter((service) => service.id !== id));
+    setServices((prev) =>
+      prev.map((item) =>
+        item.id === service.id
+          ? {
+              ...item,
+              is_active: nextIsActive,
+              updated_at: new Date().toISOString(),
+            }
+          : item
+      )
+    );
 
     try {
-      const success = await deleteService(id);
-      if (success) {
-        showToast("Service deactivated", "success");
-      } else {
-        throw new Error("Failed to delete");
+      const updated = await setServiceActiveState(service.id, nextIsActive);
+      if (!updated) {
+        throw new Error("Failed to update service status");
       }
+
+      setServices((prev) => prev.map((item) => (item.id === service.id ? updated : item)));
+      showToast(
+        nextIsActive ? "Service berhasil diaktifkan" : "Service berhasil dinonaktifkan",
+        "success"
+      );
     } catch {
       setServices(previous);
-      showToast("Failed to delete service", "error");
+      showToast("Gagal mengubah status service", "error");
     } finally {
-      setIsDeleting(null);
-      setOptimistic(id, false);
+      setStatusUpdatingId(null);
+      setOptimistic(service.id, false);
     }
   };
 
@@ -886,15 +900,28 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                       </Button>
                       <Button
                         variant="outline"
-                        onClick={() => handleDelete(service.id)}
-                        disabled={isDeleting === service.id || isOptimistic}
-                        className="min-h-11 w-full border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto sm:min-w-11"
-                        aria-label={`Delete ${service.name}`}
+                        onClick={() => handleToggleService(service)}
+                        disabled={statusUpdatingId === service.id || isOptimistic}
+                        className={cn(
+                          "min-h-11 flex-1",
+                          service.is_active
+                            ? "border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            : "border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+                        )}
+                        aria-label={`${service.is_active ? "Nonaktifkan" : "Aktifkan"} ${service.name}`}
                       >
-                        {isDeleting === service.id ? (
+                        {statusUpdatingId === service.id ? (
                           <HugeiconsIcon icon={Loading03Icon} size={14} className="animate-spin" />
+                        ) : service.is_active ? (
+                          <>
+                            <EyeOff className="mr-2 h-4 w-4" />
+                            Nonaktifkan
+                          </>
                         ) : (
-                          <HugeiconsIcon icon={Delete02Icon} size={14} />
+                          <>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Aktifkan
+                          </>
                         )}
                       </Button>
                     </div>

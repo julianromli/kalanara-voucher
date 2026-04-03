@@ -37,7 +37,7 @@ vi.mock("@/lib/actions/service-categories", () => ({
 vi.mock("@/lib/actions/services", () => ({
   createService: vi.fn(),
   updateService: vi.fn(),
-  deleteService: vi.fn(),
+  setServiceActiveState: vi.fn(),
 }));
 
 // Mock service image utils
@@ -101,6 +101,13 @@ const mockServices: ServiceWithCategory[] = [
   },
 ];
 
+const inactiveService: ServiceWithCategory = {
+  ...mockServices[0],
+  id: "test-id-2",
+  name: "Deep Sleep",
+  is_active: false,
+};
+
 class MockIntersectionObserver {
   observe() {}
   unobserve() {}
@@ -138,10 +145,10 @@ describe("ServicesClient", () => {
     vi.clearAllMocks();
   });
 
-  const renderComponent = () => {
+  const renderComponent = (services: ServiceWithCategory[] = mockServices) => {
     return render(
       <ToastProvider>
-        <ServicesClient initialServices={mockServices} initialCategories={mockCategories} />
+        <ServicesClient initialServices={services} initialCategories={mockCategories} />
       </ToastProvider>
     );
   };
@@ -315,6 +322,48 @@ describe("ServicesClient", () => {
     expect(await screen.findByRole("option", { name: /Body Treatment/i })).toBeInTheDocument();
     expect(await screen.findByRole("option", { name: /Reflexology \(Nonaktif\)/i })).toBeInTheDocument();
 
+  });
+
+  it("toggles service active state from the service card", async () => {
+    const user = userEvent.setup();
+    renderComponent();
+
+    const { setServiceActiveState } = await import("@/lib/actions/services");
+    vi.mocked(setServiceActiveState).mockResolvedValue({
+      ...mockServices[0],
+      is_active: false,
+    });
+
+    const toggleBtn = screen.getByRole("button", { name: /Nonaktifkan Balinese Lulur/i });
+    await user.click(toggleBtn);
+
+    await waitFor(() => {
+      expect(setServiceActiveState).toHaveBeenCalledWith("test-id-1", false);
+    });
+
+    expect(await screen.findByText("Inactive")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Aktifkan Balinese Lulur/i })).toBeInTheDocument();
+  });
+
+  it("reactivates an inactive service from the service card", async () => {
+    const user = userEvent.setup();
+    renderComponent([inactiveService]);
+
+    const { setServiceActiveState } = await import("@/lib/actions/services");
+    vi.mocked(setServiceActiveState).mockResolvedValue({
+      ...inactiveService,
+      is_active: true,
+    });
+
+    const toggleBtn = screen.getByRole("button", { name: /Aktifkan Deep Sleep/i });
+    await user.click(toggleBtn);
+
+    await waitFor(() => {
+      expect(setServiceActiveState).toHaveBeenCalledWith("test-id-2", true);
+    });
+
+    expect(await screen.findByText("Active")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Nonaktifkan Deep Sleep/i })).toBeInTheDocument();
   });
 
   it("submits correct payload when creating and updating a service", async () => {

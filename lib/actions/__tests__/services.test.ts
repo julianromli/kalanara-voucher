@@ -63,6 +63,7 @@ import {
   getAllServices,
   getServiceById,
   getServices,
+  setServiceActiveState,
   updateService,
 } from "@/lib/actions/services";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
@@ -391,18 +392,34 @@ describe("service actions", () => {
   });
 
   it("soft deactivates services and revalidates", async () => {
-    servicesUpdateMock.mockReturnValueOnce({
-      eq: servicesUpdateEqMock,
-    });
-    servicesUpdateEqMock.mockResolvedValueOnce({ error: null });
-
     const result = await deleteService("service-1");
 
     expect(result).toBe(true);
     expect(servicesUpdateMock).toHaveBeenCalledWith({ is_active: false });
     expect(logAdminAuditMock).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ action: "service.deactivate", target: "service-1" })
+      expect.objectContaining({
+        action: "service.deactivate",
+        target: "service-1",
+        details: { name: "Balinese Massage" },
+      })
+    );
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/services", "page");
+  });
+
+  it("reactivates services and revalidates", async () => {
+    const result = await setServiceActiveState("service-1", true);
+
+    expect(result?.is_active).toBe(true);
+    expect(servicesUpdateMock).toHaveBeenCalledWith({ is_active: true });
+    expect(servicesUpdateEqMock).toHaveBeenCalledWith("id", "service-1");
+    expect(logAdminAuditMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        action: "service.activate",
+        target: "service-1",
+        details: { name: "Balinese Massage" },
+      })
     );
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/services", "page");
   });
