@@ -241,15 +241,15 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
     const allowedTypes = getAllowedServiceImageTypes();
     if (!allowedTypes.includes(file.type as (typeof allowedTypes)[number])) {
       setUploadStatus("error");
-      setUploadError("Please select a JPG, PNG, or WebP image.");
-      showToast("Please select a JPG, PNG, or WebP image.", "error");
+      setUploadError("Silakan pilih gambar JPG, PNG, atau WebP.");
+      showToast("Silakan pilih gambar JPG, PNG, atau WebP.", "error");
       return;
     }
 
     if (file.size > getMaxServiceImageSizeBytes()) {
       setUploadStatus("error");
-      setUploadError(`Image size must be ${MAX_IMAGE_SIZE_MB}MB or smaller.`);
-      showToast(`Image size must be ${MAX_IMAGE_SIZE_MB}MB or smaller.`, "error");
+      setUploadError(`Ukuran gambar maksimal ${MAX_IMAGE_SIZE_MB}MB.`);
+      showToast(`Ukuran gambar maksimal ${MAX_IMAGE_SIZE_MB}MB.`, "error");
       return;
     }
 
@@ -303,13 +303,13 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
     if (!imageUrl) return;
     const result = await deleteServiceImageByUrl(imageUrl);
     if (!result.success) {
-      throw new Error(result.error || "Failed to delete service image.");
+      throw new Error(result.error || "Gagal menghapus gambar layanan.");
     }
   };
 
   const handleSave = async () => {
     if (!formData.name || !formData.price) {
-      showToast("Please fill in required fields", "error");
+      showToast("Mohon lengkapi field wajib.", "error");
       return;
     }
 
@@ -370,20 +370,20 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
           } as ServiceUpdate);
 
           if (!updated) {
-            throw new Error("Failed to update");
+            throw new Error("Gagal memperbarui layanan.");
           }
 
           setServices((prev) => prev.map((service) => (service.id === editingId ? updated : service)));
           setIsDialogOpen(false);
           resetImageState(updated.image_url || "");
-          showToast("Service updated successfully", "success");
+          showToast("Layanan berhasil diperbarui.", "success");
 
           if (originalImageUrl && originalImageUrl !== nextImageUrl) {
             try {
               await cleanupImage(originalImageUrl);
             } catch (error) {
               console.error(error);
-              showToast("Service updated, but old image cleanup failed", "error");
+              showToast("Layanan diperbarui, tetapi gambar lama gagal dihapus.", "error");
             }
           }
         } catch (error) {
@@ -435,14 +435,14 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
         } as ServiceInsert);
 
         if (!created) {
-          throw new Error("Failed to create");
+          throw new Error("Gagal membuat layanan.");
         }
 
         setServices((prev) => prev.map((service) => (service.id === tempId ? created : service)));
         setIsDialogOpen(false);
         resetImageState(created.image_url || "");
         setFormData(DEFAULT_FORM);
-        showToast("Service created successfully", "success");
+        showToast("Layanan berhasil dibuat.", "success");
       } catch (error) {
         setServices(previous);
         if (uploadedImageUrl) {
@@ -453,7 +453,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
         setOptimistic(tempId, false);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to save service";
+      const message = error instanceof Error ? error.message : "Gagal menyimpan layanan.";
       setUploadStatus(selectedImageFile ? "error" : "idle");
       setUploadError(selectedImageFile ? message : null);
       showToast(message, "error");
@@ -483,17 +483,17 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
     try {
       const updated = await setServiceActiveState(service.id, nextIsActive);
       if (!updated) {
-        throw new Error("Failed to update service status");
+        throw new Error("Gagal mengubah status layanan.");
       }
 
       setServices((prev) => prev.map((item) => (item.id === service.id ? updated : item)));
       showToast(
-        nextIsActive ? "Service berhasil diaktifkan" : "Service berhasil dinonaktifkan",
+        nextIsActive ? "Layanan berhasil diaktifkan." : "Layanan berhasil dinonaktifkan.",
         "success"
       );
     } catch {
       setServices(previous);
-      showToast("Gagal mengubah status service", "error");
+      showToast("Gagal mengubah status layanan.", "error");
     } finally {
       setStatusUpdatingId(null);
       setOptimistic(service.id, false);
@@ -573,7 +573,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
 
   return (
     <main aria-labelledby="services-page-title" className="contents">
-      <DashboardHeader title="Service Management" showActions={false} />
+      <DashboardHeader title="Manajemen Layanan" showActions={false} />
       <div className="h-full w-full overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-4 md:px-6">
         <div
           className={cn(
@@ -586,7 +586,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
               Kelola layanan spa
             </h2>
             <p className="text-sm text-muted-foreground">
-              Manage spa services, pricing, and availability
+              Kelola layanan spa, harga, dan ketersediaannya
             </p>
           </div>
           <Button
@@ -594,7 +594,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
             className="btn-hover-lift min-h-11 w-full sm:w-auto"
           >
             <HugeiconsIcon icon={PlusSignIcon} size={16} className="mr-2" />
-            Add Service
+            Tambah Layanan
           </Button>
         </div>
 
@@ -625,7 +625,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                 ) : (
                   <ChevronDown className="h-5 w-5 text-muted-foreground" />
                 )}
-                <span className="sr-only">Toggle Categories</span>
+                <span className="sr-only">Buka atau tutup kategori</span>
               </Button>
             </CollapsibleTrigger>
           </div>
@@ -731,16 +731,16 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
             "mb-6 rounded-2xl border border-border bg-card p-4 shadow-spa sm:p-5",
             isMounted ? "animate-fade-slide-up" : "opacity-0"
           )}
-          style={{ animationDelay: "100ms" }}
-        >
+            style={{ animationDelay: "100ms" }}
+          >
           <form
-            aria-label="Filter services"
+            aria-label="Filter layanan"
             className="flex flex-col gap-4 lg:flex-row lg:items-end"
             onSubmit={(event) => event.preventDefault()}
           >
             <div className="flex-1 space-y-2">
               <label htmlFor={searchInputId} className="text-sm font-medium text-foreground">
-                Search services
+                Cari layanan
               </label>
               <div className="relative flex-1">
               <HugeiconsIcon
@@ -750,7 +750,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
               />
               <Input
                 id={searchInputId}
-                placeholder="Search services..."
+                placeholder="Cari layanan..."
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 aria-describedby="services-results-status"
@@ -767,9 +767,9 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                 value={categoryFilter}
                 onValueChange={(value) => setCategoryFilter(value)}
               >
-                <SelectTrigger id={categoryFilterId} aria-label="Filter by category" className="min-h-11 w-full">
+                <SelectTrigger id={categoryFilterId} aria-label="Filter berdasarkan kategori" className="min-h-11 w-full">
                 <HugeiconsIcon icon={FilterIcon} size={16} className="mr-2" />
-                <SelectValue placeholder="All Categories" />
+                <SelectValue placeholder="Semua kategori" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">Semua Kategori</SelectItem>
@@ -788,7 +788,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
               className="text-sm text-muted-foreground lg:min-w-[180px] lg:text-right"
               aria-live="polite"
             >
-              {filteredServices.length} service{filteredServices.length === 1 ? "" : "s"} shown
+              {filteredServices.length} layanan ditampilkan
             </p>
           </form>
         </div>
@@ -801,22 +801,22 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
           >
             <HugeiconsIcon icon={Tag01Icon} size={48} className="mx-auto mb-4 text-muted-foreground" />
             <h3 className="mb-2 text-lg font-medium text-foreground">
-              No services found
+              Tidak ada layanan ditemukan
             </h3>
             <p className="mb-6 text-muted-foreground">
               {searchQuery || categoryFilter !== "ALL"
-                ? "Try adjusting your filters"
-                : "Create your first service to get started"}
+                ? "Coba sesuaikan kata kunci atau filter Anda"
+                : "Buat layanan pertama Anda untuk memulai"}
             </p>
             {!searchQuery && categoryFilter === "ALL" && (
               <Button onClick={handleOpenCreate} className="min-h-11 bg-primary hover:bg-primary/90">
                 <HugeiconsIcon icon={PlusSignIcon} size={18} className="mr-2" />
-                Create Service
+                Buat Layanan
               </Button>
             )}
           </div>
         ) : (
-          <section aria-label="Services list" aria-busy={isBusy}>
+          <section aria-label="Daftar layanan" aria-busy={isBusy}>
             <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
             {filteredServices.map((service, index) => {
               const isOptimistic = optimisticIds.has(service.id);
@@ -849,7 +849,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                           aria-live="polite"
                         >
                           <HugeiconsIcon icon={Loading03Icon} size={12} className="animate-spin" />
-                          Syncing
+                          Menyinkronkan
                         </span>
                       )}
                       <span
@@ -860,7 +860,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                             : "bg-destructive text-destructive-foreground"
                         )}
                       >
-                        {service.is_active ? "Active" : "Inactive"}
+                        {service.is_active ? "Aktif" : "Nonaktif"}
                       </span>
                     </div>
                     <div className="absolute bottom-3 left-3">
@@ -875,13 +875,13 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                       {service.name}
                     </h3>
                     <p className="mb-4 min-h-[40px] line-clamp-3 text-sm leading-6 text-muted-foreground">
-                      {service.description || "No description"}
+                      {service.description || "Tidak ada deskripsi"}
                     </p>
 
                     <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <HugeiconsIcon icon={Clock01Icon} size={16} />
-                        <span className="text-sm">{service.duration} mins</span>
+                        <span className="text-sm">{service.duration} menit</span>
                       </div>
                       <span className="font-semibold text-foreground">
                         {formatCurrency(service.price)}
@@ -893,10 +893,10 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                         onClick={() => handleOpenEdit(service)}
                         disabled={isOptimistic}
                         className="min-h-11 flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
-                        aria-label={`Edit ${service.name}`}
+                        aria-label={`Ubah ${service.name}`}
                       >
                         <HugeiconsIcon icon={PencilEdit01Icon} size={14} className="mr-1" />
-                        Edit
+                        Ubah
                       </Button>
                       <Button
                         variant="outline"
@@ -938,14 +938,14 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
         <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-sans text-xl font-semibold">
-              {isEditing ? "Edit Service" : "Create New Service"}
+              {isEditing ? "Ubah Layanan" : "Tambah Layanan Baru"}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-5 py-4">
             <div>
               <label htmlFor={serviceNameId} className="mb-1.5 block text-sm font-medium text-foreground">
-                Service Name *
+                Nama Layanan *
               </label>
               <Input
                 id={serviceNameId}
@@ -953,7 +953,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                 onChange={(event) =>
                   setFormData((prev) => ({ ...prev, name: event.target.value }))
                 }
-                placeholder="e.g., Balinese Massage"
+                placeholder="Misal: Balinese Massage"
                 className="min-h-11"
                 aria-required="true"
               />
@@ -964,7 +964,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                 htmlFor={serviceDescriptionId}
                 className="mb-1.5 block text-sm font-medium text-foreground"
               >
-                Description
+                Deskripsi
               </label>
               <textarea
                 id={serviceDescriptionId}
@@ -972,7 +972,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                 onChange={(event) =>
                   setFormData((prev) => ({ ...prev, description: event.target.value }))
                 }
-                placeholder="Describe the service..."
+                placeholder="Tulis deskripsi layanan..."
                 rows={3}
                 className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm leading-6 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
@@ -981,7 +981,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor={serviceDurationId} className="mb-1.5 block text-sm font-medium text-foreground">
-                  Duration (mins) *
+                  Durasi (menit) *
                 </label>
                 <Input
                   id={serviceDurationId}
@@ -1049,10 +1049,10 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <label htmlFor={serviceImageId} className="block text-sm font-medium text-foreground">
-                  Service Image
+                  Gambar Layanan
                 </label>
                 <span className="text-xs text-muted-foreground">
-                  JPG, PNG, WebP up to {MAX_IMAGE_SIZE_MB}MB
+                  JPG, PNG, WebP hingga {MAX_IMAGE_SIZE_MB}MB
                 </span>
               </div>
 
@@ -1072,7 +1072,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                   <div className="relative h-40">
                     <Image
                       src={imagePreviewUrl}
-                      alt="Service preview"
+                      alt="Pratinjau layanan"
                       fill
                       sizes="(max-width: 768px) 100vw, 512px"
                       className="object-cover"
@@ -1081,7 +1081,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                 ) : (
                   <div className="flex h-40 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
                     <HugeiconsIcon icon={Upload04Icon} size={24} />
-                    <span>No image selected</span>
+                    <span>Belum ada gambar dipilih</span>
                   </div>
                 )}
               </div>
@@ -1095,19 +1095,19 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                   className="min-h-11 w-full sm:w-auto"
                 >
                   <HugeiconsIcon icon={ImageDelete01Icon} size={16} className="mr-2" />
-                  Remove Image
+                  Hapus Gambar
                 </Button>
                 {uploadStatus === "uploading" && (
                   <span className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
                     <HugeiconsIcon icon={Loading03Icon} size={14} className="animate-spin" />
-                    Uploading image...
+                    Mengunggah gambar...
                   </span>
                 )}
               </div>
 
               {removeCurrentImage && !selectedImageFile && (
                 <p className="text-sm text-muted-foreground">
-                  The current image will be removed when you save this service.
+                  Gambar saat ini akan dihapus ketika Anda menyimpan layanan ini.
                 </p>
               )}
 
@@ -1127,7 +1127,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
               className="min-h-11 w-full sm:w-auto"
             >
               <HugeiconsIcon icon={Cancel01Icon} size={16} className="mr-1" />
-              Cancel
+              Batal
             </Button>
             <Button
               onClick={handleSave}
@@ -1139,7 +1139,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
               ) : (
                 <HugeiconsIcon icon={Tick02Icon} size={16} className="mr-1" />
               )}
-              {isEditing ? "Update" : "Create"}
+              {isEditing ? "Simpan Perubahan" : "Buat Layanan"}
             </Button>
           </div>
         </DialogContent>

@@ -164,7 +164,7 @@ describe("ServicesClient", () => {
     const user = userEvent.setup();
     renderComponent();
 
-    const manageCatBtn = screen.getByRole("button", { name: /Toggle Categories/i });
+    const manageCatBtn = screen.getByRole("button", { name: /Buka atau tutup kategori/i });
     await user.click(manageCatBtn);
     
     const addCatBtn = await screen.findByRole("button", { name: /Tambah Kategori/i });
@@ -197,7 +197,7 @@ describe("ServicesClient", () => {
     const user = userEvent.setup();
     renderComponent();
 
-    const manageCatBtn = screen.getByRole("button", { name: /Toggle Categories/i });
+    const manageCatBtn = screen.getByRole("button", { name: /Buka atau tutup kategori/i });
     await user.click(manageCatBtn);
 
     const editBtns = await screen.findAllByTitle("Edit Kategori");
@@ -226,7 +226,7 @@ describe("ServicesClient", () => {
     const user = userEvent.setup();
     renderComponent();
 
-    const manageCatBtn = screen.getByRole("button", { name: /Toggle Categories/i });
+    const manageCatBtn = screen.getByRole("button", { name: /Buka atau tutup kategori/i });
     await user.click(manageCatBtn);
 
     const toggleBtns = await screen.findAllByRole("button", { name: /Nonaktifkan|Aktifkan/i });
@@ -252,7 +252,7 @@ describe("ServicesClient", () => {
     
     renderComponent();
 
-    const manageCatBtn = screen.getByRole("button", { name: /Toggle Categories/i });
+    const manageCatBtn = screen.getByRole("button", { name: /Buka atau tutup kategori/i });
     await user.click(manageCatBtn);
 
     const deleteBtns = await screen.findAllByTitle("Hapus Kategori");
@@ -274,10 +274,10 @@ describe("ServicesClient", () => {
     renderComponent();
 
     // 1. Check Create mode: inactive category should be excluded
-    const addServiceBtn = screen.getByRole("button", { name: /Add Service/i });
+    const addServiceBtn = screen.getByRole("button", { name: /Tambah Layanan/i });
     await user.click(addServiceBtn);
 
-    const createDialogTitle = await screen.findByText("Create New Service");
+    const createDialogTitle = await screen.findByText("Tambah Layanan Baru");
     expect(createDialogTitle).toBeInTheDocument();
 
     const categorySelectBtn = screen.getAllByRole("combobox")[0]; // There could be multiple, but we want the one in the modal
@@ -296,20 +296,20 @@ describe("ServicesClient", () => {
     await user.keyboard("{Escape}");
 
     // Close create dialog
-    const cancelBtn = await screen.findByRole("button", { name: /Cancel/i });
+    const cancelBtn = await screen.findByRole("button", { name: /Batal/i });
     await user.click(cancelBtn);
     
     await waitFor(() => {
-      expect(screen.queryByText("Create New Service")).not.toBeInTheDocument();
+      expect(screen.queryByText("Tambah Layanan Baru")).not.toBeInTheDocument();
   });
 
     // 2. Check Edit mode: inactive category SHOULD be preserved if already selected
     // Note: We need to target the edit button specifically for the service table row.
     // Given our mock, we just have one service row.
-    const editServiceBtn = screen.getByRole("button", { name: /Edit Balinese Lulur/i });
+    const editServiceBtn = screen.getByRole("button", { name: /Ubah Balinese Lulur/i });
     await user.click(editServiceBtn); 
 
-    const editDialogTitle = await screen.findByText("Edit Service");
+    const editDialogTitle = await screen.findByText("Ubah Layanan");
     expect(editDialogTitle).toBeInTheDocument();
 
     // The combobox should show the currently selected inactive category name
@@ -341,7 +341,7 @@ describe("ServicesClient", () => {
       expect(setServiceActiveState).toHaveBeenCalledWith("test-id-1", false);
     });
 
-    expect(await screen.findByText("Inactive")).toBeInTheDocument();
+    expect(await screen.findByText("Nonaktif")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Aktifkan Balinese Lulur/i })).toBeInTheDocument();
   });
 
@@ -362,7 +362,7 @@ describe("ServicesClient", () => {
       expect(setServiceActiveState).toHaveBeenCalledWith("test-id-2", true);
     });
 
-    expect(await screen.findByText("Active")).toBeInTheDocument();
+    expect(await screen.findByText("Aktif")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Nonaktifkan Deep Sleep/i })).toBeInTheDocument();
   });
 
@@ -371,17 +371,17 @@ describe("ServicesClient", () => {
     renderComponent();
 
     // 1. CREATE SERVICE
-    const addServiceBtn = screen.getByRole("button", { name: /Add Service/i });
+    const addServiceBtn = screen.getByRole("button", { name: /Tambah Layanan/i });
     await user.click(addServiceBtn);
 
     // Fill form
-    const nameInput = screen.getByLabelText("Service Name *");
+    const nameInput = screen.getByLabelText("Nama Layanan *");
     fireEvent.change(nameInput, { target: { value: "New Facial Service" } });
 
     const priceInput = screen.getByLabelText("Price (IDR) *");
     fireEvent.change(priceInput, { target: { value: "150000" } });
 
-    const durationInput = screen.getByLabelText("Duration (mins) *");
+    const durationInput = screen.getByLabelText("Durasi (menit) *");
     fireEvent.change(durationInput, { target: { value: "60" } });
 
     // Select category
@@ -412,7 +412,7 @@ describe("ServicesClient", () => {
       category_relation: mockCategories[0]
     });
 
-    const saveBtn = screen.getByRole("button", { name: /Create/i });
+    const saveBtn = screen.getByRole("button", { name: /Buat Layanan/i });
     await user.click(saveBtn);
 
     await waitFor(() => {
@@ -426,7 +426,7 @@ describe("ServicesClient", () => {
     });
 
     // 2. UPDATE SERVICE
-    const editBtns = screen.getAllByRole("button", { name: /Edit Balinese Lulur/i });
+    const editBtns = screen.getAllByRole("button", { name: /Ubah Balinese Lulur/i });
     await user.click(editBtns[0]);
 
     // Change category to Lulur
@@ -435,7 +435,7 @@ describe("ServicesClient", () => {
     const lulurOption = await screen.findByRole("option", { name: /Body Treatment/i });
     await user.click(lulurOption);
     
-    const editSaveBtn = await screen.findByRole("button", { name: /Update/i });
+    const editSaveBtn = await screen.findByRole("button", { name: /Simpan Perubahan/i });
     
     const { updateService } = await import("@/lib/actions/services");
     vi.mocked(updateService).mockResolvedValue({
@@ -454,7 +454,7 @@ describe("ServicesClient", () => {
       }));
     });
     // 3. UPDATE SERVICE TO CUSTOM CATEGORY
-    const editBtnsAgain = screen.getAllByRole("button", { name: /Edit Balinese Lulur/i });
+    const editBtnsAgain = screen.getAllByRole("button", { name: /Ubah Balinese Lulur/i });
     await user.click(editBtnsAgain[0]);
 
     // Change category to Custom Treatment
@@ -463,7 +463,7 @@ describe("ServicesClient", () => {
     const customOption = await screen.findByRole("option", { name: /Custom Treatment/i });
     await user.click(customOption);
     
-    const customSaveBtn = await screen.findByRole("button", { name: /Update/i });
+    const customSaveBtn = await screen.findByRole("button", { name: /Simpan Perubahan/i });
     
     vi.mocked(updateService).mockResolvedValue({
       ...mockServices[0],
