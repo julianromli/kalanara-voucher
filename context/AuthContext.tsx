@@ -48,15 +48,17 @@ interface AuthProviderProps {
   bootstrapUser?: User | null;
 }
 
+type BrowserSupabaseClient = ReturnType<typeof createClient>;
+
 // ============================================================================
 // Helpers
 // ============================================================================
 
 async function extractUserFromSupabaseUser(
+  supabase: BrowserSupabaseClient,
   supabaseUser: SupabaseUser
 ): Promise<User | null> {
   const metadata = supabaseUser.user_metadata || {};
-  const supabase = createClient();
   const fallbackName =
     metadata.name || metadata.full_name || supabaseUser.email?.split('@')[0] || 'User';
   let name = fallbackName;
@@ -119,6 +121,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children, bootstrapUser = null }: AuthProviderProps) {
   const bootstrapUserRef = useRef<User | null>(bootstrapUser);
   const hasBootstrapUser = bootstrapUserRef.current?.role != null;
+  const [supabase] = useState(createClient);
   const [user, setUser] = useState<User | null>(() => bootstrapUserRef.current);
   const [isLoading, setIsLoading] = useState(() => !hasBootstrapUser);
   const isAuthenticated = user?.role != null;
@@ -131,15 +134,13 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       return;
     }
 
-    const supabase = createClient();
-
     // Get initial session
     const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
-          const resolvedUser = await extractUserFromSupabaseUser(session.user);
+          const resolvedUser = await extractUserFromSupabaseUser(supabase, session.user);
           setUser(resolvedUser ?? bootstrapUserRef.current);
         } else if (!hasBootstrapUser) {
           setUser(null);
@@ -164,13 +165,13 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       const { data } = supabase.auth.onAuthStateChange(
         async (event, session) => {
           if (event === 'SIGNED_IN' && session?.user) {
-            setUser((await extractUserFromSupabaseUser(session.user)) ?? bootstrapUserRef.current);
+            setUser((await extractUserFromSupabaseUser(supabase, session.user)) ?? bootstrapUserRef.current);
           } else if (event === 'SIGNED_OUT') {
             setUser(null);
           } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-            setUser((await extractUserFromSupabaseUser(session.user)) ?? bootstrapUserRef.current);
+            setUser((await extractUserFromSupabaseUser(supabase, session.user)) ?? bootstrapUserRef.current);
           } else if (event === 'USER_UPDATED' && session?.user) {
-            setUser((await extractUserFromSupabaseUser(session.user)) ?? bootstrapUserRef.current);
+            setUser((await extractUserFromSupabaseUser(supabase, session.user)) ?? bootstrapUserRef.current);
           }
         }
       );
@@ -183,11 +184,9 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
     return () => {
       subscription?.unsubscribe();
     };
-  }, [hasBootstrapUser]);
+  }, [hasBootstrapUser, supabase]);
 
   const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
-    const supabase = createClient();
-
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -202,7 +201,7 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       }
 
       if (data.user) {
-        const resolvedUser = await extractUserFromSupabaseUser(data.user);
+        const resolvedUser = await extractUserFromSupabaseUser(supabase, data.user);
 
         if (!resolvedUser) {
           await supabase.auth.signOut();
@@ -228,11 +227,9 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
         error: 'A network error occurred. Please check your connection.',
       };
     }
-  }, []);
+  }, [supabase]);
 
   const logout = useCallback(async (): Promise<void> => {
-    const supabase = createClient();
-
     try {
       await supabase.auth.signOut();
       setUser(null);
@@ -241,7 +238,7 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       // Still clear local state even if the API call fails
       setUser(null);
     }
-  }, []);
+  }, [supabase]);
 
   const value: AuthContextType = {
     user,
