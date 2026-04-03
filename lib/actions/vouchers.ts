@@ -1,13 +1,13 @@
 "use server";
 
 import crypto from "crypto";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 import {
   logAdminAudit,
   requireAdminPermission,
 } from "@/lib/auth/admin-rbac-server";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { revalidateTag } from "next/cache";
 import type {
   Database,
   Voucher,
@@ -15,6 +15,97 @@ import type {
   VoucherWithService,
 } from "@/lib/database.types";
 import type { PublicVoucherLookup } from "@/lib/types";
+
+export interface DestructiveVoucherActionResult {
+  success: boolean;
+  message: string;
+  detachedOrderCount: number;
+  deletedReviewCount: number;
+  deletedVoucherCount: number;
+}
+
+interface HardDeleteVoucherRpcRow {
+  success: boolean;
+  message: string;
+  detached_order_count: number;
+  deleted_review_count: number;
+  deleted_voucher_count: number;
+}
+
+function revalidateVoucherAdminData() {
+  revalidateTag("dashboard-stats", "max");
+  revalidatePath("/admin/dashboard", "page");
+  revalidatePath("/admin/vouchers", "page");
+  revalidatePath("/admin/purchases", "page");
+  revalidatePath("/review/[id]", "page");
+}
+
+function createDeleteFailureResult(
+  message: string,
+): DestructiveVoucherActionResult {
+  return {
+    success: false,
+    message,
+    detachedOrderCount: 0,
+    deletedReviewCount: 0,
+    deletedVoucherCount: 0,
+  };
+}
+
+function normalizeHardDeleteResult(
+  payload: HardDeleteVoucherRpcRow | null | undefined,
+): DestructiveVoucherActionResult {
+  if (!payload) {
+    return createDeleteFailureResult(
+      "Fungsi penghapusan voucher permanen belum tersedia di database. Jalankan migration terbaru terlebih dahulu.",
+    );
+  }
+
+  return {
+    success: payload.success,
+    message: payload.message,
+    detachedOrderCount: payload.detached_order_count,
+    deletedReviewCount: payload.deleted_review_count,
+    deletedVoucherCount: payload.deleted_voucher_count,
+  };
+}
+
+async function hardDeleteVoucherTransactional(
+  voucherId: string,
+): Promise<DestructiveVoucherActionResult> {
+  const supabase = getAdminClient();
+  const rpc = supabase.rpc as unknown as (
+    fn: string,
+    args?: Record<string, unknown>,
+  ) => Promise<{
+    data: HardDeleteVoucherRpcRow[] | null;
+    error: { code?: string; message: string } | null;
+  }>;
+  const { data, error } = await rpc("hard_delete_voucher", {
+    target_voucher_id: voucherId,
+  });
+
+  if (error) {
+    console.error("Error hard deleting voucher transactionally:", error);
+
+    if (error.code === "PGRST202") {
+      return createDeleteFailureResult(
+        "Fungsi penghapusan voucher permanen belum tersedia di database. Jalankan migration terbaru terlebih dahulu.",
+      );
+    }
+
+    throw error;
+  }
+
+  const payload = Array.isArray(data) ? (data[0] ?? null) : null;
+  const result = normalizeHardDeleteResult(payload);
+
+  if (result.success) {
+    revalidateVoucherAdminData();
+  }
+
+  return result;
+}
 
 /**
  * Generates a cryptographically secure voucher code.
@@ -26,7 +117,7 @@ function generateVoucherCode(): string {
   const randomBytes = crypto.randomBytes(8);
   const randomPart = Array.from(
     { length: 8 },
-    (_, i) => chars[randomBytes[i] % chars.length]
+    (_, i) => chars[randomBytes[i] % chars.length],
   ).join("");
   const year = new Date().getFullYear();
   return `KSP-${year}-${randomPart}`;
@@ -50,7 +141,7 @@ export async function getVouchers(): Promise<VoucherWithService[]> {
 }
 
 export async function getVoucherByCode(
-  code: string
+  code: string,
 ): Promise<VoucherWithService | null> {
   const supabase = getAdminClient();
   const { data, error } = await supabase
@@ -68,7 +159,7 @@ export async function getVoucherByCode(
 }
 
 export async function getVoucherById(
-  id: string
+  id: string,
 ): Promise<VoucherWithService | null> {
   const supabase = getAdminClient();
   const { data, error } = await supabase
@@ -86,7 +177,7 @@ export async function getVoucherById(
 }
 
 export async function getVoucherBySourceOrderId(
-  sourceOrderId: string
+  sourceOrderId: string,
 ): Promise<VoucherWithService | null> {
   const supabase = getAdminClient();
   const { data, error } = await supabase
@@ -108,7 +199,7 @@ export async function getVoucherBySourceOrderId(
 }
 
 export async function getPublicVoucherLookupByCode(
-  code: string
+  code: string,
 ): Promise<PublicVoucherLookup | null> {
   const voucher = await getVoucherByCode(code);
   if (!voucher) {
@@ -131,7 +222,7 @@ export async function getPublicVoucherLookupByCode(
 }
 
 export async function createVoucher(
-  voucherData: Omit<VoucherInsert, "code">
+  voucherData: Omit<VoucherInsert, "code">,
 ): Promise<Voucher | null> {
   // Use admin client to bypass RLS for trusted server operations
   const supabase = getAdminClient();
@@ -155,7 +246,10 @@ export async function createVoucher(
 
   const { data, error } = await supabase
     .from("vouchers")
-    .insert({ ...voucherData, code } as Database["public"]["Tables"]["vouchers"]["Insert"])
+    .insert({
+      ...voucherData,
+      code,
+    } as Database["public"]["Tables"]["vouchers"]["Insert"])
     .select()
     .single();
 
@@ -166,7 +260,7 @@ export async function createVoucher(
       error.code === "23505"
     ) {
       const existingVoucher = await getVoucherBySourceOrderId(
-        voucherData.source_order_id
+        voucherData.source_order_id,
       );
       return existingVoucher;
     }
@@ -180,7 +274,7 @@ export async function createVoucher(
 }
 
 export async function redeemVoucher(
-  code: string
+  code: string,
 ): Promise<{ success: boolean; message: string }> {
   const access = await requireAdminPermission(AdminPermission.VOUCHERS_MANAGE);
 
@@ -234,7 +328,7 @@ export async function redeemVoucher(
 
 export async function extendVoucher(
   id: string,
-  days: number
+  days: number,
 ): Promise<boolean> {
   const access = await requireAdminPermission(AdminPermission.VOUCHERS_MANAGE);
 
@@ -286,4 +380,31 @@ export async function voidVoucher(id: string): Promise<boolean> {
     revalidateTag("dashboard-stats", "max");
   }
   return !error;
+}
+
+export async function deleteVoucher(
+  id: string,
+): Promise<DestructiveVoucherActionResult> {
+  const access = await requireAdminPermission(AdminPermission.VOUCHERS_MANAGE);
+
+  const normalizedId = id.trim();
+  if (!normalizedId) {
+    return createDeleteFailureResult("ID voucher tidak valid.");
+  }
+
+  const result = await hardDeleteVoucherTransactional(normalizedId);
+
+  if (result.success) {
+    logAdminAudit(access, {
+      action: "voucher.hard_delete",
+      target: normalizedId,
+      details: {
+        detachedOrderCount: result.detachedOrderCount,
+        deletedReviewCount: result.deletedReviewCount,
+        deletedVoucherCount: result.deletedVoucherCount,
+      },
+    });
+  }
+
+  return result;
 }

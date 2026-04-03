@@ -17,9 +17,27 @@ import {
   QrCode01Icon,
   Copy01Icon,
 } from "@hugeicons/core-free-icons";
+import {
+  AlertTriangle,
+  Ban,
+  CalendarPlus,
+  MoreHorizontal,
+  QrCode,
+  Trash2,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { formatCurrency } from "@/lib/constants";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -36,8 +54,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
 import {
+  deleteVoucher,
   redeemVoucher,
   extendVoucher,
   voidVoucher,
@@ -47,13 +74,18 @@ import { cn } from "@/lib/utils";
 
 type VoucherStatus = "ALL" | "ACTIVE" | "REDEEMED" | "EXPIRED";
 
-function getVoucherStatus(voucher: VoucherWithService): "active" | "redeemed" | "expired" {
+function getVoucherStatus(
+  voucher: VoucherWithService,
+): "active" | "redeemed" | "expired" {
   if (voucher.is_redeemed) return "redeemed";
   if (new Date(voucher.expiry_date) < new Date()) return "expired";
   return "active";
 }
 
-const STATUS_CONFIG: Record<"active" | "redeemed" | "expired", { label: string; color: string; icon: IconSvgElement }> = {
+const STATUS_CONFIG: Record<
+  "active" | "redeemed" | "expired",
+  { label: string; color: string; icon: IconSvgElement }
+> = {
   active: {
     label: "Active",
     color: "bg-primary/10 text-primary",
@@ -82,15 +114,24 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
 
-  const [vouchers, setVouchers] = useState<VoucherWithService[]>(initialVouchers);
+  const [vouchers, setVouchers] =
+    useState<VoucherWithService[]>(initialVouchers);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<VoucherStatus>("ALL");
 
   // Action states
-  const [selectedVoucher, setSelectedVoucher] = useState<VoucherWithService | null>(null);
-  const [actionType, setActionType] = useState<"redeem" | "extend" | "void" | null>(null);
+  const [selectedVoucher, setSelectedVoucher] =
+    useState<VoucherWithService | null>(null);
+  const [actionType, setActionType] = useState<
+    "redeem" | "extend" | "void" | null
+  >(null);
+  const [pendingDeleteVoucher, setPendingDeleteVoucher] =
+    useState<VoucherWithService | null>(null);
   const [extendDays, setExtendDays] = useState(30);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDeletingVoucher, setIsDeletingVoucher] = useState<string | null>(
+    null,
+  );
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [optimisticIds, setOptimisticIds] = useState<Set<string>>(new Set());
@@ -122,7 +163,9 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
     const status = getVoucherStatus(voucher);
     const matchesSearch =
       voucher.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      voucher.recipient_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      voucher.recipient_name
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
       voucher.recipient_email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus =
       statusFilter === "ALL" || status.toUpperCase() === statusFilter;
@@ -135,7 +178,10 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  const openActionDialog = (voucher: VoucherWithService, action: "redeem" | "extend" | "void") => {
+  const openActionDialog = (
+    voucher: VoucherWithService,
+    action: "redeem" | "extend" | "void",
+  ) => {
     setSelectedVoucher(voucher);
     setActionType(action);
     setExtendDays(30);
@@ -144,6 +190,14 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
   const closeActionDialog = () => {
     setSelectedVoucher(null);
     setActionType(null);
+  };
+
+  const closeDeleteDialog = () => {
+    if (isDeletingVoucher) {
+      return;
+    }
+
+    setPendingDeleteVoucher(null);
   };
 
   const handleAction = async () => {
@@ -203,7 +257,9 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
         }
         case "void": {
           success = await voidVoucher(selectedVoucher.id);
-          message = success ? "Voucher voided successfully" : "Failed to void voucher";
+          message = success
+            ? "Voucher voided successfully"
+            : "Failed to void voucher";
           break;
         }
       }
@@ -224,6 +280,44 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
     }
   };
 
+  const handleDeleteVoucher = async () => {
+    if (!pendingDeleteVoucher || isDeletingVoucher) {
+      return;
+    }
+
+    const voucherId = pendingDeleteVoucher.id;
+    const previous = vouchers;
+
+    setIsDeletingVoucher(voucherId);
+    setOptimistic(voucherId, true);
+    setVouchers((currentVouchers) =>
+      currentVouchers.filter((voucher) => voucher.id !== voucherId),
+    );
+
+    try {
+      const result = await deleteVoucher(voucherId);
+
+      if (!result.success) {
+        setVouchers(previous);
+        showToast(result.message, "error");
+        return;
+      }
+
+      if (selectedVoucher?.id === voucherId) {
+        closeActionDialog();
+      }
+
+      showToast(result.message, "success");
+      setPendingDeleteVoucher(null);
+    } catch {
+      setVouchers(previous);
+      showToast("Failed to delete voucher permanently.", "error");
+    } finally {
+      setIsDeletingVoucher(null);
+      setOptimistic(voucherId, false);
+    }
+  };
+
   if (!isAuthenticated && !authLoading) {
     return null;
   }
@@ -241,47 +335,69 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
       <div className="w-full overflow-y-auto overflow-x-hidden p-4 md:p-6 h-full">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className={cn(
-            "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
-            isMounted ? "animate-fade-slide-up" : "opacity-0"
-          )}>
+          <div
+            className={cn(
+              "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
+              isMounted ? "animate-fade-slide-up" : "opacity-0",
+            )}
+          >
             <p className="text-sm text-muted-foreground">Total</p>
-            <p className="text-2xl font-sans font-semibold text-foreground">{stats.total}</p>
+            <p className="text-2xl font-sans font-semibold text-foreground">
+              {stats.total}
+            </p>
           </div>
-          <div className={cn(
-            "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
-            isMounted ? "animate-fade-slide-up" : "opacity-0"
-          )} style={{ animationDelay: "75ms" }}>
+          <div
+            className={cn(
+              "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
+              isMounted ? "animate-fade-slide-up" : "opacity-0",
+            )}
+            style={{ animationDelay: "75ms" }}
+          >
             <p className="text-sm text-primary flex items-center gap-1">
               <HugeiconsIcon icon={Clock01Icon} size={14} /> Active
             </p>
-            <p className="text-2xl font-sans font-semibold text-foreground">{stats.active}</p>
+            <p className="text-2xl font-sans font-semibold text-foreground">
+              {stats.active}
+            </p>
           </div>
-          <div className={cn(
-            "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
-            isMounted ? "animate-fade-slide-up" : "opacity-0"
-          )} style={{ animationDelay: "150ms" }}>
+          <div
+            className={cn(
+              "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
+              isMounted ? "animate-fade-slide-up" : "opacity-0",
+            )}
+            style={{ animationDelay: "150ms" }}
+          >
             <p className="text-sm text-primary flex items-center gap-1">
               <HugeiconsIcon icon={Tick02Icon} size={14} /> Redeemed
             </p>
-            <p className="text-2xl font-sans font-semibold text-foreground">{stats.redeemed}</p>
+            <p className="text-2xl font-sans font-semibold text-foreground">
+              {stats.redeemed}
+            </p>
           </div>
-          <div className={cn(
-            "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
-            isMounted ? "animate-fade-slide-up" : "opacity-0"
-          )} style={{ animationDelay: "225ms" }}>
+          <div
+            className={cn(
+              "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
+              isMounted ? "animate-fade-slide-up" : "opacity-0",
+            )}
+            style={{ animationDelay: "225ms" }}
+          >
             <p className="text-sm text-destructive flex items-center gap-1">
               <HugeiconsIcon icon={CancelCircleIcon} size={14} /> Expired
             </p>
-            <p className="text-2xl font-sans font-semibold text-foreground">{stats.expired}</p>
+            <p className="text-2xl font-sans font-semibold text-foreground">
+              {stats.expired}
+            </p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className={cn(
-          "bg-card rounded-2xl shadow-spa border border-border p-4 mb-6",
-          isMounted ? "animate-fade-slide-up" : "opacity-0"
-        )} style={{ animationDelay: "300ms" }}>
+        <div
+          className={cn(
+            "bg-card rounded-2xl shadow-spa border border-border p-4 mb-6",
+            isMounted ? "animate-fade-slide-up" : "opacity-0",
+          )}
+          style={{ animationDelay: "300ms" }}
+        >
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
               <HugeiconsIcon
@@ -317,7 +433,11 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
         {/* Vouchers Table */}
         {filteredVouchers.length === 0 ? (
           <div className="bg-card rounded-2xl shadow-spa border border-border p-12 text-center">
-            <HugeiconsIcon icon={Ticket01Icon} size={48} className="text-muted-foreground mx-auto mb-4" />
+            <HugeiconsIcon
+              icon={Ticket01Icon}
+              size={48}
+              className="text-muted-foreground mx-auto mb-4"
+            />
             <h3 className="text-lg font-medium text-muted-foreground mb-2">
               No vouchers found
             </h3>
@@ -328,10 +448,10 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
             </p>
           </div>
         ) : (
-          <div 
+          <div
             className={cn(
               "bg-card rounded-2xl shadow-spa border border-border overflow-hidden",
-              isMounted ? "animate-fade-slide-up" : "opacity-0"
+              isMounted ? "animate-fade-slide-up" : "opacity-0",
             )}
             style={{ animationDelay: "400ms" }}
           >
@@ -367,6 +487,11 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                     const isOptimistic = optimisticIds.has(voucher.id);
                     const status = getVoucherStatus(voucher);
                     const config = STATUS_CONFIG[status];
+                    const isDeleteBusy = isDeletingVoucher === voucher.id;
+                    const isActionBusy =
+                      isOptimistic ||
+                      isDeleteBusy ||
+                      (isProcessing && selectedVoucher?.id === voucher.id);
 
                     return (
                       <tr
@@ -374,7 +499,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                         className={cn(
                           "hover:bg-accent/50 transition-colors row-hover-lift",
                           isOptimistic && "opacity-70 saturate-50",
-                          isMounted ? "animate-fade-slide-up" : "opacity-0"
+                          isMounted ? "animate-fade-slide-up" : "opacity-0",
                         )}
                         style={{ animationDelay: `${500 + index * 50}ms` }}
                       >
@@ -389,7 +514,11 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                               className="text-muted-foreground hover:text-foreground transition-colors"
                             >
                               {copiedCode === voucher.code ? (
-                                <HugeiconsIcon icon={Tick02Icon} size={14} className="text-success" />
+                                <HugeiconsIcon
+                                  icon={Tick02Icon}
+                                  size={14}
+                                  className="text-success"
+                                />
                               ) : (
                                 <HugeiconsIcon icon={Copy01Icon} size={14} />
                               )}
@@ -405,7 +534,9 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                           </p>
                         </td>
                         <td className="p-4">
-                          <p className="text-foreground">{voucher.recipient_name}</p>
+                          <p className="text-foreground">
+                            {voucher.recipient_name}
+                          </p>
                           <p className="text-xs text-muted-foreground">
                             {voucher.recipient_email}
                           </p>
@@ -427,52 +558,81 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                           </span>
                           {isOptimistic && (
                             <span className="ml-2 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                              <HugeiconsIcon icon={Loading03Icon} size={12} className="animate-spin" />
+                              <HugeiconsIcon
+                                icon={Loading03Icon}
+                                size={12}
+                                className="animate-spin"
+                              />
                               Syncing
                             </span>
                           )}
                         </td>
                         <td className="p-4">
                           <div className="flex items-center justify-end gap-1">
-                            {status === "active" && (
-                              <>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => openActionDialog(voucher, "redeem")}
-                                  disabled={isOptimistic}
-                                  className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
-                                  title="Redeem"
+                                  disabled={isActionBusy}
+                                  className="h-8 w-8 p-0"
+                                  aria-label={`Open actions for ${voucher.code}`}
                                 >
-                                  <HugeiconsIcon icon={QrCode01Icon} size={16} />
+                                  {isDeleteBusy ? (
+                                    <HugeiconsIcon
+                                      icon={Loading03Icon}
+                                      size={16}
+                                      className="animate-spin"
+                                    />
+                                  ) : (
+                                    <MoreHorizontal />
+                                  )}
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openActionDialog(voucher, "extend")}
-                                  disabled={isOptimistic}
-                                  className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
-                                  title="Extend"
-                                >
-                                  <HugeiconsIcon icon={CalendarAdd01Icon} size={16} />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openActionDialog(voucher, "void")}
-                                  disabled={isOptimistic}
-                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  title="Void"
-                                >
-                                  <HugeiconsIcon icon={Cancel01Icon} size={16} />
-                                </Button>
-                              </>
-                            )}
-                            {status !== "active" && (
-                              <span className="text-xs text-muted-foreground px-2">
-                                No actions
-                              </span>
-                            )}
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuGroup>
+                                  {status === "active" ? (
+                                    <>
+                                      <DropdownMenuItem
+                                        onSelect={() =>
+                                          openActionDialog(voucher, "redeem")
+                                        }
+                                      >
+                                        <QrCode />
+                                        Redeem
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onSelect={() =>
+                                          openActionDialog(voucher, "extend")
+                                        }
+                                      >
+                                        <CalendarPlus />
+                                        Extend
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        variant="destructive"
+                                        onSelect={() =>
+                                          openActionDialog(voucher, "void")
+                                        }
+                                      >
+                                        <Ban />
+                                        Void
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                    </>
+                                  ) : null}
+                                  <DropdownMenuItem
+                                    variant="destructive"
+                                    onSelect={() =>
+                                      setPendingDeleteVoucher(voucher)
+                                    }
+                                  >
+                                    <Trash2 />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuGroup>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </td>
                       </tr>
@@ -492,19 +652,31 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
             <DialogTitle className="font-sans font-semibold text-xl flex items-center gap-2">
               {actionType === "redeem" && (
                 <>
-                  <HugeiconsIcon icon={QrCode01Icon} size={20} className="text-primary" />
+                  <HugeiconsIcon
+                    icon={QrCode01Icon}
+                    size={20}
+                    className="text-primary"
+                  />
                   Redeem Voucher
                 </>
               )}
               {actionType === "extend" && (
                 <>
-                  <HugeiconsIcon icon={CalendarAdd01Icon} size={20} className="text-primary" />
+                  <HugeiconsIcon
+                    icon={CalendarAdd01Icon}
+                    size={20}
+                    className="text-primary"
+                  />
                   Extend Voucher
                 </>
               )}
               {actionType === "void" && (
                 <>
-                  <HugeiconsIcon icon={Cancel01Icon} size={20} className="text-destructive" />
+                  <HugeiconsIcon
+                    icon={Cancel01Icon}
+                    size={20}
+                    className="text-destructive"
+                  />
                   Void Voucher
                 </>
               )}
@@ -531,13 +703,17 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {selectedVoucher.services?.name} • {selectedVoucher.recipient_name}
+                  {selectedVoucher.services?.name} •{" "}
+                  {selectedVoucher.recipient_name}
                 </p>
               </div>
 
               {actionType === "extend" && (
                 <div className="space-y-3">
-                  <label htmlFor={EXTEND_DAYS_SELECT_ID} className="block text-sm text-muted-foreground">
+                  <label
+                    htmlFor={EXTEND_DAYS_SELECT_ID}
+                    className="block text-sm text-muted-foreground"
+                  >
                     Extend by (days)
                   </label>
                   <Select
@@ -559,7 +735,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                     New expiry:{" "}
                     {new Date(
                       new Date(selectedVoucher.expiry_date).getTime() +
-                        extendDays * 24 * 60 * 60 * 1000
+                        extendDays * 24 * 60 * 60 * 1000,
                     ).toLocaleDateString()}
                   </p>
                 </div>
@@ -567,7 +743,11 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
 
               {actionType === "void" && (
                 <div className="flex items-start gap-3 p-3 bg-destructive/10 rounded-lg border border-destructive/30">
-                  <HugeiconsIcon icon={AlertCircleIcon} size={20} className="text-destructive shrink-0 mt-0.5" />
+                  <HugeiconsIcon
+                    icon={AlertCircleIcon}
+                    size={20}
+                    className="text-destructive shrink-0 mt-0.5"
+                  />
                   <p className="text-sm text-destructive">
                     Warning: This action is irreversible. The voucher will be
                     immediately marked as expired and cannot be used.
@@ -595,7 +775,11 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
               }
             >
               {isProcessing ? (
-                <HugeiconsIcon icon={Loading03Icon} size={16} className="mr-1 animate-spin" />
+                <HugeiconsIcon
+                  icon={Loading03Icon}
+                  size={16}
+                  className="mr-1 animate-spin"
+                />
               ) : null}
               {actionType === "redeem" && "Confirm Redemption"}
               {actionType === "extend" && "Extend Voucher"}
@@ -604,6 +788,62 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(pendingDeleteVoucher)}
+        onOpenChange={(open) => !open && closeDeleteDialog()}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+              <AlertTriangle />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Delete voucher permanently?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the voucher, remove any related
+              review, and detach it from existing purchases. Purchases will
+              remain in admin history without voucher details.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {pendingDeleteVoucher ? (
+            <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm">
+              <p className="font-medium text-foreground">
+                {pendingDeleteVoucher.recipient_name}
+              </p>
+              <p className="font-mono text-muted-foreground">
+                {pendingDeleteVoucher.code}
+              </p>
+              <p className="mt-2 text-muted-foreground">
+                {pendingDeleteVoucher.services?.name || "Unknown"} •{" "}
+                {formatCurrency(pendingDeleteVoucher.amount)}
+              </p>
+            </div>
+          ) : null}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(isDeletingVoucher)}>
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={Boolean(isDeletingVoucher)}
+              onClick={handleDeleteVoucher}
+            >
+              {isDeletingVoucher ? (
+                <HugeiconsIcon
+                  icon={Loading03Icon}
+                  size={16}
+                  className="animate-spin"
+                />
+              ) : (
+                <Trash2 />
+              )}
+              Delete Permanently
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

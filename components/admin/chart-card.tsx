@@ -178,7 +178,11 @@ export function ChartCard({ data, title = "Revenue (Last 7 Days)", animationDela
                 borderRadius: 10,
                 boxShadow: "0 4px 20px -2px rgba(93, 112, 72, 0.12)",
               }}
-              formatter={(value: number) => [formatCurrency(value), "Revenue"]}
+              formatter={(value) => {
+                const revenueValue =
+                  typeof value === "number" ? value : Number(value ?? 0);
+                return [formatCurrency(revenueValue), "Revenue"];
+              }}
               labelStyle={{ color: colors.tooltip.text, fontWeight: 500 }}
             />
             <Bar
