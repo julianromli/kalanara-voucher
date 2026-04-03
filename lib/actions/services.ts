@@ -86,6 +86,23 @@ function assertServiceImageConfigured(imageUrl: string | null | undefined) {
   }
 }
 
+async function requireServiceImageMutationPermissionIfNeeded(
+  existingImageUrl: string | null,
+  updates: ServiceUpdate
+) {
+  if (!("image_url" in updates)) {
+    return;
+  }
+
+  const nextImageUrl = updates.image_url ?? null;
+
+  if (nextImageUrl === (existingImageUrl ?? null)) {
+    return;
+  }
+
+  await requireAdminPermission(AdminPermission.SERVICE_IMAGES_MANAGE);
+}
+
 async function getExistingServiceImageUrl(
   supabase: ReturnType<typeof getAdminClient>,
   id: string
@@ -236,7 +253,7 @@ export async function getActiveServicesForScalevSync(): Promise<ServiceWithCateg
 }
 
 export async function createService(service: ServiceInsert): Promise<ServiceWithCategory | null> {
-  const access = await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
+  const access = await requireAdminPermission(AdminPermission.SERVICES_CREATE);
   assertServiceImageConfigured(service.image_url);
 
   const supabase = getAdminClient();
@@ -270,9 +287,10 @@ export async function updateService(
   const access = await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
 
   const supabase = getAdminClient();
-  const nextImageUrl = "image_url" in updates
-    ? updates.image_url
-    : await getExistingServiceImageUrl(supabase, id);
+  const existingImageUrl = await getExistingServiceImageUrl(supabase, id);
+  await requireServiceImageMutationPermissionIfNeeded(existingImageUrl, updates);
+
+  const nextImageUrl = "image_url" in updates ? updates.image_url : existingImageUrl;
   assertServiceImageConfigured(nextImageUrl);
 
   const { data, error } = await supabase

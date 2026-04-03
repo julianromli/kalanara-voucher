@@ -66,7 +66,7 @@ import {
   setServiceActiveState,
   updateService,
 } from "@/lib/actions/services";
-import { AdminPermission } from "@/lib/auth/admin-rbac";
+import { AdminPermission, hasPermissionForRole } from "@/lib/auth/admin-rbac";
 
 const joinedSelect = "*, category_relation:service_categories!category_id(*)";
 const baseSelect = "*";
@@ -215,6 +215,13 @@ beforeEach(() => {
 });
 
 describe("service actions", () => {
+  it("grants service creation and image permissions only to super admins", () => {
+    expect(hasPermissionForRole("SUPER_ADMIN", AdminPermission.SERVICES_CREATE)).toBe(true);
+    expect(hasPermissionForRole("SUPER_ADMIN", AdminPermission.SERVICE_IMAGES_MANAGE)).toBe(true);
+    expect(hasPermissionForRole("MANAGER", AdminPermission.SERVICES_CREATE)).toBe(false);
+    expect(hasPermissionForRole("MANAGER", AdminPermission.SERVICE_IMAGES_MANAGE)).toBe(false);
+  });
+
   it("selects joined category data for public service list reads", async () => {
     const result = await getServices();
 
@@ -282,6 +289,9 @@ describe("service actions", () => {
     expect(serviceCategoriesSelectMock).toHaveBeenCalledWith(baseSelect);
     expect(serviceCategoriesInMock).toHaveBeenCalledWith("id", ["category-1"]);
     expect(result?.category_relation).toEqual(categoryRow);
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(
+      AdminPermission.SERVICES_CREATE
+    );
     expect(logAdminAuditMock).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ action: "service.create" })
@@ -294,10 +304,16 @@ describe("service actions", () => {
   });
 
   it("revalidates affected surfaces after service update", async () => {
+    servicesSingleMock.mockResolvedValueOnce({
+      data: {
+        image_url: "https://images.unsplash.com/photo-existing",
+      },
+      error: null,
+    });
+
     const result = await updateService("service-1", {
       category_id: "category-2",
       name: "Aromatherapy Massage",
-      image_url: "https://images.unsplash.com/photo-aroma",
     });
 
     expect(servicesUpdateMock).toHaveBeenCalledWith(
@@ -359,7 +375,14 @@ describe("service actions", () => {
   });
 
   it("falls back to stitched category data after service update on PGRST200", async () => {
-    servicesSingleMock.mockResolvedValueOnce({ data: null, error: pgrst200Error });
+    servicesSingleMock
+      .mockResolvedValueOnce({
+        data: {
+          image_url: "https://images.unsplash.com/photo-before",
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: null, error: pgrst200Error });
     servicesUpdateEqMock.mockReturnValueOnce({
       select: vi.fn(() => ({
         single: servicesSingleMock,
@@ -408,6 +431,47 @@ describe("service actions", () => {
       })
     );
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/services", "page");
+  });
+
+  it("requires service image permission when the image URL changes", async () => {
+    servicesSingleMock.mockResolvedValueOnce({
+      data: {
+        image_url: "https://images.unsplash.com/photo-before",
+      },
+      error: null,
+    });
+
+    const result = await updateService("service-1", {
+      image_url: "https://app-id.ufs.sh/f/service-image-key.webp",
+    });
+
+    expect(requireAdminPermissionMock).toHaveBeenNthCalledWith(
+      1,
+      AdminPermission.SERVICES_MANAGE
+    );
+    expect(requireAdminPermissionMock).toHaveBeenNthCalledWith(
+      2,
+      AdminPermission.SERVICE_IMAGES_MANAGE
+    );
+    expect(result?.id).toBe("service-1");
+  });
+
+  it("does not require service image permission when the image URL stays the same", async () => {
+    servicesSingleMock.mockResolvedValueOnce({
+      data: {
+        image_url: "https://images.unsplash.com/photo-aroma",
+      },
+      error: null,
+    });
+
+    await updateService("service-1", {
+      image_url: "https://images.unsplash.com/photo-aroma",
+    });
+
+    expect(requireAdminPermissionMock).toHaveBeenCalledTimes(1);
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(
+      AdminPermission.SERVICES_MANAGE
+    );
   });
 
   it("reactivates services and revalidates", async () => {

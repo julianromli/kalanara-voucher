@@ -11,16 +11,12 @@ type ServiceCategoryRow = Database["public"]["Tables"]["service_categories"]["Ro
 
 const push = vi.fn();
 const {
-  uploadMock,
-  getPublicUrlMock,
-  storageFromMock,
-  createBrowserClientMock,
+  authState,
+  startUploadMock,
   deleteServiceImageByUrlMock,
 } = vi.hoisted(() => ({
-  uploadMock: vi.fn(),
-  getPublicUrlMock: vi.fn(),
-  storageFromMock: vi.fn(),
-  createBrowserClientMock: vi.fn(),
+  authState: { role: "SUPER_ADMIN" as "SUPER_ADMIN" | "MANAGER" },
+  startUploadMock: vi.fn(),
   deleteServiceImageByUrlMock: vi.fn(),
 }));
 
@@ -32,7 +28,7 @@ vi.mock("@/context/AuthContext", () => ({
   useAuth: () => ({
     isAuthenticated: true,
     isLoading: false,
-    user: { email: "admin@kalanaraspa.com", role: "SUPER_ADMIN" },
+    user: { email: "admin@kalanaraspa.com", role: authState.role },
   }),
 }));
 
@@ -47,8 +43,11 @@ vi.mock("@/lib/actions/service-categories", () => ({
   deleteServiceCategory: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase/client", () => ({
-  createClient: createBrowserClientMock,
+vi.mock("@/lib/uploadthing-client", () => ({
+  useUploadThing: () => ({
+    startUpload: startUploadMock,
+    isUploading: false,
+  }),
 }));
 
 vi.mock("@/lib/actions/service-images", () => ({
@@ -64,10 +63,8 @@ vi.mock("@/lib/actions/services", () => ({
 
 // Mock service image utils
 vi.mock("@/lib/utils/serviceImages", () => ({
-  buildServiceImagePath: vi.fn(() => "services/mock-image.jpg"),
   getAllowedServiceImageTypes: () => ["image/jpeg", "image/png", "image/webp"],
   getMaxServiceImageSizeBytes: () => 5 * 1024 * 1024,
-  getServiceImageBucket: () => "services",
   hasServiceImage: (imageUrl: string | null | undefined) => Boolean(imageUrl?.trim()),
   resolveServiceImageUrl: (imageUrl: string | null | undefined) =>
     imageUrl?.trim() ||
@@ -176,25 +173,12 @@ window.PointerEvent = MockPointerEvent as unknown as typeof PointerEvent;
 describe("ServicesClient", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    uploadMock.mockResolvedValue({
-      data: { path: "services/mock-image.jpg" },
-      error: null,
-    });
-    getPublicUrlMock.mockReturnValue({
-      data: {
-        publicUrl:
-          "https://kginxwtmcdvqbnwmlctw.supabase.co/storage/v1/object/public/services/services/mock-image.jpg",
+    authState.role = "SUPER_ADMIN";
+    startUploadMock.mockResolvedValue([
+      {
+        ufsUrl: "https://app-id.ufs.sh/f/service-image-key.webp",
       },
-    });
-    storageFromMock.mockReturnValue({
-      upload: uploadMock,
-      getPublicUrl: getPublicUrlMock,
-    });
-    createBrowserClientMock.mockReturnValue({
-      storage: {
-        from: storageFromMock,
-      },
-    });
+    ]);
     deleteServiceImageByUrlMock.mockResolvedValue({ success: true });
     URL.createObjectURL = vi.fn(() => "blob:preview-image");
     URL.revokeObjectURL = vi.fn();
@@ -459,6 +443,58 @@ describe("ServicesClient", () => {
     ).not.toHaveLength(0);
   });
 
+  it("hides create and image mutation controls for managers", async () => {
+    const user = userEvent.setup();
+    authState.role = "MANAGER";
+    renderComponent();
+
+    expect(screen.queryByRole("button", { name: /Tambah Layanan/i })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Penambahan layanan baru dan perubahan gambar hanya tersedia untuk super admin/i)
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Ubah Balinese Lulur/i }));
+
+    expect(screen.queryByLabelText("Gambar Layanan")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/perubahan gambar hanya dapat dilakukan oleh super admin/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Hapus Gambar/i })).not.toBeInTheDocument();
+  });
+
+  it("cleans up a freshly uploaded image when service save fails", async () => {
+    const user = userEvent.setup();
+    renderComponent();
+
+    const { createService } = await import("@/lib/actions/services");
+    vi.mocked(createService).mockRejectedValue(new Error("Gagal membuat layanan."));
+
+    await user.click(screen.getByRole("button", { name: /Tambah Layanan/i }));
+
+    fireEvent.change(screen.getByLabelText("Nama Layanan *"), {
+      target: { value: "Service Baru" },
+    });
+    fireEvent.change(screen.getByLabelText(/Price \(IDR\) \*/), {
+      target: { value: "200000" },
+    });
+
+    const categorySelectBtn = screen.getAllByRole("combobox")[0];
+    await user.click(categorySelectBtn);
+    await user.click(await screen.findByRole("option", { name: /Body Treatment/i }));
+
+    const fileInput = screen.getByLabelText("Gambar Layanan");
+    const file = new File(["spa"], "service.jpg", { type: "image/jpeg" });
+    await user.upload(fileInput, file);
+
+    await user.click(screen.getByRole("button", { name: /Buat Layanan/i }));
+
+    await waitFor(() => {
+      expect(deleteServiceImageByUrlMock).toHaveBeenCalledWith(
+        "https://app-id.ufs.sh/f/service-image-key.webp"
+      );
+    });
+  });
+
   it("submits correct payload when creating and updating a service", async () => {
     const user = userEvent.setup();
     renderComponent();
@@ -498,7 +534,7 @@ describe("ServicesClient", () => {
       category: "BODY_TREATMENT", // Derived from "Lulur"
       category_id: "cat-1",
       image_url:
-        "https://kginxwtmcdvqbnwmlctw.supabase.co/storage/v1/object/public/services/services/mock-image.jpg",
+          "https://app-id.ufs.sh/f/service-image-key.webp",
       is_active: true,
       scalev_product_id: null,
       scalev_variant_id: null,
@@ -520,8 +556,7 @@ describe("ServicesClient", () => {
         duration: 60,
         category: "BODY_TREATMENT",
         category_id: "cat-1",
-        image_url:
-          "https://kginxwtmcdvqbnwmlctw.supabase.co/storage/v1/object/public/services/services/mock-image.jpg",
+        image_url: "https://app-id.ufs.sh/f/service-image-key.webp",
       }));
     });
 
