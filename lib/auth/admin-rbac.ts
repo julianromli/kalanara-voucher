@@ -13,6 +13,8 @@ export const AdminPermission = {
   ORDERS_DELETE_HARD: "orders.delete_hard",
   VOUCHERS_MANAGE: "vouchers.manage",
   SERVICES_MANAGE: "services.manage",
+  SERVICES_CREATE: "services.create",
+  SERVICE_IMAGES_MANAGE: "service_images.manage",
   REVIEWS_MANAGE: "reviews.manage",
   USERS_MANAGE: "users.manage",
   SETTINGS_MANAGE_SENSITIVE: "settings.manage_sensitive",

@@ -21,8 +21,8 @@ import { ChevronDown, ChevronUp, Edit2, Trash2, FolderOpen, EyeOff, Eye, Loader2
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { formatCurrency } from "@/lib/constants";
-import { createClient } from "@/lib/supabase/client";
 import { deleteServiceImageByUrl } from "@/lib/actions/service-images";
+import { useUploadThing } from "@/lib/uploadthing-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -55,10 +55,8 @@ import type { Database, ServiceInsert, ServiceUpdate } from "@/lib/database.type
 import type { ServiceWithCategory } from "@/lib/actions/services";
 import { cn } from "@/lib/utils";
 import {
-  buildServiceImagePath,
   getAllowedServiceImageTypes,
   getMaxServiceImageSizeBytes,
-  getServiceImageBucket,
   hasServiceImage,
   resolveServiceImageUrl,
 } from "@/lib/utils/serviceImages";
@@ -89,14 +87,6 @@ interface ServicesClientProps {
   initialCategories: ServiceCategoryRow[];
 }
 
-function createDraftScopeId() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return `draft/${crypto.randomUUID()}`;
-  }
-  return `draft/${Date.now()}`;
-}
-
-
 function getLegacyCategoryForSlug(slug?: string | null): "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE" | null {
   if (!slug) return null;
   switch (slug) {
@@ -110,7 +100,7 @@ function getLegacyCategoryForSlug(slug?: string | null): "MASSAGE" | "FACIAL" | 
 
 export function ServicesClient({ initialServices, initialCategories }: ServicesClientProps) {
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const { showToast } = useToast();
   
   const searchInputId = useId();
@@ -155,6 +145,18 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
+  const isSuperAdmin = user?.role === "SUPER_ADMIN";
+  const canCreateService = isSuperAdmin;
+  const canManageServiceImages = isSuperAdmin;
+  const { startUpload, isUploading: isUploadThingUploading } = useUploadThing(
+    "serviceImageUploader",
+    {
+      uploadProgressGranularity: "fine",
+      onUploadProgress: () => {
+        setUploadStatus("uploading");
+      },
+    }
+  );
 
   const resetImageState = (imageUrl = "") => {
     setSelectedImageFile(null);
@@ -212,6 +214,11 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
   });
 
   const handleOpenCreate = () => {
+    if (!canCreateService) {
+      showToast("Hanya super admin yang dapat menambahkan layanan baru.", "error");
+      return;
+    }
+
     setFormData(DEFAULT_FORM);
     resetImageState();
     setIsEditing(false);
@@ -234,6 +241,13 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
   };
 
   const handleSelectImage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canManageServiceImages) {
+      setUploadStatus("error");
+      setUploadError("Gambar layanan hanya dapat diubah oleh super admin.");
+      showToast("Gambar layanan hanya dapat diubah oleh super admin.", "error");
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -260,6 +274,13 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
   };
 
   const handleRemoveImage = () => {
+    if (!canManageServiceImages) {
+      setUploadStatus("error");
+      setUploadError("Gambar layanan hanya dapat diubah oleh super admin.");
+      showToast("Gambar layanan hanya dapat diubah oleh super admin.", "error");
+      return;
+    }
+
     setSelectedImageFile(null);
     setImagePreviewUrl("");
     setRemoveCurrentImage(true);
@@ -272,30 +293,21 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
     if (!selectedImageFile) {
       return { uploadedImageUrl: null as string | null };
     }
-    setUploadStatus("uploading");
-    setUploadError(null);
-
-    const supabase = createClient();
-    const scopeId = editingId ? `services/${editingId}` : `services/${createDraftScopeId()}`;
-    const objectPath = buildServiceImagePath(scopeId, selectedImageFile.name);
-    const { data, error } = await supabase.storage
-      .from(getServiceImageBucket())
-      .upload(objectPath, selectedImageFile, {
-        cacheControl: "31536000",
-        contentType: selectedImageFile.type,
-        upsert: false,
-      });
-
-    if (error) {
-      throw new Error(error.message);
+    if (!canManageServiceImages) {
+      throw new Error("Gambar layanan hanya dapat diubah oleh super admin.");
     }
 
-    const { data: publicUrlData } = supabase.storage
-      .from(getServiceImageBucket())
-      .getPublicUrl(data.path);
+    setUploadStatus("uploading");
+    setUploadError(null);
+    const uploadedFiles = await startUpload([selectedImageFile]);
+    const uploadedImage = uploadedFiles?.[0];
+
+    if (!uploadedImage) {
+      throw new Error("Gagal mengunggah gambar layanan.");
+    }
 
     setUploadStatus("idle");
-    return { uploadedImageUrl: publicUrlData.publicUrl };
+    return { uploadedImageUrl: uploadedImage.ufsUrl };
   };
 
   const cleanupImage = async (imageUrl: string | null) => {
@@ -309,6 +321,11 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
   const handleSave = async () => {
     if (!formData.name || !formData.price) {
       showToast("Mohon lengkapi field wajib.", "error");
+      return;
+    }
+
+    if (!isEditing && !canCreateService) {
+      showToast("Hanya super admin yang dapat menambahkan layanan baru.", "error");
       return;
     }
 
@@ -365,16 +382,21 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
           // existing service's legacy category. The database trigger sync_service_category_id_from_legacy
           // overwrites category_id if the legacy category changes. Preserving it prevents this.
           const legacyCategory = mappedLegacy || previousService?.category || "MASSAGE";
-
-          const updated = await updateService(editingId, {
+          const imageChanged = nextImageUrl !== (originalImageUrl || null);
+          const updatePayload: ServiceUpdate = {
             name: formData.name,
             description: formData.description || null,
             duration: formData.duration,
             price: formData.price,
             category: legacyCategory,
             category_id: formData.category_id || null,
-            image_url: nextImageUrl,
-          } as ServiceUpdate);
+          };
+
+          if (imageChanged) {
+            updatePayload.image_url = nextImageUrl;
+          }
+
+          const updated = await updateService(editingId, updatePayload);
 
           if (!updated) {
             throw new Error("Gagal memperbarui layanan.");
@@ -576,7 +598,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
     return null;
   }
 
-  const isBusy = isSaving || uploadStatus === "uploading";
+  const isBusy = isSaving || uploadStatus === "uploading" || isUploadThingUploading;
   const previewImageUrl = selectedImageFile
     ? imagePreviewUrl
     : removeCurrentImage
@@ -600,14 +622,21 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
             <p className="text-sm text-muted-foreground">
               Kelola layanan spa, harga, dan ketersediaannya
             </p>
+            {!canCreateService && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Penambahan layanan baru dan perubahan gambar hanya tersedia untuk super admin.
+              </p>
+            )}
           </div>
-          <Button
-            onClick={handleOpenCreate}
-            className="btn-hover-lift min-h-11 w-full sm:w-auto"
-          >
-            <HugeiconsIcon icon={PlusSignIcon} size={16} className="mr-2" />
-            Tambah Layanan
-          </Button>
+          {canCreateService && (
+            <Button
+              onClick={handleOpenCreate}
+              className="btn-hover-lift min-h-11 w-full sm:w-auto"
+            >
+              <HugeiconsIcon icon={PlusSignIcon} size={16} className="mr-2" />
+              Tambah Layanan
+            </Button>
+          )}
         </div>
 
         {/* Category Management Block */}
@@ -820,7 +849,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                 ? "Coba sesuaikan kata kunci atau filter Anda"
                 : "Buat layanan pertama Anda untuk memulai"}
             </p>
-            {!searchQuery && categoryFilter === "ALL" && (
+            {!searchQuery && categoryFilter === "ALL" && canCreateService && (
               <Button onClick={handleOpenCreate} className="min-h-11 bg-primary hover:bg-primary/90">
                 <HugeiconsIcon icon={PlusSignIcon} size={18} className="mr-2" />
                 Buat Layanan
@@ -1063,21 +1092,29 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                 <label htmlFor={serviceImageId} className="block text-sm font-medium text-foreground">
                   Gambar Layanan
                 </label>
-                <span className="text-xs text-muted-foreground">
-                  JPG, PNG, WebP hingga {MAX_IMAGE_SIZE_MB}MB
-                </span>
+                {canManageServiceImages ? (
+                  <span className="text-xs text-muted-foreground">
+                    JPG, PNG, WebP hingga {MAX_IMAGE_SIZE_MB}MB
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    Hanya super admin yang dapat mengubah gambar
+                  </span>
+                )}
               </div>
 
-              <Input
-                id={serviceImageId}
-                key={fileInputKey}
-                type="file"
-                accept={getAllowedServiceImageTypes().join(",")}
-                onChange={handleSelectImage}
-                disabled={isBusy}
-                className="min-h-11"
-                aria-describedby={uploadError ? uploadErrorId : undefined}
-              />
+              {canManageServiceImages && (
+                <Input
+                  id={serviceImageId}
+                  key={fileInputKey}
+                  type="file"
+                  accept={getAllowedServiceImageTypes().join(",")}
+                  onChange={handleSelectImage}
+                  disabled={isBusy}
+                  className="min-h-11"
+                  aria-describedby={uploadError ? uploadErrorId : undefined}
+                />
+              )}
 
               <div className="overflow-hidden rounded-xl border border-dashed border-border bg-muted/20">
                 {selectedImageFile || originalImageUrl ? (
@@ -1107,24 +1144,30 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                 )}
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleRemoveImage}
-                  disabled={isBusy || (!imagePreviewUrl && !originalImageUrl)}
-                  className="min-h-11 w-full sm:w-auto"
-                >
-                  <HugeiconsIcon icon={ImageDelete01Icon} size={16} className="mr-2" />
-                  Hapus Gambar
-                </Button>
-                {uploadStatus === "uploading" && (
-                  <span className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
-                    <HugeiconsIcon icon={Loading03Icon} size={14} className="animate-spin" />
-                    Mengunggah gambar...
-                  </span>
-                )}
-              </div>
+              {canManageServiceImages ? (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleRemoveImage}
+                    disabled={isBusy || (!imagePreviewUrl && !originalImageUrl)}
+                    className="min-h-11 w-full sm:w-auto"
+                  >
+                    <HugeiconsIcon icon={ImageDelete01Icon} size={16} className="mr-2" />
+                    Hapus Gambar
+                  </Button>
+                  {uploadStatus === "uploading" && (
+                    <span className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
+                      <HugeiconsIcon icon={Loading03Icon} size={14} className="animate-spin" />
+                      Mengunggah gambar...
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Gambar layanan tetap terlihat, tetapi perubahan gambar hanya dapat dilakukan oleh super admin.
+                </p>
+              )}
 
               {removeCurrentImage && !selectedImageFile && (
                 <p className="text-sm text-muted-foreground">
