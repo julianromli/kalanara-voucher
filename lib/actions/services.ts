@@ -9,6 +9,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { Database, Service, ServiceInsert, ServiceUpdate } from "@/lib/database.types";
+import { hasServiceImage } from "@/lib/utils/serviceImages";
 
 export type ServiceCategoryRelation =
   Database["public"]["Tables"]["service_categories"]["Row"];
@@ -77,6 +78,33 @@ function revalidateServiceCatalogData() {
   revalidatePath("/admin/services", "page");
   revalidatePath("/checkout/[id]", "page");
   revalidatePath("/voucher/[id]", "page");
+}
+
+function assertServiceImageConfigured(imageUrl: string | null | undefined) {
+  if (!hasServiceImage(imageUrl)) {
+    throw new Error("Gambar layanan wajib diunggah sebelum layanan disimpan.");
+  }
+}
+
+async function getExistingServiceImageUrl(
+  supabase: ReturnType<typeof getAdminClient>,
+  id: string
+) {
+  const { data, error } = await supabase
+    .from("services")
+    .select("image_url")
+    .eq("id", id)
+    .single();
+
+  if (error || !data) {
+    if (error) {
+      console.error("Error fetching existing service image:", error);
+    }
+
+    return null;
+  }
+
+  return data.image_url;
 }
 
 export async function getServices(): Promise<ServiceWithCategory[]> {
@@ -209,6 +237,7 @@ export async function getActiveServicesForScalevSync(): Promise<ServiceWithCateg
 
 export async function createService(service: ServiceInsert): Promise<ServiceWithCategory | null> {
   const access = await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
+  assertServiceImageConfigured(service.image_url);
 
   const supabase = getAdminClient();
   const { data, error } = await supabase
@@ -241,6 +270,11 @@ export async function updateService(
   const access = await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
 
   const supabase = getAdminClient();
+  const nextImageUrl = "image_url" in updates
+    ? updates.image_url
+    : await getExistingServiceImageUrl(supabase, id);
+  assertServiceImageConfigured(nextImageUrl);
+
   const { data, error } = await supabase
     .from("services")
     .update(updates)

@@ -273,6 +273,7 @@ describe("service actions", () => {
       price: 650000,
       category: "MASSAGE",
       category_id: "category-1",
+      image_url: "https://images.unsplash.com/photo-hot-stone",
     });
 
     expect(servicesInsertMock).toHaveBeenCalledWith(
@@ -296,6 +297,7 @@ describe("service actions", () => {
     const result = await updateService("service-1", {
       category_id: "category-2",
       name: "Aromatherapy Massage",
+      image_url: "https://images.unsplash.com/photo-aroma",
     });
 
     expect(servicesUpdateMock).toHaveBeenCalledWith(
@@ -376,6 +378,7 @@ describe("service actions", () => {
     const result = await updateService("service-1", {
       category_id: "category-1",
       name: "Aromatherapy Massage",
+      image_url: "https://images.unsplash.com/photo-aroma",
     });
 
     expect(serviceCategoriesInMock).toHaveBeenCalledWith("id", ["category-1"]);
@@ -422,5 +425,38 @@ describe("service actions", () => {
       })
     );
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/services", "page");
+  });
+
+  it("rejects service creation when no image is provided", async () => {
+    await expect(
+      createService({
+        name: "Hot Stone Massage",
+        description: "Batu hangat.",
+        duration: 75,
+        price: 650000,
+        category: "MASSAGE",
+        category_id: "category-1",
+        image_url: null,
+      })
+    ).rejects.toThrow("Gambar layanan wajib diunggah sebelum layanan disimpan.");
+
+    expect(servicesInsertMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects service updates when the resulting record still has no image", async () => {
+    servicesSingleMock.mockResolvedValueOnce({
+      data: {
+        image_url: null,
+      },
+      error: null,
+    });
+
+    await expect(
+      updateService("service-1", {
+        name: "Aromatherapy Massage",
+      })
+    ).rejects.toThrow("Gambar layanan wajib diunggah sebelum layanan disimpan.");
+
+    expect(servicesUpdateMock).not.toHaveBeenCalled();
   });
 });

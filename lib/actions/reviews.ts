@@ -9,6 +9,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { Review, ReviewInsert } from "@/lib/database.types";
+import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
 
 interface PublicReviewVoucherRow {
   id: string;
@@ -110,7 +111,7 @@ export async function getPublicReviewVoucherByCode(
   return {
     service: {
       name: service.name,
-      image: service.image_url ?? "/images/services/placeholder.jpg",
+      image: resolveServiceImageUrl(service.image_url),
     },
   };
 }

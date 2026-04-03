@@ -1,7 +1,19 @@
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { ServicesSection } from "./services-section";
 import type { Service } from "@/lib/types";
+import { getDefaultServiceImageUrl } from "@/lib/utils/serviceImages";
+
+import type { ImgHTMLAttributes } from "react";
+
+function NextImageMock(props: ImgHTMLAttributes<HTMLImageElement>) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img alt={props.alt ?? ""} {...props} />;
+}
+
+vi.mock("next/image", () => ({
+  default: NextImageMock,
+}));
 
 // Mock the IntersectionObserver for useInView
 class MockIntersectionObserver {
@@ -35,7 +47,21 @@ const mockServices: Service[] = [
     // @ts-expect-error - simulating runtime missing data
     category: null,
     image: "/images/services/facial.jpg",
-  }
+  },
+  {
+    id: "test-id-3",
+    name: "Fallback Image Service",
+    description: "Testing image fallback",
+    duration: 45,
+    price: 100000,
+    category: {
+      id: "package",
+      slug: "package",
+      name: "Package",
+      isActive: true,
+    },
+    image: "",
+  },
 ];
 
 describe("ServicesSection", () => {
@@ -63,5 +89,13 @@ describe("ServicesSection", () => {
     
     // "Massage" badge should NOT be present (since it's null)
     expect(screen.queryByText("Massage")).not.toBeInTheDocument();
+  });
+
+  it("uses the shared fallback image when a service image is missing", () => {
+    render(<ServicesSection services={[mockServices[2]]} />);
+
+    const image = screen.getByRole("img", { name: "Fallback Image Service" });
+
+    expect(image).toHaveAttribute("src", getDefaultServiceImageUrl());
   });
 });

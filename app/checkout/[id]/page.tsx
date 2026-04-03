@@ -3,6 +3,7 @@ import { CheckoutPageClient } from "@/app/checkout/[id]/checkout-page-client";
 import { getServiceById } from "@/lib/actions/services";
 import type { Service } from "@/lib/types";
 import type { ServiceWithCategory } from "@/lib/actions/services";
+import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -32,7 +33,7 @@ function toServiceModel(service: ServiceWithCategory | null): Service | null {
           name: "Layanan",
           isActive: true,
         },
-    image: service.image_url ?? "/images/services/placeholder.jpg",
+    image: resolveServiceImageUrl(service.image_url),
   };
 }
 

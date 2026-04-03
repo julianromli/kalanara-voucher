@@ -59,6 +59,8 @@ import {
   getAllowedServiceImageTypes,
   getMaxServiceImageSizeBytes,
   getServiceImageBucket,
+  hasServiceImage,
+  resolveServiceImageUrl,
 } from "@/lib/utils/serviceImages";
 
 type ServiceCategoryRow = Database["public"]["Tables"]["service_categories"]["Row"];
@@ -79,9 +81,6 @@ const DEFAULT_FORM: ServiceFormData = {
   price: 500000,
   category_id: "",
 };
-
-const FALLBACK_SERVICE_IMAGE =
-  "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=600&q=80";
 
 const MAX_IMAGE_SIZE_MB = Math.floor(getMaxServiceImageSizeBytes() / (1024 * 1024));
 
@@ -328,6 +327,14 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
         nextImageUrl = uploaded.uploadedImageUrl;
       }
 
+      if (!hasServiceImage(nextImageUrl)) {
+        const message = "Gambar layanan wajib diunggah sebelum layanan disimpan.";
+        setUploadStatus("error");
+        setUploadError(message);
+        showToast(message, "error");
+        return;
+      }
+
       if (isEditing && editingId) {
         const previous = services;
         const optimisticUpdated = services.map((service) =>
@@ -570,6 +577,11 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
   }
 
   const isBusy = isSaving || uploadStatus === "uploading";
+  const previewImageUrl = selectedImageFile
+    ? imagePreviewUrl
+    : removeCurrentImage
+      ? ""
+      : originalImageUrl;
 
   return (
     <main aria-labelledby="services-page-title" className="contents">
@@ -834,14 +846,14 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                   style={{ animationDelay: `${200 + index * 75}ms` }}
                   aria-labelledby={`service-name-${service.id}`}
                 >
-                  <div className="relative h-44 sm:h-40">
-                    <Image
-                      src={service.image_url || FALLBACK_SERVICE_IMAGE}
-                      alt={service.name}
-                      fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                      className="object-cover"
-                    />
+                    <div className="relative h-44 sm:h-40">
+                      <Image
+                      src={resolveServiceImageUrl(service.image_url)}
+                        alt={service.name}
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="object-cover"
+                      />
                     <div className="absolute right-3 top-3 flex flex-wrap justify-end gap-2">
                       {isOptimistic && (
                         <span
@@ -1068,10 +1080,10 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
               />
 
               <div className="overflow-hidden rounded-xl border border-dashed border-border bg-muted/20">
-                {imagePreviewUrl ? (
+                {selectedImageFile || originalImageUrl ? (
                   <div className="relative h-40">
                     <Image
-                      src={imagePreviewUrl}
+                      src={resolveServiceImageUrl(previewImageUrl)}
                       alt="Pratinjau layanan"
                       fill
                       sizes="(max-width: 768px) 100vw, 512px"
@@ -1079,9 +1091,18 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                     />
                   </div>
                 ) : (
-                  <div className="flex h-40 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-                    <HugeiconsIcon icon={Upload04Icon} size={24} />
-                    <span>Belum ada gambar dipilih</span>
+                  <div className="relative h-40">
+                    <Image
+                      src={resolveServiceImageUrl("")}
+                      alt="Placeholder layanan"
+                      fill
+                      sizes="(max-width: 768px) 100vw, 512px"
+                      className="object-cover opacity-80"
+                    />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/45 text-sm text-foreground backdrop-blur-[1px]">
+                      <HugeiconsIcon icon={Upload04Icon} size={24} />
+                      <span>Unggah gambar layanan</span>
+                    </div>
                   </div>
                 )}
               </div>

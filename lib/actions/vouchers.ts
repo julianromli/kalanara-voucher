@@ -15,6 +15,7 @@ import type {
   VoucherWithService,
 } from "@/lib/database.types";
 import type { PublicVoucherLookup } from "@/lib/types";
+import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
 
 export interface DestructiveVoucherActionResult {
   success: boolean;
@@ -216,7 +217,7 @@ export async function getPublicVoucherLookupByCode(
     service: {
       name: voucher.services.name,
       duration: voucher.services.duration,
-      image: voucher.services.image_url ?? "/images/services/placeholder.jpg",
+      image: resolveServiceImageUrl(voucher.services.image_url),
     },
   };
 }

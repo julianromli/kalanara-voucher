@@ -11,6 +11,7 @@ import type { ServiceWithCategory } from "@/lib/actions/services";
 import { getReviews } from "@/lib/actions/reviews";
 import type { Service, Review } from "@/lib/types";
 import type { Review as DBReview } from "@/lib/database.types";
+import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
 
 function adaptDBServiceToFrontend(dbService: ServiceWithCategory): Service {
   return {
@@ -32,7 +33,7 @@ function adaptDBServiceToFrontend(dbService: ServiceWithCategory): Service {
           name: "Layanan",
           isActive: true,
         },
-    image: dbService.image_url ?? "/images/services/placeholder.jpg",
+    image: resolveServiceImageUrl(dbService.image_url),
   };
 }
 

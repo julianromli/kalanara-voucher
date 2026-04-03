@@ -2,6 +2,8 @@ const SERVICE_IMAGE_BUCKET = "services";
 const MAX_SERVICE_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_SERVICE_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 const ALLOWED_SERVICE_IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp"] as const;
+const DEFAULT_SERVICE_IMAGE_URL =
+  "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80";
 
 function sanitizeFileName(fileName: string) {
   const trimmed = fileName.trim().toLowerCase();
@@ -31,6 +33,10 @@ export function getServiceImageBucket() {
   return SERVICE_IMAGE_BUCKET;
 }
 
+export function getDefaultServiceImageUrl() {
+  return DEFAULT_SERVICE_IMAGE_URL;
+}
+
 export function getAllowedServiceImageTypes() {
   return [...ALLOWED_SERVICE_IMAGE_TYPES];
 }
@@ -41,6 +47,18 @@ export function getAllowedServiceImageExtensions() {
 
 export function getMaxServiceImageSizeBytes() {
   return MAX_SERVICE_IMAGE_SIZE_BYTES;
+}
+
+export function hasServiceImage(imageUrl: string | null | undefined) {
+  return Boolean(imageUrl?.trim());
+}
+
+export function resolveServiceImageUrl(imageUrl: string | null | undefined) {
+  if (hasServiceImage(imageUrl)) {
+    return imageUrl!.trim();
+  }
+
+  return DEFAULT_SERVICE_IMAGE_URL;
 }
 
 export function isAllowedServiceImageType(contentType: string) {

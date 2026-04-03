@@ -7,6 +7,7 @@ import { useInView } from "@/hooks/useInView";
 import { SiteContainer } from "@/components/site-container";
 import { formatCurrency } from "@/lib/constants";
 import type { Service } from "@/lib/types";
+import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
 
 interface ServicesSectionProps {
   services: Service[];
@@ -51,10 +52,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
               >
                 <div className="relative h-64 overflow-hidden img-hover-zoom">
                   <Image
-                    src={
-                      service.image ||
-                      "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80"
-                    }
+                    src={resolveServiceImageUrl(service.image)}
                     alt={service.name}
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

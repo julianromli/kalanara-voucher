@@ -1,4 +1,4 @@
-    import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ServicesClient } from "./services-client";
 import { ToastProvider } from "@/context/ToastContext";
@@ -10,6 +10,20 @@ import { createServiceCategory, updateServiceCategory, deleteServiceCategory } f
 type ServiceCategoryRow = Database["public"]["Tables"]["service_categories"]["Row"];
 
 const push = vi.fn();
+const {
+  uploadMock,
+  getPublicUrlMock,
+  storageFromMock,
+  createBrowserClientMock,
+  deleteServiceImageByUrlMock,
+} = vi.hoisted(() => ({
+  uploadMock: vi.fn(),
+  getPublicUrlMock: vi.fn(),
+  storageFromMock: vi.fn(),
+  createBrowserClientMock: vi.fn(),
+  deleteServiceImageByUrlMock: vi.fn(),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
 }));
@@ -33,6 +47,14 @@ vi.mock("@/lib/actions/service-categories", () => ({
   deleteServiceCategory: vi.fn(),
 }));
 
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: createBrowserClientMock,
+}));
+
+vi.mock("@/lib/actions/service-images", () => ({
+  deleteServiceImageByUrl: deleteServiceImageByUrlMock,
+}));
+
 // Mock service server actions
 vi.mock("@/lib/actions/services", () => ({
   createService: vi.fn(),
@@ -42,10 +64,14 @@ vi.mock("@/lib/actions/services", () => ({
 
 // Mock service image utils
 vi.mock("@/lib/utils/serviceImages", () => ({
-  buildServiceImagePath: vi.fn(),
+  buildServiceImagePath: vi.fn(() => "services/mock-image.jpg"),
   getAllowedServiceImageTypes: () => ["image/jpeg", "image/png", "image/webp"],
   getMaxServiceImageSizeBytes: () => 5 * 1024 * 1024,
   getServiceImageBucket: () => "services",
+  hasServiceImage: (imageUrl: string | null | undefined) => Boolean(imageUrl?.trim()),
+  resolveServiceImageUrl: (imageUrl: string | null | undefined) =>
+    imageUrl?.trim() ||
+    "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80",
 }));
 
 
@@ -89,7 +115,7 @@ const mockServices: ServiceWithCategory[] = [
     category: "MASSAGE",
     category_id: "cat-2", // intentionally linked to inactive
     category_relation: mockCategories[1],
-    image_url: null,
+    image_url: "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=800&q=80",
     is_active: true,
     scalev_product_id: null,
     scalev_variant_id: null,
@@ -100,6 +126,13 @@ const mockServices: ServiceWithCategory[] = [
     updated_at: new Date().toISOString(),
   },
 ];
+
+const serviceWithoutImage: ServiceWithCategory = {
+  ...mockServices[0],
+  id: "test-id-3",
+  name: "Service Tanpa Gambar",
+  image_url: null,
+};
 
 const inactiveService: ServiceWithCategory = {
   ...mockServices[0],
@@ -143,6 +176,28 @@ window.PointerEvent = MockPointerEvent as unknown as typeof PointerEvent;
 describe("ServicesClient", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    uploadMock.mockResolvedValue({
+      data: { path: "services/mock-image.jpg" },
+      error: null,
+    });
+    getPublicUrlMock.mockReturnValue({
+      data: {
+        publicUrl:
+          "https://kginxwtmcdvqbnwmlctw.supabase.co/storage/v1/object/public/services/services/mock-image.jpg",
+      },
+    });
+    storageFromMock.mockReturnValue({
+      upload: uploadMock,
+      getPublicUrl: getPublicUrlMock,
+    });
+    createBrowserClientMock.mockReturnValue({
+      storage: {
+        from: storageFromMock,
+      },
+    });
+    deleteServiceImageByUrlMock.mockResolvedValue({ success: true });
+    URL.createObjectURL = vi.fn(() => "blob:preview-image");
+    URL.revokeObjectURL = vi.fn();
   });
 
   const renderComponent = (services: ServiceWithCategory[] = mockServices) => {
@@ -366,6 +421,44 @@ describe("ServicesClient", () => {
     expect(screen.getByRole("button", { name: /Nonaktifkan Deep Sleep/i })).toBeInTheDocument();
   });
 
+  it("blocks creating a service when no image is uploaded", async () => {
+    const user = userEvent.setup();
+    renderComponent();
+
+    const { createService } = await import("@/lib/actions/services");
+
+    await user.click(screen.getByRole("button", { name: /Tambah Layanan/i }));
+
+    fireEvent.change(screen.getByLabelText("Nama Layanan *"), {
+      target: { value: "Service Baru" },
+    });
+    fireEvent.change(screen.getByLabelText(/Price \(IDR\) \*/), {
+      target: { value: "200000" },
+    });
+
+    await user.click(screen.getByRole("button", { name: /Buat Layanan/i }));
+
+    expect(createService).not.toHaveBeenCalled();
+    expect(
+      await screen.findAllByText("Gambar layanan wajib diunggah sebelum layanan disimpan.")
+    ).not.toHaveLength(0);
+  });
+
+  it("blocks editing a service when the record still has no image", async () => {
+    const user = userEvent.setup();
+    renderComponent([serviceWithoutImage]);
+
+    const { updateService } = await import("@/lib/actions/services");
+
+    await user.click(screen.getByRole("button", { name: /Ubah Service Tanpa Gambar/i }));
+    await user.click(await screen.findByRole("button", { name: /Simpan Perubahan/i }));
+
+    expect(updateService).not.toHaveBeenCalled();
+    expect(
+      await screen.findAllByText("Gambar layanan wajib diunggah sebelum layanan disimpan.")
+    ).not.toHaveLength(0);
+  });
+
   it("submits correct payload when creating and updating a service", async () => {
     const user = userEvent.setup();
     renderComponent();
@@ -390,6 +483,10 @@ describe("ServicesClient", () => {
     const activeOption = await screen.findByRole("option", { name: /Body Treatment/i });
     await user.click(activeOption);
 
+    const fileInput = screen.getByLabelText("Gambar Layanan");
+    const file = new File(["spa"], "service.jpg", { type: "image/jpeg" });
+    await user.upload(fileInput, file);
+
     // Mock createService
     const { createService } = await import("@/lib/actions/services");
     vi.mocked(createService).mockResolvedValue({
@@ -400,7 +497,8 @@ describe("ServicesClient", () => {
       price: 150000,
       category: "BODY_TREATMENT", // Derived from "Lulur"
       category_id: "cat-1",
-      image_url: null,
+      image_url:
+        "https://kginxwtmcdvqbnwmlctw.supabase.co/storage/v1/object/public/services/services/mock-image.jpg",
       is_active: true,
       scalev_product_id: null,
       scalev_variant_id: null,
@@ -421,7 +519,9 @@ describe("ServicesClient", () => {
         price: 150000,
         duration: 60,
         category: "BODY_TREATMENT",
-        category_id: "cat-1"
+        category_id: "cat-1",
+        image_url:
+          "https://kginxwtmcdvqbnwmlctw.supabase.co/storage/v1/object/public/services/services/mock-image.jpg",
       }));
     });
 

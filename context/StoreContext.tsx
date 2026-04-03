@@ -16,6 +16,7 @@ import type {
 } from '@/lib/types';
 import type { Review as DBReview } from '@/lib/database.types';
 import type { ServiceWithCategory } from '@/lib/actions/services';
+import { resolveServiceImageUrl } from '@/lib/utils/serviceImages';
 
 // Server actions
 import { getServices } from '@/lib/actions/services';
@@ -94,7 +95,7 @@ function adaptDBServiceToFrontend(dbService: ServiceWithCategory): FrontendServi
     duration: dbService.duration,
     price: dbService.price,
     category: resolveServiceCategory(dbService),
-    image: dbService.image_url ?? '/images/services/placeholder.jpg',
+    image: resolveServiceImageUrl(dbService.image_url),
   };
 }
 
