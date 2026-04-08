@@ -65,7 +65,7 @@ export default async function LandingPage() {
         <div className="absolute inset-0 bg-primary">
           <Image
             src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&q=80"
-            alt="Spa Background"
+            alt=""
             fill
             sizes="100vw"
             priority
@@ -97,14 +97,14 @@ export default async function LandingPage() {
               <div className="animate-fade-slide-up animate-stagger-3 flex flex-col sm:flex-row items-start gap-4">
                 <a
                   href="#services"
-                  className="btn-hover-lift inline-flex items-center gap-3 bg-accent text-accent-foreground px-8 py-4 rounded-lg text-base sm:text-lg font-medium hover:bg-accent/90 transition-all shadow-xl"
+                  className="btn-hover-lift inline-flex items-center gap-3 rounded-lg bg-accent px-8 py-4 text-base font-medium text-accent-foreground shadow-xl transition-[background-color,box-shadow,transform] hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-foreground/70 focus-visible:ring-offset-2 focus-visible:ring-offset-primary sm:text-lg"
                 >
                   Lihat Paket Voucher
-                  <ArrowRight size={20} />
+                  <ArrowRight size={20} aria-hidden="true" />
                 </a>
                 <Link
                   href="/verify"
-                  className="inline-flex items-center gap-2 text-primary-foreground/70 hover:text-primary-foreground px-4 py-4 text-base font-medium transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-4 text-base font-medium text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground/70 focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
                 >
                   Cek Voucher Kamu
                 </Link>

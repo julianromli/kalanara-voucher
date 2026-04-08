@@ -79,7 +79,7 @@ export function AdminSetPasswordForm({ email, name }: AdminSetPasswordFormProps)
         return;
       }
 
-      showToast("Password berhasil disimpan. Mengalihkan ke dashboard...", "success");
+      showToast("Password berhasil disimpan. Mengalihkan ke dashboard…", "success");
       router.replace("/admin/dashboard");
       router.refresh();
     } catch (caughtError) {
@@ -109,28 +109,30 @@ export function AdminSetPasswordForm({ email, name }: AdminSetPasswordFormProps)
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium">Password baru</label>
+          <label htmlFor="new-password" className="mb-1 block text-sm font-medium">Password baru</label>
           <Input
+            id="new-password"
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             minLength={8}
             autoComplete="new-password"
-            placeholder="Minimal 8 karakter"
+            placeholder="Minimal 8 karakter…"
             required
             disabled={isSubmitting}
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">Konfirmasi password</label>
+          <label htmlFor="confirm-password" className="mb-1 block text-sm font-medium">Konfirmasi password</label>
           <Input
+            id="confirm-password"
             type="password"
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
             minLength={8}
             autoComplete="new-password"
-            placeholder="Ulangi password baru"
+            placeholder="Ulangi password baru…"
             required
             disabled={isSubmitting}
           />
@@ -143,7 +145,7 @@ export function AdminSetPasswordForm({ email, name }: AdminSetPasswordFormProps)
         ) : null}
 
         <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? "Menyimpan..." : "Simpan password dan masuk"}
+          {isSubmitting ? "Menyimpan…" : "Simpan password dan masuk"}
         </Button>
       </form>
     </div>

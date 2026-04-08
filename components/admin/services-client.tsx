@@ -867,7 +867,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                 <article
                   key={service.id}
                   className={cn(
-                    "card-hover-lift overflow-hidden rounded-2xl border border-border bg-card shadow-spa transition-all duration-200 hover:shadow-spa-lg focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+                    "card-hover-lift overflow-hidden rounded-2xl border border-border bg-card shadow-spa transition-[border-color,box-shadow,transform,opacity,filter] duration-200 hover:shadow-spa-lg focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
                     !service.is_active && "opacity-60",
                     isOptimistic && "opacity-70 saturate-50",
                     isMounted ? "animate-fade-slide-up" : "opacity-0"

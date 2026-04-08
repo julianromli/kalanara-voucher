@@ -56,13 +56,13 @@ const TrustFeatures = () => {
           {features.map((feature, index) => (
             <div
               key={feature.title}
-              className={`group bg-primary-foreground/5 backdrop-blur-sm rounded-2xl p-8 border border-primary-foreground/10 hover:bg-primary-foreground/10 transition-all duration-300 text-center card-hover-lift ${
+              className={`group rounded-2xl border border-primary-foreground/10 bg-primary-foreground/5 p-8 text-center backdrop-blur-sm transition-[background-color,box-shadow,transform] duration-300 hover:bg-primary-foreground/10 card-hover-lift ${
                 isInView ? "animate-fade-slide-up" : "opacity-0"
               }`}
               style={{ animationDelay: isInView ? `${(index + 1) * 100}ms` : "0ms" }}
             >
-              <div className="w-20 h-20 mx-auto bg-primary-foreground/10 rounded-2xl flex items-center justify-center mb-6 text-primary-foreground/80 group-hover:scale-110 group-hover:bg-accent group-hover:text-accent-foreground transition-all duration-300 shadow-lg shadow-primary-foreground/5">
-                <feature.icon size={36} />
+              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-primary-foreground/10 text-primary-foreground/80 shadow-lg shadow-primary-foreground/5 transition-[background-color,color,transform] duration-300 group-hover:scale-110 group-hover:bg-accent group-hover:text-accent-foreground">
+                <feature.icon size={36} aria-hidden="true" />
               </div>
               <h3 className="font-sans font-semibold text-xl mb-3 group-hover:text-accent transition-colors">
                 {feature.title}

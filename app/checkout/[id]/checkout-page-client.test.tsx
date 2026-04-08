@@ -47,8 +47,8 @@ describe("CheckoutPageClient", () => {
 
     expect(screen.getByText("Selesaikan Pembelian")).toBeInTheDocument();
     expect(screen.getByText("Ringkasan Pesanan")).toBeInTheDocument();
-    expect(screen.getByText("Sedang menyiapkan metode pembayaran...")).toBeInTheDocument();
-    expect(screen.queryByText("Memproses Pembayaran...")).not.toBeInTheDocument();
+    expect(screen.getByText("Sedang menyiapkan metode pembayaran…")).toBeInTheDocument();
+    expect(screen.queryByText("Memproses Pembayaran…")).not.toBeInTheDocument();
   });
 
   test("shows conditional recipient contact fields based on sendTo and delivery method", async () => {
@@ -141,17 +141,17 @@ describe("CheckoutPageClient", () => {
 
     expect(await screen.findByText("QRIS")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {
+    fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher…"), {
       target: { value: "Penerima" },
     });
     fireEvent.click(screen.getByRole("radio", { name: "Kirim ke Saya" }));
-    fireEvent.change(screen.getByPlaceholderText("Nama kamu"), {
+    fireEvent.change(screen.getByPlaceholderText("Nama lengkap kamu…"), {
       target: { value: "Faiz" },
     });
-    fireEvent.change(screen.getByPlaceholderText("nama@email.com"), {
+    fireEvent.change(screen.getByPlaceholderText("nama@contoh.com…"), {
       target: { value: "faiz@example.com" },
     });
-    fireEvent.change(screen.getByPlaceholderText("+62 812 3456 7890"), {
+    fireEvent.change(screen.getByPlaceholderText("+62 812 3456 7890…"), {
       target: { value: "0812-3456 7890" },
     });
 

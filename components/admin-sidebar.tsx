@@ -46,8 +46,8 @@ export function AdminSidebar() {
         {/* Logo */}
         <div className="flex h-16 items-center justify-center border-b border-sidebar-border/60">
           <Link href="/admin/dashboard" className="group">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground transition-all duration-300 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-primary/20">
-              <Leaf className="size-5" />
+            <div className="flex size-10 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground transition-[transform,box-shadow,background-color,color] duration-300 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-primary/20">
+              <Leaf className="size-5" aria-hidden="true" />
             </div>
           </Link>
         </div>
@@ -62,7 +62,7 @@ export function AdminSidebar() {
                   <Link
                     href={item.href}
                     className={cn(
-                      "group relative flex size-11 items-center justify-center rounded-xl transition-all duration-200",
+                      "group relative flex size-11 items-center justify-center rounded-xl transition-[background-color,color,box-shadow,transform] duration-200",
                       isActive
                         ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
                         : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
@@ -97,9 +97,9 @@ export function AdminSidebar() {
             <TooltipTrigger asChild>
               <button
                 onClick={handleLogout}
-                className="group flex size-11 w-full items-center justify-center rounded-xl text-sidebar-foreground transition-all duration-200 hover:bg-destructive/10 hover:text-destructive"
+                className="group flex size-11 w-full items-center justify-center rounded-xl text-sidebar-foreground transition-[background-color,color,box-shadow,transform] duration-200 hover:bg-destructive/10 hover:text-destructive"
               >
-                <LogOut className="size-5 transition-transform duration-200 group-hover:scale-110" />
+                <LogOut className="size-5 transition-transform duration-200 group-hover:scale-110" aria-hidden="true" />
               </button>
             </TooltipTrigger>
             <TooltipContent

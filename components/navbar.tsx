@@ -49,21 +49,21 @@ export default function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 z-50 w-full transition-all duration-500 ease-out ${isMounted ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
-        } ${isScrolled
-          ? "bg-background/80 backdrop-blur-md border-b border-border shadow-sm text-foreground"
-          : "bg-transparent border-b border-transparent text-primary-foreground"
-        }`}
+      className={`fixed top-0 z-50 w-full transition-[transform,opacity,background-color,border-color,box-shadow,color] duration-500 ease-out ${isMounted ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
+         } ${isScrolled
+           ? "bg-background/80 backdrop-blur-md border-b border-border shadow-sm text-foreground"
+           : "bg-transparent border-b border-transparent text-primary-foreground"
+         }`}
     >
       <SiteContainer>
         <div className="flex justify-between h-20 items-center">
           {/* Logo */}
-          <Link
-            href="/"
-            className={`flex items-center transition-all duration-500 ${isMounted ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"
-              }`}
-            style={{ transitionDelay: isMounted ? "200ms" : "0ms" }}
-          >
+            <Link
+              href="/"
+              className={`flex items-center transition-[transform,opacity] duration-500 ${isMounted ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"
+               }`}
+              style={{ transitionDelay: isMounted ? "200ms" : "0ms" }}
+            >
             <div className="relative h-8 w-32">
               <Image
                 src="/logo-kalanara-light.png"
@@ -92,44 +92,45 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`font-medium transition-all duration-500 flex items-center gap-1 ${isMounted ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
+                className={`flex items-center gap-1 font-medium transition-[transform,opacity,color] duration-500 focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isMounted ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
                   } ${isScrolled
-                    ? "text-foreground hover:text-muted-foreground"
-                    : "text-primary-foreground/90 hover:text-primary-foreground"
+                    ? "text-foreground hover:text-muted-foreground focus-visible:ring-offset-background"
+                    : "text-primary-foreground/90 hover:text-primary-foreground focus-visible:ring-primary-foreground/70 focus-visible:ring-offset-primary"
                   }`}
                 style={{ transitionDelay: isMounted ? `${300 + index * 75}ms` : "0ms" }}
               >
-                {item.icon && <item.icon size={16} />}
+                {item.icon && <item.icon size={16} aria-hidden="true" />}
                 {item.label}
               </Link>
             ))}
 
             <Link
               href="/#services"
-              className={`btn-hover-lift px-5 py-2 rounded-lg transition-all duration-500 flex items-center gap-2 ${isMounted ? "translate-y-0 opacity-100 scale-100" : "-translate-y-2 opacity-0 scale-95"
+              className={`btn-hover-lift flex items-center gap-2 rounded-lg px-5 py-2 transition-[transform,opacity,background-color,box-shadow] duration-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isMounted ? "translate-y-0 opacity-100 scale-100" : "-translate-y-2 opacity-0 scale-95"
                 } ${isScrolled
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "bg-accent text-accent-foreground hover:bg-accent/90"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-offset-background"
+                  : "bg-accent text-accent-foreground hover:bg-accent/90 focus-visible:ring-accent-foreground/70 focus-visible:ring-offset-primary"
                 }`}
               style={{ transitionDelay: isMounted ? "600ms" : "0ms" }}
             >
-              <ShoppingBag size={18} />
+              <ShoppingBag size={18} aria-hidden="true" />
               <span>Beli Voucher</span>
             </Link>
           </div>
 
           {/* Mobile Menu Button */}
           <div
-            className={`md:hidden flex items-center transition-all duration-500 ${isMounted ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"
+            className={`md:hidden flex items-center transition-[transform,opacity] duration-500 ${isMounted ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"
               }`}
             style={{ transitionDelay: isMounted ? "300ms" : "0ms" }}
           >
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className={`p-2 transition-colors duration-500 ${isScrolled ? "text-foreground" : "text-primary-foreground"
+              aria-label={isOpen ? "Tutup menu navigasi" : "Buka menu navigasi"}
+              className={`rounded-md p-2 transition-colors duration-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isScrolled ? "text-foreground focus-visible:ring-offset-background" : "text-primary-foreground focus-visible:ring-primary-foreground/70 focus-visible:ring-offset-primary"
                 }`}
             >
-              {isOpen ? <X size={24} /> : <Menu size={24} />}
+              {isOpen ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}
             </button>
           </div>
         </div>
@@ -137,7 +138,7 @@ export default function Navbar() {
 
       {/* Mobile Menu with slide animation */}
       <div
-        className={`md:hidden absolute top-20 left-0 w-full shadow-lg bg-background text-foreground overflow-hidden transition-all duration-300 ease-out ${isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+        className={`md:hidden absolute top-20 left-0 w-full overflow-hidden bg-background text-foreground shadow-lg transition-[max-height,opacity] duration-300 ease-out ${isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
           }`}
       >
         <div className="p-4 flex flex-col space-y-4">
@@ -146,12 +147,14 @@ export default function Navbar() {
               key={item.href}
               href={item.href}
               onClick={() => setIsOpen(false)}
-              className={`block py-2 flex items-center gap-2 transition-all duration-300 ${isOpen ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"
+              className={`block rounded-md py-2 transition-[transform,opacity,color] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isOpen ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"
                 }`}
               style={{ transitionDelay: isOpen ? `${index * 50}ms` : "0ms" }}
             >
-              {item.icon && <item.icon size={16} />}
+              <span className="flex items-center gap-2">
+                {item.icon && <item.icon size={16} aria-hidden="true" />}
               {item.label === "Cek Voucher" ? "Cek Voucher Kamu" : item.label}
+              </span>
             </Link>
           ))}
         </div>

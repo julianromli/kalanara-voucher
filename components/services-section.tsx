@@ -20,7 +20,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
     <section
       ref={servicesRef}
       id="services"
-      className="relative overflow-hidden bg-background py-24"
+      className="relative overflow-hidden bg-background py-24 scroll-mt-24"
     >
       {/* Gradient Mesh Background */}
       <div className="absolute inset-0 pointer-events-none">
@@ -64,7 +64,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
                     </div>
                   )}
                   <div className="absolute top-4 right-4 bg-card/90 backdrop-blur text-foreground px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 shadow-sm">
-                    <Clock size={14} />
+                    <Clock size={14} aria-hidden="true" />
                     {service.duration} menit
                   </div>
                 </div>
@@ -83,9 +83,9 @@ export function ServicesSection({ services }: ServicesSectionProps) {
                     </span>
                     <Link
                       href={`/voucher/${service.id}`}
-                      className="text-muted-foreground font-medium hover:text-foreground flex items-center gap-1 text-sm uppercase tracking-wide transition-colors"
+                      className="flex items-center gap-1 text-sm font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
-                      Detail <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                      Detail <ArrowRight size={16} aria-hidden="true" className="transition-transform group-hover:translate-x-1" />
                     </Link>
                   </div>
                 </div>

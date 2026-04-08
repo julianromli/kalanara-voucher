@@ -257,10 +257,10 @@ function SuccessContent() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-        <Loader2 className="mb-4 size-12 animate-spin text-primary" />
-        <h2 className="text-xl font-semibold text-foreground">
-          Memeriksa status pembayaran...
-        </h2>
+          <Loader2 className="mb-4 size-12 animate-spin text-primary" aria-hidden="true" />
+          <h2 className="text-xl font-semibold text-foreground">
+            Memeriksa status pembayaran…
+          </h2>
         <p className="mt-2 max-w-md text-center text-muted-foreground">
           Mohon tunggu sebentar, kami sedang mengambil update terbaru untuk pesanan kamu.
         </p>
@@ -279,7 +279,7 @@ function SuccessContent() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
         <div className="mb-4 rounded-full bg-muted p-4">
-          <AlertCircle className="size-12 text-muted-foreground" />
+          <AlertCircle className="size-12 text-muted-foreground" aria-hidden="true" />
         </div>
         <h2 className="mb-2 text-xl font-semibold text-foreground">{title}</h2>
         <p className="mb-6 max-w-md text-center text-muted-foreground">{subtitle}</p>
@@ -296,8 +296,11 @@ function SuccessContent() {
             </div>
             {paymentInstructions.expiresAt ? (
               <p className="mt-3 text-xs text-muted-foreground">
-                Berlaku sampai {new Date(paymentInstructions.expiresAt).toLocaleString("id-ID")}
-              </p>
+                 Berlaku sampai {new Intl.DateTimeFormat("id-ID", {
+                   dateStyle: "medium",
+                   timeStyle: "short",
+                 }).format(new Date(paymentInstructions.expiresAt))}
+               </p>
             ) : null}
           </div>
         ) : null}
@@ -322,7 +325,7 @@ function SuccessContent() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
         <div className="mb-4 rounded-full bg-destructive/10 p-4">
-          <AlertCircle className="size-12 text-destructive" />
+          <AlertCircle className="size-12 text-destructive" aria-hidden="true" />
         </div>
         <h2 className="mb-2 text-xl font-semibold text-foreground">
           Pembayaran Tidak Berhasil
@@ -350,7 +353,7 @@ function SuccessContent() {
     <div className="flex min-h-screen items-center justify-center bg-primary px-4 py-8">
       <div className="animate-scale-in w-full max-w-lg rounded-3xl bg-card p-8 text-center shadow-2xl md:p-12">
         <div className="mx-auto mb-6 flex size-20 items-center justify-center rounded-full bg-muted animate-checkmark-pop">
-          <CheckCircle size={40} className="text-muted-foreground" />
+          <CheckCircle size={40} aria-hidden="true" className="text-muted-foreground" />
         </div>
 
         <h1 className="mb-2 font-sans text-3xl font-semibold text-foreground">
@@ -388,8 +391,8 @@ function SuccessContent() {
           variant="outline"
           className="mb-6 w-full gap-2 border-border text-muted-foreground"
         >
-          <Download size={18} />
-          Download Voucher PDF
+           <Download size={18} aria-hidden="true" />
+           Download Voucher PDF
         </Button>
 
         <div className="mb-6 rounded-xl bg-muted p-4 text-left">
@@ -404,8 +407,8 @@ function SuccessContent() {
               variant="outline"
               className="flex-1 gap-2 border-border text-muted-foreground"
             >
-              <Mail size={18} />
-              Email
+               <Mail size={18} aria-hidden="true" />
+               Email
             </Button>
             <Button
               onClick={handleResendWhatsApp}
@@ -413,8 +416,8 @@ function SuccessContent() {
               variant="outline"
               className="flex-1 gap-2 border-success text-success hover:bg-success/10 disabled:border-border disabled:text-muted-foreground"
             >
-              <MessageCircle size={18} />
-              WhatsApp
+               <MessageCircle size={18} aria-hidden="true" />
+               WhatsApp
             </Button>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">{resendEmailHint}</p>
@@ -446,7 +449,7 @@ export default function CheckoutSuccessPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-background">
-          <Loader2 className="size-10 animate-spin text-primary" />
+          <Loader2 className="size-10 animate-spin text-primary" aria-hidden="true" />
         </div>
       }
     >

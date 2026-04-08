@@ -128,7 +128,7 @@ function writePaymentLoadingShell(paymentWindow: Window | null) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Menyiapkan halaman pembayaran...</title>
+    <title>Menyiapkan halaman pembayaran…</title>
     <style>
       :root {
         color-scheme: light;
@@ -197,7 +197,7 @@ function writePaymentLoadingShell(paymentWindow: Window | null) {
   <body>
     <main class="card">
       <div class="badge"><span class="spinner"></span>Kalanara Spa</div>
-      <h1>Menyiapkan halaman pembayaran...</h1>
+      <h1>Menyiapkan halaman pembayaran…</h1>
       <p>Jangan tutup tab ini. Kami sedang mengarahkan kamu ke pembayaran.</p>
       <p class="hint">Jika tidak terbuka otomatis, kembali ke halaman status pembayaran.</p>
     </main>
@@ -470,10 +470,10 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
       <div className="mx-auto mb-6 max-w-6xl px-4 sm:px-6 lg:px-8 animate-slide-in-left">
         <button
           onClick={() => router.back()}
-          className="group flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+          className="group flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="Kembali ke halaman sebelumnya"
         >
-          <ChevronLeft size={20} className="transition-transform group-hover:-translate-x-1" />
+          <ChevronLeft size={20} aria-hidden="true" className="transition-transform group-hover:-translate-x-1" />
           <span>Kembali</span>
         </button>
       </div>
@@ -501,16 +501,18 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                 </h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                      Nama Penerima
-                    </label>
-                    <Input
-                      {...register("recipientName", {
-                        required: "Nama penerima wajib diisi",
-                      })}
-                      placeholder="Nama penerima voucher"
-                      className={errors.recipientName ? "border-destructive" : ""}
-                    />
+                      <label htmlFor="recipient-name" className="mb-2 block text-sm font-medium text-muted-foreground">
+                        Nama Penerima
+                      </label>
+                      <Input
+                        id="recipient-name"
+                        {...register("recipientName", {
+                          required: "Nama penerima wajib diisi",
+                        })}
+                        autoComplete="name"
+                        placeholder="Nama penerima voucher…"
+                        className={errors.recipientName ? "border-destructive" : ""}
+                      />
                     <p className="mt-1 text-xs text-muted-foreground">
                       Nama ini akan tercetak di voucher.
                     </p>
@@ -522,15 +524,16 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                      Pesan untuk Penerima
-                    </label>
-                    <textarea
-                      {...register("senderMessage")}
-                      rows={3}
-                      placeholder="Tulis pesan singkat jika mau"
-                      className="min-h-24 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
+                      <label htmlFor="sender-message" className="mb-2 block text-sm font-medium text-muted-foreground">
+                        Pesan untuk Penerima
+                      </label>
+                      <textarea
+                        id="sender-message"
+                        {...register("senderMessage")}
+                        rows={3}
+                        placeholder="Tulis pesan singkat jika mau…"
+                        className="min-h-24 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
                   </div>
 
                   <div>
@@ -544,7 +547,7 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                       ].map((option) => (
                         <label
                           key={option.value}
-                          className={`flex min-h-14 cursor-pointer items-center justify-center rounded-xl border p-3 text-center text-sm transition-all sm:text-base ${
+                          className={`flex min-h-14 cursor-pointer items-center justify-center rounded-xl border p-3 text-center text-sm transition-[border-color,background-color,color,box-shadow] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 sm:text-base ${
                             sendTo === option.value
                               ? "border-primary bg-muted font-medium text-foreground"
                               : "border-border text-muted-foreground hover:border-muted-foreground"
@@ -578,7 +581,7 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                     ].map((method) => (
                       <label
                         key={method.value}
-                        className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border p-4 transition-all ${
+                        className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border p-4 transition-[border-color,background-color,color,box-shadow] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${
                           deliveryMethod === method.value
                             ? "border-primary bg-muted"
                             : "border-border hover:border-muted-foreground"
@@ -590,7 +593,7 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                           {...register("deliveryMethod", { required: true })}
                           className="sr-only"
                         />
-                        <method.icon size={20} className="text-muted-foreground" />
+                        <method.icon size={20} aria-hidden="true" className="text-muted-foreground" />
                         <span className="text-sm text-foreground sm:text-base">
                           {method.label}
                         </span>
@@ -599,9 +602,9 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                   </div>
 
                   <div className="rounded-2xl border border-border bg-background p-4">
-                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                      Delivery Preview
-                    </p>
+                     <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                       Ringkasan Pengiriman
+                     </p>
                     <p className="mt-2 text-sm text-foreground">{deliveryPreview}</p>
                   </div>
 
@@ -613,12 +616,16 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
 
                   {showRecipientPhone ? (
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                      <label htmlFor="recipient-phone" className="mb-2 block text-sm font-medium text-muted-foreground">
                         WhatsApp Penerima
                       </label>
                       <Input
+                        id="recipient-phone"
                         {...registerPhoneField("recipientPhone")}
-                        placeholder="+62 812 3456 7890"
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        placeholder="+62 812 3456 7890…"
                         className={errors.recipientPhone ? "border-destructive" : ""}
                         aria-invalid={Boolean(errors.recipientPhone)}
                       />
@@ -635,10 +642,11 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
 
                   {showRecipientEmail ? (
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                      <label htmlFor="recipient-email" className="mb-2 block text-sm font-medium text-muted-foreground">
                         Email Penerima
                       </label>
                       <Input
+                        id="recipient-email"
                         {...register("recipientEmail", {
                           required: showRecipientEmail
                             ? "Email penerima wajib diisi"
@@ -653,7 +661,9 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                             typeof value === "string" ? value.trim() : value,
                         })}
                         type="email"
-                        placeholder="penerima@email.com"
+                        autoComplete="email"
+                        spellCheck={false}
+                        placeholder="penerima@contoh.com…"
                         className={errors.recipientEmail ? "border-destructive" : ""}
                         aria-invalid={Boolean(errors.recipientEmail)}
                       />
@@ -676,16 +686,18 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                 </p>
                 <div className="space-y-4">
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                    <label htmlFor="customer-name" className="mb-2 block text-sm font-medium text-muted-foreground">
                       Nama Lengkap
                     </label>
                     <Input
+                      id="customer-name"
                       {...register("customerName", {
                         required: "Nama lengkap wajib diisi",
                         setValueAs: (value: unknown) =>
                           typeof value === "string" ? value.trim() : value,
                       })}
-                      placeholder="Nama kamu"
+                      autoComplete="name"
+                      placeholder="Nama lengkap kamu…"
                       className={errors.customerName ? "border-destructive" : ""}
                     />
                     {errors.customerName ? (
@@ -695,10 +707,11 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                     ) : null}
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                    <label htmlFor="customer-email" className="mb-2 block text-sm font-medium text-muted-foreground">
                       Email
                     </label>
                     <Input
+                      id="customer-email"
                       {...register("customerEmail", {
                         required: "Email wajib diisi",
                         pattern: {
@@ -709,7 +722,9 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                           typeof value === "string" ? value.trim() : value,
                       })}
                       type="email"
-                      placeholder="nama@email.com"
+                      autoComplete="email"
+                      spellCheck={false}
+                      placeholder="nama@contoh.com…"
                       className={errors.customerEmail ? "border-destructive" : ""}
                     />
                     {errors.customerEmail ? (
@@ -719,12 +734,16 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                     ) : null}
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                    <label htmlFor="customer-phone" className="mb-2 block text-sm font-medium text-muted-foreground">
                       WhatsApp
                     </label>
                     <Input
+                      id="customer-phone"
                       {...registerPhoneField("customerPhone")}
-                      placeholder="+62 812 3456 7890"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      placeholder="+62 812 3456 7890…"
                       className={errors.customerPhone ? "border-destructive" : ""}
                     />
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -757,14 +776,14 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                       <Skeleton className="h-16 w-full rounded-xl" />
                       <Skeleton className="h-16 w-full rounded-xl" />
                       <p className="text-sm text-muted-foreground">
-                        Sedang menyiapkan metode pembayaran...
-                      </p>
+                         Sedang menyiapkan metode pembayaran…
+                       </p>
                     </div>
                   </div>
                 ) : paymentError ? (
                   <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4">
                     <div className="flex items-start gap-3">
-                      <AlertCircle className="mt-0.5 size-5 text-destructive" />
+                      <AlertCircle className="mt-0.5 size-5 text-destructive" aria-hidden="true" />
                       <div>
                         <p className="font-medium text-foreground">
                           Metode pembayaran belum berhasil dimuat
@@ -787,7 +806,7 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                       {paymentOptions.map((option) => (
                         <label
                           key={option.code}
-                          className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all ${
+                          className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-[border-color,background-color,color,box-shadow] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${
                             paymentMethod === option.code
                               ? "border-primary bg-muted"
                               : "border-border hover:border-muted-foreground"
@@ -813,15 +832,16 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
 
                     {paymentMethod === "va" && selectedPaymentOption?.subMethods?.length ? (
                       <div className="mt-4 space-y-2">
-                        <label className="block text-sm font-medium text-muted-foreground">
+                        <label htmlFor="sub-payment-method" className="block text-sm font-medium text-muted-foreground">
                           Bank Virtual Account
                         </label>
                         <select
+                          id="sub-payment-method"
                           value={subPaymentMethod}
                           onChange={(event) =>
                             setSubPaymentMethod(event.target.value as ScalevVABankCode)
                           }
-                          className="min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base"
+                          className="min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           {selectedPaymentOption.subMethods.map((bank) => (
                             <option key={bank} value={bank}>
