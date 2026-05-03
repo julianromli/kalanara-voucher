@@ -19,11 +19,22 @@ export interface CartItem {
   service: CartServiceSnapshot;
 }
 
+export interface PendingCheckoutSession {
+  paymentOrderId: string;
+  cartItemIds: string[];
+  createdAt: number;
+}
+
 interface CartState {
   items: CartItem[];
+  pendingCheckout: PendingCheckoutSession | null;
   addItem: (service: Service | CartServiceSnapshot) => CartItem;
   removeItem: (itemId: string) => void;
+  removeItems: (itemIds: string[]) => void;
   clearCart: () => void;
+  startPendingCheckout: (paymentOrderId: string, cartItemIds: string[]) => void;
+  completePendingCheckout: (paymentOrderId: string) => void;
+  clearPendingCheckout: (paymentOrderId?: string) => void;
 }
 
 function createCartItemId() {
@@ -53,6 +64,7 @@ export const useCartStore = create<CartState>()(
   persist(
     (set) => ({
       items: [],
+      pendingCheckout: null,
       addItem: (service) => {
         const item = {
           id: createCartItemId(),
@@ -67,12 +79,56 @@ export const useCartStore = create<CartState>()(
           items: state.items.filter((item) => item.id !== itemId),
         }));
       },
-      clearCart: () => set({ items: [] }),
+      removeItems: (itemIds) => {
+        const idsToRemove = new Set(itemIds);
+        set((state) => ({
+          items: state.items.filter((item) => !idsToRemove.has(item.id)),
+        }));
+      },
+      clearCart: () => set({ items: [], pendingCheckout: null }),
+      startPendingCheckout: (paymentOrderId, cartItemIds) => {
+        const uniqueCartItemIds = [...new Set(cartItemIds)];
+        set({
+          pendingCheckout: {
+            paymentOrderId,
+            cartItemIds: uniqueCartItemIds,
+            createdAt: Date.now(),
+          },
+        });
+      },
+      completePendingCheckout: (paymentOrderId) => {
+        set((state) => {
+          if (state.pendingCheckout?.paymentOrderId !== paymentOrderId) {
+            return {};
+          }
+
+          const pendingCartItemIds = new Set(state.pendingCheckout.cartItemIds);
+          return {
+            items: state.items.filter((item) => !pendingCartItemIds.has(item.id)),
+            pendingCheckout: null,
+          };
+        });
+      },
+      clearPendingCheckout: (paymentOrderId) => {
+        set((state) => {
+          if (
+            paymentOrderId &&
+            state.pendingCheckout?.paymentOrderId !== paymentOrderId
+          ) {
+            return {};
+          }
+
+          return { pendingCheckout: null };
+        });
+      },
     }),
     {
       name: "kalanara-cart",
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ items: state.items }),
+      partialize: (state) => ({
+        items: state.items,
+        pendingCheckout: state.pendingCheckout,
+      }),
     }
   )
 );

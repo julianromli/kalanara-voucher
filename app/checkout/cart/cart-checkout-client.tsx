@@ -10,9 +10,6 @@ import {
   ChevronLeft,
   CreditCard,
   Loader2,
-  Mail,
-  MessageCircle,
-  Send,
   ShoppingBag,
   Trash2,
   User,
@@ -95,7 +92,7 @@ export function CartCheckoutClient() {
   const { showToast } = useToast();
   const items = useCartStore((state) => state.items);
   const removeItem = useCartStore((state) => state.removeItem);
-  const clearCart = useCartStore((state) => state.clearCart);
+  const startPendingCheckout = useCartStore((state) => state.startPendingCheckout);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentConfig, setPaymentConfig] = useState<ScalevCheckoutConfig | null>(null);
@@ -131,6 +128,7 @@ export function CartCheckoutClient() {
 
   const sameRecipient = watch("sameRecipient");
   const lineItems = watch("lineItems");
+  const primaryLineItem = lineItems?.[0];
 
   useEffect(() => {
     const currentLineItems = getValues("lineItems");
@@ -226,29 +224,39 @@ export function CartCheckoutClient() {
   }, [paymentMethod, selectedPaymentOption, subPaymentMethod]);
 
   useEffect(() => {
-    if (!sameRecipient || !lineItems?.[0]) return;
+    if (!sameRecipient || !primaryLineItem) return;
 
-    const first = lineItems[0];
-    lineItems.slice(1).forEach((_, index) => {
+    fields.slice(1).forEach((_, index) => {
       const itemIndex = index + 1;
-      setValue(`lineItems.${itemIndex}.recipientName`, first.recipientName, {
+      setValue(`lineItems.${itemIndex}.recipientName`, primaryLineItem.recipientName, {
         shouldValidate: true,
       });
-      setValue(`lineItems.${itemIndex}.recipientEmail`, first.recipientEmail, {
+      setValue(`lineItems.${itemIndex}.recipientEmail`, primaryLineItem.recipientEmail, {
         shouldValidate: true,
       });
-      setValue(`lineItems.${itemIndex}.recipientPhone`, first.recipientPhone, {
+      setValue(`lineItems.${itemIndex}.recipientPhone`, primaryLineItem.recipientPhone, {
         shouldValidate: true,
       });
-      setValue(`lineItems.${itemIndex}.senderMessage`, first.senderMessage);
-      setValue(`lineItems.${itemIndex}.sendTo`, first.sendTo, {
+      setValue(`lineItems.${itemIndex}.senderMessage`, primaryLineItem.senderMessage);
+      setValue(`lineItems.${itemIndex}.sendTo`, primaryLineItem.sendTo, {
         shouldValidate: true,
       });
-      setValue(`lineItems.${itemIndex}.deliveryMethod`, first.deliveryMethod, {
+      setValue(`lineItems.${itemIndex}.deliveryMethod`, primaryLineItem.deliveryMethod, {
         shouldValidate: true,
       });
     });
-  }, [lineItems, sameRecipient, setValue]);
+  }, [
+    fields,
+    primaryLineItem,
+    primaryLineItem?.deliveryMethod,
+    primaryLineItem?.recipientEmail,
+    primaryLineItem?.recipientName,
+    primaryLineItem?.recipientPhone,
+    primaryLineItem?.sendTo,
+    primaryLineItem?.senderMessage,
+    sameRecipient,
+    setValue,
+  ]);
 
   const registerPhoneField = useCallback(
     (fieldName: `customerPhone` | `lineItems.${number}.recipientPhone`, requiredMessage: string | false) =>
@@ -346,19 +354,22 @@ export function CartCheckoutClient() {
         throw new Error(result.error || "Gagal membuat pembayaran.");
       }
 
-      const shouldOpenHostedPage = !isScalevHostedPublicOrderUrl(result.paymentLink);
-      if (paymentWindow && shouldOpenHostedPage) {
+      const shouldOpenPaymentWindow = !isScalevHostedPublicOrderUrl(result.paymentLink);
+      if (paymentWindow && shouldOpenPaymentWindow) {
         paymentWindow.location.href = result.paymentLink;
       } else if (paymentWindow) {
         paymentWindow.close();
-      } else if (shouldOpenHostedPage) {
+      } else if (shouldOpenPaymentWindow) {
         showToast(
           "Popup pembayaran diblokir browser. Buka halaman pembayaran dari halaman status pembayaran.",
           "info"
         );
       }
 
-      clearCart();
+      startPendingCheckout(
+        result.paymentOrderId,
+        data.lineItems.map((item) => item.cartItemId)
+      );
       router.push(
         `/checkout/success?order_id=${encodeURIComponent(result.paymentOrderId)}&token=${encodeURIComponent(result.publicAccessToken)}`
       );
@@ -528,9 +539,12 @@ export function CartCheckoutClient() {
                   </div>
                   <label className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm text-foreground">
                     <input type="checkbox" {...register("sameRecipient")} />
-                    Same recipient
+                    Gunakan penerima yang sama
                   </label>
                 </div>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Saat aktif, data penerima pada voucher pertama akan diterapkan ke voucher lainnya.
+                </p>
 
                 <div className="mt-6 space-y-5">
                   {fields.map((field, index) => {

@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const {
   createVoucherMock,
   getVoucherBySourceOrderIdMock,
+  getVoucherBySourceOrderItemIdMock,
   updateOrderVoucherIdMock,
   getOrderItemsByOrderIdMock,
   updateOrderItemVoucherIdMock,
 } = vi.hoisted(() => ({
   createVoucherMock: vi.fn(),
   getVoucherBySourceOrderIdMock: vi.fn(),
+  getVoucherBySourceOrderItemIdMock: vi.fn(),
   updateOrderVoucherIdMock: vi.fn(),
   getOrderItemsByOrderIdMock: vi.fn(),
   updateOrderItemVoucherIdMock: vi.fn(),
@@ -17,6 +19,7 @@ const {
 vi.mock("@/lib/actions/vouchers", () => ({
   createVoucher: createVoucherMock,
   getVoucherBySourceOrderId: getVoucherBySourceOrderIdMock,
+  getVoucherBySourceOrderItemId: getVoucherBySourceOrderItemIdMock,
 }));
 
 vi.mock("@/lib/actions/orders", () => ({
@@ -38,6 +41,7 @@ describe("createVoucherOnPaymentSuccess", () => {
     );
 
     getVoucherBySourceOrderIdMock.mockResolvedValue(null);
+    getVoucherBySourceOrderItemIdMock.mockResolvedValue(null);
     createVoucherMock.mockResolvedValue({
       id: "voucher-1",
       code: "KSPV-001",

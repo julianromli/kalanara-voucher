@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import CheckoutSuccessPage from "@/app/checkout/success/page";
 import { ToastProvider } from "@/context/ToastContext";
+import { useCartStore } from "@/store/cart-store";
 
 const push = vi.fn();
 
@@ -23,9 +24,13 @@ describe("CheckoutSuccessPage", () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     push.mockReset();
+    localStorage.clear();
+    useCartStore.setState({ items: [], pendingCheckout: null });
   });
 
-  test("shows QRIS instructions and refresh CTA while payment is pending", async () => {
+  test("shows QRIS instructions and payment recovery CTA while payment is pending", async () => {
+    const openMock = vi.fn();
+    vi.stubGlobal("open", openMock);
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -52,12 +57,15 @@ describe("CheckoutSuccessPage", () => {
       </ToastProvider>
     );
 
-    expect(await screen.findByText("Lanjutkan Pembayaran")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Buka Halaman Pembayaran" }));
+
+    expect(openMock).toHaveBeenCalledWith(
+      "https://app.scalev.id/order/public/secret-token",
+      "_blank"
+    );
     expect(screen.getByText("Scan QRIS untuk membayar")).toBeInTheDocument();
-    expect(screen.getByText("Nominal Rp 10.000")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Saya Sudah Bayar" })
-    ).toBeInTheDocument();
+    expect(screen.getByText(/10\.000/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cek Status Lagi" })).toBeInTheDocument();
   });
 
   test("shows hosted payment CTA for external payment links", async () => {
@@ -89,7 +97,37 @@ describe("CheckoutSuccessPage", () => {
     );
   });
 
-  test("shows delivery summary and resend state on completed orders", async () => {
+  test("clears matching pending cart items after payment completes", async () => {
+    useCartStore.setState({
+      items: [
+        {
+          id: "cart-1",
+          service: {
+            id: "service-1",
+            name: "Balinese Massage",
+            description: "Relaxing treatment",
+            duration: 90,
+            price: 450000,
+          },
+        },
+        {
+          id: "cart-2",
+          service: {
+            id: "service-2",
+            name: "Hot Stone Massage",
+            description: "Warm and relaxing",
+            duration: 120,
+            price: 550000,
+          },
+        },
+      ],
+      pendingCheckout: {
+        paymentOrderId: "KSP-123",
+        cartItemIds: ["cart-1"],
+        createdAt: 1,
+      },
+    });
+
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -124,14 +162,7 @@ describe("CheckoutSuccessPage", () => {
     );
 
     expect(await screen.findByText("Voucher dikirim ke WhatsApp kamu")).toBeInTheDocument();
-    expect(screen.getByText("Butuh kirim ulang?")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Email" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "WhatsApp" })).toBeEnabled();
-    expect(
-      screen.getByText(
-        "Email tidak aktif untuk pesanan ini atau alamat email tujuan tidak tersedia."
-      )
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download PDF" })).toBeInTheDocument();
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith("/api/orders/public-status", {
@@ -143,6 +174,11 @@ describe("CheckoutSuccessPage", () => {
           token: "public-token",
         }),
       });
+    });
+
+    await waitFor(() => {
+      expect(useCartStore.getState().items.map((item) => item.id)).toEqual(["cart-2"]);
+      expect(useCartStore.getState().pendingCheckout).toBeNull();
     });
   });
 });

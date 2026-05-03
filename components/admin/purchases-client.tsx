@@ -39,17 +39,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import type { OrderWithVoucher } from "@/lib/database.types";
+import type { OrderItemWithService, OrderWithVoucherItems } from "@/lib/database.types";
 
 interface PurchasesClientProps {
-  initialOrders: OrderWithVoucher[];
+  initialOrders: OrderWithVoucherItems[];
   canUpdatePaymentStatus: boolean;
   canDeletePurchases: boolean;
 }
 
 type DeleteMode = "single" | "all" | null;
 
-function getStatusBadgeVariant(status: OrderWithVoucher["payment_status"]) {
+function getStatusBadgeVariant(status: OrderWithVoucherItems["payment_status"]) {
   if (status === "COMPLETED") {
     return "default" as const;
   }
@@ -61,7 +61,7 @@ function getStatusBadgeVariant(status: OrderWithVoucher["payment_status"]) {
   return "destructive" as const;
 }
 
-function getStatusBadgeClassName(status: OrderWithVoucher["payment_status"]) {
+function getStatusBadgeClassName(status: OrderWithVoucherItems["payment_status"]) {
   if (status === "COMPLETED") {
     return "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300";
   }
@@ -71,6 +71,53 @@ function getStatusBadgeClassName(status: OrderWithVoucher["payment_status"]) {
   }
 
   return "border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/10";
+}
+
+function sortOrderItems(orderItems: OrderItemWithService[]) {
+  return [...orderItems].sort((left, right) => {
+    if (left.sort_order !== right.sort_order) {
+      return left.sort_order - right.sort_order;
+    }
+
+    return left.created_at.localeCompare(right.created_at);
+  });
+}
+
+function getOrderServiceSummary(order: OrderWithVoucherItems) {
+  const orderItems = sortOrderItems(order.order_items);
+  if (orderItems.length === 0) {
+    return order.vouchers?.services?.name || "N/A";
+  }
+
+  if (orderItems.length === 1) {
+    return orderItems[0].services?.name || order.vouchers?.services?.name || "N/A";
+  }
+
+  const firstServiceName =
+    orderItems[0].services?.name || order.vouchers?.services?.name || "Voucher";
+  return `${firstServiceName} +${orderItems.length - 1} lainnya`;
+}
+
+function getOrderVoucherSummary(order: OrderWithVoucherItems) {
+  const orderItems = sortOrderItems(order.order_items);
+  if (orderItems.length === 0) {
+    return order.vouchers?.code || "Pending";
+  }
+
+  const fulfilledCount = orderItems.filter((item) => Boolean(item.voucher_id)).length;
+  if (orderItems.length === 1) {
+    return orderItems[0].vouchers?.code || "Pending";
+  }
+
+  if (fulfilledCount === orderItems.length) {
+    return `${orderItems.length} voucher`;
+  }
+
+  if (fulfilledCount === 0) {
+    return "Pending";
+  }
+
+  return `${fulfilledCount}/${orderItems.length} voucher`;
 }
 
 export function PurchasesClient({
@@ -85,12 +132,12 @@ export function PurchasesClient({
   const [orders, setOrders] = useState(initialOrders);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [selectedOrder, setSelectedOrder] = useState<OrderWithVoucher | null>(
+  const [selectedOrder, setSelectedOrder] = useState<OrderWithVoucherItems | null>(
     null,
   );
   const [deleteMode, setDeleteMode] = useState<DeleteMode>(null);
   const [pendingDeleteOrder, setPendingDeleteOrder] =
-    useState<OrderWithVoucher | null>(null);
+    useState<OrderWithVoucherItems | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [isDeletingOrder, setIsDeletingOrder] = useState<string | null>(null);
   const [isClearingAll, setIsClearingAll] = useState(false);
@@ -107,6 +154,7 @@ export function PurchasesClient({
       order.customer_name.toLowerCase().includes(searchLower) ||
       order.customer_email.toLowerCase().includes(searchLower) ||
       order.payment_order_id?.toLowerCase().includes(searchLower) ||
+      getOrderServiceSummary(order).toLowerCase().includes(searchLower) ||
       order.payment_transaction_id?.toLowerCase().includes(searchLower);
     const matchesStatus =
       statusFilter === "ALL" || order.payment_status === statusFilter;
@@ -132,7 +180,7 @@ export function PurchasesClient({
       order.id === orderId
         ? {
             ...order,
-            payment_status: newStatus as OrderWithVoucher["payment_status"],
+            payment_status: newStatus as OrderWithVoucherItems["payment_status"],
           }
         : order,
     );
@@ -337,7 +385,7 @@ export function PurchasesClient({
                           </TableCell>
                           <TableCell>
                             <p className="font-mono text-sm">
-                              {order.vouchers?.code || "Pending"}
+                              {getOrderVoucherSummary(order)}
                             </p>
                           </TableCell>
                           <TableCell>
@@ -473,7 +521,13 @@ export function PurchasesClient({
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Service</span>
                     <span className="text-right font-medium">
-                      {selectedOrder.vouchers?.services?.name || "N/A"}
+                      {getOrderServiceSummary(selectedOrder)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Items</span>
+                    <span className="font-medium">
+                      {selectedOrder.order_items.length || 1}
                     </span>
                   </div>
                   <div className="flex justify-between gap-3">
@@ -501,9 +555,50 @@ export function PurchasesClient({
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Voucher Code</span>
                     <span className="font-mono text-sm">
-                      {selectedOrder.vouchers?.code || "Pending"}
+                      {getOrderVoucherSummary(selectedOrder)}
                     </span>
                   </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-muted/50 p-4">
+                <h4 className="mb-3 text-sm font-medium text-muted-foreground">
+                  Voucher Items
+                </h4>
+                <div className="space-y-3">
+                  {sortOrderItems(selectedOrder.order_items).map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="rounded-lg border border-border bg-background p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium">
+                            {index + 1}. {item.services?.name || "Voucher"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Recipient: {item.recipient_name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Delivery: {item.delivery_method} to{" "}
+                            {item.send_to === "RECIPIENT" ? "recipient" : "purchaser"}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">{formatCurrency(item.unit_price)}</p>
+                          <p className="font-mono text-xs text-muted-foreground">
+                            {item.vouchers?.code || "Pending"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {selectedOrder.order_items.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      This order uses the legacy single-voucher structure.
+                    </p>
+                  ) : null}
                 </div>
               </div>
 

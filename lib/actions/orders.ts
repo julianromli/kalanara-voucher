@@ -21,6 +21,7 @@ import type {
   OrderWithItems,
   OrderWithService,
   OrderWithVoucher,
+  OrderWithVoucherItems,
   PaymentStatus,
 } from "@/lib/database.types";
 import type {
@@ -30,6 +31,8 @@ import type {
 
 const ORDER_VOUCHER_SELECT =
   "*, vouchers:vouchers!orders_voucher_id_fkey(*, services(*))";
+const ORDER_ADMIN_SELECT =
+  "*, vouchers:vouchers!orders_voucher_id_fkey(*, services(*)), order_items(*, services(*), vouchers(*))";
 const ORDER_ITEMS_SELECT =
   "*, services(*), order_items(*, services(*), vouchers(*))";
 
@@ -148,13 +151,13 @@ async function hardDeleteOrdersTransactional(
   return result;
 }
 
-export async function getOrders(): Promise<OrderWithVoucher[]> {
+export async function getOrders(): Promise<OrderWithVoucherItems[]> {
   await requireAdminPermission(AdminPermission.ORDERS_VIEW);
 
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("orders")
-    .select(ORDER_VOUCHER_SELECT)
+    .select(ORDER_ADMIN_SELECT)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -162,7 +165,7 @@ export async function getOrders(): Promise<OrderWithVoucher[]> {
     return [];
   }
 
-  return (data as OrderWithVoucher[]) || [];
+  return (data as OrderWithVoucherItems[]) || [];
 }
 
 export async function getOrderById(id: string): Promise<OrderWithVoucher | null> {

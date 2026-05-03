@@ -8,7 +8,11 @@ import {
   updateOrderItemVoucherId,
   updateOrderVoucherId,
 } from "@/lib/actions/orders";
-import { createVoucher, getVoucherBySourceOrderId } from "@/lib/actions/vouchers";
+import {
+  createVoucher,
+  getVoucherBySourceOrderId,
+  getVoucherBySourceOrderItemId,
+} from "@/lib/actions/vouchers";
 import { sendVoucherEmail, sendVoucherWhatsApp } from "@/lib/payment/public-voucher-delivery";
 import type {
   OrderItemWithService,
@@ -83,6 +87,20 @@ async function createVoucherForOrderItem(
     return item.vouchers;
   }
 
+  const existingVoucher = await getVoucherBySourceOrderItemId(item.id);
+  if (existingVoucher) {
+    if (!item.voucher_id) {
+      const linked = await updateOrderItemVoucherId(item.id, existingVoucher.id);
+      if (!linked) {
+        throw new Error(
+          `Failed to relink existing voucher ${existingVoucher.id} to order item ${item.id}`
+        );
+      }
+    }
+
+    return existingVoucher;
+  }
+
   const validationError = validateVoucherSource(order, item);
   if (validationError) {
     throw new Error(validationError);
@@ -91,6 +109,7 @@ async function createVoucherForOrderItem(
   const effectiveTarget = getEffectiveDeliveryTarget(order, item);
   const voucherData: Omit<VoucherInsert, "code"> = {
     source_order_id: null,
+    source_order_item_id: item.id,
     service_id: item.service_id,
     recipient_name: item.recipient_name,
     recipient_email: effectiveTarget.email ?? order.customer_email,

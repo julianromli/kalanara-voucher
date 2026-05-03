@@ -16,8 +16,10 @@ import { downloadPDF, generateVoucherPDF } from "@/lib/pdf";
 import type { PublicOrderStatusPayload } from "@/lib/scalev/types";
 import { isScalevHostedPublicOrderUrl } from "@/lib/scalev/urls";
 import { DeliveryMethod, SendTo } from "@/lib/types";
+import { useCartStore } from "@/store/cart-store";
 
 type PublicVoucher = NonNullable<PublicOrderStatusPayload["vouchers"]>[number];
+const INVALID_LINK_MESSAGE = "Link status pembayaran tidak valid atau sudah kedaluwarsa.";
 
 function getDeliverySummary(
   sendTo: SendTo,
@@ -50,10 +52,15 @@ function SuccessContent() {
   const { showToast } = useToast();
   const orderId = searchParams.get("order_id");
   const token = searchParams.get("token");
+  const completePendingCheckout = useCartStore((state) => state.completePendingCheckout);
+  const clearPendingCheckout = useCartStore((state) => state.clearPendingCheckout);
+  const hasValidAccessLink = Boolean(orderId && token);
 
   const [payload, setPayload] = useState<PublicOrderStatusPayload | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(hasValidAccessLink);
+  const [error, setError] = useState<string | null>(
+    hasValidAccessLink ? null : INVALID_LINK_MESSAGE
+  );
   const [refreshKey, setRefreshKey] = useState(0);
 
   const paymentLink = payload?.paymentLink;
@@ -69,9 +76,7 @@ function SuccessContent() {
 
   const fetchStatus = useCallback(async () => {
     if (!orderId || !token) {
-      setError("Link status pembayaran tidak valid atau sudah kedaluwarsa.");
-      setIsLoading(false);
-      return;
+      throw new Error(INVALID_LINK_MESSAGE);
     }
 
     const response = await fetch("/api/orders/public-status", {
@@ -89,9 +94,7 @@ function SuccessContent() {
   }, [orderId, token]);
 
   useEffect(() => {
-    if (!orderId || !token) {
-      setError("Link status pembayaran tidak valid atau sudah kedaluwarsa.");
-      setIsLoading(false);
+    if (!hasValidAccessLink) {
       return;
     }
 
@@ -130,16 +133,33 @@ function SuccessContent() {
       }
     };
 
-    setIsLoading(true);
     void poll();
 
     return () => {
       cancelled = true;
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [fetchStatus, orderId, refreshKey, token]);
+  }, [fetchStatus, hasValidAccessLink, refreshKey]);
+
+  useEffect(() => {
+    if (!orderId || !payload) {
+      return;
+    }
+
+    if (payload.status === "completed") {
+      completePendingCheckout(orderId);
+      return;
+    }
+
+    if (payload.status === "failed") {
+      clearPendingCheckout(orderId);
+    }
+  }, [clearPendingCheckout, completePendingCheckout, orderId, payload]);
 
   const handleCheckStatusAgain = () => {
+    if (!hasValidAccessLink) {
+      return;
+    }
     setError(null);
     setIsLoading(true);
     setRefreshKey((value) => value + 1);
@@ -201,7 +221,7 @@ function SuccessContent() {
 
   const isCompleted = payload?.status === "completed" && vouchers.length > 0;
   const isFailed = payload?.status === "failed";
-  const showHostedPaymentNotice =
+  const isHostedPaymentLink =
     paymentLink && isScalevHostedPublicOrderUrl(paymentLink);
   return (
     <div className="min-h-screen bg-background px-4 py-10">
@@ -238,6 +258,12 @@ function SuccessContent() {
             </div>
           ) : null}
 
+          {isHostedPaymentLink && !isCompleted && !isFailed ? (
+            <div className="mt-6 rounded-2xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+              Jika pembayaran belum selesai, buka kembali halaman pembayaran dari tombol di bawah.
+            </div>
+          ) : null}
+
           {paymentInstructions?.kind === "qris" && !isCompleted && !isFailed ? (
             <div className="mt-8 rounded-2xl border border-border bg-background p-5 text-center">
               <p className="text-sm font-medium text-foreground">Scan QRIS untuk membayar</p>
@@ -254,7 +280,7 @@ function SuccessContent() {
 
           {!isCompleted && !isFailed ? (
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-              {paymentLink && !showHostedPaymentNotice ? (
+              {paymentLink ? (
                 <Button onClick={handleOpenPaymentPage}>Buka Halaman Pembayaran</Button>
               ) : null}
               <Button variant="outline" onClick={handleCheckStatusAgain}>

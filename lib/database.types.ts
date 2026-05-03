@@ -109,6 +109,7 @@ export type Database = {
           id: string;
           code: string;
           source_order_id: string | null;
+          source_order_item_id: string | null;
           service_id: string;
           recipient_name: string;
           recipient_email: string;
@@ -125,6 +126,7 @@ export type Database = {
           id?: string;
           code: string;
           source_order_id?: string | null;
+          source_order_item_id?: string | null;
           service_id: string;
           recipient_name: string;
           recipient_email: string;
@@ -141,6 +143,7 @@ export type Database = {
           id?: string;
           code?: string;
           source_order_id?: string | null;
+          source_order_item_id?: string | null;
           service_id?: string;
           recipient_name?: string;
           recipient_email?: string;
@@ -159,6 +162,13 @@ export type Database = {
             columns: ["source_order_id"];
             isOneToOne: false;
             referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "vouchers_source_order_item_id_fkey";
+            columns: ["source_order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "order_items";
             referencedColumns: ["id"];
           },
           {
@@ -574,6 +584,11 @@ export type VoucherWithService = Voucher & {
 
 export type OrderWithVoucher = Order & {
   vouchers: VoucherWithService | null;
+};
+
+export type OrderWithVoucherItems = Order & {
+  vouchers: VoucherWithService | null;
+  order_items: OrderItemWithService[];
 };
 
 // Order with service (for pending orders before voucher creation)

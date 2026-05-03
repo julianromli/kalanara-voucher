@@ -18,7 +18,6 @@ import {
   SCALEV_PAYMENT_METHODS,
   SCALEV_VA_BANK_CODES,
   type ScalevCheckoutLineItem,
-  type ScalevCheckoutRequest,
   type ScalevCreatePaymentErrorCode,
   type ScalevCreatePaymentResponse,
   type ScalevPaymentMethod,
@@ -146,20 +145,6 @@ function normalizeLineItem(
     senderMessage: getOptionalString(data.senderMessage),
     deliveryMethod: deliveryMethodValue,
     sendTo: sendToValue,
-  };
-}
-
-function normalizeLegacyLineItemOrder(
-  lineItem: ValidatedCheckoutLineItem
-): ScalevCheckoutLineItem {
-  return {
-    serviceId: lineItem.serviceId,
-    recipientName: lineItem.recipientName,
-    recipientEmail: lineItem.recipientEmail,
-    recipientPhone: lineItem.recipientPhone,
-    senderMessage: lineItem.senderMessage,
-    deliveryMethod: lineItem.deliveryMethod,
-    sendTo: lineItem.sendTo,
   };
 }
 
@@ -410,9 +395,8 @@ export async function POST(
         paymentIntent?.reference_id ||
         scalevOrder.pg_reference_id ||
         null;
-
-      await updateOrderGatewayData(order.id, {
-        paymentProvider: "scalev",
+      const gatewayUpdate = {
+        paymentProvider: "scalev" as const,
         transactionId: pgReferenceId,
         paymentType: scalevOrder.payment_method || validatedData.paymentMethod,
         transactionTime: new Date().toISOString(),
@@ -428,7 +412,37 @@ export async function POST(
         scalevRawStatus: scalevOrder.status || null,
         scalevRawPaymentStatus: scalevOrder.payment_status || null,
         scalevLastCheckedAt: new Date().toISOString(),
-      });
+      };
+
+      const gatewayDataPersisted = await updateOrderGatewayData(order.id, gatewayUpdate);
+      if (!gatewayDataPersisted) {
+        console.error("[Scalev] Failed to persist gateway metadata for local order", {
+          orderId: order.id,
+          paymentOrderId: order.payment_order_id,
+          scalevOrderPk: scalevOrder.id,
+          scalevPgReferenceId: pgReferenceId,
+        });
+        await markOrderFailedFromGateway(order.id, {
+          paymentProvider: "scalev",
+          transactionId: pgReferenceId,
+          paymentType: scalevOrder.payment_method || validatedData.paymentMethod,
+          scalevOrderPk: scalevOrder.id,
+          scalevOrderId: scalevOrder.order_id || null,
+          scalevPgReferenceId: pgReferenceId,
+          scalevPaymentMethod:
+            scalevOrder.payment_method || validatedData.paymentMethod,
+          scalevSubPaymentMethod:
+            scalevOrder.sub_payment_method || validatedData.subPaymentMethod || null,
+          scalevStoreUniqueId: getScalevConfig().storeUniqueId,
+          scalevRawStatus: scalevOrder.status || null,
+          scalevRawPaymentStatus: scalevOrder.payment_status || null,
+        });
+        return errorResponse(
+          "Pesanan belum bisa disiapkan sepenuhnya. Silakan coba lagi.",
+          "LOCAL_ORDER_FAILED",
+          500
+        );
+      }
 
       if (!paymentLink) {
         return errorResponse(

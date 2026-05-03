@@ -222,4 +222,43 @@ describe("POST /api/scalev/create-payment", () => {
       })
     );
   });
+
+  test("fails when gateway metadata cannot be persisted locally", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+
+    updateOrderGatewayDataMock.mockResolvedValue(false);
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: "service-1",
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          recipientName: "Penerima",
+          recipientPhone: "081234567890",
+          deliveryMethod: DeliveryMethod.WHATSAPP,
+          sendTo: SendTo.RECIPIENT,
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: "Pesanan belum bisa disiapkan sepenuhnya. Silakan coba lagi.",
+      errorCode: "LOCAL_ORDER_FAILED",
+    });
+    expect(markOrderFailedFromGatewayMock).toHaveBeenCalledWith(
+      "order-1",
+      expect.objectContaining({
+        paymentProvider: "scalev",
+        scalevOrderPk: 99,
+        scalevPgReferenceId: "pg-1",
+      })
+    );
+  });
 });

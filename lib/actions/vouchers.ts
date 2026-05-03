@@ -199,6 +199,28 @@ export async function getVoucherBySourceOrderId(
   return data as VoucherWithService;
 }
 
+export async function getVoucherBySourceOrderItemId(
+  sourceOrderItemId: string,
+): Promise<VoucherWithService | null> {
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from("vouchers")
+    .select("*, services(*)")
+    .eq("source_order_item_id", sourceOrderItemId)
+    .single();
+
+  if (error) {
+    if ("code" in error && error.code === "PGRST116") {
+      return null;
+    }
+
+    console.error("Error fetching voucher by source order item ID:", error);
+    return null;
+  }
+
+  return data as VoucherWithService;
+}
+
 export async function getPublicVoucherLookupByCode(
   code: string,
 ): Promise<PublicVoucherLookup | null> {
@@ -255,15 +277,20 @@ export async function createVoucher(
     .single();
 
   if (error) {
-    if (
-      voucherData.source_order_id &&
-      "code" in error &&
-      error.code === "23505"
-    ) {
-      const existingVoucher = await getVoucherBySourceOrderId(
-        voucherData.source_order_id,
-      );
-      return existingVoucher;
+    if ("code" in error && error.code === "23505") {
+      if (voucherData.source_order_item_id) {
+        const existingVoucher = await getVoucherBySourceOrderItemId(
+          voucherData.source_order_item_id,
+        );
+        return existingVoucher;
+      }
+
+      if (voucherData.source_order_id) {
+        const existingVoucher = await getVoucherBySourceOrderId(
+          voucherData.source_order_id,
+        );
+        return existingVoucher;
+      }
     }
 
     console.error("Error creating voucher:", error);
