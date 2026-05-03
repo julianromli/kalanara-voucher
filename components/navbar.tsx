@@ -117,7 +117,7 @@ export default function Navbar() {
               <ShoppingBag size={18} />
               <span>Beli Voucher</span>
             </Link>
-            <CartNavLink isScrolled={isScrolled} />
+            <CartNavLink />
           </div>
 
           {/* Mobile Menu Button */}
@@ -126,7 +126,7 @@ export default function Navbar() {
               }`}
             style={{ transitionDelay: isMounted ? "300ms" : "0ms" }}
           >
-            <CartNavLink isScrolled={isScrolled} />
+            <CartNavLink />
             <button
               onClick={() => setIsOpen(!isOpen)}
               className={`p-2 transition-colors duration-500 ${isScrolled ? "text-foreground" : "text-primary-foreground"

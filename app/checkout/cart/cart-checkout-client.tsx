@@ -130,6 +130,7 @@ export function CartCheckoutClient() {
   }, []);
 
   const sameRecipient = watch("sameRecipient");
+  const lineItems = watch("lineItems");
 
   useEffect(() => {
     const currentLineItems = getValues("lineItems");
@@ -381,8 +382,11 @@ export function CartCheckoutClient() {
       return;
     }
 
-    const firstLineItemIndex = submitErrors.lineItems?.findIndex(Boolean);
-    if (typeof firstLineItemIndex === "number" && firstLineItemIndex >= 0) {
+    const lineItemErrors = submitErrors.lineItems;
+    const firstLineItemIndex = Array.isArray(lineItemErrors)
+      ? lineItemErrors.findIndex((lineItemError) => Boolean(lineItemError))
+      : -1;
+    if (firstLineItemIndex >= 0) {
       setFocus(`lineItems.${firstLineItemIndex}.recipientName`);
     }
   };

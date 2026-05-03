@@ -13,6 +13,8 @@ import type {
   Database,
   OrderItem,
   OrderItemInsert,
+  OrderItemUpdate,
+  OrderItemWithService,
   Order,
   OrderInsert,
   OrderUpdate,

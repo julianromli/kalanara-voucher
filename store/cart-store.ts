@@ -43,9 +43,9 @@ function toCartServiceSnapshot(service: Service | CartServiceSnapshot): CartServ
     price: service.price,
     image: service.image,
     categoryName:
-      "categoryName" in service
-        ? service.categoryName
-        : service.category?.name,
+      "category" in service
+        ? service.category?.name
+        : service.categoryName,
   };
 }
 
