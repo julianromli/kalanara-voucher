@@ -172,12 +172,12 @@ export default async function VoucherDetailPage({ params }: PageProps) {
                 className="btn-hover-lift w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg flex items-center justify-center gap-2"
               />
 
-              <Link href={`/checkout/${service.id}`} className="mt-3 block">
-                <Button variant="outline" className="w-full py-6 text-base">
+              <Button asChild variant="outline" className="mt-3 w-full py-6 text-base">
+                <Link href={`/checkout/${service.id}`}>
                   <Gift size={20} />
                   Beli 1 Voucher Sekarang
-                </Button>
-              </Link>
+                </Link>
+              </Button>
 
               <p className="text-center text-muted-foreground text-sm mt-4">
                 Langsung dikirim via Email dan WhatsApp

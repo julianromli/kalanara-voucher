@@ -109,6 +109,7 @@ export function CartCheckoutClient() {
     register,
     handleSubmit,
     watch,
+    getValues,
     setValue,
     setFocus,
     formState: { errors },
@@ -128,23 +129,30 @@ export function CartCheckoutClient() {
     setIsHydrated(true);
   }, []);
 
-  useEffect(() => {
-    replace(
-      items.map((item) => ({
-        cartItemId: item.id,
-        serviceId: item.service.id,
-        recipientName: "",
-        recipientEmail: "",
-        recipientPhone: "",
-        senderMessage: "",
-        sendTo: SendTo.RECIPIENT,
-        deliveryMethod: DeliveryMethod.WHATSAPP,
-      }))
-    );
-  }, [items, replace]);
-
-  const lineItems = watch("lineItems");
   const sameRecipient = watch("sameRecipient");
+
+  useEffect(() => {
+    const currentLineItems = getValues("lineItems");
+    replace(
+      items.map((item) => {
+        const existing = currentLineItems.find(
+          (lineItem) => lineItem.cartItemId === item.id
+        );
+
+        return {
+          cartItemId: item.id,
+          serviceId: item.service.id,
+          recipientName: existing?.recipientName ?? "",
+          recipientEmail: existing?.recipientEmail ?? "",
+          recipientPhone: existing?.recipientPhone ?? "",
+          senderMessage: existing?.senderMessage ?? "",
+          sendTo: existing?.sendTo ?? SendTo.RECIPIENT,
+          deliveryMethod: existing?.deliveryMethod ?? DeliveryMethod.WHATSAPP,
+        };
+      })
+    );
+  }, [getValues, items, replace]);
+
   const paymentOptions = useMemo(() => paymentConfig?.paymentOptions ?? [], [paymentConfig]);
   const selectedPaymentOption = useMemo(
     () => paymentOptions.find((option) => option.code === paymentMethod) ?? null,

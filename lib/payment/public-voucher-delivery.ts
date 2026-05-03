@@ -17,47 +17,114 @@ export interface AuthorizedVoucherDelivery {
   expiryDate: string;
 }
 
-function getRecipientPhone(
-  order: Awaited<ReturnType<typeof getPublicOrderDetailsWithItems>>,
-  item: NonNullable<Awaited<ReturnType<typeof getPublicOrderDetailsWithItems>>>["order_items"][number]
-) {
-  if (!order) {
-    return null;
-  }
+type PublicOrderWithItems = NonNullable<Awaited<ReturnType<typeof getPublicOrderDetailsWithItems>>>;
+type PublicOrderItem = PublicOrderWithItems["order_items"][number];
 
+function getRecipientPhone(order: PublicOrderWithItems, item: PublicOrderItem) {
   return item.send_to === "RECIPIENT"
     ? item.recipient_phone
     : order.customer_phone;
 }
 
-export async function getAuthorizedVoucherDelivery(
+function getServerAppUrl(): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+
+  if (!appUrl) {
+    throw new Error("Missing required environment variable: NEXT_PUBLIC_APP_URL");
+  }
+
+  return appUrl.replace(/\/+$/, "");
+}
+
+function toDelivery(
+  order: PublicOrderWithItems,
+  item: PublicOrderItem
+): AuthorizedVoucherDelivery | null {
+  if (!item.vouchers || !item.services) {
+    return null;
+  }
+
+  return {
+    orderId: order.payment_order_id || order.id,
+    token: order.public_access_token,
+    voucherCode: item.vouchers.code,
+    recipientEmail: item.vouchers.recipient_email,
+    recipientPhone: getRecipientPhone(order, item),
+    recipientName: item.vouchers.recipient_name,
+    senderName: item.vouchers.sender_name,
+    senderMessage: item.vouchers.sender_message,
+    serviceName: item.services.name,
+    serviceDuration: item.services.duration,
+    amount: item.vouchers.amount,
+    expiryDate: item.vouchers.expiry_date,
+  };
+}
+
+export async function getAuthorizedVoucherDeliveries(
   orderId: string,
   token: string
+): Promise<AuthorizedVoucherDelivery[]> {
+  const order = await getPublicOrderDetailsWithItems(orderId, token);
+  if (!order || order.payment_status !== "COMPLETED") {
+    return [];
+  }
+
+  return order.order_items
+    .map((item) => toDelivery(order, item))
+    .filter((delivery): delivery is AuthorizedVoucherDelivery => Boolean(delivery));
+}
+
+export async function getAuthorizedVoucherDelivery(
+  orderId: string,
+  token: string,
+  orderItemId?: string
 ): Promise<AuthorizedVoucherDelivery | null> {
+  const deliveries = await getAuthorizedVoucherDeliveries(orderId, token);
+  if (!orderItemId) {
+    return deliveries[0] ?? null;
+  }
+
   const order = await getPublicOrderDetailsWithItems(orderId, token);
   if (!order || order.payment_status !== "COMPLETED") {
     return null;
   }
 
-  const firstItemWithVoucher = order.order_items.find(
-    (item) => item.vouchers && item.services
-  );
-  if (!firstItemWithVoucher?.vouchers || !firstItemWithVoucher.services) {
-    return null;
-  }
+  const item = order.order_items.find((entry) => entry.id === orderItemId);
+  return item ? toDelivery(order, item) : null;
+}
 
-  return {
-    orderId,
-    token,
-    voucherCode: firstItemWithVoucher.vouchers.code,
-    recipientEmail: firstItemWithVoucher.vouchers.recipient_email,
-    recipientPhone: getRecipientPhone(order, firstItemWithVoucher),
-    recipientName: firstItemWithVoucher.vouchers.recipient_name,
-    senderName: firstItemWithVoucher.vouchers.sender_name,
-    senderMessage: firstItemWithVoucher.vouchers.sender_message,
-    serviceName: firstItemWithVoucher.services.name,
-    serviceDuration: firstItemWithVoucher.services.duration,
-    amount: firstItemWithVoucher.vouchers.amount,
-    expiryDate: firstItemWithVoucher.vouchers.expiry_date,
-  };
+async function postVoucherDelivery(
+  path: "/api/email/send-voucher" | "/api/whatsapp/send-voucher",
+  orderId: string,
+  token: string,
+  orderItemId?: string
+) {
+  const response = await fetch(`${getServerAppUrl()}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ orderId, token, orderItemId }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    throw new Error(
+      `${path} failed with status ${response.status}${errorText ? `: ${errorText}` : ""}`
+    );
+  }
+}
+
+export async function sendVoucherEmail(
+  orderId: string,
+  token: string,
+  orderItemId?: string
+) {
+  await postVoucherDelivery("/api/email/send-voucher", orderId, token, orderItemId);
+}
+
+export async function sendVoucherWhatsApp(
+  orderId: string,
+  token: string,
+  orderItemId?: string
+) {
+  await postVoucherDelivery("/api/whatsapp/send-voucher", orderId, token, orderItemId);
 }

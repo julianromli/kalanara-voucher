@@ -74,6 +74,7 @@ describe("createVoucherOnPaymentSuccess", () => {
       success: true,
       voucherId: "voucher-1",
       voucherCode: "KSPV-001",
+      voucherCount: 1,
     });
     expect(createVoucherMock).toHaveBeenCalledWith(
       expect.objectContaining({

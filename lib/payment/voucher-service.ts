@@ -9,6 +9,7 @@ import {
   updateOrderVoucherId,
 } from "@/lib/actions/orders";
 import { createVoucher, getVoucherBySourceOrderId } from "@/lib/actions/vouchers";
+import { sendVoucherEmail, sendVoucherWhatsApp } from "@/lib/payment/public-voucher-delivery";
 import type {
   OrderItemWithService,
   OrderWithService,
@@ -33,16 +34,6 @@ function calculateExpiryDate(): string {
   const expiryDate = new Date();
   expiryDate.setFullYear(expiryDate.getFullYear() + 1);
   return expiryDate.toISOString();
-}
-
-function getServerAppUrl(): string {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-
-  if (!appUrl) {
-    throw new Error("Missing required environment variable: NEXT_PUBLIC_APP_URL");
-  }
-
-  return appUrl.replace(/\/+$/, "");
 }
 
 function getEffectiveDeliveryTarget(
@@ -115,7 +106,10 @@ async function createVoucherForOrderItem(
     throw new Error("Failed to create voucher in database");
   }
 
-  await updateOrderItemVoucherId(item.id, voucher.id);
+  const linked = await updateOrderItemVoucherId(item.id, voucher.id);
+  if (!linked) {
+    throw new Error(`Failed to link voucher ${voucher.id} to order item ${item.id}`);
+  }
   return voucher;
 }
 
@@ -167,7 +161,12 @@ async function createSingleVoucher(order: OrderWithService): Promise<VoucherCrea
 
   const updateSuccess = await updateOrderVoucherId(order.id, voucher.id);
   if (!updateSuccess) {
-    console.error(`[VoucherService] Failed to update order ${order.id} with voucher ${voucher.id}`);
+    return {
+      success: false,
+      voucherId: voucher.id,
+      voucherCode: voucher.code,
+      error: "Failed to link voucher to order",
+    };
   }
 
   return {
@@ -178,52 +177,24 @@ async function createSingleVoucher(order: OrderWithService): Promise<VoucherCrea
   };
 }
 
-async function triggerVoucherDelivery(order: OrderWithService): Promise<void> {
-  const appUrl = getServerAppUrl();
+async function triggerSingleVoucherDelivery(
+  order: OrderWithService,
+  item?: OrderItemWithService
+): Promise<void> {
   if (!order.payment_order_id || !order.public_access_token) {
     console.error(`[VoucherService] Missing public access credentials for order ${order.id}`);
     return;
   }
 
-  const deliveryPayload = {
-    orderId: order.payment_order_id,
-    token: order.public_access_token,
-  };
+  const deliveryMethod = item?.delivery_method ?? order.delivery_method;
+  const itemId = item?.id;
 
-  try {
-    const emailResponse = await fetch(`${appUrl}/api/email/send-voucher`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(deliveryPayload),
-    });
-    if (!emailResponse.ok) {
-      const errorText = await emailResponse.text().catch(() => "");
-      console.error(
-        `[VoucherService] Email delivery failed with status ${emailResponse.status}${
-          errorText ? `: ${errorText}` : ""
-        }`
-      );
-    }
-  } catch (error) {
-    console.error("[VoucherService] Email delivery failed:", error);
+  if (deliveryMethod === "EMAIL" || deliveryMethod === "BOTH") {
+    await sendVoucherEmail(order.payment_order_id, order.public_access_token, itemId);
   }
 
-  try {
-    const whatsappResponse = await fetch(`${appUrl}/api/whatsapp/send-voucher`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(deliveryPayload),
-    });
-    if (!whatsappResponse.ok) {
-      const errorText = await whatsappResponse.text().catch(() => "");
-      console.error(
-        `[VoucherService] WhatsApp delivery failed with status ${whatsappResponse.status}${
-          errorText ? `: ${errorText}` : ""
-        }`
-      );
-    }
-  } catch (error) {
-    console.error("[VoucherService] WhatsApp delivery failed:", error);
+  if (deliveryMethod === "WHATSAPP" || deliveryMethod === "BOTH") {
+    await sendVoucherWhatsApp(order.payment_order_id, order.public_access_token, itemId);
   }
 }
 
@@ -233,6 +204,7 @@ export async function createVoucherOnPaymentSuccess(
   try {
     const orderItems = await getOrderItemsByOrderId(order.id);
     if (orderItems.length > 0) {
+      const wasAlreadyFulfilled = orderItems.every((item) => item.voucher_id && item.vouchers);
       const createdVouchers = await Promise.all(
         orderItems.map((item) => createVoucherForOrderItem(order, item))
       );
@@ -242,7 +214,9 @@ export async function createVoucherOnPaymentSuccess(
         await updateOrderVoucherId(order.id, firstVoucher.id);
       }
 
-      await triggerVoucherDelivery(order);
+      if (!wasAlreadyFulfilled) {
+        await Promise.all(orderItems.map((item) => triggerSingleVoucherDelivery(order, item)));
+      }
 
       return {
         success: true,
@@ -252,9 +226,14 @@ export async function createVoucherOnPaymentSuccess(
       };
     }
 
+    const wasAlreadyFulfilled = Boolean(order.voucher_id);
     const result = await createSingleVoucher(order);
-    if (result.success) {
-      await triggerVoucherDelivery(order);
+    if (
+      result.success &&
+      result.error !== "Voucher already created" &&
+      !wasAlreadyFulfilled
+    ) {
+      await triggerSingleVoucherDelivery(order);
     }
 
     return result;

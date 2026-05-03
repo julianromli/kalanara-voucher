@@ -50,19 +50,37 @@ export interface ScalevCheckoutLineItem {
   sendTo: SendTo;
 }
 
-export interface ScalevCheckoutRequest extends ScalevPaymentSelection {
-  serviceId?: string;
-  lineItems?: ScalevCheckoutLineItem[];
+interface ScalevCheckoutBaseRequest extends ScalevPaymentSelection {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
-  recipientName?: string;
+}
+
+export interface ScalevLegacyCheckoutRequest extends ScalevCheckoutBaseRequest {
+  serviceId: string;
+  lineItems?: never;
+  recipientName: string;
   recipientEmail?: string;
   recipientPhone?: string;
   senderMessage?: string;
-  deliveryMethod?: DeliveryMethod;
-  sendTo?: SendTo;
+  deliveryMethod: DeliveryMethod;
+  sendTo: SendTo;
 }
+
+export interface ScalevCartCheckoutRequest extends ScalevCheckoutBaseRequest {
+  serviceId?: never;
+  lineItems: ScalevCheckoutLineItem[];
+  recipientName?: never;
+  recipientEmail?: never;
+  recipientPhone?: never;
+  senderMessage?: never;
+  deliveryMethod?: never;
+  sendTo?: never;
+}
+
+export type ScalevCheckoutRequest =
+  | ScalevLegacyCheckoutRequest
+  | ScalevCartCheckoutRequest;
 
 export type ScalevCreatePaymentErrorCode =
   | "INVALID_CHECKOUT_DATA"

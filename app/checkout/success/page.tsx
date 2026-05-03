@@ -116,6 +116,7 @@ function SuccessContent() {
         attempts += 1;
         if (attempts >= maxAttempts) {
           setError("Kami belum menerima konfirmasi terbaru. Cek lagi beberapa saat lagi.");
+          setIsLoading(false);
           return;
         }
 
@@ -230,6 +231,12 @@ function SuccessContent() {
                 : payload?.message || "Selesaikan pembayaran untuk menerima voucher."}
             </p>
           </div>
+
+          {error && !isCompleted && !isFailed ? (
+            <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {error}
+            </div>
+          ) : null}
 
           {paymentInstructions?.kind === "qris" && !isCompleted && !isFailed ? (
             <div className="mt-8 rounded-2xl border border-border bg-background p-5 text-center">

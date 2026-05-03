@@ -72,7 +72,7 @@ describe("POST /api/scalev/create-payment", () => {
       payment_order_id: "KSP-123",
       public_access_token: "public-token",
     });
-    createPendingOrderItemsMock.mockResolvedValue([]);
+    createPendingOrderItemsMock.mockImplementation(async (items: unknown[]) => items);
     createScalevOrderMock.mockResolvedValue({
       id: 99,
       order_id: "scalev-1",
@@ -117,8 +117,8 @@ describe("POST /api/scalev/create-payment", () => {
     expect(response.status).toBe(200);
     expect(createPendingOrderMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        recipient_phone: undefined,
-        recipient_email: undefined,
+        recipient_phone: null,
+        recipient_email: null,
         customer_phone: "6281234567890",
       })
     );
@@ -165,7 +165,6 @@ describe("POST /api/scalev/create-payment", () => {
     ensureScalevServiceMappingMock.mockImplementation(async (service: { id: string }) => ({
       primaryVariant: { unique_id: `variant-${service.id}` },
     }));
-
     const response = await POST(
       new Request("http://localhost/api/scalev/create-payment", {
         method: "POST",
@@ -198,7 +197,7 @@ describe("POST /api/scalev/create-payment", () => {
     expect(response.status).toBe(200);
     expect(createPendingOrderMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        service_id: "service-1",
+        service_id: null,
         total_amount: 700000,
       })
     );
