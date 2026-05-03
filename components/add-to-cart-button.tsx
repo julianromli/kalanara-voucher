@@ -26,9 +26,9 @@ const layoutConfig: Record<
     iconSize: 16,
   },
   featured: {
-    buttonSize: "lg",
+    buttonSize: "default",
     className:
-      "btn-hover-lift h-auto w-full gap-2 py-6 text-base font-medium md:text-lg",
+      "btn-hover-lift h-auto w-full gap-2 py-0 leading-[0] text-base font-medium",
     iconSize: 20,
   },
 };

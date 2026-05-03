@@ -229,7 +229,7 @@ function SuccessContent() {
 
   if (!isCompleted && !isFailed && payload?.orderDetails) {
     return (
-      <div className="min-h-screen bg-slate-50 px-4 py-10">
+      <div className="min-h-screen bg-muted/30 px-4 py-10">
         <div className="mx-auto max-w-2xl">
           {/* Header */}
           <div className="mb-6 flex items-center justify-between px-2">
@@ -237,7 +237,7 @@ function SuccessContent() {
               <Store className="size-5" />
               Kalanara Spa
             </div>
-            <div className="rounded bg-[#fdf8f3] px-3 py-1 text-xs font-semibold text-[#d59a54]">
+            <div className="rounded bg-warning/10 px-3 py-1 text-xs font-semibold text-warning">
               Pending
             </div>
           </div>
@@ -287,14 +287,14 @@ function SuccessContent() {
                     {formatCurrency(payload.orderDetails.totalAmount)}
                   </p>
                 </div>
-                <p className="mt-1 text-xs font-medium text-[#7c9dc6] hover:underline cursor-pointer" onClick={() => window.location.reload()}>
+                <p className="mt-1 text-xs font-medium text-info hover:underline cursor-pointer" onClick={() => window.location.reload()}>
                   Lihat Riwayat Status Pemesanan
                 </p>
               </div>
             </div>
 
             {/* Customer Info */}
-            <div className="border-b border-border bg-slate-50/50 p-6">
+            <div className="border-b border-border bg-muted/30 p-6">
               <div className="grid gap-6 sm:grid-cols-2">
                 <div>
                   <p className="text-xs font-medium text-muted-foreground">Nama Pemesan</p>
@@ -335,11 +335,11 @@ function SuccessContent() {
             </div>
 
             {/* Payment Section */}
-            <div className="bg-slate-50/50 p-6 rounded-b-xl">
+            <div className="bg-muted/30 p-6 rounded-b-xl">
               <div className="mb-6 flex justify-between">
                 <div>
                   <p className="text-xs font-medium text-muted-foreground">Status Pembayaran</p>
-                  <p className="mt-1 font-semibold text-[#d59a54]">Unpaid</p>
+                  <p className="mt-1 font-semibold text-warning">Unpaid</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs font-medium text-muted-foreground">Metode Pembayaran</p>
@@ -349,14 +349,14 @@ function SuccessContent() {
 
               {paymentInstructions?.kind === "qris" ? (
                 <div className="text-center">
-                  <div className="mx-auto w-fit rounded-xl bg-white p-3 border border-border">
+                  <div className="mx-auto w-fit rounded-xl bg-card p-3 border border-border">
                     <QRCode value={paymentInstructions.qrString} size={220} />
                   </div>
                   <p className="mt-3 text-xs font-medium text-muted-foreground">
                     Powered by <span className="font-bold text-foreground">QRIS</span>
                   </p>
                   <Button 
-                    className="mt-6 w-full bg-[#6a9bdc] hover:bg-[#5888c7] text-white"
+                    className="mt-6 w-full bg-info hover:bg-info/90 text-info-foreground"
                     onClick={() => {
                       showToast("Fitur download QR Code akan segera tersedia", "info");
                     }}
@@ -366,7 +366,7 @@ function SuccessContent() {
                 </div>
               ) : isHostedPaymentLink ? (
                 <div className="mt-6 text-center">
-                  <Button className="w-full bg-[#6a9bdc] hover:bg-[#5888c7] text-white" onClick={handleOpenPaymentPage}>
+                  <Button className="w-full bg-info hover:bg-info/90 text-info-foreground" onClick={handleOpenPaymentPage}>
                     Buka Halaman Pembayaran
                   </Button>
                 </div>
@@ -375,7 +375,7 @@ function SuccessContent() {
           </div>
           
           <Button 
-            className="mt-6 w-full bg-[#e38c45] text-white hover:bg-[#d47f3a]" 
+            className="mt-6 w-full bg-primary text-primary-foreground hover:bg-primary/90" 
             onClick={handleCheckStatusAgain}
           >
             <RefreshCcw className="mr-2 size-4" />

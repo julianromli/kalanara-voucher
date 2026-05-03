@@ -46,51 +46,60 @@ export function ServicesSection({ services }: ServicesSectionProps) {
             services.map((service, index) => (
               <div
                 key={service.id}
-                className={`group bg-card rounded-2xl overflow-hidden shadow-spa hover:shadow-spa-lg border border-border card-hover-lift ${
+                className={`group flex flex-col bg-card rounded-2xl overflow-hidden border border-border shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-1 ${
                   servicesInView ? "animate-fade-slide-up" : "opacity-0"
                 }`}
                 style={{ animationDelay: servicesInView ? `${(index + 1) * 100}ms` : "0ms" }}
               >
-                <div className="relative h-48 overflow-hidden img-hover-zoom md:h-64">
+                <div className="relative aspect-[4/3] w-full overflow-hidden">
                   <Image
                     src={resolveServiceImageUrl(service.image)}
                     alt={service.name}
                     fill
                     sizes="(max-width: 379px) 100vw, (max-width: 768px) 50vw, (max-width: 1200px) 50vw, 33vw"
-                    className="object-cover"
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
                   />
-                  {service.category?.name && (
-                    <div className="absolute left-2 top-2 rounded-full bg-primary px-2 py-1 text-xs font-medium text-primary-foreground shadow-sm md:left-4 md:top-4 md:px-3 md:text-sm">
-                      {service.category.name}
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent opacity-60"></div>
+                  
+                  <div className="absolute left-3 top-3 md:left-4 md:top-4">
+                    <div className="rounded-full bg-primary/90 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm md:px-4 md:text-sm">
+                      {service.category?.name || "Lantai 2 - Kalanara Outlet"}
                     </div>
-                  )}
-                  <div className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-card/90 px-2 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur md:right-4 md:top-4 md:px-3 md:text-sm">
-                    <Clock size={14} />
-                    {service.duration} menit
+                  </div>
+                  <div className="absolute right-3 top-3 md:right-4 md:top-4">
+                    <div className="flex items-center gap-1.5 rounded-full bg-background/95 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground shadow-sm md:px-4 md:text-sm">
+                      <Clock size={14} className="text-foreground" />
+                      {service.duration} menit
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex h-[calc(100%-12rem)] flex-col p-4 md:h-[calc(100%-16rem)] md:p-6">
-                  <h3 className="mb-2 font-sans text-lg font-semibold text-foreground transition-colors group-hover:text-muted-foreground md:text-2xl">
+                <div className="flex flex-1 flex-col p-5 md:p-6">
+                  <h3 className="mb-2 font-sans text-xl font-semibold text-foreground md:text-2xl">
                     {service.name}
                   </h3>
-                  <p className="mb-4 line-clamp-2 text-xs text-muted-foreground md:mb-6 md:text-sm">
-                    {service.description}
+                  <p className="mb-6 line-clamp-2 text-sm text-muted-foreground leading-relaxed">
+                    {service.description || "Kembalikan vitalitas dan kesegaran tubuh serta pikiran Anda dengan layanan ini."}
                   </p>
 
-                  <div className="mt-auto space-y-3 border-t border-border pt-4">
-                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
-                      <span className="text-base font-semibold text-foreground md:text-lg">
+                  <div className="mt-auto">
+                    <div className="mb-5 h-[1px] w-full bg-border/60"></div>
+                    <div className="mb-5 flex items-center justify-between">
+                      <span className="text-lg font-semibold text-foreground md:text-xl">
                         {formatCurrency(service.price)}
                       </span>
                       <Link
                         href={`/voucher/${service.id}`}
-                        className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground md:text-sm"
+                        className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
                       >
                         Detail <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
                       </Link>
                     </div>
-                    <AddToCartButton service={service} layout="card" />
+                    <AddToCartButton 
+                      service={service} 
+                      layout="card" 
+                      className="rounded-xl py-3.5 shadow-sm transition-all"
+                    />
                   </div>
                 </div>
               </div>
