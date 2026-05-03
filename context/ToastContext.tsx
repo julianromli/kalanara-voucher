@@ -93,25 +93,28 @@ function Toast({
     <div
       role="alert"
       className={`
-        flex items-center gap-3 rounded-lg border px-4 py-3 shadow-lg
-        ${styles.bg} ${styles.border} ${styles.text}
+        relative overflow-hidden rounded-lg border shadow-lg bg-background
+        ${styles.border} ${styles.text}
         animate-in slide-in-from-right-full duration-300
         data-[dismissed]:animate-out data-[dismissed]:slide-out-to-right-full
       `}
     >
-      <ToastIcon type={toast.type} />
-      <p className="flex-1 text-sm font-medium">{toast.message}</p>
-      <button
-        type="button"
-        onClick={() => onDismiss(toast.id)}
-        className={`
-          rounded-md p-1 transition-colors hover:bg-black/5
-          focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
-        `}
-        aria-label="Dismiss toast"
-      >
-        <X className="size-4" />
-      </button>
+      <div className={`absolute inset-0 pointer-events-none ${styles.bg}`} />
+      <div className="relative z-10 flex items-center gap-3 px-4 py-3">
+        <ToastIcon type={toast.type} />
+        <p className="flex-1 text-sm font-medium">{toast.message}</p>
+        <button
+          type="button"
+          onClick={() => onDismiss(toast.id)}
+          className={`
+            rounded-md p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/10
+            focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
+          `}
+          aria-label="Dismiss toast"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
     </div>
   );
 }
