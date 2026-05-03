@@ -22,7 +22,7 @@ const layoutConfig: Record<
   card: {
     buttonSize: "sm",
     className:
-      "h-auto w-full gap-2 rounded-full px-4 py-2.5 text-xs font-medium md:min-h-10 md:py-3 md:text-sm",
+      "h-auto w-full gap-2 px-4 py-2.5 text-xs font-medium md:min-h-10 md:py-3 md:text-sm",
     iconSize: 16,
   },
   featured: {
