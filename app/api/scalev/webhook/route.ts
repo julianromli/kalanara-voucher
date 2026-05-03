@@ -142,7 +142,7 @@ async function isOrderAlreadyFulfilled(order: Awaited<ReturnType<typeof findOrde
 
   const items = await getOrderItemsByOrderId(order.id);
   if (items.length > 0) {
-    return items.every((item) => Boolean(item.voucher_id));
+    return items.every((item) => Boolean(item.voucher_id && item.vouchers));
   }
 
   return Boolean(order.voucher_id);

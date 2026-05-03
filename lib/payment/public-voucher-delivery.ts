@@ -79,17 +79,14 @@ export async function getAuthorizedVoucherDelivery(
   token: string,
   orderItemId?: string
 ): Promise<AuthorizedVoucherDelivery | null> {
-  const deliveries = await getAuthorizedVoucherDeliveries(orderId, token);
-  if (!orderItemId) {
-    return deliveries[0] ?? null;
-  }
-
   const order = await getPublicOrderDetailsWithItems(orderId, token);
   if (!order || order.payment_status !== "COMPLETED") {
     return null;
   }
 
-  const item = order.order_items.find((entry) => entry.id === orderItemId);
+  const item = orderItemId
+    ? order.order_items.find((entry) => entry.id === orderItemId)
+    : order.order_items[0];
   return item ? toDelivery(order, item) : null;
 }
 

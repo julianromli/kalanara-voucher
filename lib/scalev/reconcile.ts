@@ -26,7 +26,7 @@ function buildCurrentPublicStatus(
   legacyOrder: NonNullable<Awaited<ReturnType<typeof getPublicOrderDetails>>>,
   paymentInstructions?: PublicOrderStatusPayload["paymentInstructions"]
 ) {
-  return orderWithItems
+  return orderWithItems?.order_items.length
     ? buildPublicOrderStatusWithItems(orderWithItems, paymentInstructions)
     : buildPublicOrderStatus(legacyOrder, paymentInstructions);
 }
@@ -207,7 +207,7 @@ export async function reconcilePublicOrderStatus(
     paymentOrderId,
     publicAccessToken
   );
-  if (refreshedWithItems) {
+  if (refreshedWithItems?.order_items.length) {
     return buildPublicOrderStatusWithItems(refreshedWithItems, snapshot.paymentInstructions);
   }
 

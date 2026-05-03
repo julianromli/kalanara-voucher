@@ -204,7 +204,6 @@ export async function createVoucherOnPaymentSuccess(
   try {
     const orderItems = await getOrderItemsByOrderId(order.id);
     if (orderItems.length > 0) {
-      const wasAlreadyFulfilled = orderItems.every((item) => item.voucher_id && item.vouchers);
       const createdVouchers = await Promise.all(
         orderItems.map((item) => createVoucherForOrderItem(order, item))
       );
@@ -214,9 +213,7 @@ export async function createVoucherOnPaymentSuccess(
         await updateOrderVoucherId(order.id, firstVoucher.id);
       }
 
-      if (!wasAlreadyFulfilled) {
-        await Promise.all(orderItems.map((item) => triggerSingleVoucherDelivery(order, item)));
-      }
+      await Promise.all(orderItems.map((item) => triggerSingleVoucherDelivery(order, item)));
 
       return {
         success: true,
@@ -226,13 +223,8 @@ export async function createVoucherOnPaymentSuccess(
       };
     }
 
-    const wasAlreadyFulfilled = Boolean(order.voucher_id);
     const result = await createSingleVoucher(order);
-    if (
-      result.success &&
-      result.error !== "Voucher already created" &&
-      !wasAlreadyFulfilled
-    ) {
+    if (result.success) {
       await triggerSingleVoucherDelivery(order);
     }
 
