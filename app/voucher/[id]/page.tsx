@@ -166,11 +166,7 @@ export default async function VoucherDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              <AddToCartButton
-                service={service}
-                size="lg"
-                className="btn-hover-lift w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg flex items-center justify-center gap-2"
-              />
+              <AddToCartButton service={service} layout="featured" />
 
               <Button asChild variant="outline" className="mt-3 w-full py-6 text-base">
                 <Link href={`/checkout/${service.id}`}>

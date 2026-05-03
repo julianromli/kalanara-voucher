@@ -90,11 +90,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
                         Detail <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
                       </Link>
                     </div>
-                    <AddToCartButton
-                      service={service}
-                      size="sm"
-                      className="w-full gap-2 bg-primary px-2 text-xs text-primary-foreground hover:bg-primary/90 md:px-3 md:text-sm"
-                    />
+                    <AddToCartButton service={service} layout="card" />
                   </div>
                 </div>
               </div>
