@@ -3,6 +3,7 @@ import { DeliveryMethod, SendTo } from "@/lib/types";
 
 const {
   createPendingOrderMock,
+  createPendingOrderItemsMock,
   updateOrderGatewayDataMock,
   markOrderFailedFromGatewayMock,
   getServiceByIdMock,
@@ -12,6 +13,7 @@ const {
   createScalevPaymentIntentMock,
 } = vi.hoisted(() => ({
   createPendingOrderMock: vi.fn(),
+  createPendingOrderItemsMock: vi.fn(),
   updateOrderGatewayDataMock: vi.fn(),
   markOrderFailedFromGatewayMock: vi.fn(),
   getServiceByIdMock: vi.fn(),
@@ -23,6 +25,7 @@ const {
 
 vi.mock("@/lib/actions/orders", () => ({
   createPendingOrder: createPendingOrderMock,
+  createPendingOrderItems: createPendingOrderItemsMock,
   updateOrderGatewayData: updateOrderGatewayDataMock,
   markOrderFailedFromGateway: markOrderFailedFromGatewayMock,
 }));
@@ -69,6 +72,7 @@ describe("POST /api/scalev/create-payment", () => {
       payment_order_id: "KSP-123",
       public_access_token: "public-token",
     });
+    createPendingOrderItemsMock.mockResolvedValue([]);
     createScalevOrderMock.mockResolvedValue({
       id: 99,
       order_id: "scalev-1",
@@ -113,7 +117,7 @@ describe("POST /api/scalev/create-payment", () => {
     expect(response.status).toBe(200);
     expect(createPendingOrderMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        recipient_phone: null,
+        recipient_phone: undefined,
         recipient_email: undefined,
         customer_phone: "6281234567890",
       })
@@ -144,7 +148,79 @@ describe("POST /api/scalev/create-payment", () => {
     await expect(response.json()).resolves.toEqual({
       success: false,
       error: "Data checkout tidak valid.",
+      errorCode: "INVALID_CHECKOUT_DATA",
     });
     expect(createPendingOrderMock).not.toHaveBeenCalled();
+  });
+
+  test("creates order items for cart checkout", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+
+    getServiceByIdMock.mockImplementation(async (id: string) => ({
+      id,
+      name: `Service ${id}`,
+      price: id === "service-1" ? 450000 : 250000,
+      is_active: true,
+    }));
+    ensureScalevServiceMappingMock.mockImplementation(async (service: { id: string }) => ({
+      primaryVariant: { unique_id: `variant-${service.id}` },
+    }));
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lineItems: [
+            {
+              serviceId: "service-1",
+              recipientName: "A",
+              recipientPhone: "081234567890",
+              deliveryMethod: DeliveryMethod.WHATSAPP,
+              sendTo: SendTo.RECIPIENT,
+            },
+            {
+              serviceId: "service-2",
+              recipientName: "B",
+              recipientEmail: "b@example.com",
+              deliveryMethod: DeliveryMethod.EMAIL,
+              sendTo: SendTo.RECIPIENT,
+            },
+          ],
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(200);
+    expect(createPendingOrderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        service_id: "service-1",
+        total_amount: 700000,
+      })
+    );
+    expect(createPendingOrderItemsMock).toHaveBeenCalledWith([
+      expect.objectContaining({
+        order_id: "order-1",
+        service_id: "service-1",
+        unit_price: 450000,
+      }),
+      expect.objectContaining({
+        order_id: "order-1",
+        service_id: "service-2",
+        unit_price: 250000,
+      }),
+    ]);
+    expect(createScalevOrderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ordervariants: [
+          { variant_unique_id: "variant-service-1", quantity: 1 },
+          { variant_unique_id: "variant-service-2", quantity: 1 },
+        ],
+      })
+    );
   });
 });

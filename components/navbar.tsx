@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Menu, X, ShoppingBag, ShieldCheck } from "lucide-react";
 import { SiteContainer } from "@/components/site-container";
+import { CartNavLink } from "@/components/cart-nav-link";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -116,6 +117,7 @@ export default function Navbar() {
               <ShoppingBag size={18} />
               <span>Beli Voucher</span>
             </Link>
+            <CartNavLink isScrolled={isScrolled} />
           </div>
 
           {/* Mobile Menu Button */}
@@ -124,6 +126,7 @@ export default function Navbar() {
               }`}
             style={{ transitionDelay: isMounted ? "300ms" : "0ms" }}
           >
+            <CartNavLink isScrolled={isScrolled} />
             <button
               onClick={() => setIsOpen(!isOpen)}
               className={`p-2 transition-colors duration-500 ${isScrolled ? "text-foreground" : "text-primary-foreground"

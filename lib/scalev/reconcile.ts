@@ -3,6 +3,7 @@ import "server-only";
 import {
   getOrderByPaymentOrderIdAndAccessToken,
   getPublicOrderDetails,
+  getPublicOrderDetailsWithItems,
   updateOrderGatewayData,
   updateOrderPaymentStatus,
 } from "@/lib/actions/orders";
@@ -28,24 +29,30 @@ export async function reconcilePublicOrderStatus(
     return null;
   }
 
+  const existingOrderWithItems = await getPublicOrderDetailsWithItems(
+    paymentOrderId,
+    publicAccessToken
+  );
   const existingPublicOrder = await getPublicOrderDetails(
     paymentOrderId,
     publicAccessToken
   );
+
   if (!existingPublicOrder) {
     return null;
   }
 
+  const currentStatusOrder = existingOrderWithItems ?? existingPublicOrder;
   if (
     existingPublicOrder.payment_status === "COMPLETED" &&
-    existingPublicOrder.voucher_id &&
-    existingPublicOrder.vouchers
+    (existingOrderWithItems?.order_items.some((item) => item.vouchers) ||
+      (existingPublicOrder.voucher_id && existingPublicOrder.vouchers))
   ) {
-    return buildPublicOrderStatus(existingPublicOrder);
+    return buildPublicOrderStatus(currentStatusOrder);
   }
 
   if (existingPublicOrder.payment_provider !== "scalev") {
-    return buildPublicOrderStatus(existingPublicOrder);
+    return buildPublicOrderStatus(currentStatusOrder);
   }
 
   let orderPk = existingPublicOrder.scalev_order_pk;
@@ -73,7 +80,7 @@ export async function reconcilePublicOrderStatus(
   }
 
   if (!orderPk) {
-    return buildPublicOrderStatus(existingPublicOrder);
+    return buildPublicOrderStatus(currentStatusOrder);
   }
 
   const [payment, settlement] = await Promise.all([
@@ -174,6 +181,14 @@ export async function reconcilePublicOrderStatus(
       scalevRawPaymentStatus: snapshot.rawPaymentStatus,
       scalevLastCheckedAt: new Date().toISOString(),
     });
+  }
+
+  const refreshedWithItems = await getPublicOrderDetailsWithItems(
+    paymentOrderId,
+    publicAccessToken
+  );
+  if (refreshedWithItems) {
+    return buildPublicOrderStatus(refreshedWithItems, snapshot.paymentInstructions);
   }
 
   const refreshed = await getPublicOrderDetails(paymentOrderId, publicAccessToken);

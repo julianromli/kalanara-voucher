@@ -296,6 +296,76 @@ export type Database = {
           }
         ];
       };
+      order_items: {
+        Row: {
+          id: string;
+          order_id: string;
+          service_id: string;
+          voucher_id: string | null;
+          unit_price: number;
+          recipient_name: string;
+          recipient_email: string | null;
+          recipient_phone: string | null;
+          sender_message: string | null;
+          delivery_method: "EMAIL" | "WHATSAPP" | "BOTH";
+          send_to: "PURCHASER" | "RECIPIENT";
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          service_id: string;
+          voucher_id?: string | null;
+          unit_price: number;
+          recipient_name: string;
+          recipient_email?: string | null;
+          recipient_phone?: string | null;
+          sender_message?: string | null;
+          delivery_method: "EMAIL" | "WHATSAPP" | "BOTH";
+          send_to: "PURCHASER" | "RECIPIENT";
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          service_id?: string;
+          voucher_id?: string | null;
+          unit_price?: number;
+          recipient_name?: string;
+          recipient_email?: string | null;
+          recipient_phone?: string | null;
+          sender_message?: string | null;
+          delivery_method?: "EMAIL" | "WHATSAPP" | "BOTH";
+          send_to?: "PURCHASER" | "RECIPIENT";
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_items_service_id_fkey";
+            columns: ["service_id"];
+            isOneToOne: false;
+            referencedRelation: "services";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_items_voucher_id_fkey";
+            columns: ["voucher_id"];
+            isOneToOne: false;
+            referencedRelation: "vouchers";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       reviews: {
         Row: {
           id: string;
@@ -473,6 +543,10 @@ export type Order = Database["public"]["Tables"]["orders"]["Row"];
 export type OrderInsert = Database["public"]["Tables"]["orders"]["Insert"];
 export type OrderUpdate = Database["public"]["Tables"]["orders"]["Update"];
 
+export type OrderItem = Database["public"]["Tables"]["order_items"]["Row"];
+export type OrderItemInsert = Database["public"]["Tables"]["order_items"]["Insert"];
+export type OrderItemUpdate = Database["public"]["Tables"]["order_items"]["Update"];
+
 export type Review = Database["public"]["Tables"]["reviews"]["Row"];
 export type ReviewInsert = Database["public"]["Tables"]["reviews"]["Insert"];
 export type ReviewUpdate = Database["public"]["Tables"]["reviews"]["Update"];
@@ -505,4 +579,14 @@ export type OrderWithVoucher = Order & {
 // Order with service (for pending orders before voucher creation)
 export type OrderWithService = Order & {
   services: Service | null;
+};
+
+export type OrderItemWithService = OrderItem & {
+  services: Service;
+  vouchers?: Voucher | null;
+};
+
+export type OrderWithItems = Order & {
+  services: Service | null;
+  order_items: OrderItemWithService[];
 };

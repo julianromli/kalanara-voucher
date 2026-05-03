@@ -380,17 +380,19 @@ export async function POST(request: NextRequest) {
   let processingStatus: "processed" | "failed" = "processed";
   let processingMessage = "Webhook processed";
 
-  if (!order.voucher_id) {
-    try {
-      await createVoucherOnPaymentSuccess({
-        ...order,
-        payment_status: "COMPLETED",
-      });
-    } catch (error) {
-      console.error("[Scalev Webhook] Voucher creation failed:", error);
+  try {
+    const result = await createVoucherOnPaymentSuccess({
+      ...order,
+      payment_status: "COMPLETED",
+    });
+    if (!result.success) {
       processingStatus = "failed";
-      processingMessage = "Payment completed, but voucher creation failed";
+      processingMessage = result.error || "Payment completed, but voucher creation failed";
     }
+  } catch (error) {
+    console.error("[Scalev Webhook] Voucher creation failed:", error);
+    processingStatus = "failed";
+    processingMessage = "Payment completed, but voucher creation failed";
   }
 
   if (webhookEvent) {

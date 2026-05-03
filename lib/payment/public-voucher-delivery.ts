@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getPublicOrderDetails } from "@/lib/actions/orders";
+import { getPublicOrderDetailsWithItems } from "@/lib/actions/orders";
 
 export interface AuthorizedVoucherDelivery {
   orderId: string;
@@ -17,32 +17,47 @@ export interface AuthorizedVoucherDelivery {
   expiryDate: string;
 }
 
+function getRecipientPhone(
+  order: Awaited<ReturnType<typeof getPublicOrderDetailsWithItems>>,
+  item: NonNullable<Awaited<ReturnType<typeof getPublicOrderDetailsWithItems>>>["order_items"][number]
+) {
+  if (!order) {
+    return null;
+  }
+
+  return item.send_to === "RECIPIENT"
+    ? item.recipient_phone
+    : order.customer_phone;
+}
+
 export async function getAuthorizedVoucherDelivery(
   orderId: string,
   token: string
 ): Promise<AuthorizedVoucherDelivery | null> {
-  const order = await getPublicOrderDetails(orderId, token);
-  if (!order || order.payment_status !== "COMPLETED" || !order.vouchers || !order.vouchers.services) {
+  const order = await getPublicOrderDetailsWithItems(orderId, token);
+  if (!order || order.payment_status !== "COMPLETED") {
     return null;
   }
 
-  const recipientPhone =
-    order.send_to === "RECIPIENT"
-      ? order.recipient_phone
-      : order.customer_phone;
+  const firstItemWithVoucher = order.order_items.find(
+    (item) => item.vouchers && item.services
+  );
+  if (!firstItemWithVoucher?.vouchers || !firstItemWithVoucher.services) {
+    return null;
+  }
 
   return {
     orderId,
     token,
-    voucherCode: order.vouchers.code,
-    recipientEmail: order.vouchers.recipient_email,
-    recipientPhone,
-    recipientName: order.vouchers.recipient_name,
-    senderName: order.vouchers.sender_name,
-    senderMessage: order.vouchers.sender_message,
-    serviceName: order.vouchers.services.name,
-    serviceDuration: order.vouchers.services.duration,
-    amount: order.vouchers.amount,
-    expiryDate: order.vouchers.expiry_date,
+    voucherCode: firstItemWithVoucher.vouchers.code,
+    recipientEmail: firstItemWithVoucher.vouchers.recipient_email,
+    recipientPhone: getRecipientPhone(order, firstItemWithVoucher),
+    recipientName: firstItemWithVoucher.vouchers.recipient_name,
+    senderName: firstItemWithVoucher.vouchers.sender_name,
+    senderMessage: firstItemWithVoucher.vouchers.sender_message,
+    serviceName: firstItemWithVoucher.services.name,
+    serviceDuration: firstItemWithVoucher.services.duration,
+    amount: firstItemWithVoucher.vouchers.amount,
+    expiryDate: firstItemWithVoucher.vouchers.expiry_date,
   };
 }

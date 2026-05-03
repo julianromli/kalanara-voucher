@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Clock, ArrowRight } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
 import { SiteContainer } from "@/components/site-container";
+import { AddToCartButton } from "@/components/add-to-cart-button";
 import { formatCurrency } from "@/lib/constants";
 import type { Service } from "@/lib/types";
 import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
@@ -40,7 +41,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
           {services.length > 0 ? (
             services.map((service, index) => (
               <div
@@ -50,49 +51,56 @@ export function ServicesSection({ services }: ServicesSectionProps) {
                 }`}
                 style={{ animationDelay: servicesInView ? `${(index + 1) * 100}ms` : "0ms" }}
               >
-                <div className="relative h-64 overflow-hidden img-hover-zoom">
+                <div className="relative h-48 overflow-hidden img-hover-zoom md:h-64">
                   <Image
                     src={resolveServiceImageUrl(service.image)}
                     alt={service.name}
                     fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    sizes="(max-width: 379px) 100vw, (max-width: 768px) 50vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover"
                   />
                   {service.category?.name && (
-                    <div className="absolute top-4 left-4 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium shadow-sm">
+                    <div className="absolute left-2 top-2 rounded-full bg-primary px-2 py-1 text-xs font-medium text-primary-foreground shadow-sm md:left-4 md:top-4 md:px-3 md:text-sm">
                       {service.category.name}
                     </div>
                   )}
-                  <div className="absolute top-4 right-4 bg-card/90 backdrop-blur text-foreground px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1 shadow-sm">
+                  <div className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-card/90 px-2 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur md:right-4 md:top-4 md:px-3 md:text-sm">
                     <Clock size={14} />
                     {service.duration} menit
                   </div>
                 </div>
 
-                <div className="p-6">
-                  <h3 className="font-sans font-semibold text-2xl text-foreground mb-2 group-hover:text-muted-foreground transition-colors">
+                <div className="flex h-[calc(100%-12rem)] flex-col p-4 md:h-[calc(100%-16rem)] md:p-6">
+                  <h3 className="mb-2 font-sans text-lg font-semibold text-foreground transition-colors group-hover:text-muted-foreground md:text-2xl">
                     {service.name}
                   </h3>
-                  <p className="text-muted-foreground text-sm mb-6 line-clamp-2">
+                  <p className="mb-4 line-clamp-2 text-xs text-muted-foreground md:mb-6 md:text-sm">
                     {service.description}
                   </p>
 
-                  <div className="flex items-center justify-between mt-auto pt-4 border-t border-border">
-                    <span className="text-lg font-semibold text-foreground">
-                      {formatCurrency(service.price)}
-                    </span>
-                    <Link
-                      href={`/voucher/${service.id}`}
-                      className="text-muted-foreground font-medium hover:text-foreground flex items-center gap-1 text-sm uppercase tracking-wide transition-colors"
-                    >
-                      Detail <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-                    </Link>
+                  <div className="mt-auto space-y-3 border-t border-border pt-4">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
+                      <span className="text-base font-semibold text-foreground md:text-lg">
+                        {formatCurrency(service.price)}
+                      </span>
+                      <Link
+                        href={`/voucher/${service.id}`}
+                        className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground md:text-sm"
+                      >
+                        Detail <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                      </Link>
+                    </div>
+                    <AddToCartButton
+                      service={service}
+                      size="sm"
+                      className="w-full gap-2 bg-primary px-2 text-xs text-primary-foreground hover:bg-primary/90 md:px-3 md:text-sm"
+                    />
                   </div>
                 </div>
               </div>
             ))
           ) : (
-            <div className="col-span-3 text-center py-12 text-muted-foreground">
+            <div className="col-span-1 py-12 text-center text-muted-foreground min-[380px]:col-span-2 lg:col-span-3">
               Belum ada paket tersedia saat ini.
             </div>
           )}

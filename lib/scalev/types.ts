@@ -40,11 +40,8 @@ export interface ScalevPaymentSelection {
   subPaymentMethod?: ScalevVABankCode;
 }
 
-export interface ScalevCheckoutRequest extends ScalevPaymentSelection {
+export interface ScalevCheckoutLineItem {
   serviceId: string;
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
   recipientName: string;
   recipientEmail?: string;
   recipientPhone?: string;
@@ -52,6 +49,29 @@ export interface ScalevCheckoutRequest extends ScalevPaymentSelection {
   deliveryMethod: DeliveryMethod;
   sendTo: SendTo;
 }
+
+export interface ScalevCheckoutRequest extends ScalevPaymentSelection {
+  serviceId?: string;
+  lineItems?: ScalevCheckoutLineItem[];
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  recipientName?: string;
+  recipientEmail?: string;
+  recipientPhone?: string;
+  senderMessage?: string;
+  deliveryMethod?: DeliveryMethod;
+  sendTo?: SendTo;
+}
+
+export type ScalevCreatePaymentErrorCode =
+  | "INVALID_CHECKOUT_DATA"
+  | "SERVICE_UNAVAILABLE"
+  | "PAYMENT_METHOD_UNAVAILABLE"
+  | "LOCAL_ORDER_FAILED"
+  | "SCALEV_PAYMENT_FAILED"
+  | "PAYMENT_LINK_MISSING"
+  | "INTERNAL_ERROR";
 
 export interface ScalevCreatePaymentResponse {
   success: boolean;
@@ -62,22 +82,36 @@ export interface ScalevCreatePaymentResponse {
   paymentMethod?: ScalevPaymentMethod;
   subPaymentMethod?: ScalevVABankCode;
   error?: string;
+  errorCode?: ScalevCreatePaymentErrorCode;
 }
 
 export interface ScalevPendingOrderData {
-  service_id: string;
+  service_id?: string | null;
   customer_email: string;
   customer_name: string;
   customer_phone: string;
-  recipient_name: string;
-  recipient_email?: string;
+  recipient_name?: string | null;
+  recipient_email?: string | null;
   recipient_phone?: string | null;
-  sender_message?: string;
-  delivery_method: DeliveryMethod;
-  send_to: SendTo;
+  sender_message?: string | null;
+  delivery_method?: DeliveryMethod | null;
+  send_to?: SendTo | null;
   total_amount: number;
   payment_method?: ScalevPaymentMethod;
   sub_payment_method?: ScalevVABankCode;
+}
+
+export interface ScalevPendingOrderItemData {
+  order_id: string;
+  service_id: string;
+  unit_price: number;
+  recipient_name: string;
+  recipient_email?: string | null;
+  recipient_phone?: string | null;
+  sender_message?: string | null;
+  delivery_method: DeliveryMethod;
+  send_to: SendTo;
+  sort_order: number;
 }
 
 export interface ScalevPaymentOption {
@@ -237,6 +271,22 @@ export interface PublicOrderQrisInstructions {
 
 export type PublicOrderPaymentInstructions = PublicOrderQrisInstructions;
 
+export interface PublicOrderVoucherPayload {
+  voucherCode: string;
+  paymentOrderId: string;
+  recipientName: string;
+  recipientEmail?: string | null;
+  recipientPhone: string;
+  senderName: string;
+  senderMessage?: string | null;
+  serviceName: string;
+  serviceDuration: number;
+  amount: number;
+  expiryDate: string;
+  deliveryMethod: DeliveryMethod;
+  sendTo: SendTo;
+}
+
 export interface PublicOrderStatusPayload {
   status: ScalevPublicStatus;
   orderId: string;
@@ -246,21 +296,8 @@ export interface PublicOrderStatusPayload {
   message?: string;
   paymentLink?: string | null;
   paymentInstructions?: PublicOrderPaymentInstructions;
-  voucher?: {
-    voucherCode: string;
-    paymentOrderId: string;
-    recipientName: string;
-    recipientEmail?: string | null;
-    recipientPhone: string;
-    senderName: string;
-    senderMessage?: string | null;
-    serviceName: string;
-    serviceDuration: number;
-    amount: number;
-    expiryDate: string;
-    deliveryMethod: DeliveryMethod;
-    sendTo: SendTo;
-  };
+  voucher?: PublicOrderVoucherPayload;
+  vouchers?: PublicOrderVoucherPayload[];
 }
 
 export interface ScalevApiEnvelope<T> {

@@ -11,17 +11,25 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { mapScalevPaymentMethodToLocal } from "@/lib/scalev/mappers";
 import type {
   Database,
+  OrderItem,
+  OrderItemInsert,
   Order,
   OrderInsert,
   OrderUpdate,
+  OrderWithItems,
   OrderWithService,
   OrderWithVoucher,
   PaymentStatus,
 } from "@/lib/database.types";
-import type { ScalevPendingOrderData } from "@/lib/scalev/types";
+import type {
+  ScalevPendingOrderData,
+  ScalevPendingOrderItemData,
+} from "@/lib/scalev/types";
 
 const ORDER_VOUCHER_SELECT =
   "*, vouchers:vouchers!orders_voucher_id_fkey(*, services(*))";
+const ORDER_ITEMS_SELECT =
+  "*, services(*), order_items(*, services(*), vouchers(*))";
 
 export interface DestructiveOrderActionResult {
   success: boolean;
@@ -339,13 +347,13 @@ export async function createPendingOrder(
     total_amount: data.total_amount,
     payment_order_id: paymentOrderId,
     public_access_token: generatePublicAccessToken(),
-    service_id: data.service_id,
-    recipient_name: data.recipient_name,
-    recipient_email: data.recipient_email || null,
-    recipient_phone: data.recipient_phone || null,
-    sender_message: data.sender_message || null,
-    delivery_method: data.delivery_method,
-    send_to: data.send_to,
+    service_id: data.service_id ?? null,
+    recipient_name: data.recipient_name ?? null,
+    recipient_email: data.recipient_email ?? null,
+    recipient_phone: data.recipient_phone ?? null,
+    sender_message: data.sender_message ?? null,
+    delivery_method: data.delivery_method ?? null,
+    send_to: data.send_to ?? null,
     payment_provider: "scalev",
     scalev_payment_method: data.payment_method || null,
     scalev_sub_payment_method: data.sub_payment_method || null,
@@ -363,6 +371,45 @@ export async function createPendingOrder(
   }
 
   return order as Order;
+}
+
+export async function createPendingOrderItems(
+  items: readonly ScalevPendingOrderItemData[]
+): Promise<OrderItem[] | null> {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const supabase = getAdminClient();
+  const insertRows = items.map((item, index) => ({
+    order_id: item.order_id,
+    service_id: item.service_id,
+    unit_price: item.unit_price,
+    recipient_name: item.recipient_name,
+    recipient_email: item.recipient_email || null,
+    recipient_phone: item.recipient_phone || null,
+    sender_message: item.sender_message || null,
+    delivery_method: item.delivery_method,
+    send_to: item.send_to,
+    sort_order: item.sort_order ?? index,
+  } satisfies OrderItemInsert));
+
+  const { data, error } = await supabase
+    .from("order_items")
+    .insert(insertRows as Database["public"]["Tables"]["order_items"]["Insert"][])
+    .select();
+
+  if (error) {
+    console.error("Error creating pending order items:", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    return null;
+  }
+
+  return (data as OrderItem[]) || [];
 }
 
 export async function getOrderByPaymentOrderId(
@@ -495,6 +542,45 @@ export async function getPublicOrderDetails(
   return data as OrderWithVoucher;
 }
 
+export async function getPublicOrderDetailsWithItems(
+  paymentOrderId: string,
+  publicAccessToken: string
+): Promise<OrderWithItems | null> {
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .select(ORDER_ITEMS_SELECT)
+    .eq("payment_order_id", paymentOrderId)
+    .eq("public_access_token", publicAccessToken)
+    .single();
+
+  if (error) {
+    console.error("Error fetching public order item details:", error);
+    return null;
+  }
+
+  return data as OrderWithItems;
+}
+
+export async function getOrderItemsByOrderId(
+  orderId: string
+): Promise<OrderItemWithService[]> {
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from("order_items")
+    .select("*, services(*), vouchers(*)")
+    .eq("order_id", orderId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching order items:", error);
+    return [];
+  }
+
+  return (data as OrderItemWithService[]) || [];
+}
+
 export async function updateOrderPaymentStatus(
   orderId: string,
   status: PaymentStatus,
@@ -581,6 +667,24 @@ export async function updateOrderVoucherId(
 
   if (error) {
     console.error("Error updating order voucher ID:", error);
+    return false;
+  }
+
+  return true;
+}
+
+export async function updateOrderItemVoucherId(
+  orderItemId: string,
+  voucherId: string
+): Promise<boolean> {
+  const supabase = getAdminClient();
+  const { error } = await supabase
+    .from("order_items")
+    .update({ voucher_id: voucherId } satisfies OrderItemUpdate)
+    .eq("id", orderItemId);
+
+  if (error) {
+    console.error("Error updating order item voucher ID:", error);
     return false;
   }
 
