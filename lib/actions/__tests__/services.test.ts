@@ -65,6 +65,7 @@ import {
   getServices,
   setServiceActiveState,
   updateService,
+  updateServiceScalevMapping,
 } from "@/lib/actions/services";
 import { AdminPermission, hasPermissionForRole } from "@/lib/auth/admin-rbac";
 
@@ -325,6 +326,28 @@ describe("service actions", () => {
       expect.anything(),
       expect.objectContaining({ action: "service.update" })
     );
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/services", "page");
+  });
+
+  it("updates Scalev mapping with the admin client without requiring admin session", async () => {
+    const result = await updateServiceScalevMapping("service-1", {
+      scalev_product_id: 382500,
+      scalev_variant_id: 462500,
+      scalev_variant_unique_id: "variant-462500",
+      scalev_sync_status: "synced",
+      scalev_last_synced_at: "2026-05-03T14:00:00.000Z",
+    });
+
+    expect(requireAdminPermissionMock).not.toHaveBeenCalled();
+    expect(servicesUpdateMock).toHaveBeenCalledWith({
+      scalev_product_id: 382500,
+      scalev_variant_id: 462500,
+      scalev_variant_unique_id: "variant-462500",
+      scalev_sync_status: "synced",
+      scalev_last_synced_at: "2026-05-03T14:00:00.000Z",
+    });
+    expect(servicesUpdateEqMock).toHaveBeenCalledWith("id", "service-1");
+    expect(result).toEqual(serviceRow);
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/services", "page");
   });
 

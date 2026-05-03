@@ -14,12 +14,29 @@ import {
   updateServiceScalevMapping,
 } from "@/lib/actions/services";
 
+const SCALEV_PRODUCT_DESCRIPTION_MAX_LENGTH = 255;
+
+function normalizeScalevProductDescription(description: string | null) {
+  if (!description) {
+    return undefined;
+  }
+
+  if (description.length <= SCALEV_PRODUCT_DESCRIPTION_MAX_LENGTH) {
+    return description;
+  }
+
+  return description.slice(0, SCALEV_PRODUCT_DESCRIPTION_MAX_LENGTH).trimEnd();
+}
+
 function buildProductPayload(service: Service, variantId?: number): ScalevCatalogProductInput {
+  const normalizedDescription = normalizeScalevProductDescription(service.description);
+
   return {
     name: service.name,
-    description: service.description || undefined,
+    // Scalev rejects product descriptions longer than 255 characters.
+    description: normalizedDescription,
     publicName: service.name,
-    richDescription: service.description || undefined,
+    richDescription: normalizedDescription,
     itemType: "digital",
     metaThumbnail: service.image_url || undefined,
     variants: [

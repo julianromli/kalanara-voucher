@@ -409,8 +409,8 @@ export async function updateServiceScalevMapping(
     | "scalev_last_synced_at"
   >
 ): Promise<Service | null> {
-  await requireAdminPermission(AdminPermission.SERVICES_MANAGE);
-
+  // This path is used by checkout-driven Scalev sync, so it cannot depend on
+  // an interactive admin session even though it still writes via the service role.
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("services")
