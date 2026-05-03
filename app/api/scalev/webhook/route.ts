@@ -13,6 +13,10 @@ import {
   createScalevWebhookEvent,
   updateScalevWebhookEvent,
 } from "@/lib/actions/scalevWebhookEvents";
+import {
+  markDiscountRedemptionSucceeded,
+  markDiscountRedemptionVoid,
+} from "@/lib/discounts/service";
 import { createVoucherOnPaymentSuccess } from "@/lib/payment/voucher-service";
 import { getScalevConfig } from "@/lib/scalev/config";
 import type {
@@ -363,6 +367,7 @@ export async function POST(request: NextRequest) {
 
   if (normalizedStatus === "FAILED") {
     await updateOrderPaymentStatus(order.id, "FAILED", gatewayUpdate);
+    await markDiscountRedemptionVoid(order.id);
     if (webhookEvent) {
       await updateScalevWebhookEvent(webhookEvent.id, {
         order_id: order.id,
@@ -390,6 +395,7 @@ export async function POST(request: NextRequest) {
   }
 
   await updateOrderPaymentStatus(order.id, "COMPLETED", gatewayUpdate);
+  await markDiscountRedemptionSucceeded(order.id);
 
   let processingStatus: "processed" | "failed" = "processed";
   let processingMessage = "Webhook processed";

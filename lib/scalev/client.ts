@@ -284,6 +284,7 @@ export async function createScalevOrder(input: ScalevOrderCreateInput) {
       customer_phone: input.customer_phone,
       store_unique_id: input.store_unique_id,
       ordervariants: input.ordervariants,
+      product_discount: input.productDiscount,
       payment_method: input.paymentMethod,
       sub_payment_method: input.subPaymentMethod,
       metadata: input.metadata,

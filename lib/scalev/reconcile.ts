@@ -7,6 +7,10 @@ import {
   updateOrderGatewayData,
   updateOrderPaymentStatus,
 } from "@/lib/actions/orders";
+import {
+  markDiscountRedemptionSucceeded,
+  markDiscountRedemptionVoid,
+} from "@/lib/discounts/service";
 import { createVoucherOnPaymentSuccess } from "@/lib/payment/voucher-service";
 import {
   checkScalevPaymentStatus,
@@ -150,6 +154,7 @@ export async function reconcilePublicOrderStatus(
       scalevRawPaymentStatus: snapshot.rawPaymentStatus,
       scalevLastCheckedAt: new Date().toISOString(),
     });
+    await markDiscountRedemptionSucceeded(existingPublicOrder.id);
 
     const refreshedBeforeFulfillment = await getPublicOrderDetailsWithItems(
       paymentOrderId,
@@ -183,6 +188,7 @@ export async function reconcilePublicOrderStatus(
       scalevRawPaymentStatus: snapshot.rawPaymentStatus,
       scalevLastCheckedAt: new Date().toISOString(),
     });
+    await markDiscountRedemptionVoid(existingPublicOrder.id);
   } else if (snapshot.normalizedStatus === "REFUNDED") {
     await updateOrderPaymentStatus(existingPublicOrder.id, "REFUNDED", {
       paymentProvider: "scalev",

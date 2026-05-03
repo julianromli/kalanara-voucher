@@ -188,9 +188,14 @@ export async function getOrderById(id: string): Promise<OrderWithVoucher | null>
 
 export async function createOrder(order: OrderInsert): Promise<Order | null> {
   const supabase = getAdminClient();
+  const orderPayload: OrderInsert = {
+    subtotal_amount: order.subtotal_amount ?? order.total_amount,
+    discount_amount: order.discount_amount ?? 0,
+    ...order,
+  };
   const { data, error } = await supabase
     .from("orders")
-    .insert(order as Database["public"]["Tables"]["orders"]["Insert"])
+    .insert(orderPayload as Database["public"]["Tables"]["orders"]["Insert"])
     .select()
     .single();
 
@@ -349,6 +354,12 @@ export async function createPendingOrder(
     customer_phone: data.customer_phone,
     payment_method: mapScalevPaymentMethodToLocal(data.payment_method),
     payment_status: "PENDING",
+    subtotal_amount: data.subtotal_amount,
+    discount_code_id: data.discount_code_id ?? null,
+    discount_code: data.discount_code ?? null,
+    discount_type_snapshot: data.discount_type_snapshot ?? null,
+    discount_value_snapshot: data.discount_value_snapshot ?? null,
+    discount_amount: data.discount_amount ?? 0,
     total_amount: data.total_amount,
     payment_order_id: paymentOrderId,
     public_access_token: generatePublicAccessToken(),
@@ -389,6 +400,9 @@ export async function createPendingOrderItems(
   const insertRows = items.map((item, index) => ({
     order_id: item.order_id,
     service_id: item.service_id,
+    original_unit_price: item.original_unit_price,
+    discount_amount: item.discount_amount,
+    final_unit_price: item.final_unit_price,
     unit_price: item.unit_price,
     recipient_name: item.recipient_name,
     recipient_email: item.recipient_email || null,

@@ -21,6 +21,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/context/ToastContext";
 import { formatCurrency } from "@/lib/constants";
 import {
+  type CheckoutDiscountSummary,
+  type DiscountCodePreviewResponse,
   type ScalevCheckoutConfig,
   type ScalevCheckoutRequest,
   type ScalevPaymentMethod,
@@ -216,6 +218,11 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
   const [paymentConfigReloadKey, setPaymentConfigReloadKey] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<ScalevPaymentMethod | null>(null);
   const [subPaymentMethod, setSubPaymentMethod] = useState<ScalevVABankCode | "">("");
+  const [discountCodeInput, setDiscountCodeInput] = useState("");
+  const [appliedDiscount, setAppliedDiscount] =
+    useState<CheckoutDiscountSummary | null>(null);
+  const [discountError, setDiscountError] = useState<string | null>(null);
+  const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
 
   const {
     register,
@@ -242,6 +249,8 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
 
   const sendTo = watch("sendTo");
   const deliveryMethod = watch("deliveryMethod");
+  const customerEmailValue = watch("customerEmail");
+  const customerPhoneValue = watch("customerPhone");
   const showRecipientPhone =
     sendTo === SendTo.RECIPIENT &&
     (deliveryMethod === DeliveryMethod.WHATSAPP || deliveryMethod === DeliveryMethod.BOTH);
@@ -345,6 +354,64 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
     }
   }, [paymentMethod, selectedPaymentOption, subPaymentMethod]);
 
+  useEffect(() => {
+    setAppliedDiscount((current) => current ? null : current);
+    setDiscountError(null);
+  }, [customerEmailValue, customerPhoneValue]);
+
+  const handleApplyDiscount = async () => {
+    if (!discountCodeInput.trim()) {
+      showToast("Masukkan kode diskon terlebih dahulu.", "error");
+      return;
+    }
+
+    if (!customerEmailValue?.trim() || !customerPhoneValue?.trim()) {
+      showToast("Isi email dan WhatsApp pembeli dulu sebelum pakai kode diskon.", "error");
+      return;
+    }
+
+    setIsApplyingDiscount(true);
+    setDiscountError(null);
+
+    try {
+      const response = await fetch("/api/discount-codes/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerEmail: customerEmailValue.trim(),
+          customerPhone: normalizePhoneInput(customerPhoneValue),
+          discountCode: discountCodeInput,
+          serviceIds: [service.id],
+        }),
+      });
+      const result = (await response.json()) as DiscountCodePreviewResponse;
+
+      if (!response.ok || !result.success || !result.pricing) {
+        throw new Error(result.error || "Kode diskon belum bisa dipakai.");
+      }
+
+      setAppliedDiscount(result.pricing);
+      setDiscountCodeInput(result.pricing.code);
+      showToast("Kode diskon berhasil diterapkan.", "success");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Kode diskon belum bisa dipakai.";
+      setAppliedDiscount(null);
+      setDiscountError(message);
+      showToast(message, "error");
+    } finally {
+      setIsApplyingDiscount(false);
+    }
+  };
+
+  const handleRemoveDiscount = () => {
+    setAppliedDiscount(null);
+    setDiscountCodeInput("");
+    setDiscountError(null);
+  };
+
   const onSubmit = async (data: CheckoutForm) => {
     if (!paymentMethod) {
       showToast("Pilih metode pembayaran terlebih dahulu.", "error");
@@ -374,6 +441,7 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
         senderMessage: cleanOptionalText(data.senderMessage),
         deliveryMethod: data.deliveryMethod,
         sendTo: data.sendTo,
+        discountCode: appliedDiscount?.code,
         paymentMethod,
         subPaymentMethod:
           paymentMethod === "va" ? (subPaymentMethod as ScalevVABankCode) : undefined,
@@ -440,6 +508,9 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
   };
 
   const deliveryPreview = getDeliveryPreview(sendTo, deliveryMethod);
+  const summarySubtotal = appliedDiscount?.subtotalAmount ?? service.price;
+  const summaryDiscount = appliedDiscount?.discountAmount ?? 0;
+  const summaryTotal = appliedDiscount?.totalAmount ?? service.price;
 
   const registerPhoneField = (fieldName: "customerPhone" | "recipientPhone") =>
     register(fieldName, {
@@ -863,17 +934,81 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                 </div>
 
                 <div className="space-y-3 border-t border-border pt-4">
+                  <div className="space-y-3 rounded-2xl border border-border bg-background p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Kode diskon</p>
+                        <p className="text-xs text-muted-foreground">
+                          Satu kode per checkout.
+                        </p>
+                      </div>
+                      {appliedDiscount ? (
+                        <button
+                          type="button"
+                          onClick={handleRemoveDiscount}
+                          className="text-xs font-medium text-muted-foreground underline-offset-4 hover:underline"
+                        >
+                          Hapus
+                        </button>
+                      ) : null}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Input
+                        value={discountCodeInput}
+                        onChange={(event) => {
+                          setDiscountCodeInput(event.target.value.toUpperCase());
+                          setDiscountError(null);
+                        }}
+                        placeholder="Masukkan kode promo"
+                        disabled={isProcessing || isApplyingDiscount}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleApplyDiscount}
+                        disabled={isProcessing || isApplyingDiscount}
+                      >
+                        {isApplyingDiscount ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          "Pakai"
+                        )}
+                      </Button>
+                    </div>
+
+                    {appliedDiscount ? (
+                      <div className="rounded-xl border border-primary/15 bg-primary/5 px-3 py-2 text-sm text-foreground">
+                        <p className="font-medium">Kode {appliedDiscount.code} aktif</p>
+                        <p className="text-xs text-muted-foreground">
+                          Hemat {formatCurrency(appliedDiscount.discountAmount)}
+                        </p>
+                      </div>
+                    ) : null}
+
+                    {discountError ? (
+                      <p className="text-xs text-destructive" role="alert">
+                        {discountError}
+                      </p>
+                    ) : null}
+                  </div>
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Subtotal</span>
-                    <span>{formatCurrency(service.price)}</span>
+                    <span>{formatCurrency(summarySubtotal)}</span>
                   </div>
+                  {appliedDiscount ? (
+                    <div className="flex justify-between text-sm text-emerald-700 dark:text-emerald-300">
+                      <span>Diskon</span>
+                      <span>-{formatCurrency(summaryDiscount)}</span>
+                    </div>
+                  ) : null}
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Biaya Layanan</span>
                     <span>Gratis</span>
                   </div>
                   <div className="flex justify-between border-t border-border pt-3 font-semibold text-foreground">
                     <span>Total</span>
-                    <span className="text-lg">{formatCurrency(service.price)}</span>
+                    <span className="text-lg">{formatCurrency(summaryTotal)}</span>
                   </div>
                 </div>
 
@@ -907,7 +1042,7 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                   Total
                 </p>
                 <p className="text-lg font-semibold text-foreground">
-                  {formatCurrency(service.price)}
+                  {formatCurrency(summaryTotal)}
                 </p>
               </div>
               <Button

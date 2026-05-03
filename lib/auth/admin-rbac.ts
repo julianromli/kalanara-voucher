@@ -11,6 +11,7 @@ export const AdminPermission = {
   ORDERS_VIEW: "orders.view",
   ORDERS_UPDATE_PAYMENT_STATUS: "orders.update_payment_status",
   ORDERS_DELETE_HARD: "orders.delete_hard",
+  DISCOUNT_CODES_MANAGE: "discount_codes.manage",
   VOUCHERS_MANAGE: "vouchers.manage",
   SERVICES_MANAGE: "services.manage",
   SERVICES_CREATE: "services.create",
@@ -32,6 +33,7 @@ const ROLE_PERMISSIONS: Record<CanonicalAdminRole, readonly AdminPermission[]> =
     AdminPermission.DASHBOARD_VIEW_BUSINESS,
     AdminPermission.ORDERS_VIEW,
     AdminPermission.ORDERS_UPDATE_PAYMENT_STATUS,
+    AdminPermission.DISCOUNT_CODES_MANAGE,
     AdminPermission.VOUCHERS_MANAGE,
     AdminPermission.SERVICES_MANAGE,
     AdminPermission.REVIEWS_MANAGE,
@@ -46,6 +48,7 @@ const ROLE_PERMISSIONS: Record<CanonicalAdminRole, readonly AdminPermission[]> =
 export const ADMIN_ROUTE_PERMISSIONS = {
   "/admin/dashboard": AdminPermission.DASHBOARD_VIEW_OPERATIONAL,
   "/admin/purchases": AdminPermission.ORDERS_VIEW,
+  "/admin/discount-codes": AdminPermission.DISCOUNT_CODES_MANAGE,
   "/admin/vouchers": AdminPermission.VOUCHERS_MANAGE,
   "/admin/services": AdminPermission.SERVICES_MANAGE,
   "/admin/reviews": AdminPermission.REVIEWS_MANAGE,

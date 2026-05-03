@@ -8,6 +8,8 @@ const {
   getOrderByScalevPgReferenceIdMock,
   updateOrderGatewayDataMock,
   updateOrderPaymentStatusMock,
+  markDiscountRedemptionSucceededMock,
+  markDiscountRedemptionVoidMock,
   createScalevWebhookEventMock,
   updateScalevWebhookEventMock,
   createVoucherOnPaymentSuccessMock,
@@ -18,6 +20,8 @@ const {
   getOrderByScalevPgReferenceIdMock: vi.fn(),
   updateOrderGatewayDataMock: vi.fn(),
   updateOrderPaymentStatusMock: vi.fn(),
+  markDiscountRedemptionSucceededMock: vi.fn(),
+  markDiscountRedemptionVoidMock: vi.fn(),
   createScalevWebhookEventMock: vi.fn(),
   updateScalevWebhookEventMock: vi.fn(),
   createVoucherOnPaymentSuccessMock: vi.fn(),
@@ -35,6 +39,11 @@ vi.mock("@/lib/actions/orders", () => ({
 vi.mock("@/lib/actions/scalevWebhookEvents", () => ({
   createScalevWebhookEvent: createScalevWebhookEventMock,
   updateScalevWebhookEvent: updateScalevWebhookEventMock,
+}));
+
+vi.mock("@/lib/discounts/service", () => ({
+  markDiscountRedemptionSucceeded: markDiscountRedemptionSucceededMock,
+  markDiscountRedemptionVoid: markDiscountRedemptionVoidMock,
 }));
 
 vi.mock("@/lib/payment/voucher-service", () => ({
@@ -58,6 +67,8 @@ describe("POST /api/scalev/webhook", () => {
     updateScalevWebhookEventMock.mockResolvedValue(true);
     updateOrderGatewayDataMock.mockResolvedValue(true);
     updateOrderPaymentStatusMock.mockResolvedValue(true);
+    markDiscountRedemptionSucceededMock.mockResolvedValue(true);
+    markDiscountRedemptionVoidMock.mockResolvedValue(true);
     createVoucherOnPaymentSuccessMock.mockResolvedValue({ success: true, voucherCount: 1 });
     getOrderByScalevOrderPkMock.mockResolvedValue({
       id: "order-1",
@@ -131,6 +142,7 @@ describe("POST /api/scalev/webhook", () => {
         payment_status: "COMPLETED",
       })
     );
+    expect(markDiscountRedemptionSucceededMock).toHaveBeenCalledWith("order-1");
   });
 
   test("skips duplicate fulfillment when every order item already has a voucher", async () => {
@@ -172,5 +184,38 @@ describe("POST /api/scalev/webhook", () => {
         processing_message: "Payment completed; vouchers already fulfilled",
       })
     );
+  });
+
+  test("voids pending discount redemption when payment fails", async () => {
+    const { POST } = await import("@/app/api/scalev/webhook/route");
+    const payload = JSON.stringify({
+      event: "order.payment_status_changed",
+      data: {
+        id: 99,
+        pg_reference_id: "pg-1",
+        payment_status: "expired",
+        payment_method: "qris",
+      },
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/webhook", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Scalev-Hmac-Sha256": signPayload(payload),
+        },
+        body: payload,
+      }) as never
+    );
+
+    expect(response.status).toBe(200);
+    expect(updateOrderPaymentStatusMock).toHaveBeenCalledWith(
+      "order-1",
+      "FAILED",
+      expect.any(Object)
+    );
+    expect(markDiscountRedemptionVoidMock).toHaveBeenCalledWith("order-1");
+    expect(createVoucherOnPaymentSuccessMock).not.toHaveBeenCalled();
   });
 });

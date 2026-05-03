@@ -26,6 +26,7 @@ export const SCALEV_VA_BANK_CODES = [
 
 export type ScalevPaymentMethod = (typeof SCALEV_PAYMENT_METHODS)[number];
 export type ScalevVABankCode = (typeof SCALEV_VA_BANK_CODES)[number];
+export type CheckoutDiscountType = "FIXED_AMOUNT" | "PERCENTAGE";
 
 export type ScalevNormalizedPaymentStatus =
   | "PENDING"
@@ -54,6 +55,7 @@ interface ScalevCheckoutBaseRequest extends ScalevPaymentSelection {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  discountCode?: string;
 }
 
 export interface ScalevLegacyCheckoutRequest extends ScalevCheckoutBaseRequest {
@@ -86,6 +88,8 @@ export type ScalevCreatePaymentErrorCode =
   | "INVALID_CHECKOUT_DATA"
   | "SERVICE_UNAVAILABLE"
   | "PAYMENT_METHOD_UNAVAILABLE"
+  | "DISCOUNT_CODE_INVALID"
+  | "DISCOUNT_GATEWAY_REJECTED"
   | "LOCAL_ORDER_FAILED"
   | "SCALEV_PAYMENT_FAILED"
   | "PAYMENT_LINK_MISSING"
@@ -103,6 +107,21 @@ export interface ScalevCreatePaymentResponse {
   errorCode?: ScalevCreatePaymentErrorCode;
 }
 
+export interface CheckoutDiscountSummary {
+  code: string;
+  discountType: CheckoutDiscountType;
+  discountValue: number;
+  subtotalAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+}
+
+export interface DiscountCodePreviewResponse {
+  success: boolean;
+  pricing?: CheckoutDiscountSummary;
+  error?: string;
+}
+
 export interface ScalevPendingOrderData {
   service_id?: string | null;
   customer_email: string;
@@ -114,6 +133,12 @@ export interface ScalevPendingOrderData {
   sender_message?: string | null;
   delivery_method?: DeliveryMethod | null;
   send_to?: SendTo | null;
+  subtotal_amount: number;
+  discount_code_id?: string | null;
+  discount_code?: string | null;
+  discount_type_snapshot?: CheckoutDiscountType | null;
+  discount_value_snapshot?: number | null;
+  discount_amount?: number;
   total_amount: number;
   payment_method?: ScalevPaymentMethod;
   sub_payment_method?: ScalevVABankCode;
@@ -122,6 +147,9 @@ export interface ScalevPendingOrderData {
 export interface ScalevPendingOrderItemData {
   order_id: string;
   service_id: string;
+  original_unit_price: number;
+  discount_amount: number;
+  final_unit_price: number;
   unit_price: number;
   recipient_name: string;
   recipient_email?: string | null;
@@ -199,6 +227,7 @@ export interface ScalevOrderCreateInput extends ScalevPaymentSelection {
   customer_phone: string;
   store_unique_id: string;
   ordervariants: ScalevOrderVariantLine[];
+  productDiscount?: number;
   notes?: string;
   metadata?: Record<string, unknown>;
 }
@@ -309,12 +338,16 @@ export interface PublicOrderDetailsPayload {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  subtotalAmount: number;
+  discountAmount: number;
+  discountCode?: string | null;
   totalAmount: number;
   createdAt: string;
   items: Array<{
     serviceName: string;
     quantity: number;
     price: number;
+    originalPrice?: number;
   }>;
 }
 

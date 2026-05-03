@@ -180,6 +180,117 @@ export type Database = {
           }
         ];
       };
+      discount_codes: {
+        Row: {
+          id: string;
+          code: string;
+          normalized_code: string;
+          is_active: boolean;
+          discount_type: string;
+          discount_value: number;
+          starts_at: string | null;
+          ends_at: string | null;
+          max_total_uses: number | null;
+          max_uses_per_customer: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          code: string;
+          normalized_code: string;
+          is_active?: boolean;
+          discount_type: string;
+          discount_value: number;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          max_total_uses?: number | null;
+          max_uses_per_customer?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          code?: string;
+          normalized_code?: string;
+          is_active?: boolean;
+          discount_type?: string;
+          discount_value?: number;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          max_total_uses?: number | null;
+          max_uses_per_customer?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      discount_code_redemptions: {
+        Row: {
+          id: string;
+          discount_code_id: string;
+          order_id: string;
+          customer_email_normalized: string;
+          customer_phone_normalized: string;
+          status: string;
+          discount_snapshot_type: string;
+          discount_snapshot_value: number;
+          subtotal_amount: number;
+          discount_amount: number;
+          final_total_amount: number;
+          redeemed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          discount_code_id: string;
+          order_id: string;
+          customer_email_normalized: string;
+          customer_phone_normalized: string;
+          status: string;
+          discount_snapshot_type: string;
+          discount_snapshot_value: number;
+          subtotal_amount: number;
+          discount_amount: number;
+          final_total_amount: number;
+          redeemed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          discount_code_id?: string;
+          order_id?: string;
+          customer_email_normalized?: string;
+          customer_phone_normalized?: string;
+          status?: string;
+          discount_snapshot_type?: string;
+          discount_snapshot_value?: number;
+          subtotal_amount?: number;
+          discount_amount?: number;
+          final_total_amount?: number;
+          redeemed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "discount_code_redemptions_discount_code_id_fkey";
+            columns: ["discount_code_id"];
+            isOneToOne: false;
+            referencedRelation: "discount_codes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "discount_code_redemptions_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: true;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       orders: {
         Row: {
           id: string;
@@ -190,6 +301,12 @@ export type Database = {
           payment_method: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
           payment_status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           payment_provider: string;
+          subtotal_amount: number;
+          discount_code_id: string | null;
+          discount_code: string | null;
+          discount_type_snapshot: string | null;
+          discount_value_snapshot: number | null;
+          discount_amount: number;
           total_amount: number;
           created_at: string;
           // Payment gateway fields
@@ -226,6 +343,12 @@ export type Database = {
           payment_method: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           payment_provider?: string;
+          subtotal_amount?: number;
+          discount_code_id?: string | null;
+          discount_code?: string | null;
+          discount_type_snapshot?: string | null;
+          discount_value_snapshot?: number | null;
+          discount_amount?: number;
           total_amount: number;
           created_at?: string;
           // Payment gateway fields
@@ -262,6 +385,12 @@ export type Database = {
           payment_method?: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           payment_provider?: string;
+          subtotal_amount?: number;
+          discount_code_id?: string | null;
+          discount_code?: string | null;
+          discount_type_snapshot?: string | null;
+          discount_value_snapshot?: number | null;
+          discount_amount?: number;
           total_amount?: number;
           created_at?: string;
           // Payment gateway fields
@@ -303,6 +432,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "services";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "orders_discount_code_id_fkey";
+            columns: ["discount_code_id"];
+            isOneToOne: false;
+            referencedRelation: "discount_codes";
+            referencedColumns: ["id"];
           }
         ];
       };
@@ -312,6 +448,9 @@ export type Database = {
           order_id: string;
           service_id: string;
           voucher_id: string | null;
+          original_unit_price: number;
+          discount_amount: number;
+          final_unit_price: number;
           unit_price: number;
           recipient_name: string;
           recipient_email: string | null;
@@ -327,6 +466,9 @@ export type Database = {
           order_id: string;
           service_id: string;
           voucher_id?: string | null;
+          original_unit_price: number;
+          discount_amount?: number;
+          final_unit_price: number;
           unit_price: number;
           recipient_name: string;
           recipient_email?: string | null;
@@ -342,6 +484,9 @@ export type Database = {
           order_id?: string;
           service_id?: string;
           voucher_id?: string | null;
+          original_unit_price?: number;
+          discount_amount?: number;
+          final_unit_price?: number;
           unit_price?: number;
           recipient_name?: string;
           recipient_email?: string | null;
@@ -552,6 +697,17 @@ export type VoucherUpdate = Database["public"]["Tables"]["vouchers"]["Update"];
 export type Order = Database["public"]["Tables"]["orders"]["Row"];
 export type OrderInsert = Database["public"]["Tables"]["orders"]["Insert"];
 export type OrderUpdate = Database["public"]["Tables"]["orders"]["Update"];
+
+export type DiscountCode = Database["public"]["Tables"]["discount_codes"]["Row"];
+export type DiscountCodeInsert = Database["public"]["Tables"]["discount_codes"]["Insert"];
+export type DiscountCodeUpdate = Database["public"]["Tables"]["discount_codes"]["Update"];
+
+export type DiscountCodeRedemption =
+  Database["public"]["Tables"]["discount_code_redemptions"]["Row"];
+export type DiscountCodeRedemptionInsert =
+  Database["public"]["Tables"]["discount_code_redemptions"]["Insert"];
+export type DiscountCodeRedemptionUpdate =
+  Database["public"]["Tables"]["discount_code_redemptions"]["Update"];
 
 export type OrderItem = Database["public"]["Tables"]["order_items"]["Row"];
 export type OrderItemInsert = Database["public"]["Tables"]["order_items"]["Insert"];

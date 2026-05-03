@@ -5,6 +5,13 @@ import {
   markOrderFailedFromGateway,
   updateOrderGatewayData,
 } from "@/lib/actions/orders";
+import {
+  allocateDiscountAcrossItems,
+  createPendingDiscountRedemption,
+  markDiscountRedemptionVoid,
+  normalizeCustomerPhone,
+  validateDiscountForCheckout,
+} from "@/lib/discounts/service";
 import { getServiceById } from "@/lib/actions/services";
 import {
   createScalevOrder,
@@ -35,23 +42,10 @@ interface ValidatedCheckoutRequest {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  discountCode?: string;
   paymentMethod: ScalevPaymentMethod;
   subPaymentMethod?: ScalevVABankCode;
   lineItems: ValidatedCheckoutLineItem[];
-}
-
-function normalizeScalevPhoneNumber(phone: string) {
-  const digits = phone.replace(/\D/g, "");
-
-  if (digits.startsWith("0")) {
-    return `62${digits.slice(1)}`;
-  }
-
-  if (digits.startsWith("62")) {
-    return digits;
-  }
-
-  return digits;
 }
 
 function isPaymentMethod(value: string): value is ScalevPaymentMethod {
@@ -183,7 +177,7 @@ function validateRequest(body: unknown): ValidatedCheckoutRequest | null {
   const customer = {
     customerName,
     customerEmail,
-    customerPhone: normalizeScalevPhoneNumber(customerPhone),
+    customerPhone: normalizeCustomerPhone(customerPhone),
   };
 
   const lineItems = Array.isArray(data.lineItems)
@@ -217,9 +211,10 @@ function validateRequest(body: unknown): ValidatedCheckoutRequest | null {
     lineItems: normalizedLineItems.map((item) => ({
       ...item,
       recipientPhone: item.recipientPhone
-        ? normalizeScalevPhoneNumber(item.recipientPhone)
+        ? normalizeCustomerPhone(item.recipientPhone)
         : undefined,
     })),
+    discountCode: getOptionalString(data.discountCode),
     paymentMethod,
     subPaymentMethod:
       paymentMethod === "va" && subPaymentMethodRaw
@@ -299,7 +294,33 @@ export async function POST(
       }
       return service;
     });
-    const totalAmount = services.reduce((sum, service) => sum + service.price, 0);
+    const subtotalAmount = services.reduce((sum, service) => sum + service.price, 0);
+    const discountValidation = validatedData.discountCode
+      ? await validateDiscountForCheckout({
+          discountCode: validatedData.discountCode,
+          subtotalAmount,
+          customerEmail: validatedData.customerEmail,
+          customerPhone: validatedData.customerPhone,
+        })
+      : null;
+
+    if (discountValidation && !discountValidation.valid) {
+      return errorResponse(
+        discountValidation.message,
+        "DISCOUNT_CODE_INVALID",
+        400
+      );
+    }
+
+    const discountQuote =
+      discountValidation && discountValidation.valid
+        ? discountValidation.quote
+        : null;
+    const totalAmount = discountQuote?.totalAmount ?? subtotalAmount;
+    const itemDiscounts = allocateDiscountAcrossItems(
+      services.map((service) => service.price),
+      discountQuote?.discountAmount ?? 0
+    );
     const firstLine = validatedData.lineItems[0];
     const isSingleLine = validatedData.lineItems.length === 1;
 
@@ -314,6 +335,12 @@ export async function POST(
       sender_message: isSingleLine ? firstLine.senderMessage || null : null,
       delivery_method: isSingleLine ? firstLine.deliveryMethod : null,
       send_to: isSingleLine ? firstLine.sendTo : null,
+      subtotal_amount: subtotalAmount,
+      discount_code_id: discountQuote?.discountCodeId ?? null,
+      discount_code: discountQuote?.code ?? null,
+      discount_type_snapshot: discountQuote?.discountType ?? null,
+      discount_value_snapshot: discountQuote?.discountValue ?? null,
+      discount_amount: discountQuote?.discountAmount ?? 0,
       total_amount: totalAmount,
       payment_method: validatedData.paymentMethod,
       sub_payment_method: validatedData.subPaymentMethod,
@@ -336,7 +363,10 @@ export async function POST(
       validatedData.lineItems.map((item, index) => ({
         order_id: order.id,
         service_id: services[index].id,
-        unit_price: services[index].price,
+        original_unit_price: services[index].price,
+        discount_amount: itemDiscounts[index] ?? 0,
+        final_unit_price: services[index].price - (itemDiscounts[index] ?? 0),
+        unit_price: services[index].price - (itemDiscounts[index] ?? 0),
         recipient_name: item.recipientName,
         recipient_email: item.recipientEmail || null,
         recipient_phone: item.recipientPhone || null,
@@ -361,6 +391,34 @@ export async function POST(
       );
     }
 
+    const discountRedemption = discountQuote
+      ? await createPendingDiscountRedemption({
+          discountCodeId: discountQuote.discountCodeId,
+          orderId: order.id,
+          customerEmail: validatedData.customerEmail,
+          customerPhone: validatedData.customerPhone,
+          discountType: discountQuote.discountType,
+          discountValue: discountQuote.discountValue,
+          subtotalAmount: discountQuote.subtotalAmount,
+          discountAmount: discountQuote.discountAmount,
+          totalAmount: discountQuote.totalAmount,
+        })
+      : null;
+
+    if (discountQuote && !discountRedemption) {
+      await markOrderFailedFromGateway(order.id, {
+        paymentProvider: "scalev",
+        scalevPaymentMethod: validatedData.paymentMethod,
+        scalevSubPaymentMethod: validatedData.subPaymentMethod || null,
+        scalevStoreUniqueId: getScalevConfig().storeUniqueId,
+      });
+      return errorResponse(
+        "Pesanan belum bisa dibuat. Silakan coba lagi.",
+        "LOCAL_ORDER_FAILED",
+        500
+      );
+    }
+
     try {
       const scalevOrder = await createScalevOrder({
         customer_name: validatedData.customerName,
@@ -371,12 +429,17 @@ export async function POST(
           variant_unique_id: mapping.primaryVariant.unique_id,
           quantity: 1,
         })),
+        productDiscount: discountQuote?.discountAmount,
         paymentMethod: validatedData.paymentMethod,
         subPaymentMethod: validatedData.subPaymentMethod,
         metadata: {
           local_order_id: order.id,
           payment_order_id: order.payment_order_id,
           item_count: validatedData.lineItems.length,
+          subtotal_amount: subtotalAmount,
+          discount_code: discountQuote?.code ?? null,
+          discount_amount: discountQuote?.discountAmount ?? 0,
+          total_amount: totalAmount,
         },
         notes: `Kalanara voucher x${validatedData.lineItems.length} - ${order.payment_order_id}`,
       });
@@ -437,6 +500,9 @@ export async function POST(
           scalevRawStatus: scalevOrder.status || null,
           scalevRawPaymentStatus: scalevOrder.payment_status || null,
         });
+        if (discountQuote) {
+          await markDiscountRedemptionVoid(order.id);
+        }
         return errorResponse(
           "Pesanan belum bisa disiapkan sepenuhnya. Silakan coba lagi.",
           "LOCAL_ORDER_FAILED",
@@ -445,6 +511,9 @@ export async function POST(
       }
 
       if (!paymentLink) {
+        if (discountQuote) {
+          await markDiscountRedemptionVoid(order.id);
+        }
         return errorResponse(
           "Payment link dari Scalev belum tersedia. Silakan coba beberapa saat lagi.",
           "PAYMENT_LINK_MISSING",
@@ -468,11 +537,16 @@ export async function POST(
         scalevSubPaymentMethod: validatedData.subPaymentMethod || null,
         scalevStoreUniqueId: getScalevConfig().storeUniqueId,
       });
+      if (discountQuote) {
+        await markDiscountRedemptionVoid(order.id);
+      }
 
       console.error("[Scalev] create-payment failed:", error);
       return errorResponse(
-        "Gagal membuat pembayaran Scalev. Silakan coba lagi.",
-        "SCALEV_PAYMENT_FAILED",
+        discountQuote
+          ? "Pembayaran dengan kode diskon belum bisa diproses saat ini. Silakan coba lagi."
+          : "Gagal membuat pembayaran Scalev. Silakan coba lagi.",
+        discountQuote ? "DISCOUNT_GATEWAY_REJECTED" : "SCALEV_PAYMENT_FAILED",
         502
       );
     }

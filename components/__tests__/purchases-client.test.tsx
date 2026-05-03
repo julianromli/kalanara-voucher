@@ -20,6 +20,12 @@ describe('PurchasesClient', () => {
       customer_email: 'john@example.com',
       customer_phone: '08123456789',
       payment_method: 'BANK_TRANSFER',
+      subtotal_amount: 500000,
+      discount_code_id: null,
+      discount_code: null,
+      discount_type_snapshot: null,
+      discount_value_snapshot: null,
+      discount_amount: 0,
       total_amount: 500000,
       payment_status: 'PENDING',
       payment_provider: 'scalev',
@@ -46,6 +52,7 @@ describe('PurchasesClient', () => {
       sender_message: null,
       delivery_method: null,
       send_to: null,
+      services: null,
       vouchers: null
     };
 
