@@ -4,10 +4,14 @@ const {
   createVoucherMock,
   getVoucherBySourceOrderIdMock,
   updateOrderVoucherIdMock,
+  getOrderItemsByOrderIdMock,
+  updateOrderItemVoucherIdMock,
 } = vi.hoisted(() => ({
   createVoucherMock: vi.fn(),
   getVoucherBySourceOrderIdMock: vi.fn(),
   updateOrderVoucherIdMock: vi.fn(),
+  getOrderItemsByOrderIdMock: vi.fn(),
+  updateOrderItemVoucherIdMock: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/vouchers", () => ({
@@ -17,6 +21,8 @@ vi.mock("@/lib/actions/vouchers", () => ({
 
 vi.mock("@/lib/actions/orders", () => ({
   updateOrderVoucherId: updateOrderVoucherIdMock,
+  getOrderItemsByOrderId: getOrderItemsByOrderIdMock,
+  updateOrderItemVoucherId: updateOrderItemVoucherIdMock,
 }));
 
 describe("createVoucherOnPaymentSuccess", () => {
@@ -37,6 +43,8 @@ describe("createVoucherOnPaymentSuccess", () => {
       code: "KSPV-001",
     });
     updateOrderVoucherIdMock.mockResolvedValue(true);
+    updateOrderItemVoucherIdMock.mockResolvedValue(true);
+    getOrderItemsByOrderIdMock.mockResolvedValue([]);
   });
 
   test("uses purchaser contact as effective delivery target when send_to is PURCHASER", async () => {
@@ -66,6 +74,7 @@ describe("createVoucherOnPaymentSuccess", () => {
       success: true,
       voucherId: "voucher-1",
       voucherCode: "KSPV-001",
+      voucherCount: 1,
     });
     expect(createVoucherMock).toHaveBeenCalledWith(
       expect.objectContaining({

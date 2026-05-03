@@ -3,6 +3,7 @@ import "server-only";
 import {
   getOrderByPaymentOrderIdAndAccessToken,
   getPublicOrderDetails,
+  getPublicOrderDetailsWithItems,
   updateOrderGatewayData,
   updateOrderPaymentStatus,
 } from "@/lib/actions/orders";
@@ -13,8 +14,22 @@ import {
   getScalevOrderByPgReference,
   retrieveScalevOrder,
 } from "@/lib/scalev/client";
-import { buildPaymentSnapshot, buildPublicOrderStatus } from "@/lib/scalev/mappers";
+import {
+  buildPaymentSnapshot,
+  buildPublicOrderStatus,
+  buildPublicOrderStatusWithItems,
+} from "@/lib/scalev/mappers";
 import type { PublicOrderStatusPayload, ScalevPaymentStatusResponse } from "@/lib/scalev/types";
+
+function buildCurrentPublicStatus(
+  orderWithItems: Awaited<ReturnType<typeof getPublicOrderDetailsWithItems>>,
+  legacyOrder: NonNullable<Awaited<ReturnType<typeof getPublicOrderDetails>>>,
+  paymentInstructions?: PublicOrderStatusPayload["paymentInstructions"]
+) {
+  return orderWithItems?.order_items.length
+    ? buildPublicOrderStatusWithItems(orderWithItems, paymentInstructions)
+    : buildPublicOrderStatus(legacyOrder, paymentInstructions);
+}
 
 export async function reconcilePublicOrderStatus(
   paymentOrderId: string,
@@ -28,24 +43,29 @@ export async function reconcilePublicOrderStatus(
     return null;
   }
 
+  const existingOrderWithItems = await getPublicOrderDetailsWithItems(
+    paymentOrderId,
+    publicAccessToken
+  );
   const existingPublicOrder = await getPublicOrderDetails(
     paymentOrderId,
     publicAccessToken
   );
+
   if (!existingPublicOrder) {
     return null;
   }
 
   if (
     existingPublicOrder.payment_status === "COMPLETED" &&
-    existingPublicOrder.voucher_id &&
-    existingPublicOrder.vouchers
+    (existingOrderWithItems?.order_items.some((item) => item.vouchers) ||
+      (existingPublicOrder.voucher_id && existingPublicOrder.vouchers))
   ) {
-    return buildPublicOrderStatus(existingPublicOrder);
+    return buildCurrentPublicStatus(existingOrderWithItems, existingPublicOrder);
   }
 
   if (existingPublicOrder.payment_provider !== "scalev") {
-    return buildPublicOrderStatus(existingPublicOrder);
+    return buildCurrentPublicStatus(existingOrderWithItems, existingPublicOrder);
   }
 
   let orderPk = existingPublicOrder.scalev_order_pk;
@@ -73,7 +93,7 @@ export async function reconcilePublicOrderStatus(
   }
 
   if (!orderPk) {
-    return buildPublicOrderStatus(existingPublicOrder);
+    return buildCurrentPublicStatus(existingOrderWithItems, existingPublicOrder);
   }
 
   const [payment, settlement] = await Promise.all([
@@ -131,10 +151,17 @@ export async function reconcilePublicOrderStatus(
       scalevLastCheckedAt: new Date().toISOString(),
     });
 
-    const latestOrder = await getOrderByPaymentOrderIdAndAccessToken(
+    const refreshedBeforeFulfillment = await getPublicOrderDetailsWithItems(
       paymentOrderId,
       publicAccessToken
     );
+    const alreadyFulfilled =
+      refreshedBeforeFulfillment?.order_items.length
+        ? refreshedBeforeFulfillment.order_items.every((item) => item.voucher_id)
+        : Boolean(existingPublicOrder.voucher_id);
+    const latestOrder = alreadyFulfilled
+      ? null
+      : await getOrderByPaymentOrderIdAndAccessToken(paymentOrderId, publicAccessToken);
     if (latestOrder) {
       await createVoucherOnPaymentSuccess(latestOrder);
     }
@@ -174,6 +201,14 @@ export async function reconcilePublicOrderStatus(
       scalevRawPaymentStatus: snapshot.rawPaymentStatus,
       scalevLastCheckedAt: new Date().toISOString(),
     });
+  }
+
+  const refreshedWithItems = await getPublicOrderDetailsWithItems(
+    paymentOrderId,
+    publicAccessToken
+  );
+  if (refreshedWithItems?.order_items.length) {
+    return buildPublicOrderStatusWithItems(refreshedWithItems, snapshot.paymentInstructions);
   }
 
   const refreshed = await getPublicOrderDetails(paymentOrderId, publicAccessToken);

@@ -24,6 +24,7 @@ function checkRateLimit(ip: string, limit = 10, windowMs = 60000): boolean {
 interface VoucherEmailRequest {
   orderId: string;
   token: string;
+  orderItemId?: string;
 }
 
 function escapeHtml(value: string): string {
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
       throw error;
     })) as VoucherEmailRequest;
 
-    const { orderId, token } = body;
+    const { orderId, token, orderItemId } = body;
 
     if (!orderId || !token) {
       return NextResponse.json(
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const delivery = await getAuthorizedVoucherDelivery(orderId, token);
+    const delivery = await getAuthorizedVoucherDelivery(orderId, token, orderItemId);
     if (!delivery || !delivery.recipientEmail) {
       return NextResponse.json(
         { error: "Voucher tidak valid atau email penerima tidak tersedia." },

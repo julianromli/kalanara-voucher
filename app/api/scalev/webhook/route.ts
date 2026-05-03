@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import type { Json } from "@/lib/database.types";
 import {
+  getOrderItemsByOrderId,
   getOrderByScalevOrderId,
   getOrderByScalevOrderPk,
   getOrderByScalevPgReferenceId,
@@ -132,6 +133,19 @@ async function findOrderFromWebhook(payload: ScalevWebhookPaymentStatusChangedDa
   }
 
   return null;
+}
+
+async function isOrderAlreadyFulfilled(order: Awaited<ReturnType<typeof findOrderFromWebhook>>) {
+  if (!order) {
+    return false;
+  }
+
+  const items = await getOrderItemsByOrderId(order.id);
+  if (items.length > 0) {
+    return items.every((item) => Boolean(item.voucher_id && item.vouchers));
+  }
+
+  return Boolean(order.voucher_id);
 }
 
 export async function GET() {
@@ -380,12 +394,19 @@ export async function POST(request: NextRequest) {
   let processingStatus: "processed" | "failed" = "processed";
   let processingMessage = "Webhook processed";
 
-  if (!order.voucher_id) {
+  const alreadyFulfilled = await isOrderAlreadyFulfilled(order);
+  if (alreadyFulfilled) {
+    processingMessage = "Payment completed; vouchers already fulfilled";
+  } else {
     try {
-      await createVoucherOnPaymentSuccess({
+      const result = await createVoucherOnPaymentSuccess({
         ...order,
         payment_status: "COMPLETED",
       });
+      if (!result.success) {
+        processingStatus = "failed";
+        processingMessage = result.error || "Payment completed, but voucher creation failed";
+      }
     } catch (error) {
       console.error("[Scalev Webhook] Voucher creation failed:", error);
       processingStatus = "failed";

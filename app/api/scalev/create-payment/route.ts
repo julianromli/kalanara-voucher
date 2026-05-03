@@ -1,19 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPendingOrder, markOrderFailedFromGateway, updateOrderGatewayData } from "@/lib/actions/orders";
+import {
+  createPendingOrder,
+  createPendingOrderItems,
+  markOrderFailedFromGateway,
+  updateOrderGatewayData,
+} from "@/lib/actions/orders";
 import { getServiceById } from "@/lib/actions/services";
-import { createScalevOrder, createScalevPaymentIntent, getScalevCheckoutAvailability } from "@/lib/scalev/client";
+import {
+  createScalevOrder,
+  createScalevPaymentIntent,
+  getScalevCheckoutAvailability,
+} from "@/lib/scalev/client";
 import { getScalevConfig } from "@/lib/scalev/config";
 import { ensureScalevServiceMapping } from "@/lib/scalev/catalog-sync";
 import { buildScalevPublicOrderUrl } from "@/lib/scalev/urls";
 import {
   SCALEV_PAYMENT_METHODS,
   SCALEV_VA_BANK_CODES,
+  type ScalevCheckoutLineItem,
   type ScalevCheckoutRequest,
+  type ScalevCreatePaymentErrorCode,
   type ScalevCreatePaymentResponse,
   type ScalevPaymentMethod,
   type ScalevVABankCode,
 } from "@/lib/scalev/types";
 import { DeliveryMethod, SendTo } from "@/lib/types";
+
+interface ValidatedCheckoutLineItem extends ScalevCheckoutLineItem {
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+}
+
+interface ValidatedCheckoutRequest {
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  paymentMethod: ScalevPaymentMethod;
+  subPaymentMethod?: ScalevVABankCode;
+  lineItems: ValidatedCheckoutLineItem[];
+}
 
 function normalizeScalevPhoneNumber(phone: string) {
   const digits = phone.replace(/\D/g, "");
@@ -46,55 +72,148 @@ function getOptionalString(value: unknown) {
   return normalized ? normalized : undefined;
 }
 
-function validateRequest(body: unknown): ScalevCheckoutRequest | null {
+function isDeliveryMethod(value: string): value is DeliveryMethod {
+  return Object.values(DeliveryMethod).includes(value as DeliveryMethod);
+}
+
+function isSendTo(value: string): value is SendTo {
+  return Object.values(SendTo).includes(value as SendTo);
+}
+
+function buildLegacyLineItem(
+  data: Record<string, unknown>,
+  customer: Pick<ValidatedCheckoutRequest, "customerName" | "customerEmail" | "customerPhone">
+): ValidatedCheckoutLineItem | null {
+  const serviceId = getOptionalString(data.serviceId);
+  const recipientName = getOptionalString(data.recipientName);
+  const deliveryMethodValue = getOptionalString(data.deliveryMethod);
+  const sendToValue = getOptionalString(data.sendTo);
+
+  if (
+    !serviceId ||
+    !recipientName ||
+    !deliveryMethodValue ||
+    !sendToValue ||
+    !isDeliveryMethod(deliveryMethodValue) ||
+    !isSendTo(sendToValue)
+  ) {
+    return null;
+  }
+
+  return {
+    ...customer,
+    serviceId,
+    recipientName,
+    recipientEmail: getOptionalString(data.recipientEmail),
+    recipientPhone: getOptionalString(data.recipientPhone),
+    senderMessage: getOptionalString(data.senderMessage),
+    deliveryMethod: deliveryMethodValue,
+    sendTo: sendToValue,
+  };
+}
+
+function normalizeLineItem(
+  value: unknown,
+  customer: Pick<ValidatedCheckoutRequest, "customerName" | "customerEmail" | "customerPhone">
+): ValidatedCheckoutLineItem | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const data = value as Record<string, unknown>;
+  const serviceId = getOptionalString(data.serviceId);
+  const recipientName = getOptionalString(data.recipientName);
+  const deliveryMethodValue = getOptionalString(data.deliveryMethod);
+  const sendToValue = getOptionalString(data.sendTo);
+
+  if (
+    !serviceId ||
+    !recipientName ||
+    !deliveryMethodValue ||
+    !sendToValue ||
+    !isDeliveryMethod(deliveryMethodValue) ||
+    !isSendTo(sendToValue)
+  ) {
+    return null;
+  }
+
+  return {
+    ...customer,
+    serviceId,
+    recipientName,
+    recipientEmail: getOptionalString(data.recipientEmail),
+    recipientPhone: getOptionalString(data.recipientPhone),
+    senderMessage: getOptionalString(data.senderMessage),
+    deliveryMethod: deliveryMethodValue,
+    sendTo: sendToValue,
+  };
+}
+
+function normalizeLegacyLineItemOrder(
+  lineItem: ValidatedCheckoutLineItem
+): ScalevCheckoutLineItem {
+  return {
+    serviceId: lineItem.serviceId,
+    recipientName: lineItem.recipientName,
+    recipientEmail: lineItem.recipientEmail,
+    recipientPhone: lineItem.recipientPhone,
+    senderMessage: lineItem.senderMessage,
+    deliveryMethod: lineItem.deliveryMethod,
+    sendTo: lineItem.sendTo,
+  };
+}
+
+function hasRequiredDeliveryTarget(lineItem: ValidatedCheckoutLineItem) {
+  const requiresRecipientPhone =
+    lineItem.sendTo === SendTo.RECIPIENT &&
+    (lineItem.deliveryMethod === DeliveryMethod.WHATSAPP ||
+      lineItem.deliveryMethod === DeliveryMethod.BOTH);
+  const requiresRecipientEmail =
+    lineItem.sendTo === SendTo.RECIPIENT &&
+    (lineItem.deliveryMethod === DeliveryMethod.EMAIL ||
+      lineItem.deliveryMethod === DeliveryMethod.BOTH);
+
+  return (
+    (!requiresRecipientPhone || Boolean(lineItem.recipientPhone)) &&
+    (!requiresRecipientEmail || Boolean(lineItem.recipientEmail))
+  );
+}
+
+function validateRequest(body: unknown): ValidatedCheckoutRequest | null {
   if (typeof body !== "object" || body === null) {
     return null;
   }
 
   const data = body as Record<string, unknown>;
-  const serviceId = getOptionalString(data.serviceId);
   const customerName = getOptionalString(data.customerName);
   const customerEmail = getOptionalString(data.customerEmail);
   const customerPhone = getOptionalString(data.customerPhone);
-  const recipientName = getOptionalString(data.recipientName);
-  const deliveryMethodValue = getOptionalString(data.deliveryMethod);
-  const sendToValue = getOptionalString(data.sendTo);
   const paymentMethod =
     typeof data.paymentMethod === "string" ? data.paymentMethod : "";
 
-  if (
-    !serviceId ||
-    !customerName ||
-    !customerEmail ||
-    !customerPhone ||
-    !recipientName ||
-    !deliveryMethodValue ||
-    !sendToValue ||
-    !isPaymentMethod(paymentMethod)
-  ) {
+  if (!customerName || !customerEmail || !customerPhone || !isPaymentMethod(paymentMethod)) {
     return null;
   }
 
+  const customer = {
+    customerName,
+    customerEmail,
+    customerPhone: normalizeScalevPhoneNumber(customerPhone),
+  };
+
+  const lineItems = Array.isArray(data.lineItems)
+    ? data.lineItems
+        .map((item) => normalizeLineItem(item, customer))
+        .filter((item): item is ValidatedCheckoutLineItem => Boolean(item))
+    : [];
+  const legacyLineItem = lineItems.length === 0 ? buildLegacyLineItem(data, customer) : null;
+  const normalizedLineItems =
+    lineItems.length > 0 ? lineItems : legacyLineItem ? [legacyLineItem] : [];
+
   if (
-    !Object.values(DeliveryMethod).includes(deliveryMethodValue as DeliveryMethod) ||
-    !Object.values(SendTo).includes(sendToValue as SendTo)
+    normalizedLineItems.length === 0 ||
+    normalizedLineItems.some((item) => !hasRequiredDeliveryTarget(item))
   ) {
-    return null;
-  }
-
-  const deliveryMethod = deliveryMethodValue as DeliveryMethod;
-  const sendTo = sendToValue as SendTo;
-  const recipientPhone = getOptionalString(data.recipientPhone);
-  const recipientEmail = getOptionalString(data.recipientEmail);
-  const requiresRecipientPhone =
-    sendTo === SendTo.RECIPIENT &&
-    (deliveryMethod === DeliveryMethod.WHATSAPP ||
-      deliveryMethod === DeliveryMethod.BOTH);
-  const requiresRecipientEmail =
-    sendTo === SendTo.RECIPIENT &&
-    (deliveryMethod === DeliveryMethod.EMAIL || deliveryMethod === DeliveryMethod.BOTH);
-
-  if ((requiresRecipientPhone && !recipientPhone) || (requiresRecipientEmail && !recipientEmail)) {
     return null;
   }
 
@@ -109,18 +228,13 @@ function validateRequest(body: unknown): ScalevCheckoutRequest | null {
   }
 
   return {
-    serviceId,
-    customerName,
-    customerEmail,
-    customerPhone: normalizeScalevPhoneNumber(customerPhone),
-    recipientName,
-    recipientEmail,
-    recipientPhone: recipientPhone
-      ? normalizeScalevPhoneNumber(recipientPhone)
-      : undefined,
-    senderMessage: getOptionalString(data.senderMessage),
-    deliveryMethod,
-    sendTo,
+    ...customer,
+    lineItems: normalizedLineItems.map((item) => ({
+      ...item,
+      recipientPhone: item.recipientPhone
+        ? normalizeScalevPhoneNumber(item.recipientPhone)
+        : undefined,
+    })),
     paymentMethod,
     subPaymentMethod:
       paymentMethod === "va" && subPaymentMethodRaw
@@ -150,6 +264,14 @@ function extractPaymentLink(
   );
 }
 
+function errorResponse(
+  error: string,
+  errorCode: ScalevCreatePaymentErrorCode,
+  status: number
+): NextResponse<ScalevCreatePaymentResponse> {
+  return NextResponse.json({ success: false, error, errorCode }, { status });
+}
+
 export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ScalevCreatePaymentResponse>> {
@@ -158,18 +280,7 @@ export async function POST(
     const validatedData = validateRequest(body);
 
     if (!validatedData) {
-      return NextResponse.json(
-        { success: false, error: "Data checkout tidak valid." },
-        { status: 400 }
-      );
-    }
-
-    const service = await getServiceById(validatedData.serviceId);
-    if (!service || !service.is_active) {
-      return NextResponse.json(
-        { success: false, error: "Layanan tidak tersedia." },
-        { status: 404 }
-      );
+      return errorResponse("Data checkout tidak valid.", "INVALID_CHECKOUT_DATA", 400);
     }
 
     const availability = await getScalevCheckoutAvailability();
@@ -183,33 +294,85 @@ export async function POST(
       );
 
     if (!methodAllowed || !subMethodAllowed) {
-      return NextResponse.json(
-        { success: false, error: "Metode pembayaran tidak tersedia." },
-        { status: 400 }
+      return errorResponse(
+        "Metode pembayaran tidak tersedia.",
+        "PAYMENT_METHOD_UNAVAILABLE",
+        400
       );
     }
 
-    const mapping = await ensureScalevServiceMapping(service);
+    const serviceRows = await Promise.all(
+      validatedData.lineItems.map((item) => getServiceById(item.serviceId))
+    );
+    if (serviceRows.some((service) => !service || !service.is_active)) {
+      return errorResponse("Layanan tidak tersedia.", "SERVICE_UNAVAILABLE", 404);
+    }
+
+    const services = serviceRows.map((service) => {
+      if (!service) {
+        throw new Error("Unexpected missing service after availability check");
+      }
+      return service;
+    });
+    const totalAmount = services.reduce((sum, service) => sum + service.price, 0);
+    const firstLine = validatedData.lineItems[0];
+    const isSingleLine = validatedData.lineItems.length === 1;
+
     const order = await createPendingOrder({
-      service_id: service.id,
+      service_id: isSingleLine ? services[0].id : null,
       customer_email: validatedData.customerEmail,
       customer_name: validatedData.customerName,
       customer_phone: validatedData.customerPhone,
-      recipient_name: validatedData.recipientName,
-      recipient_email: validatedData.recipientEmail,
-      recipient_phone: validatedData.recipientPhone || null,
-      sender_message: validatedData.senderMessage,
-      delivery_method: validatedData.deliveryMethod,
-      send_to: validatedData.sendTo,
-      total_amount: service.price,
+      recipient_name: isSingleLine ? firstLine.recipientName : null,
+      recipient_email: isSingleLine ? firstLine.recipientEmail || null : null,
+      recipient_phone: isSingleLine ? firstLine.recipientPhone || null : null,
+      sender_message: isSingleLine ? firstLine.senderMessage || null : null,
+      delivery_method: isSingleLine ? firstLine.deliveryMethod : null,
+      send_to: isSingleLine ? firstLine.sendTo : null,
+      total_amount: totalAmount,
       payment_method: validatedData.paymentMethod,
       sub_payment_method: validatedData.subPaymentMethod,
     });
 
     if (!order?.payment_order_id) {
-      return NextResponse.json(
-        { success: false, error: "Gagal membuat pesanan lokal." },
-        { status: 500 }
+      console.error("[Scalev] Local order insert returned no order");
+      return errorResponse(
+        "Pesanan belum bisa dibuat. Silakan coba lagi.",
+        "LOCAL_ORDER_FAILED",
+        500
+      );
+    }
+
+    const mappings = await Promise.all(
+      services.map((service) => ensureScalevServiceMapping(service))
+    );
+
+    const orderItems = await createPendingOrderItems(
+      validatedData.lineItems.map((item, index) => ({
+        order_id: order.id,
+        service_id: services[index].id,
+        unit_price: services[index].price,
+        recipient_name: item.recipientName,
+        recipient_email: item.recipientEmail || null,
+        recipient_phone: item.recipientPhone || null,
+        sender_message: item.senderMessage || null,
+        delivery_method: item.deliveryMethod,
+        send_to: item.sendTo,
+        sort_order: index,
+      }))
+    );
+
+    if (!orderItems || orderItems.length !== validatedData.lineItems.length) {
+      await markOrderFailedFromGateway(order.id, {
+        paymentProvider: "scalev",
+        scalevPaymentMethod: validatedData.paymentMethod,
+        scalevSubPaymentMethod: validatedData.subPaymentMethod || null,
+        scalevStoreUniqueId: getScalevConfig().storeUniqueId,
+      });
+      return errorResponse(
+        "Pesanan belum bisa dibuat. Silakan coba lagi.",
+        "LOCAL_ORDER_FAILED",
+        500
       );
     }
 
@@ -219,26 +382,26 @@ export async function POST(
         customer_email: validatedData.customerEmail,
         customer_phone: validatedData.customerPhone,
         store_unique_id: getScalevConfig().storeUniqueId,
-        ordervariants: [
-          {
-            variant_unique_id: mapping.primaryVariant.unique_id,
-            quantity: 1,
-          },
-        ],
+        ordervariants: mappings.map((mapping) => ({
+          variant_unique_id: mapping.primaryVariant.unique_id,
+          quantity: 1,
+        })),
         paymentMethod: validatedData.paymentMethod,
         subPaymentMethod: validatedData.subPaymentMethod,
         metadata: {
           local_order_id: order.id,
           payment_order_id: order.payment_order_id,
-          service_id: service.id,
-          service_name: service.name,
+          item_count: validatedData.lineItems.length,
         },
-        notes: `Kalanara voucher ${service.name} - ${order.payment_order_id}`,
+        notes: `Kalanara voucher x${validatedData.lineItems.length} - ${order.payment_order_id}`,
       });
 
       let paymentIntent = null;
       if (scalevOrder.id) {
-        paymentIntent = await createScalevPaymentIntent(scalevOrder.id).catch(() => null);
+        paymentIntent = await createScalevPaymentIntent(scalevOrder.id).catch((error) => {
+          console.warn("[Scalev] create payment intent failed; using order link fallback:", error);
+          return null;
+        });
       }
 
       const paymentLink = extractPaymentLink(scalevOrder, paymentIntent);
@@ -268,13 +431,10 @@ export async function POST(
       });
 
       if (!paymentLink) {
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              "Payment link dari Scalev belum tersedia. Silakan coba beberapa saat lagi.",
-          },
-          { status: 502 }
+        return errorResponse(
+          "Payment link dari Scalev belum tersedia. Silakan coba beberapa saat lagi.",
+          "PAYMENT_LINK_MISSING",
+          502
         );
       }
 
@@ -296,16 +456,18 @@ export async function POST(
       });
 
       console.error("[Scalev] create-payment failed:", error);
-      return NextResponse.json(
-        { success: false, error: "Gagal membuat pembayaran Scalev." },
-        { status: 502 }
+      return errorResponse(
+        "Gagal membuat pembayaran Scalev. Silakan coba lagi.",
+        "SCALEV_PAYMENT_FAILED",
+        502
       );
     }
   } catch (error) {
     console.error("[Scalev] Unexpected create-payment error:", error);
-    return NextResponse.json(
-      { success: false, error: "Terjadi kesalahan internal." },
-      { status: 500 }
+    return errorResponse(
+      "Terjadi kendala saat menyiapkan pembayaran. Silakan coba lagi.",
+      "INTERNAL_ERROR",
+      500
     );
   }
 }

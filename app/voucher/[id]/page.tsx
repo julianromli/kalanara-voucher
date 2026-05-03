@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Clock, ChevronLeft, Gift, Star, Calendar } from "lucide-react";
 import { formatCurrency, APP_CONFIG } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
+import { AddToCartButton } from "@/components/add-to-cart-button";
 import { getServiceById } from "@/lib/actions/services";
 import type { Service } from "@/lib/types";
 import type { ServiceWithCategory } from "@/lib/actions/services";
@@ -165,12 +166,18 @@ export default async function VoucherDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              <Link href={`/checkout/${service.id}`}>
-                <Button className="btn-hover-lift w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg flex items-center justify-center gap-2">
+              <AddToCartButton
+                service={service}
+                size="lg"
+                className="btn-hover-lift w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg flex items-center justify-center gap-2"
+              />
+
+              <Button asChild variant="outline" className="mt-3 w-full py-6 text-base">
+                <Link href={`/checkout/${service.id}`}>
                   <Gift size={20} />
-                  Beli Voucher
-                </Button>
-              </Link>
+                  Beli 1 Voucher Sekarang
+                </Link>
+              </Button>
 
               <p className="text-center text-muted-foreground text-sm mt-4">
                 Langsung dikirim via Email dan WhatsApp

@@ -25,6 +25,7 @@ function checkRateLimit(ip: string, limit = 10, windowMs = 60000): boolean {
 interface SendWhatsAppRequest {
   orderId: string;
   token: string;
+  orderItemId?: string;
 }
 
 /**
@@ -87,9 +88,9 @@ export async function POST(
       );
     }
 
-    const { orderId, token } = body as SendWhatsAppRequest;
+    const { orderId, token, orderItemId } = body as SendWhatsAppRequest;
 
-    const delivery = await getAuthorizedVoucherDelivery(orderId, token);
+    const delivery = await getAuthorizedVoucherDelivery(orderId, token, orderItemId);
     if (!delivery || !delivery.recipientPhone) {
       return NextResponse.json(
         { success: false, error: "Voucher tidak valid atau nomor tujuan tidak tersedia." },

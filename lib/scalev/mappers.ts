@@ -1,6 +1,7 @@
 import {
   type PublicOrderPaymentInstructions,
   type PublicOrderStatusPayload,
+  type PublicOrderVoucherPayload,
   type ScalevNormalizedPaymentStatus,
   type ScalevPaymentMethod,
   type ScalevPaymentSnapshot,
@@ -9,7 +10,11 @@ import {
   type ScalevStoreRecord,
   type ScalevVABankCode,
 } from "@/lib/scalev/types";
-import type { OrderWithVoucher } from "@/lib/database.types";
+import type {
+  OrderItemWithService,
+  OrderWithItems,
+  OrderWithVoucher,
+} from "@/lib/database.types";
 import { DeliveryMethod, SendTo } from "@/lib/types";
 import { buildScalevPublicOrderUrl } from "@/lib/scalev/urls";
 
@@ -112,6 +117,62 @@ export function buildPaymentSnapshot(
   };
 }
 
+function buildVoucherPayloadFromOrderItem(
+  order: OrderWithItems,
+  item: OrderItemWithService
+): PublicOrderVoucherPayload | null {
+  const voucher = item.vouchers;
+  if (!voucher) {
+    return null;
+  }
+
+  const recipientPhone =
+    item.send_to === "RECIPIENT"
+      ? item.recipient_phone || ""
+      : order.customer_phone;
+
+  return {
+    voucherCode: voucher.code,
+    paymentOrderId: order.payment_order_id || "",
+    recipientName: item.recipient_name,
+    recipientEmail: item.recipient_email,
+    recipientPhone,
+    senderName: order.customer_name,
+    senderMessage: item.sender_message,
+    serviceName: item.services?.name || "Layanan Spa",
+    serviceDuration: item.services?.duration || 60,
+    amount: item.unit_price,
+    expiryDate: voucher.expiry_date,
+    deliveryMethod: item.delivery_method as DeliveryMethod,
+    sendTo: item.send_to as SendTo,
+  };
+}
+
+function buildLegacyVoucherPayload(
+  order: OrderWithVoucher
+): PublicOrderVoucherPayload | undefined {
+  const voucher = order.vouchers;
+  if (!voucher) {
+    return undefined;
+  }
+
+  return {
+    voucherCode: voucher.code,
+    paymentOrderId: order.payment_order_id || "",
+    recipientName: order.recipient_name || "",
+    recipientEmail: order.recipient_email,
+    recipientPhone: order.recipient_phone || "",
+    senderName: order.customer_name,
+    senderMessage: order.sender_message,
+    serviceName: voucher.services?.name || "Layanan Spa",
+    serviceDuration: voucher.services?.duration || 60,
+    amount: order.total_amount,
+    expiryDate: voucher.expiry_date,
+    deliveryMethod: order.delivery_method as DeliveryMethod,
+    sendTo: order.send_to as SendTo,
+  };
+}
+
 export function buildPublicOrderStatus(
   order: OrderWithVoucher,
   paymentInstructions?: PublicOrderPaymentInstructions
@@ -123,6 +184,7 @@ export function buildPublicOrderStatus(
       : order.payment_status === "FAILED" || order.payment_status === "REFUNDED"
         ? "failed"
         : "pending";
+  const legacyVoucher = buildLegacyVoucherPayload(order);
 
   return {
     status,
@@ -138,22 +200,44 @@ export function buildPublicOrderStatus(
         : status === "failed"
           ? "Pembayaran tidak berhasil diproses."
           : undefined,
-    voucher: voucher
-      ? {
-          voucherCode: voucher.code,
-          paymentOrderId: order.payment_order_id || "",
-          recipientName: order.recipient_name || "",
-          recipientEmail: order.recipient_email,
-          recipientPhone: order.recipient_phone || "",
-          senderName: order.customer_name,
-          senderMessage: order.sender_message,
-          serviceName: voucher.services?.name || "Layanan Spa",
-          serviceDuration: voucher.services?.duration || 60,
-          amount: order.total_amount,
-          expiryDate: voucher.expiry_date,
-          deliveryMethod: order.delivery_method as DeliveryMethod,
-          sendTo: order.send_to as SendTo,
-        }
-      : undefined,
+    voucher: legacyVoucher,
+    vouchers: legacyVoucher ? [legacyVoucher] : [],
+  };
+}
+
+export function buildPublicOrderStatusWithItems(
+  order: OrderWithItems,
+  paymentInstructions?: PublicOrderPaymentInstructions
+): PublicOrderStatusPayload {
+  const vouchers = order.order_items
+    .map((item) => buildVoucherPayloadFromOrderItem(order, item))
+    .filter((item): item is PublicOrderVoucherPayload => Boolean(item));
+  const expectedVoucherCount = order.order_items.length;
+  const isComplete =
+    order.payment_status === "COMPLETED" &&
+    expectedVoucherCount > 0 &&
+    vouchers.length === expectedVoucherCount;
+  const status = isComplete
+    ? "completed"
+    : order.payment_status === "FAILED" || order.payment_status === "REFUNDED"
+      ? "failed"
+      : "pending";
+
+  return {
+    status,
+    orderId: order.payment_order_id || order.id,
+    paymentStatus: order.payment_status,
+    paymentMethod: order.scalev_payment_method || order.payment_type,
+    provider: order.payment_provider,
+    paymentLink: order.payment_link,
+    paymentInstructions,
+    message:
+      status === "pending"
+        ? "Pembayaran masih diverifikasi."
+        : status === "failed"
+          ? "Pembayaran tidak berhasil diproses."
+          : undefined,
+    voucher: vouchers[0],
+    vouchers,
   };
 }
