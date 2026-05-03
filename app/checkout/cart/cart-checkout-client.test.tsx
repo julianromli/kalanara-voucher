@@ -56,6 +56,54 @@ describe("CartCheckoutClient", () => {
     });
   });
 
+  test("collapses secondary vouchers into summaries and restores editable fields on toggle off", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: true,
+          config: {
+            paymentNotice: null,
+            paymentOptions: [{ code: "qris", label: "QRIS" }],
+          },
+        }),
+      })
+    );
+
+    renderCheckout();
+
+    expect(await screen.findByText("QRIS")).toBeInTheDocument();
+    expect(screen.getAllByPlaceholderText("Nama penerima voucher")).toHaveLength(2);
+
+    fireEvent.click(screen.getByLabelText("Gunakan penerima yang sama"));
+
+    expect(screen.getAllByPlaceholderText("Nama penerima voucher")).toHaveLength(1);
+    expect(screen.getByText("Semua voucher di bawah mengikuti Voucher 1.")).toBeInTheDocument();
+    expect(screen.getByText("Data utama penerima")).toBeInTheDocument();
+    expect(screen.getAllByText("Mengikuti Voucher 1").length).toBeGreaterThan(0);
+
+    fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {
+      target: { value: "Penerima Utama" },
+    });
+
+    const phoneInput = screen.getAllByPlaceholderText("+62 812 3456 7890")[1];
+    fireEvent.change(phoneInput, {
+      target: { value: "0812 9999 0000" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Penerima Utama")).toBeInTheDocument();
+      expect(screen.getByText("0812 9999 0000")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText("Gunakan penerima yang sama"));
+
+    expect(screen.getAllByPlaceholderText("Nama penerima voucher")).toHaveLength(2);
+    expect(screen.getAllByDisplayValue("Penerima Utama")).toHaveLength(2);
+    expect(screen.getAllByDisplayValue("0812 9999 0000")).toHaveLength(2);
+  });
+
   test("keeps cart items and starts a recoverable pending checkout", async () => {
     const popup = {
       close: vi.fn(),
@@ -97,23 +145,20 @@ describe("CartCheckoutClient", () => {
     expect(await screen.findByText("QRIS")).toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText("Gunakan penerima yang sama"));
+    expect(screen.getAllByText("Mengikuti Voucher 1").length).toBeGreaterThan(0);
 
-    const recipientNameInputs = screen.getAllByPlaceholderText("Nama penerima voucher");
-    fireEvent.change(recipientNameInputs[0], {
+    fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {
       target: { value: "Penerima Utama" },
     });
 
-    const phoneInputs = screen.getAllByPlaceholderText("+62 812 3456 7890");
-    fireEvent.change(phoneInputs[0], {
+    const phoneInput = screen.getAllByPlaceholderText("+62 812 3456 7890")[1];
+    fireEvent.change(phoneInput, {
       target: { value: "0812 3456 7890" },
-    });
-    fireEvent.change(phoneInputs[1], {
-      target: { value: "0812 9999 0000" },
     });
 
     await waitFor(() => {
-      expect(screen.getAllByDisplayValue("Penerima Utama")).toHaveLength(2);
-      expect(screen.getAllByDisplayValue("0812 9999 0000")).toHaveLength(2);
+      expect(screen.getByText("Penerima Utama")).toBeInTheDocument();
+      expect(screen.getByText("0812 3456 7890")).toBeInTheDocument();
     });
 
     fireEvent.change(screen.getByPlaceholderText("Nama kamu"), {
@@ -121,6 +166,9 @@ describe("CartCheckoutClient", () => {
     });
     fireEvent.change(screen.getByPlaceholderText("nama@email.com"), {
       target: { value: "faiz@example.com" },
+    });
+    fireEvent.change(screen.getAllByPlaceholderText("+62 812 3456 7890")[0], {
+      target: { value: "0812 7777 1111" },
     });
 
     fireEvent.click(screen.getAllByRole("button", { name: "Lanjut ke Pembayaran" })[0]);
@@ -137,11 +185,11 @@ describe("CartCheckoutClient", () => {
     expect(requestBody.lineItems).toEqual([
       expect.objectContaining({
         recipientName: "Penerima Utama",
-        recipientPhone: "0812 9999 0000",
+        recipientPhone: "0812 3456 7890",
       }),
       expect.objectContaining({
         recipientName: "Penerima Utama",
-        recipientPhone: "0812 9999 0000",
+        recipientPhone: "0812 3456 7890",
       }),
     ]);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -78,6 +78,21 @@ function getPaymentMethodDescription(code: ScalevPaymentMethod) {
   }
 }
 
+function getSendToSummary(sendTo: SendTo) {
+  return sendTo === SendTo.RECIPIENT ? "Penerima" : "Saya";
+}
+
+function getDeliveryMethodSummary(deliveryMethod: DeliveryMethod) {
+  switch (deliveryMethod) {
+    case DeliveryMethod.WHATSAPP:
+      return "WhatsApp";
+    case DeliveryMethod.EMAIL:
+      return "Email";
+    case DeliveryMethod.BOTH:
+      return "Email & WhatsApp";
+  }
+}
+
 function writePaymentLoadingShell(paymentWindow: Window | null) {
   const popupDocument = paymentWindow?.document;
   if (!popupDocument) return;
@@ -90,6 +105,7 @@ function writePaymentLoadingShell(paymentWindow: Window | null) {
 export function CartCheckoutClient() {
   const router = useRouter();
   const { showToast } = useToast();
+  const announcementRef = useRef<HTMLDivElement>(null);
   const items = useCartStore((state) => state.items);
   const removeItem = useCartStore((state) => state.removeItem);
   const startPendingCheckout = useCartStore((state) => state.startPendingCheckout);
@@ -129,6 +145,17 @@ export function CartCheckoutClient() {
   const sameRecipient = watch("sameRecipient");
   const lineItems = watch("lineItems");
   const primaryLineItem = lineItems?.[0];
+
+  const announceToScreenReader = useCallback((message: string) => {
+    if (!announcementRef.current) return;
+
+    announcementRef.current.textContent = message;
+    window.setTimeout(() => {
+      if (announcementRef.current) {
+        announcementRef.current.textContent = "";
+      }
+    }, 1000);
+  }, []);
 
   useEffect(() => {
     const currentLineItems = getValues("lineItems");
@@ -257,6 +284,16 @@ export function CartCheckoutClient() {
     sameRecipient,
     setValue,
   ]);
+
+  useEffect(() => {
+    if (fields.length <= 1) return;
+
+    announceToScreenReader(
+      sameRecipient
+        ? "Voucher kedua dan seterusnya sekarang mengikuti Voucher 1."
+        : "Setiap voucher sekarang bisa diedit secara terpisah."
+    );
+  }, [announceToScreenReader, fields.length, sameRecipient]);
 
   const registerPhoneField = useCallback(
     (fieldName: `customerPhone` | `lineItems.${number}.recipientPhone`, requiredMessage: string | false) =>
@@ -433,6 +470,13 @@ export function CartCheckoutClient() {
 
   return (
     <div className="min-h-screen bg-background pb-28 pt-8 md:pb-8">
+      <div
+        ref={announcementRef}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      />
       <div className="mx-auto mb-6 max-w-6xl px-4 sm:px-6 lg:px-8 animate-slide-in-left">
         <button
           onClick={() => router.back()}
@@ -543,7 +587,9 @@ export function CartCheckoutClient() {
                   </label>
                 </div>
                 <p className="mt-3 text-sm text-muted-foreground">
-                  Saat aktif, data penerima pada voucher pertama akan diterapkan ke voucher lainnya.
+                  {sameRecipient
+                    ? "Semua voucher di bawah mengikuti Voucher 1."
+                    : "Aktifkan jika semua voucher ditujukan ke penerima yang sama."}
                 </p>
 
                 <div className="mt-6 space-y-5">
@@ -567,10 +613,16 @@ export function CartCheckoutClient() {
                         deliveryMethod === DeliveryMethod.BOTH);
                     const itemErrors = errors.lineItems?.[index];
 
+                    const isFollowingPrimary = sameRecipient && index > 0;
+
                     return (
                       <div
                         key={field.id}
-                        className="rounded-2xl border border-border bg-background p-4"
+                        className={`rounded-2xl border p-4 ${
+                          isFollowingPrimary
+                            ? "border-border/80 bg-muted/35"
+                            : "border-border bg-background"
+                        }`}
                       >
                         <div className="flex gap-4">
                           <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted">
@@ -585,9 +637,21 @@ export function CartCheckoutClient() {
                             ) : null}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-medium text-foreground">
-                              {cartItem?.service.name ?? "Voucher"}
-                            </h3>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="font-medium text-foreground">
+                                {cartItem?.service.name ?? "Voucher"}
+                              </h3>
+                              {sameRecipient && index === 0 ? (
+                                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                                  Data utama penerima
+                                </span>
+                              ) : null}
+                              {isFollowingPrimary ? (
+                                <span className="rounded-full bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                  Mengikuti Voucher 1
+                                </span>
+                              ) : null}
+                            </div>
                             <p className="text-sm text-muted-foreground">
                               {cartItem?.service.duration ?? 0} menit
                             </p>
@@ -615,148 +679,197 @@ export function CartCheckoutClient() {
                           {...register(`lineItems.${index}.serviceId`)}
                         />
 
-                        <div className="mt-5 grid gap-4">
-                          <div>
-                            <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                              Nama Penerima
-                            </label>
-                            <Input
-                              {...register(`lineItems.${index}.recipientName`, {
-                                required: "Nama penerima wajib diisi",
-                              })}
-                              placeholder="Nama penerima voucher"
-                              className={itemErrors?.recipientName ? "border-destructive" : ""}
-                            />
-                            {itemErrors?.recipientName ? (
-                              <p className="mt-1 text-xs text-destructive" role="alert">
-                                {itemErrors.recipientName.message}
-                              </p>
+                        {isFollowingPrimary ? (
+                          <div className="mt-5 space-y-3 rounded-xl border border-border/70 bg-background/80 p-4">
+                            <div className="grid gap-3 text-sm sm:grid-cols-2">
+                              <div>
+                                <p className="text-muted-foreground">Nama Penerima</p>
+                                <p className="font-medium text-foreground">
+                                  {currentLineItem.recipientName || "Mengikuti Voucher 1"}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Kirim Voucher Ke</p>
+                                <p className="font-medium text-foreground">
+                                  {getSendToSummary(sendTo)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Cara Kirim</p>
+                                <p className="font-medium text-foreground">
+                                  {getDeliveryMethodSummary(deliveryMethod)}
+                                </p>
+                              </div>
+                              {showRecipientPhone ? (
+                                <div>
+                                  <p className="text-muted-foreground">WhatsApp Penerima</p>
+                                  <p className="font-medium text-foreground">
+                                    {currentLineItem.recipientPhone || "-"}
+                                  </p>
+                                </div>
+                              ) : null}
+                              {showRecipientEmail ? (
+                                <div>
+                                  <p className="text-muted-foreground">Email Penerima</p>
+                                  <p className="font-medium text-foreground">
+                                    {currentLineItem.recipientEmail || "-"}
+                                  </p>
+                                </div>
+                              ) : null}
+                            </div>
+                            {currentLineItem.senderMessage ? (
+                              <div>
+                                <p className="text-sm text-muted-foreground">Pesan untuk Penerima</p>
+                                <p className="mt-1 text-sm text-foreground">
+                                  {currentLineItem.senderMessage}
+                                </p>
+                              </div>
                             ) : null}
                           </div>
-
-                          <div>
-                            <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                              Pesan untuk Penerima
-                            </label>
-                            <textarea
-                              {...register(`lineItems.${index}.senderMessage`)}
-                              rows={2}
-                              placeholder="Tulis pesan singkat jika mau"
-                              className="min-h-20 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
-                            />
-                          </div>
-
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <div>
-                              <p className="mb-2 text-sm font-medium text-muted-foreground">
-                                Kirim Voucher Ke
-                              </p>
-                              <div className="grid gap-2">
-                                {[
-                                  { value: SendTo.RECIPIENT, label: "Penerima" },
-                                  { value: SendTo.PURCHASER, label: "Saya" },
-                                ].map((option) => (
-                                  <label
-                                    key={option.value}
-                                    className={`flex cursor-pointer items-center justify-center rounded-xl border p-3 text-center text-sm transition-all ${
-                                      sendTo === option.value
-                                        ? "border-primary bg-muted font-medium text-foreground"
-                                        : "border-border text-muted-foreground hover:border-muted-foreground"
-                                    }`}
-                                  >
-                                    <input
-                                      type="radio"
-                                      value={option.value}
-                                      {...register(`lineItems.${index}.sendTo`, { required: true })}
-                                      className="sr-only"
-                                    />
-                                    {option.label}
-                                  </label>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div>
-                              <p className="mb-2 text-sm font-medium text-muted-foreground">
-                                Cara kirim
-                              </p>
-                              <div className="grid gap-2">
-                                {[
-                                  { value: DeliveryMethod.WHATSAPP, label: "WhatsApp" },
-                                  { value: DeliveryMethod.EMAIL, label: "Email" },
-                                  { value: DeliveryMethod.BOTH, label: "Email & WhatsApp" },
-                                ].map((method) => (
-                                  <label
-                                    key={method.value}
-                                    className={`flex cursor-pointer items-center justify-center rounded-xl border p-3 text-center text-sm transition-all ${
-                                      deliveryMethod === method.value
-                                        ? "border-primary bg-muted font-medium text-foreground"
-                                        : "border-border text-muted-foreground hover:border-muted-foreground"
-                                    }`}
-                                  >
-                                    <input
-                                      type="radio"
-                                      value={method.value}
-                                      {...register(`lineItems.${index}.deliveryMethod`, {
-                                        required: true,
-                                      })}
-                                      className="sr-only"
-                                    />
-                                    {method.label}
-                                  </label>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-
-                          {showRecipientPhone ? (
+                        ) : (
+                          <div className="mt-5 grid gap-4">
                             <div>
                               <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                                WhatsApp Penerima
+                                Nama Penerima
                               </label>
                               <Input
-                                {...registerPhoneField(
-                                  `lineItems.${index}.recipientPhone`,
-                                  "Nomor WhatsApp penerima wajib diisi"
-                                )}
-                                placeholder="+62 812 3456 7890"
-                                className={itemErrors?.recipientPhone ? "border-destructive" : ""}
-                              />
-                              {itemErrors?.recipientPhone ? (
-                                <p className="mt-1 text-xs text-destructive" role="alert">
-                                  {itemErrors.recipientPhone.message}
-                                </p>
-                              ) : null}
-                            </div>
-                          ) : null}
-
-                          {showRecipientEmail ? (
-                            <div>
-                              <label className="mb-2 block text-sm font-medium text-muted-foreground">
-                                Email Penerima
-                              </label>
-                              <Input
-                                {...register(`lineItems.${index}.recipientEmail`, {
-                                  required: "Email penerima wajib diisi",
-                                  pattern: {
-                                    value: /^\S+@\S+$/i,
-                                    message: "Format email tidak valid",
-                                  },
-                                  setValueAs: (value: unknown) =>
-                                    typeof value === "string" ? value.trim() : value,
+                                {...register(`lineItems.${index}.recipientName`, {
+                                  required: "Nama penerima wajib diisi",
                                 })}
-                                type="email"
-                                placeholder="penerima@email.com"
-                                className={itemErrors?.recipientEmail ? "border-destructive" : ""}
+                                placeholder="Nama penerima voucher"
+                                className={itemErrors?.recipientName ? "border-destructive" : ""}
                               />
-                              {itemErrors?.recipientEmail ? (
+                              {itemErrors?.recipientName ? (
                                 <p className="mt-1 text-xs text-destructive" role="alert">
-                                  {itemErrors.recipientEmail.message}
+                                  {itemErrors.recipientName.message}
                                 </p>
                               ) : null}
                             </div>
-                          ) : null}
-                        </div>
+
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                                Pesan untuk Penerima
+                              </label>
+                              <textarea
+                                {...register(`lineItems.${index}.senderMessage`)}
+                                rows={2}
+                                placeholder="Tulis pesan singkat jika mau"
+                                className="min-h-20 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
+                              />
+                            </div>
+
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div>
+                                <p className="mb-2 text-sm font-medium text-muted-foreground">
+                                  Kirim Voucher Ke
+                                </p>
+                                <div className="grid gap-2">
+                                  {[
+                                    { value: SendTo.RECIPIENT, label: "Penerima" },
+                                    { value: SendTo.PURCHASER, label: "Saya" },
+                                  ].map((option) => (
+                                    <label
+                                      key={option.value}
+                                      className={`flex cursor-pointer items-center justify-center rounded-xl border p-3 text-center text-sm transition-all ${
+                                        sendTo === option.value
+                                          ? "border-primary bg-muted font-medium text-foreground"
+                                          : "border-border text-muted-foreground hover:border-muted-foreground"
+                                      }`}
+                                    >
+                                      <input
+                                        type="radio"
+                                        value={option.value}
+                                        {...register(`lineItems.${index}.sendTo`, { required: true })}
+                                        className="sr-only"
+                                      />
+                                      {option.label}
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div>
+                                <p className="mb-2 text-sm font-medium text-muted-foreground">
+                                  Cara kirim
+                                </p>
+                                <div className="grid gap-2">
+                                  {[
+                                    { value: DeliveryMethod.WHATSAPP, label: "WhatsApp" },
+                                    { value: DeliveryMethod.EMAIL, label: "Email" },
+                                    { value: DeliveryMethod.BOTH, label: "Email & WhatsApp" },
+                                  ].map((method) => (
+                                    <label
+                                      key={method.value}
+                                      className={`flex cursor-pointer items-center justify-center rounded-xl border p-3 text-center text-sm transition-all ${
+                                        deliveryMethod === method.value
+                                          ? "border-primary bg-muted font-medium text-foreground"
+                                          : "border-border text-muted-foreground hover:border-muted-foreground"
+                                      }`}
+                                    >
+                                      <input
+                                        type="radio"
+                                        value={method.value}
+                                        {...register(`lineItems.${index}.deliveryMethod`, {
+                                          required: true,
+                                        })}
+                                        className="sr-only"
+                                      />
+                                      {method.label}
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            {showRecipientPhone ? (
+                              <div>
+                                <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                                  WhatsApp Penerima
+                                </label>
+                                <Input
+                                  {...registerPhoneField(
+                                    `lineItems.${index}.recipientPhone`,
+                                    "Nomor WhatsApp penerima wajib diisi"
+                                  )}
+                                  placeholder="+62 812 3456 7890"
+                                  className={itemErrors?.recipientPhone ? "border-destructive" : ""}
+                                />
+                                {itemErrors?.recipientPhone ? (
+                                  <p className="mt-1 text-xs text-destructive" role="alert">
+                                    {itemErrors.recipientPhone.message}
+                                  </p>
+                                ) : null}
+                              </div>
+                            ) : null}
+
+                            {showRecipientEmail ? (
+                              <div>
+                                <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                                  Email Penerima
+                                </label>
+                                <Input
+                                  {...register(`lineItems.${index}.recipientEmail`, {
+                                    required: "Email penerima wajib diisi",
+                                    pattern: {
+                                      value: /^\S+@\S+$/i,
+                                      message: "Format email tidak valid",
+                                    },
+                                    setValueAs: (value: unknown) =>
+                                      typeof value === "string" ? value.trim() : value,
+                                  })}
+                                  type="email"
+                                  placeholder="penerima@email.com"
+                                  className={itemErrors?.recipientEmail ? "border-destructive" : ""}
+                                />
+                                {itemErrors?.recipientEmail ? (
+                                  <p className="mt-1 text-xs text-destructive" role="alert">
+                                    {itemErrors.recipientEmail.message}
+                                  </p>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
