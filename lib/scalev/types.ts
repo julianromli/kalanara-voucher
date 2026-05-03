@@ -305,6 +305,19 @@ export interface PublicOrderVoucherPayload {
   sendTo: SendTo;
 }
 
+export interface PublicOrderDetailsPayload {
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  totalAmount: number;
+  createdAt: string;
+  items: Array<{
+    serviceName: string;
+    quantity: number;
+    price: number;
+  }>;
+}
+
 export interface PublicOrderStatusPayload {
   status: ScalevPublicStatus;
   orderId: string;
@@ -316,6 +329,7 @@ export interface PublicOrderStatusPayload {
   paymentInstructions?: PublicOrderPaymentInstructions;
   voucher?: PublicOrderVoucherPayload;
   vouchers?: PublicOrderVoucherPayload[];
+  orderDetails?: PublicOrderDetailsPayload;
 }
 
 export interface ScalevApiEnvelope<T> {

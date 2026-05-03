@@ -583,6 +583,7 @@ export type VoucherWithService = Voucher & {
 };
 
 export type OrderWithVoucher = Order & {
+  services: Service | null;
   vouchers: VoucherWithService | null;
 };
 

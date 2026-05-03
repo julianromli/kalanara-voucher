@@ -202,6 +202,20 @@ export function buildPublicOrderStatus(
           : undefined,
     voucher: legacyVoucher,
     vouchers: legacyVoucher ? [legacyVoucher] : [],
+    orderDetails: {
+      customerName: order.customer_name,
+      customerEmail: order.customer_email,
+      customerPhone: order.customer_phone,
+      totalAmount: order.total_amount,
+      createdAt: order.created_at,
+      items: [
+        {
+          serviceName: order.vouchers?.services?.name || order.services?.name || "Layanan Spa",
+          quantity: 1,
+          price: order.total_amount,
+        },
+      ],
+    },
   };
 }
 
@@ -239,5 +253,17 @@ export function buildPublicOrderStatusWithItems(
           : undefined,
     voucher: vouchers[0],
     vouchers,
+    orderDetails: {
+      customerName: order.customer_name,
+      customerEmail: order.customer_email,
+      customerPhone: order.customer_phone,
+      totalAmount: order.total_amount,
+      createdAt: order.created_at,
+      items: order.order_items.map(item => ({
+        serviceName: item.services?.name || "Layanan Spa",
+        quantity: 1,
+        price: item.unit_price,
+      })),
+    },
   };
 }

@@ -7,6 +7,9 @@ import {
   CheckCircle,
   Download,
   Loader2,
+  Store,
+  RefreshCcw,
+  Copy,
 } from "lucide-react";
 import QRCode from "react-qr-code";
 import { Button } from "@/components/ui/button";
@@ -223,6 +226,166 @@ function SuccessContent() {
   const isFailed = payload?.status === "failed";
   const isHostedPaymentLink =
     paymentLink && isScalevHostedPublicOrderUrl(paymentLink);
+
+  if (!isCompleted && !isFailed && payload?.orderDetails) {
+    return (
+      <div className="min-h-screen bg-slate-50 px-4 py-10">
+        <div className="mx-auto max-w-2xl">
+          {/* Header */}
+          <div className="mb-6 flex items-center justify-between px-2">
+            <div className="flex items-center gap-2 font-semibold text-primary">
+              <Store className="size-5" />
+              Kalanara Spa
+            </div>
+            <div className="rounded bg-[#fdf8f3] px-3 py-1 text-xs font-semibold text-[#d59a54]">
+              Pending
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-white shadow-sm">
+            {/* Order Info */}
+            <div className="flex flex-col gap-4 border-b border-border p-6 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Order ID</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <p className="font-semibold text-foreground">{payload.orderId}</p>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(payload.orderId);
+                      showToast("Order ID disalin", "success");
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                    title="Salin Order ID"
+                  >
+                    <Copy className="size-3.5" />
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {new Date(payload.orderDetails.createdAt).toLocaleString("id-ID", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }).replace(" pukul", ",")}
+                </p>
+              </div>
+              <div className="sm:text-right">
+                <p className="text-xs font-medium text-muted-foreground">Total</p>
+                <div className="mt-1 flex items-center gap-1 sm:justify-end">
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(payload.orderDetails!.totalAmount.toString());
+                      showToast("Total disalin", "success");
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                    title="Salin Total"
+                  >
+                    <Copy className="size-3.5" />
+                  </button>
+                  <p className="font-semibold text-foreground">
+                    {formatCurrency(payload.orderDetails.totalAmount)}
+                  </p>
+                </div>
+                <p className="mt-1 text-xs font-medium text-[#7c9dc6] hover:underline cursor-pointer" onClick={() => window.location.reload()}>
+                  Lihat Riwayat Status Pemesanan
+                </p>
+              </div>
+            </div>
+
+            {/* Customer Info */}
+            <div className="border-b border-border bg-slate-50/50 p-6">
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Nama Pemesan</p>
+                  <p className="mt-1 font-medium text-foreground">{payload.orderDetails.customerName}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">No. Telepon Pemesan</p>
+                  <p className="mt-1 font-medium text-foreground">
+                    {payload.orderDetails.customerPhone.replace(/(\d{3})\d+(\d{3})/, '$1***$2')}
+                  </p>
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="text-xs font-medium text-muted-foreground">Email</p>
+                  <p className="mt-1 font-medium text-foreground">{payload.orderDetails.customerEmail}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Order Items */}
+            <div className="border-b border-border p-6">
+              <div className="space-y-4">
+                {payload.orderDetails.items.map((item, idx) => (
+                  <div key={idx} className="flex items-start justify-between border-b border-border/50 pb-4 last:border-0 last:pb-0">
+                    <div>
+                      <p className="font-semibold text-foreground">{item.serviceName}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Kuantitas: {item.quantity} x {formatCurrency(item.price)}
+                      </p>
+                    </div>
+                    <p className="font-semibold text-foreground">{formatCurrency(item.price * item.quantity)}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 flex items-center justify-between border-t border-border pt-4 font-semibold text-foreground">
+                <p>Total</p>
+                <p>{formatCurrency(payload.orderDetails.totalAmount)}</p>
+              </div>
+            </div>
+
+            {/* Payment Section */}
+            <div className="bg-slate-50/50 p-6 rounded-b-xl">
+              <div className="mb-6 flex justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Status Pembayaran</p>
+                  <p className="mt-1 font-semibold text-[#d59a54]">Unpaid</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-medium text-muted-foreground">Metode Pembayaran</p>
+                  <p className="mt-1 font-semibold text-foreground">{payload.paymentMethod || "QRIS"}</p>
+                </div>
+              </div>
+
+              {paymentInstructions?.kind === "qris" ? (
+                <div className="text-center">
+                  <div className="mx-auto w-fit rounded-xl bg-white p-3 border border-border">
+                    <QRCode value={paymentInstructions.qrString} size={220} />
+                  </div>
+                  <p className="mt-3 text-xs font-medium text-muted-foreground">
+                    Powered by <span className="font-bold text-foreground">QRIS</span>
+                  </p>
+                  <Button 
+                    className="mt-6 w-full bg-[#6a9bdc] hover:bg-[#5888c7] text-white"
+                    onClick={() => {
+                      showToast("Fitur download QR Code akan segera tersedia", "info");
+                    }}
+                  >
+                    Download QR Code
+                  </Button>
+                </div>
+              ) : isHostedPaymentLink ? (
+                <div className="mt-6 text-center">
+                  <Button className="w-full bg-[#6a9bdc] hover:bg-[#5888c7] text-white" onClick={handleOpenPaymentPage}>
+                    Buka Halaman Pembayaran
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+          
+          <Button 
+            className="mt-6 w-full bg-[#e38c45] text-white hover:bg-[#d47f3a]" 
+            onClick={handleCheckStatusAgain}
+          >
+            <RefreshCcw className="mr-2 size-4" />
+            Cek Status Pembayaran
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background px-4 py-10">
       <div className="mx-auto max-w-4xl">

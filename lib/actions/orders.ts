@@ -30,11 +30,11 @@ import type {
 } from "@/lib/scalev/types";
 
 const ORDER_VOUCHER_SELECT =
-  "*, vouchers:vouchers!orders_voucher_id_fkey(*, services(*))";
+  "*, services(*), vouchers:vouchers!orders_voucher_id_fkey(*, services(*))";
 const ORDER_ADMIN_SELECT =
-  "*, vouchers:vouchers!orders_voucher_id_fkey(*, services(*)), order_items(*, services(*), vouchers(*))";
+  "*, services(*), vouchers:vouchers!orders_voucher_id_fkey(*, services(*)), order_items(*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*))";
 const ORDER_ITEMS_SELECT =
-  "*, services(*), order_items(*, services(*), vouchers(*))";
+  "*, services(*), order_items(*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*))";
 
 export interface DestructiveOrderActionResult {
   success: boolean;
@@ -573,7 +573,7 @@ export async function getOrderItemsByOrderId(
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("order_items")
-    .select("*, services(*), vouchers(*)")
+    .select("*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*)")
     .eq("order_id", orderId)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
