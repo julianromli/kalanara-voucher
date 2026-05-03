@@ -4,9 +4,21 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X, ShoppingBag, ShieldCheck } from "lucide-react";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import {
+  Menu01Icon,
+  Cancel01Icon,
+  Shield01Icon,
+  Ticket01Icon,
+} from "@hugeicons/core-free-icons";
 import { SiteContainer } from "@/components/site-container";
 import { CartNavLink } from "@/components/cart-nav-link";
+
+type NavItem = {
+  href: string;
+  label: string;
+  icon?: IconSvgElement;
+};
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -42,10 +54,10 @@ export default function Navbar() {
   }
 
   // Nav items for staggered animation
-  const navItems = [
+  const navItems: NavItem[] = [
     { href: "/", label: "Beranda" },
     { href: "/#services", label: "Paket Voucher" },
-    { href: "/verify", label: "Cek Voucher", icon: ShieldCheck },
+    { href: "/verify", label: "Cek Voucher", icon: Shield01Icon },
   ];
 
   return (
@@ -100,7 +112,9 @@ export default function Navbar() {
                   }`}
                 style={{ transitionDelay: isMounted ? `${300 + index * 75}ms` : "0ms" }}
               >
-                {item.icon && <item.icon size={16} />}
+                {item.icon ? (
+                  <HugeiconsIcon icon={item.icon} size={16} className="shrink-0" aria-hidden />
+                ) : null}
                 {item.label}
               </Link>
             ))}
@@ -114,10 +128,17 @@ export default function Navbar() {
                 }`}
               style={{ transitionDelay: isMounted ? "600ms" : "0ms" }}
             >
-              <ShoppingBag size={18} />
+              <HugeiconsIcon icon={Ticket01Icon} size={18} aria-hidden />
               <span>Beli Voucher</span>
             </Link>
-            <CartNavLink />
+            <CartNavLink
+              className={`font-medium transition-all duration-500 ${isMounted ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
+                } ${isScrolled
+                  ? "text-foreground hover:text-muted-foreground"
+                  : "text-primary-foreground/90 hover:text-primary-foreground"
+                }`}
+              style={{ transitionDelay: isMounted ? "675ms" : "0ms" }}
+            />
           </div>
 
           {/* Mobile Menu Button */}
@@ -126,13 +147,21 @@ export default function Navbar() {
               }`}
             style={{ transitionDelay: isMounted ? "300ms" : "0ms" }}
           >
-            <CartNavLink />
+            <CartNavLink
+              className={`font-medium transition-all duration-500 mr-2 ${isMounted ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"
+                } ${isScrolled ? "text-foreground" : "text-primary-foreground"}`}
+              style={{ transitionDelay: isMounted ? "350ms" : "0ms" }}
+            />
             <button
               onClick={() => setIsOpen(!isOpen)}
               className={`p-2 transition-colors duration-500 ${isScrolled ? "text-foreground" : "text-primary-foreground"
                 }`}
             >
-              {isOpen ? <X size={24} /> : <Menu size={24} />}
+              <HugeiconsIcon
+                icon={isOpen ? Cancel01Icon : Menu01Icon}
+                size={24}
+                aria-hidden
+              />
             </button>
           </div>
         </div>
@@ -153,7 +182,9 @@ export default function Navbar() {
                 }`}
               style={{ transitionDelay: isOpen ? `${index * 50}ms` : "0ms" }}
             >
-              {item.icon && <item.icon size={16} />}
+              {item.icon ? (
+                <HugeiconsIcon icon={item.icon} size={16} className="shrink-0" aria-hidden />
+              ) : null}
               {item.label === "Cek Voucher" ? "Cek Voucher Kamu" : item.label}
             </Link>
           ))}

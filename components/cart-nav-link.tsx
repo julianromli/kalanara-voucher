@@ -1,11 +1,15 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import Link from "next/link";
-import { ShoppingBag } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ShoppingBag01Icon } from "@hugeicons/core-free-icons";
 import { useCartStore } from "@/store/cart-store";
+import { cn } from "@/lib/utils";
 
 interface CartNavLinkProps {
   className?: string;
+  style?: CSSProperties;
   label?: string;
   showLabel?: boolean;
   onClick?: () => void;
@@ -13,6 +17,7 @@ interface CartNavLinkProps {
 
 export function CartNavLink({
   className,
+  style,
   label = "Keranjang",
   showLabel = true,
   onClick,
@@ -23,13 +28,24 @@ export function CartNavLink({
     <Link
       href="/checkout/cart"
       onClick={onClick}
-      className={className}
+      className={cn("flex items-center gap-1", className)}
+      style={style}
       aria-label={`Keranjang belanja, ${itemCount} voucher`}
     >
-      <span className="relative inline-flex">
-        <ShoppingBag size={18} aria-hidden="true" />
+      <span className="relative inline-flex shrink-0">
+        <HugeiconsIcon
+          icon={ShoppingBag01Icon}
+          size={16}
+          className="shrink-0"
+          aria-hidden
+        />
         {itemCount > 0 ? (
-          <span className="absolute -right-2 -top-2 grid min-h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
+          <span
+            className={cn(
+              "absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-0.5 text-[9px] font-semibold leading-none",
+              "bg-destructive text-destructive-foreground ring-2 ring-background",
+            )}
+          >
             {itemCount > 99 ? "99+" : itemCount}
           </span>
         ) : null}
