@@ -6,6 +6,8 @@ const {
   getPublicOrderDetailsWithItemsMock,
   updateOrderGatewayDataMock,
   updateOrderPaymentStatusMock,
+  markDiscountRedemptionSucceededMock,
+  markDiscountRedemptionVoidMock,
   createVoucherOnPaymentSuccessMock,
   checkScalevPaymentStatusMock,
   checkScalevSettlementStatusMock,
@@ -20,6 +22,8 @@ const {
   getPublicOrderDetailsWithItemsMock: vi.fn(),
   updateOrderGatewayDataMock: vi.fn(),
   updateOrderPaymentStatusMock: vi.fn(),
+  markDiscountRedemptionSucceededMock: vi.fn(),
+  markDiscountRedemptionVoidMock: vi.fn(),
   createVoucherOnPaymentSuccessMock: vi.fn(),
   checkScalevPaymentStatusMock: vi.fn(),
   checkScalevSettlementStatusMock: vi.fn(),
@@ -42,6 +46,11 @@ vi.mock("@/lib/payment/voucher-service", () => ({
   createVoucherOnPaymentSuccess: createVoucherOnPaymentSuccessMock,
 }));
 
+vi.mock("@/lib/discounts/service", () => ({
+  markDiscountRedemptionSucceeded: markDiscountRedemptionSucceededMock,
+  markDiscountRedemptionVoid: markDiscountRedemptionVoidMock,
+}));
+
 vi.mock("@/lib/scalev/client", () => ({
   checkScalevPaymentStatus: checkScalevPaymentStatusMock,
   checkScalevSettlementStatus: checkScalevSettlementStatusMock,
@@ -60,6 +69,8 @@ describe("reconcilePublicOrderStatus", () => {
     vi.clearAllMocks();
     updateOrderGatewayDataMock.mockResolvedValue(true);
     updateOrderPaymentStatusMock.mockResolvedValue(true);
+    markDiscountRedemptionSucceededMock.mockResolvedValue(true);
+    markDiscountRedemptionVoidMock.mockResolvedValue(true);
     createVoucherOnPaymentSuccessMock.mockResolvedValue({ success: true, voucherCount: 1 });
     checkScalevPaymentStatusMock.mockResolvedValue(null);
     checkScalevSettlementStatusMock.mockResolvedValue(null);
@@ -177,5 +188,94 @@ describe("reconcilePublicOrderStatus", () => {
       status: "completed",
       vouchers: [{ voucherCode: "KSPV-001" }],
     });
+  });
+
+  test("throws before fulfillment when discount redemption sync fails after completion", async () => {
+    const { reconcilePublicOrderStatus } = await import("@/lib/scalev/reconcile");
+
+    getOrderByPaymentOrderIdAndAccessTokenMock.mockResolvedValue({
+      id: "order-1",
+      payment_order_id: "KSP-123",
+    });
+    getPublicOrderDetailsMock.mockResolvedValue({
+      id: "order-1",
+      payment_status: "PENDING",
+      payment_provider: "scalev",
+      payment_link: "https://app.scalev.id/order/public/secret-token",
+      payment_transaction_id: null,
+      scalev_order_pk: 99,
+      scalev_order_id: "scalev-1",
+      scalev_pg_reference_id: "pg-1",
+      scalev_payment_method: "qris",
+      scalev_sub_payment_method: null,
+      scalev_store_unique_id: "store-1",
+      voucher_id: null,
+      vouchers: null,
+    });
+    getPublicOrderDetailsWithItemsMock.mockResolvedValue({
+      order_items: [{ id: "item-1", voucher_id: null }],
+    });
+    buildPaymentSnapshotMock.mockReturnValue({
+      normalizedStatus: "COMPLETED",
+      pgReferenceId: "pg-1",
+      paymentMethod: "qris",
+      subPaymentMethod: null,
+      paymentLink: "https://app.scalev.id/order/public/secret-token",
+      orderPk: 99,
+      orderId: "scalev-1",
+      rawStatus: "paid",
+      rawPaymentStatus: "paid",
+      paymentInstructions: undefined,
+    });
+    markDiscountRedemptionSucceededMock.mockResolvedValue(false);
+
+    await expect(
+      reconcilePublicOrderStatus("KSP-123", "public-token")
+    ).rejects.toThrow("Failed to synchronize discount redemption after payment success.");
+    expect(createVoucherOnPaymentSuccessMock).not.toHaveBeenCalled();
+  });
+
+  test("throws when voiding discount redemption fails after failed payment", async () => {
+    const { reconcilePublicOrderStatus } = await import("@/lib/scalev/reconcile");
+
+    getOrderByPaymentOrderIdAndAccessTokenMock.mockResolvedValue({
+      id: "order-1",
+      payment_order_id: "KSP-123",
+    });
+    getPublicOrderDetailsMock.mockResolvedValue({
+      id: "order-1",
+      payment_status: "PENDING",
+      payment_provider: "scalev",
+      payment_link: "https://app.scalev.id/order/public/secret-token",
+      payment_transaction_id: null,
+      scalev_order_pk: 99,
+      scalev_order_id: "scalev-1",
+      scalev_pg_reference_id: "pg-1",
+      scalev_payment_method: "qris",
+      scalev_sub_payment_method: null,
+      scalev_store_unique_id: "store-1",
+      voucher_id: null,
+      vouchers: null,
+    });
+    getPublicOrderDetailsWithItemsMock.mockResolvedValue({
+      order_items: [{ id: "item-1", voucher_id: null }],
+    });
+    buildPaymentSnapshotMock.mockReturnValue({
+      normalizedStatus: "FAILED",
+      pgReferenceId: "pg-1",
+      paymentMethod: "qris",
+      subPaymentMethod: null,
+      paymentLink: "https://app.scalev.id/order/public/secret-token",
+      orderPk: 99,
+      orderId: "scalev-1",
+      rawStatus: "expired",
+      rawPaymentStatus: "expired",
+      paymentInstructions: undefined,
+    });
+    markDiscountRedemptionVoidMock.mockResolvedValue(false);
+
+    await expect(
+      reconcilePublicOrderStatus("KSP-123", "public-token")
+    ).rejects.toThrow("Failed to void discount redemption after payment failure.");
   });
 });

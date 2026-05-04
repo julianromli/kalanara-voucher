@@ -15,6 +15,7 @@ import {
   Leaf01Icon,
   ShoppingBag01Icon,
   StarIcon,
+  Tag01Icon,
   UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
@@ -54,6 +55,12 @@ const navItems = [
     label: "Purchases",
     href: "/admin/purchases",
     requiredPermission: AdminPermission.ORDERS_VIEW,
+  },
+  {
+    icon: Tag01Icon,
+    label: "Promo Codes",
+    href: "/admin/discount-codes",
+    requiredPermission: AdminPermission.DISCOUNT_CODES_MANAGE,
   },
   {
     icon: StarIcon,

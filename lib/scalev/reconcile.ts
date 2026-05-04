@@ -7,6 +7,10 @@ import {
   updateOrderGatewayData,
   updateOrderPaymentStatus,
 } from "@/lib/actions/orders";
+import {
+  markDiscountRedemptionSucceeded,
+  markDiscountRedemptionVoid,
+} from "@/lib/discounts/service";
 import { createVoucherOnPaymentSuccess } from "@/lib/payment/voucher-service";
 import {
   checkScalevPaymentStatus,
@@ -150,6 +154,10 @@ export async function reconcilePublicOrderStatus(
       scalevRawPaymentStatus: snapshot.rawPaymentStatus,
       scalevLastCheckedAt: new Date().toISOString(),
     });
+    const redemptionMarked = await markDiscountRedemptionSucceeded(existingPublicOrder.id);
+    if (!redemptionMarked) {
+      throw new Error("Failed to synchronize discount redemption after payment success.");
+    }
 
     const refreshedBeforeFulfillment = await getPublicOrderDetailsWithItems(
       paymentOrderId,
@@ -183,6 +191,10 @@ export async function reconcilePublicOrderStatus(
       scalevRawPaymentStatus: snapshot.rawPaymentStatus,
       scalevLastCheckedAt: new Date().toISOString(),
     });
+    const redemptionVoided = await markDiscountRedemptionVoid(existingPublicOrder.id);
+    if (!redemptionVoided) {
+      throw new Error("Failed to void discount redemption after payment failure.");
+    }
   } else if (snapshot.normalizedStatus === "REFUNDED") {
     await updateOrderPaymentStatus(existingPublicOrder.id, "REFUNDED", {
       paymentProvider: "scalev",

@@ -6,6 +6,9 @@ const {
   createPendingOrderItemsMock,
   updateOrderGatewayDataMock,
   markOrderFailedFromGatewayMock,
+  validateDiscountForCheckoutMock,
+  createPendingDiscountRedemptionMock,
+  markDiscountRedemptionVoidMock,
   getServiceByIdMock,
   getScalevCheckoutAvailabilityMock,
   ensureScalevServiceMappingMock,
@@ -16,6 +19,9 @@ const {
   createPendingOrderItemsMock: vi.fn(),
   updateOrderGatewayDataMock: vi.fn(),
   markOrderFailedFromGatewayMock: vi.fn(),
+  validateDiscountForCheckoutMock: vi.fn(),
+  createPendingDiscountRedemptionMock: vi.fn(),
+  markDiscountRedemptionVoidMock: vi.fn(),
   getServiceByIdMock: vi.fn(),
   getScalevCheckoutAvailabilityMock: vi.fn(),
   ensureScalevServiceMappingMock: vi.fn(),
@@ -28,6 +34,20 @@ vi.mock("@/lib/actions/orders", () => ({
   createPendingOrderItems: createPendingOrderItemsMock,
   updateOrderGatewayData: updateOrderGatewayDataMock,
   markOrderFailedFromGateway: markOrderFailedFromGatewayMock,
+}));
+
+vi.mock("@/lib/discounts/service", () => ({
+  allocateDiscountAcrossItems: (prices: number[], discountAmount: number) => {
+    if (prices.length === 1) {
+      return [discountAmount];
+    }
+
+    return prices.map(() => 0);
+  },
+  createPendingDiscountRedemption: createPendingDiscountRedemptionMock,
+  markDiscountRedemptionVoid: markDiscountRedemptionVoidMock,
+  normalizeCustomerPhone: (phone: string) => phone.replace(/\D/g, "").replace(/^0/, "62"),
+  validateDiscountForCheckout: validateDiscountForCheckoutMock,
 }));
 
 vi.mock("@/lib/actions/services", () => ({
@@ -92,6 +112,11 @@ describe("POST /api/scalev/create-payment", () => {
     });
     updateOrderGatewayDataMock.mockResolvedValue(true);
     markOrderFailedFromGatewayMock.mockResolvedValue(true);
+    createPendingDiscountRedemptionMock.mockResolvedValue({
+      success: true,
+      redemptionId: "redemption-1",
+    });
+    markDiscountRedemptionVoidMock.mockResolvedValue(true);
   });
 
   test("allows purchaser WhatsApp checkout without recipient phone and stores null", async () => {
@@ -260,5 +285,262 @@ describe("POST /api/scalev/create-payment", () => {
         scalevPgReferenceId: "pg-1",
       })
     );
+  });
+
+  test("creates discounted order snapshots and forwards product discount to Scalev", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+
+    validateDiscountForCheckoutMock.mockResolvedValue({
+      valid: true,
+      quote: {
+        discountCodeId: "discount-1",
+        code: "HEMAT10",
+        discountType: "PERCENTAGE",
+        discountValue: 10,
+        subtotalAmount: 450000,
+        discountAmount: 45000,
+        totalAmount: 405000,
+      },
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: "service-1",
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          recipientName: "Penerima",
+          recipientPhone: "081234567890",
+          deliveryMethod: DeliveryMethod.WHATSAPP,
+          sendTo: SendTo.RECIPIENT,
+          discountCode: "HEMAT10",
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(200);
+    expect(validateDiscountForCheckoutMock).toHaveBeenCalled();
+    expect(createPendingOrderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subtotal_amount: 450000,
+        discount_code: "HEMAT10",
+        discount_amount: 45000,
+        total_amount: 405000,
+      })
+    );
+    expect(createPendingOrderItemsMock).toHaveBeenCalledWith([
+      expect.objectContaining({
+        original_unit_price: 450000,
+        discount_amount: 45000,
+        final_unit_price: 405000,
+        unit_price: 405000,
+      }),
+    ]);
+    expect(createPendingDiscountRedemptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discountCodeId: "discount-1",
+        discountAmount: 45000,
+        totalAmount: 405000,
+      })
+    );
+    expect(createScalevOrderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productDiscount: 45000,
+        metadata: expect.objectContaining({
+          discount_code: "HEMAT10",
+          discount_amount: 45000,
+          total_amount: 405000,
+        }),
+      })
+    );
+  });
+
+  test("rejects invalid discount codes before creating a local order", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+
+    validateDiscountForCheckoutMock.mockResolvedValue({
+      valid: false,
+      reason: "INVALID",
+      message: "Kode diskon tidak ditemukan.",
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: "service-1",
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          recipientName: "Penerima",
+          recipientPhone: "081234567890",
+          deliveryMethod: DeliveryMethod.WHATSAPP,
+          sendTo: SendTo.RECIPIENT,
+          discountCode: "SALAH",
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: "Kode diskon tidak ditemukan.",
+      errorCode: "DISCOUNT_CODE_INVALID",
+    });
+    expect(createPendingOrderMock).not.toHaveBeenCalled();
+  });
+
+  test("fails closed when Scalev rejects a discounted order payload", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+
+    validateDiscountForCheckoutMock.mockResolvedValue({
+      valid: true,
+      quote: {
+        discountCodeId: "discount-1",
+        code: "HEMAT10",
+        discountType: "PERCENTAGE",
+        discountValue: 10,
+        subtotalAmount: 450000,
+        discountAmount: 45000,
+        totalAmount: 405000,
+      },
+    });
+    createScalevOrderMock.mockRejectedValue(new Error("discount rejected"));
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: "service-1",
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          recipientName: "Penerima",
+          recipientPhone: "081234567890",
+          deliveryMethod: DeliveryMethod.WHATSAPP,
+          sendTo: SendTo.RECIPIENT,
+          discountCode: "HEMAT10",
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: "Pembayaran dengan kode diskon belum bisa diproses saat ini. Silakan coba lagi.",
+      errorCode: "DISCOUNT_GATEWAY_REJECTED",
+    });
+    expect(markDiscountRedemptionVoidMock).toHaveBeenCalledWith("order-1");
+  });
+
+  test("fails checkout when the discount reservation becomes unavailable after validation", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+
+    validateDiscountForCheckoutMock.mockResolvedValue({
+      valid: true,
+      quote: {
+        discountCodeId: "discount-1",
+        code: "HEMAT10",
+        discountType: "PERCENTAGE",
+        discountValue: 10,
+        subtotalAmount: 450000,
+        discountAmount: 45000,
+        totalAmount: 405000,
+      },
+    });
+    createPendingDiscountRedemptionMock.mockResolvedValue({
+      success: false,
+      reason: "GLOBAL_LIMIT_REACHED",
+      message: "Kuota kode diskon sudah habis.",
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: "service-1",
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          recipientName: "Penerima",
+          recipientPhone: "081234567890",
+          deliveryMethod: DeliveryMethod.WHATSAPP,
+          sendTo: SendTo.RECIPIENT,
+          discountCode: "HEMAT10",
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: "Kuota kode diskon sudah habis.",
+      errorCode: "DISCOUNT_CODE_INVALID",
+    });
+    expect(markOrderFailedFromGatewayMock).toHaveBeenCalledWith(
+      "order-1",
+      expect.objectContaining({
+        paymentProvider: "scalev",
+        scalevPaymentMethod: "qris",
+      })
+    );
+    expect(createPendingOrderItemsMock).not.toHaveBeenCalled();
+    expect(createScalevOrderMock).not.toHaveBeenCalled();
+  });
+
+  test("voids a reserved discount when local order item creation fails after reservation", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+
+    validateDiscountForCheckoutMock.mockResolvedValue({
+      valid: true,
+      quote: {
+        discountCodeId: "discount-1",
+        code: "HEMAT10",
+        discountType: "PERCENTAGE",
+        discountValue: 10,
+        subtotalAmount: 450000,
+        discountAmount: 45000,
+        totalAmount: 405000,
+      },
+    });
+    createPendingOrderItemsMock.mockResolvedValue([]);
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: "service-1",
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          recipientName: "Penerima",
+          recipientPhone: "081234567890",
+          deliveryMethod: DeliveryMethod.WHATSAPP,
+          sendTo: SendTo.RECIPIENT,
+          discountCode: "HEMAT10",
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: "Pesanan belum bisa dibuat. Silakan coba lagi.",
+      errorCode: "LOCAL_ORDER_FAILED",
+    });
+    expect(markDiscountRedemptionVoidMock).toHaveBeenCalledWith("order-1");
+    expect(createScalevOrderMock).not.toHaveBeenCalled();
   });
 });

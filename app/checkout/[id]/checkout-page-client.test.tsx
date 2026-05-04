@@ -184,4 +184,67 @@ describe("CheckoutPageClient", () => {
     expect(popup.close).toHaveBeenCalled();
     expect(popup.location.href).toBe("");
   });
+
+  test("applies discount on Enter without submitting the checkout form", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          config: {
+            paymentNotice: null,
+            paymentOptions: [{ code: "qris", label: "QRIS" }],
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          pricing: {
+            code: "HEMAT10",
+            discountAmount: 45000,
+            totalAmount: 405000,
+          },
+        }),
+      });
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("open", vi.fn(() => null));
+
+    renderCheckout();
+
+    expect(await screen.findByText("QRIS")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {
+      target: { value: "Penerima" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Nama kamu"), {
+      target: { value: "Faiz" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("nama@email.com"), {
+      target: { value: "faiz@example.com" },
+    });
+    const phoneInputs = screen.getAllByPlaceholderText("+62 812 3456 7890");
+    fireEvent.change(phoneInputs[0], {
+      target: { value: "0812-3456 7000" },
+    });
+    fireEvent.change(phoneInputs[1], {
+      target: { value: "0812-3456 7890" },
+    });
+
+    const discountInput = screen.getByPlaceholderText("Masukkan kode promo");
+    fireEvent.change(discountInput, {
+      target: { value: "hemat10" },
+    });
+    fireEvent.keyDown(discountInput, { key: "Enter", code: "Enter" });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("/api/discount-codes/preview");
+    expect(push).not.toHaveBeenCalled();
+  });
 });

@@ -13,6 +13,10 @@ import {
   createScalevWebhookEvent,
   updateScalevWebhookEvent,
 } from "@/lib/actions/scalevWebhookEvents";
+import {
+  markDiscountRedemptionSucceeded,
+  markDiscountRedemptionVoid,
+} from "@/lib/discounts/service";
 import { createVoucherOnPaymentSuccess } from "@/lib/payment/voucher-service";
 import { getScalevConfig } from "@/lib/scalev/config";
 import type {
@@ -363,6 +367,23 @@ export async function POST(request: NextRequest) {
 
   if (normalizedStatus === "FAILED") {
     await updateOrderPaymentStatus(order.id, "FAILED", gatewayUpdate);
+    const redemptionVoided = await markDiscountRedemptionVoid(order.id);
+    if (!redemptionVoided) {
+      if (webhookEvent) {
+        await updateScalevWebhookEvent(webhookEvent.id, {
+          order_id: order.id,
+          processing_status: "failed",
+          processing_message: "Failed to void discount redemption",
+          processed_at: new Date().toISOString(),
+        });
+      }
+
+      return NextResponse.json(
+        { status: "ok", message: "Failed to void discount redemption" },
+        { status: 200 }
+      );
+    }
+
     if (webhookEvent) {
       await updateScalevWebhookEvent(webhookEvent.id, {
         order_id: order.id,
@@ -390,6 +411,22 @@ export async function POST(request: NextRequest) {
   }
 
   await updateOrderPaymentStatus(order.id, "COMPLETED", gatewayUpdate);
+  const redemptionSucceeded = await markDiscountRedemptionSucceeded(order.id);
+  if (!redemptionSucceeded) {
+    if (webhookEvent) {
+      await updateScalevWebhookEvent(webhookEvent.id, {
+        order_id: order.id,
+        processing_status: "failed",
+        processing_message: "Failed to synchronize discount redemption",
+        processed_at: new Date().toISOString(),
+      });
+    }
+
+    return NextResponse.json(
+        { status: "ok", message: "Failed to synchronize discount redemption" },
+        { status: 200 }
+    );
+  }
 
   let processingStatus: "processed" | "failed" = "processed";
   let processingMessage = "Webhook processed";
