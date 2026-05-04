@@ -13,6 +13,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { SiteContainer } from "@/components/site-container";
 import { CartNavLink } from "@/components/cart-nav-link";
+import { AnnouncementBar } from "@/components/announcement-bar";
 
 type NavItem = {
   href: string;
@@ -61,15 +62,19 @@ export default function Navbar() {
   ];
 
   return (
-    <nav
-      className={`fixed top-0 z-50 w-full transition-all duration-500 ease-out ${isMounted ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
-        } ${isScrolled
-          ? "bg-background/80 backdrop-blur-md border-b border-border shadow-sm text-foreground"
-          : "bg-transparent border-b border-transparent text-primary-foreground"
+    <header
+      className={`fixed top-0 z-50 w-full transition-all duration-500 ease-out flex flex-col ${isMounted ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
         }`}
     >
-      <SiteContainer>
-        <div className="flex justify-between h-20 items-center">
+      <AnnouncementBar />
+      <div
+        className={`w-full transition-all duration-500 ${isScrolled
+            ? "bg-background/80 backdrop-blur-md border-b border-border shadow-sm text-foreground"
+            : "bg-transparent border-b border-transparent text-primary-foreground"
+          }`}
+      >
+        <SiteContainer>
+          <div className="flex justify-between h-20 items-center">
           {/* Logo */}
           <Link
             href="/"
@@ -166,10 +171,11 @@ export default function Navbar() {
           </div>
         </div>
       </SiteContainer>
+      </div>
 
       {/* Mobile Menu with slide animation */}
       <div
-        className={`md:hidden absolute top-20 left-0 w-full shadow-lg bg-background text-foreground overflow-hidden transition-all duration-300 ease-out ${isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+        className={`md:hidden absolute top-full left-0 w-full shadow-lg bg-background text-foreground overflow-hidden transition-all duration-300 ease-out ${isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
           }`}
       >
         <div className="p-4 flex flex-col space-y-4">
@@ -190,6 +196,6 @@ export default function Navbar() {
           ))}
         </div>
       </div>
-    </nav>
+    </header>
   );
 }
