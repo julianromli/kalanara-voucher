@@ -365,8 +365,6 @@ export async function POST(
           orderId: order.id,
           customerEmail: validatedData.customerEmail,
           customerPhone: validatedData.customerPhone,
-          discountType: discountQuote.discountType,
-          discountValue: discountQuote.discountValue,
           subtotalAmount: discountQuote.subtotalAmount,
           discountAmount: discountQuote.discountAmount,
           totalAmount: discountQuote.totalAmount,
@@ -401,112 +399,92 @@ export async function POST(
       }
     }
 
-    const mappings = await Promise.all(
-      services.map((service) => ensureScalevServiceMapping(service))
+    let shouldVoidDiscountRedemption = Boolean(
+      discountQuote && discountRedemption?.success
     );
-
-    const orderItems = await createPendingOrderItems(
-      validatedData.lineItems.map((item, index) => ({
-        order_id: order.id,
-        service_id: services[index].id,
-        original_unit_price: services[index].price,
-        discount_amount: itemDiscounts[index] ?? 0,
-        final_unit_price: services[index].price - (itemDiscounts[index] ?? 0),
-        unit_price: services[index].price - (itemDiscounts[index] ?? 0),
-        recipient_name: item.recipientName,
-        recipient_email: item.recipientEmail || null,
-        recipient_phone: item.recipientPhone || null,
-        sender_message: item.senderMessage || null,
-        delivery_method: item.deliveryMethod,
-        send_to: item.sendTo,
-        sort_order: index,
-      }))
-    );
-
-    if (!orderItems || orderItems.length !== validatedData.lineItems.length) {
-      await markOrderFailedFromGateway(order.id, {
-        paymentProvider: "scalev",
-        scalevPaymentMethod: validatedData.paymentMethod,
-        scalevSubPaymentMethod: validatedData.subPaymentMethod || null,
-        scalevStoreUniqueId: getScalevConfig().storeUniqueId,
-      });
-      return errorResponse(
-        "Pesanan belum bisa dibuat. Silakan coba lagi.",
-        "LOCAL_ORDER_FAILED",
-        500
-      );
-    }
 
     try {
-      const scalevOrder = await createScalevOrder({
-        customer_name: validatedData.customerName,
-        customer_email: validatedData.customerEmail,
-        customer_phone: validatedData.customerPhone,
-        store_unique_id: getScalevConfig().storeUniqueId,
-        ordervariants: mappings.map((mapping) => ({
-          variant_unique_id: mapping.primaryVariant.unique_id,
-          quantity: 1,
-        })),
-        productDiscount: discountQuote?.discountAmount,
-        paymentMethod: validatedData.paymentMethod,
-        subPaymentMethod: validatedData.subPaymentMethod,
-        metadata: {
-          local_order_id: order.id,
-          payment_order_id: order.payment_order_id,
-          item_count: validatedData.lineItems.length,
-          subtotal_amount: subtotalAmount,
-          discount_code: discountQuote?.code ?? null,
-          discount_amount: discountQuote?.discountAmount ?? 0,
-          total_amount: totalAmount,
-        },
-        notes: `Kalanara voucher x${validatedData.lineItems.length} - ${order.payment_order_id}`,
-      });
+      const mappings = await Promise.all(
+        services.map((service) => ensureScalevServiceMapping(service))
+      );
 
-      let paymentIntent = null;
-      if (scalevOrder.id) {
-        paymentIntent = await createScalevPaymentIntent(scalevOrder.id).catch((error) => {
-          console.warn("[Scalev] create payment intent failed; using order link fallback:", error);
-          return null;
-        });
-      }
+      const orderItems = await createPendingOrderItems(
+        validatedData.lineItems.map((item, index) => ({
+          order_id: order.id,
+          service_id: services[index].id,
+          original_unit_price: services[index].price,
+          discount_amount: itemDiscounts[index] ?? 0,
+          final_unit_price: services[index].price - (itemDiscounts[index] ?? 0),
+          unit_price: services[index].price - (itemDiscounts[index] ?? 0),
+          recipient_name: item.recipientName,
+          recipient_email: item.recipientEmail || null,
+          recipient_phone: item.recipientPhone || null,
+          sender_message: item.senderMessage || null,
+          delivery_method: item.deliveryMethod,
+          send_to: item.sendTo,
+          sort_order: index,
+        }))
+      );
 
-      const paymentLink = extractPaymentLink(scalevOrder, paymentIntent);
-      const pgReferenceId =
-        paymentIntent?.pg_reference_id ||
-        paymentIntent?.reference_id ||
-        scalevOrder.pg_reference_id ||
-        null;
-      const gatewayUpdate = {
-        paymentProvider: "scalev" as const,
-        transactionId: pgReferenceId,
-        paymentType: scalevOrder.payment_method || validatedData.paymentMethod,
-        transactionTime: new Date().toISOString(),
-        paymentLink,
-        scalevOrderPk: scalevOrder.id,
-        scalevOrderId: scalevOrder.order_id || null,
-        scalevPgReferenceId: pgReferenceId,
-        scalevPaymentMethod:
-          scalevOrder.payment_method || validatedData.paymentMethod,
-        scalevSubPaymentMethod:
-          scalevOrder.sub_payment_method || validatedData.subPaymentMethod || null,
-        scalevStoreUniqueId: getScalevConfig().storeUniqueId,
-        scalevRawStatus: scalevOrder.status || null,
-        scalevRawPaymentStatus: scalevOrder.payment_status || null,
-        scalevLastCheckedAt: new Date().toISOString(),
-      };
-
-      const gatewayDataPersisted = await updateOrderGatewayData(order.id, gatewayUpdate);
-      if (!gatewayDataPersisted) {
-        console.error("[Scalev] Failed to persist gateway metadata for local order", {
-          orderId: order.id,
-          paymentOrderId: order.payment_order_id,
-          scalevOrderPk: scalevOrder.id,
-          scalevPgReferenceId: pgReferenceId,
-        });
+      if (!orderItems || orderItems.length !== validatedData.lineItems.length) {
         await markOrderFailedFromGateway(order.id, {
           paymentProvider: "scalev",
+          scalevPaymentMethod: validatedData.paymentMethod,
+          scalevSubPaymentMethod: validatedData.subPaymentMethod || null,
+          scalevStoreUniqueId: getScalevConfig().storeUniqueId,
+        });
+        return errorResponse(
+          "Pesanan belum bisa dibuat. Silakan coba lagi.",
+          "LOCAL_ORDER_FAILED",
+          500
+        );
+      }
+
+      try {
+        const scalevOrder = await createScalevOrder({
+          customer_name: validatedData.customerName,
+          customer_email: validatedData.customerEmail,
+          customer_phone: validatedData.customerPhone,
+          store_unique_id: getScalevConfig().storeUniqueId,
+          ordervariants: mappings.map((mapping) => ({
+            variant_unique_id: mapping.primaryVariant.unique_id,
+            quantity: 1,
+          })),
+          productDiscount: discountQuote?.discountAmount,
+          paymentMethod: validatedData.paymentMethod,
+          subPaymentMethod: validatedData.subPaymentMethod,
+          metadata: {
+            local_order_id: order.id,
+            payment_order_id: order.payment_order_id,
+            item_count: validatedData.lineItems.length,
+            subtotal_amount: subtotalAmount,
+            discount_code: discountQuote?.code ?? null,
+            discount_amount: discountQuote?.discountAmount ?? 0,
+            total_amount: totalAmount,
+          },
+          notes: `Kalanara voucher x${validatedData.lineItems.length} - ${order.payment_order_id}`,
+        });
+
+        let paymentIntent = null;
+        if (scalevOrder.id) {
+          paymentIntent = await createScalevPaymentIntent(scalevOrder.id).catch((error) => {
+            console.warn("[Scalev] create payment intent failed; using order link fallback:", error);
+            return null;
+          });
+        }
+
+        const paymentLink = extractPaymentLink(scalevOrder, paymentIntent);
+        const pgReferenceId =
+          paymentIntent?.pg_reference_id ||
+          paymentIntent?.reference_id ||
+          scalevOrder.pg_reference_id ||
+          null;
+        const gatewayUpdate = {
+          paymentProvider: "scalev" as const,
           transactionId: pgReferenceId,
           paymentType: scalevOrder.payment_method || validatedData.paymentMethod,
+          transactionTime: new Date().toISOString(),
+          paymentLink,
           scalevOrderPk: scalevOrder.id,
           scalevOrderId: scalevOrder.order_id || null,
           scalevPgReferenceId: pgReferenceId,
@@ -517,56 +495,84 @@ export async function POST(
           scalevStoreUniqueId: getScalevConfig().storeUniqueId,
           scalevRawStatus: scalevOrder.status || null,
           scalevRawPaymentStatus: scalevOrder.payment_status || null,
-        });
-        if (discountQuote) {
-          await markDiscountRedemptionVoid(order.id);
-        }
-        return errorResponse(
-          "Pesanan belum bisa disiapkan sepenuhnya. Silakan coba lagi.",
-          "LOCAL_ORDER_FAILED",
-          500
-        );
-      }
+          scalevLastCheckedAt: new Date().toISOString(),
+        };
 
-      if (!paymentLink) {
-        if (discountQuote) {
-          await markDiscountRedemptionVoid(order.id);
+        const gatewayDataPersisted = await updateOrderGatewayData(order.id, gatewayUpdate);
+        if (!gatewayDataPersisted) {
+          console.error("[Scalev] Failed to persist gateway metadata for local order", {
+            orderId: order.id,
+            paymentOrderId: order.payment_order_id,
+            scalevOrderPk: scalevOrder.id,
+            scalevPgReferenceId: pgReferenceId,
+          });
+          await markOrderFailedFromGateway(order.id, {
+            paymentProvider: "scalev",
+            transactionId: pgReferenceId,
+            paymentType: scalevOrder.payment_method || validatedData.paymentMethod,
+            scalevOrderPk: scalevOrder.id,
+            scalevOrderId: scalevOrder.order_id || null,
+            scalevPgReferenceId: pgReferenceId,
+            scalevPaymentMethod:
+              scalevOrder.payment_method || validatedData.paymentMethod,
+            scalevSubPaymentMethod:
+              scalevOrder.sub_payment_method || validatedData.subPaymentMethod || null,
+            scalevStoreUniqueId: getScalevConfig().storeUniqueId,
+            scalevRawStatus: scalevOrder.status || null,
+            scalevRawPaymentStatus: scalevOrder.payment_status || null,
+          });
+          return errorResponse(
+            "Pesanan belum bisa disiapkan sepenuhnya. Silakan coba lagi.",
+            "LOCAL_ORDER_FAILED",
+            500
+          );
         }
+
+        if (!paymentLink) {
+          return errorResponse(
+            "Payment link dari Scalev belum tersedia. Silakan coba beberapa saat lagi.",
+            "PAYMENT_LINK_MISSING",
+            502
+          );
+        }
+
+        shouldVoidDiscountRedemption = false;
+        return NextResponse.json({
+          success: true,
+          paymentLink,
+          orderId: scalevOrder.order_id || String(scalevOrder.id),
+          paymentOrderId: order.payment_order_id,
+          publicAccessToken: order.public_access_token,
+          paymentMethod: validatedData.paymentMethod,
+          subPaymentMethod: validatedData.subPaymentMethod,
+        });
+      } catch (error) {
+        await markOrderFailedFromGateway(order.id, {
+          paymentProvider: "scalev",
+          scalevPaymentMethod: validatedData.paymentMethod,
+          scalevSubPaymentMethod: validatedData.subPaymentMethod || null,
+          scalevStoreUniqueId: getScalevConfig().storeUniqueId,
+        });
+
+        console.error("[Scalev] create-payment failed:", error);
         return errorResponse(
-          "Payment link dari Scalev belum tersedia. Silakan coba beberapa saat lagi.",
-          "PAYMENT_LINK_MISSING",
+          discountQuote
+            ? "Pembayaran dengan kode diskon belum bisa diproses saat ini. Silakan coba lagi."
+            : "Gagal membuat pembayaran Scalev. Silakan coba lagi.",
+          discountQuote ? "DISCOUNT_GATEWAY_REJECTED" : "SCALEV_PAYMENT_FAILED",
           502
         );
       }
-
-      return NextResponse.json({
-        success: true,
-        paymentLink,
-        orderId: scalevOrder.order_id || String(scalevOrder.id),
-        paymentOrderId: order.payment_order_id,
-        publicAccessToken: order.public_access_token,
-        paymentMethod: validatedData.paymentMethod,
-        subPaymentMethod: validatedData.subPaymentMethod,
-      });
-    } catch (error) {
-      await markOrderFailedFromGateway(order.id, {
-        paymentProvider: "scalev",
-        scalevPaymentMethod: validatedData.paymentMethod,
-        scalevSubPaymentMethod: validatedData.subPaymentMethod || null,
-        scalevStoreUniqueId: getScalevConfig().storeUniqueId,
-      });
-      if (discountQuote) {
-        await markDiscountRedemptionVoid(order.id);
+    } finally {
+      if (shouldVoidDiscountRedemption) {
+        const redemptionVoided = await markDiscountRedemptionVoid(order.id);
+        if (!redemptionVoided) {
+          console.error("[Scalev] Failed to void pending discount redemption during cleanup", {
+            orderId: order.id,
+            paymentOrderId: order.payment_order_id,
+          });
+        }
       }
-
-      console.error("[Scalev] create-payment failed:", error);
-      return errorResponse(
-        discountQuote
-          ? "Pembayaran dengan kode diskon belum bisa diproses saat ini. Silakan coba lagi."
-          : "Gagal membuat pembayaran Scalev. Silakan coba lagi.",
-        discountQuote ? "DISCOUNT_GATEWAY_REJECTED" : "SCALEV_PAYMENT_FAILED",
-        502
-      );
     }
   } catch (error) {
     console.error("[Scalev] Unexpected create-payment error:", error);

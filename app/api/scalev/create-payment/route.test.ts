@@ -497,4 +497,50 @@ describe("POST /api/scalev/create-payment", () => {
     expect(createPendingOrderItemsMock).not.toHaveBeenCalled();
     expect(createScalevOrderMock).not.toHaveBeenCalled();
   });
+
+  test("voids a reserved discount when local order item creation fails after reservation", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+
+    validateDiscountForCheckoutMock.mockResolvedValue({
+      valid: true,
+      quote: {
+        discountCodeId: "discount-1",
+        code: "HEMAT10",
+        discountType: "PERCENTAGE",
+        discountValue: 10,
+        subtotalAmount: 450000,
+        discountAmount: 45000,
+        totalAmount: 405000,
+      },
+    });
+    createPendingOrderItemsMock.mockResolvedValue([]);
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: "service-1",
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          recipientName: "Penerima",
+          recipientPhone: "081234567890",
+          deliveryMethod: DeliveryMethod.WHATSAPP,
+          sendTo: SendTo.RECIPIENT,
+          discountCode: "HEMAT10",
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: "Pesanan belum bisa dibuat. Silakan coba lagi.",
+      errorCode: "LOCAL_ORDER_FAILED",
+    });
+    expect(markDiscountRedemptionVoidMock).toHaveBeenCalledWith("order-1");
+    expect(createScalevOrderMock).not.toHaveBeenCalled();
+  });
 });

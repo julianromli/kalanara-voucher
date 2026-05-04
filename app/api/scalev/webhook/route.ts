@@ -379,8 +379,8 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json(
-        { status: "error", message: "Failed to void discount redemption" },
-        { status: 500 }
+        { status: "ok", message: "Failed to void discount redemption" },
+        { status: 200 }
       );
     }
 
@@ -423,8 +423,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { status: "error", message: "Failed to synchronize discount redemption" },
-      { status: 500 }
+        { status: "ok", message: "Failed to synchronize discount redemption" },
+        { status: 200 }
     );
   }
 

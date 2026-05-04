@@ -676,8 +676,6 @@ export type Database = {
         Args: {
           p_discount_amount: number;
           p_discount_code_id: string;
-          p_discount_snapshot_type: string;
-          p_discount_snapshot_value: number;
           p_final_total_amount: number;
           p_order_id: string;
           p_customer_email_normalized: string;

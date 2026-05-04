@@ -219,7 +219,7 @@ describe("POST /api/scalev/webhook", () => {
     expect(createVoucherOnPaymentSuccessMock).not.toHaveBeenCalled();
   });
 
-  test("returns retryable failure when discount redemption sync fails on completion", async () => {
+  test("acknowledges webhook when discount redemption sync fails on completion", async () => {
     const { POST } = await import("@/app/api/scalev/webhook/route");
     const payload = JSON.stringify({
       event: "order.payment_status_changed",
@@ -245,7 +245,11 @@ describe("POST /api/scalev/webhook", () => {
       }) as never
     );
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      status: "ok",
+      message: "Failed to synchronize discount redemption",
+    });
     expect(createVoucherOnPaymentSuccessMock).not.toHaveBeenCalled();
     expect(updateScalevWebhookEventMock).toHaveBeenCalledWith(
       "event-1",
@@ -256,7 +260,7 @@ describe("POST /api/scalev/webhook", () => {
     );
   });
 
-  test("returns retryable failure when voiding discount redemption fails", async () => {
+  test("acknowledges webhook when voiding discount redemption fails", async () => {
     const { POST } = await import("@/app/api/scalev/webhook/route");
     const payload = JSON.stringify({
       event: "order.payment_status_changed",
@@ -281,7 +285,11 @@ describe("POST /api/scalev/webhook", () => {
       }) as never
     );
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      status: "ok",
+      message: "Failed to void discount redemption",
+    });
     expect(createVoucherOnPaymentSuccessMock).not.toHaveBeenCalled();
     expect(updateScalevWebhookEventMock).toHaveBeenCalledWith(
       "event-1",

@@ -12,4 +12,8 @@ describe("toIsoDateTimeValue", () => {
     expect(toIsoDateTimeValue("")).toBeNull();
     expect(toIsoDateTimeValue(null)).toBeNull();
   });
+
+  test("returns null for malformed non-empty datetime values", () => {
+    expect(toIsoDateTimeValue("not-a-date")).toBeNull();
+  });
 });

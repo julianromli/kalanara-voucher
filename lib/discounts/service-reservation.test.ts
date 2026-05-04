@@ -130,8 +130,6 @@ describe("discount reservation safeguards", () => {
         orderId: "order-1",
         customerEmail: "faiz@example.com",
         customerPhone: "081234567890",
-        discountType: "PERCENTAGE",
-        discountValue: 10,
         subtotalAmount: 450000,
         discountAmount: 45000,
         totalAmount: 405000,
@@ -140,6 +138,30 @@ describe("discount reservation safeguards", () => {
       success: false,
       reason: "CUSTOMER_LIMIT_REACHED",
       message: "Kode diskon sudah pernah dipakai untuk email atau nomor ini.",
+    });
+  });
+
+  test("sends only authoritative monetary inputs to the reservation RPC", async () => {
+    const { createPendingDiscountRedemption } = await import("@/lib/discounts/service");
+
+    await createPendingDiscountRedemption({
+      discountCodeId: "discount-1",
+      orderId: "order-1",
+      customerEmail: "faiz@example.com",
+      customerPhone: "081234567890",
+      subtotalAmount: 450000,
+      discountAmount: 45000,
+      totalAmount: 405000,
+    });
+
+    expect(rpcMock).toHaveBeenCalledWith("reserve_discount_redemption", {
+      p_discount_code_id: "discount-1",
+      p_order_id: "order-1",
+      p_customer_email_normalized: "faiz@example.com",
+      p_customer_phone_normalized: "6281234567890",
+      p_subtotal_amount: 450000,
+      p_discount_amount: 45000,
+      p_final_total_amount: 405000,
     });
   });
 });

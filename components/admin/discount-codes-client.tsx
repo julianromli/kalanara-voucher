@@ -83,7 +83,7 @@ export function toIsoDateTimeValue(value?: string | null) {
 
   const parsed = new Date(normalized);
   if (Number.isNaN(parsed.getTime())) {
-    return normalized;
+    return null;
   }
 
   return parsed.toISOString();

@@ -141,13 +141,23 @@ BEFORE UPDATE ON public.discount_code_redemptions
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP FUNCTION IF EXISTS public.reserve_discount_redemption(
+  uuid,
+  uuid,
+  text,
+  text,
+  text,
+  numeric,
+  integer,
+  integer,
+  integer
+);
+
 CREATE OR REPLACE FUNCTION public.reserve_discount_redemption(
   p_discount_code_id uuid,
   p_order_id uuid,
   p_customer_email_normalized text,
   p_customer_phone_normalized text,
-  p_discount_snapshot_type text,
-  p_discount_snapshot_value numeric,
   p_subtotal_amount integer,
   p_discount_amount integer,
   p_final_total_amount integer
@@ -163,6 +173,9 @@ SET search_path = public
 AS $$
 DECLARE
   discount_code_row public.discount_codes%ROWTYPE;
+  normalized_subtotal integer;
+  computed_discount_amount integer;
+  computed_final_total integer;
   total_use_count integer;
   customer_use_count integer;
   inserted_redemption_id uuid;
@@ -221,6 +234,30 @@ BEGIN
     RETURN;
   END IF;
 
+  normalized_subtotal := GREATEST(0, p_subtotal_amount);
+  computed_discount_amount := CASE
+    WHEN discount_code_row.discount_type = 'FIXED_AMOUNT' THEN
+      LEAST(
+        normalized_subtotal,
+        GREATEST(0, ROUND(discount_code_row.discount_value)::integer)
+      )
+    ELSE
+      LEAST(
+        normalized_subtotal,
+        GREATEST(
+          0,
+          ROUND((normalized_subtotal * discount_code_row.discount_value) / 100)::integer
+        )
+      )
+  END;
+  computed_final_total := normalized_subtotal - computed_discount_amount;
+
+  IF p_discount_amount <> computed_discount_amount
+    OR p_final_total_amount <> computed_final_total THEN
+    RETURN QUERY SELECT false, 'INVALID'::text, 'Kode diskon berubah. Silakan coba lagi.'::text, NULL::uuid;
+    RETURN;
+  END IF;
+
   INSERT INTO public.discount_code_redemptions (
     discount_code_id,
     order_id,
@@ -239,11 +276,11 @@ BEGIN
     p_customer_email_normalized,
     p_customer_phone_normalized,
     'PENDING',
-    p_discount_snapshot_type,
-    p_discount_snapshot_value,
-    p_subtotal_amount,
-    p_discount_amount,
-    p_final_total_amount
+    discount_code_row.discount_type,
+    discount_code_row.discount_value,
+    normalized_subtotal,
+    computed_discount_amount,
+    computed_final_total
   )
   RETURNING id INTO inserted_redemption_id;
 

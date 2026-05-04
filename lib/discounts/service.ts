@@ -86,8 +86,6 @@ interface PendingDiscountRedemptionInput {
   orderId: string;
   customerEmail: string;
   customerPhone: string;
-  discountType: DiscountType;
-  discountValue: number;
   subtotalAmount: number;
   discountAmount: number;
   totalAmount: number;
@@ -362,8 +360,6 @@ export async function createPendingDiscountRedemption(
       p_order_id: input.orderId,
       p_customer_email_normalized: normalizeCustomerEmail(input.customerEmail),
       p_customer_phone_normalized: normalizeCustomerPhone(input.customerPhone),
-      p_discount_snapshot_type: input.discountType,
-      p_discount_snapshot_value: input.discountValue,
       p_subtotal_amount: input.subtotalAmount,
       p_discount_amount: input.discountAmount,
       p_final_total_amount: input.totalAmount,
