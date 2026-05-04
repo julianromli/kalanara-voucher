@@ -355,6 +355,52 @@ export async function POST(
       );
     }
 
+    let discountRedemption: Awaited<
+      ReturnType<typeof createPendingDiscountRedemption>
+    > | null = null;
+    if (discountQuote) {
+      try {
+        discountRedemption = await createPendingDiscountRedemption({
+          discountCodeId: discountQuote.discountCodeId,
+          orderId: order.id,
+          customerEmail: validatedData.customerEmail,
+          customerPhone: validatedData.customerPhone,
+          discountType: discountQuote.discountType,
+          discountValue: discountQuote.discountValue,
+          subtotalAmount: discountQuote.subtotalAmount,
+          discountAmount: discountQuote.discountAmount,
+          totalAmount: discountQuote.totalAmount,
+        });
+      } catch (error) {
+        console.error("[Scalev] Failed to reserve discount redemption:", error);
+        await markOrderFailedFromGateway(order.id, {
+          paymentProvider: "scalev",
+          scalevPaymentMethod: validatedData.paymentMethod,
+          scalevSubPaymentMethod: validatedData.subPaymentMethod || null,
+          scalevStoreUniqueId: getScalevConfig().storeUniqueId,
+        });
+        return errorResponse(
+          "Pesanan belum bisa dibuat. Silakan coba lagi.",
+          "LOCAL_ORDER_FAILED",
+          500
+        );
+      }
+
+      if (!discountRedemption.success) {
+        await markOrderFailedFromGateway(order.id, {
+          paymentProvider: "scalev",
+          scalevPaymentMethod: validatedData.paymentMethod,
+          scalevSubPaymentMethod: validatedData.subPaymentMethod || null,
+          scalevStoreUniqueId: getScalevConfig().storeUniqueId,
+        });
+        return errorResponse(
+          discountRedemption.message,
+          "DISCOUNT_CODE_INVALID",
+          400
+        );
+      }
+    }
+
     const mappings = await Promise.all(
       services.map((service) => ensureScalevServiceMapping(service))
     );
@@ -378,34 +424,6 @@ export async function POST(
     );
 
     if (!orderItems || orderItems.length !== validatedData.lineItems.length) {
-      await markOrderFailedFromGateway(order.id, {
-        paymentProvider: "scalev",
-        scalevPaymentMethod: validatedData.paymentMethod,
-        scalevSubPaymentMethod: validatedData.subPaymentMethod || null,
-        scalevStoreUniqueId: getScalevConfig().storeUniqueId,
-      });
-      return errorResponse(
-        "Pesanan belum bisa dibuat. Silakan coba lagi.",
-        "LOCAL_ORDER_FAILED",
-        500
-      );
-    }
-
-    const discountRedemption = discountQuote
-      ? await createPendingDiscountRedemption({
-          discountCodeId: discountQuote.discountCodeId,
-          orderId: order.id,
-          customerEmail: validatedData.customerEmail,
-          customerPhone: validatedData.customerPhone,
-          discountType: discountQuote.discountType,
-          discountValue: discountQuote.discountValue,
-          subtotalAmount: discountQuote.subtotalAmount,
-          discountAmount: discountQuote.discountAmount,
-          totalAmount: discountQuote.totalAmount,
-        })
-      : null;
-
-    if (discountQuote && !discountRedemption) {
       await markOrderFailedFromGateway(order.id, {
         paymentProvider: "scalev",
         scalevPaymentMethod: validatedData.paymentMethod,

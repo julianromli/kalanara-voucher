@@ -189,9 +189,9 @@ export async function getOrderById(id: string): Promise<OrderWithVoucher | null>
 export async function createOrder(order: OrderInsert): Promise<Order | null> {
   const supabase = getAdminClient();
   const orderPayload: OrderInsert = {
+    ...order,
     subtotal_amount: order.subtotal_amount ?? order.total_amount,
     discount_amount: order.discount_amount ?? 0,
-    ...order,
   };
   const { data, error } = await supabase
     .from("orders")

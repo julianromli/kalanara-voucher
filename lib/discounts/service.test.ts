@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   allocateDiscountAcrossItems,
   calculateDiscountAmount,
+  normalizeCustomerPhone,
 } from "@/lib/discounts/service";
 
 describe("discount math", () => {
@@ -21,5 +22,11 @@ describe("discount math", () => {
       3333,
       3334,
     ]);
+  });
+
+  test("normalizes Indonesian customer phone numbers consistently", () => {
+    expect(normalizeCustomerPhone("0812-3456-7890")).toBe("6281234567890");
+    expect(normalizeCustomerPhone("6281234567890")).toBe("6281234567890");
+    expect(normalizeCustomerPhone("81234567890")).toBe("6281234567890");
   });
 });

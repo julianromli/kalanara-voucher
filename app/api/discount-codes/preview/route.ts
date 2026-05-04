@@ -10,6 +10,8 @@ interface DiscountPreviewRequest {
   serviceIds: string[];
 }
 
+const MAX_PREVIEW_SERVICE_IDS = 20;
+
 function getOptionalString(value: unknown) {
   if (typeof value !== "string") {
     return undefined;
@@ -29,12 +31,22 @@ function validateRequest(body: unknown): DiscountPreviewRequest | null {
   const customerPhone = getOptionalString(data.customerPhone);
   const discountCode = getOptionalString(data.discountCode);
   const serviceIds = Array.isArray(data.serviceIds)
-    ? data.serviceIds
-        .map((value) => getOptionalString(value))
-        .filter((value): value is string => Boolean(value))
+    ? Array.from(
+        new Set(
+          data.serviceIds
+            .map((value) => getOptionalString(value))
+            .filter((value): value is string => Boolean(value))
+        )
+      )
     : [];
 
-  if (!customerEmail || !customerPhone || !discountCode || serviceIds.length === 0) {
+  if (
+    !customerEmail ||
+    !customerPhone ||
+    !discountCode ||
+    serviceIds.length === 0 ||
+    serviceIds.length > MAX_PREVIEW_SERVICE_IDS
+  ) {
     return null;
   }
 

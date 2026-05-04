@@ -154,7 +154,10 @@ export async function reconcilePublicOrderStatus(
       scalevRawPaymentStatus: snapshot.rawPaymentStatus,
       scalevLastCheckedAt: new Date().toISOString(),
     });
-    await markDiscountRedemptionSucceeded(existingPublicOrder.id);
+    const redemptionMarked = await markDiscountRedemptionSucceeded(existingPublicOrder.id);
+    if (!redemptionMarked) {
+      throw new Error("Failed to synchronize discount redemption after payment success.");
+    }
 
     const refreshedBeforeFulfillment = await getPublicOrderDetailsWithItems(
       paymentOrderId,
@@ -188,7 +191,10 @@ export async function reconcilePublicOrderStatus(
       scalevRawPaymentStatus: snapshot.rawPaymentStatus,
       scalevLastCheckedAt: new Date().toISOString(),
     });
-    await markDiscountRedemptionVoid(existingPublicOrder.id);
+    const redemptionVoided = await markDiscountRedemptionVoid(existingPublicOrder.id);
+    if (!redemptionVoided) {
+      throw new Error("Failed to void discount redemption after payment failure.");
+    }
   } else if (snapshot.normalizedStatus === "REFUNDED") {
     await updateOrderPaymentStatus(existingPublicOrder.id, "REFUNDED", {
       paymentProvider: "scalev",

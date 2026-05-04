@@ -112,7 +112,10 @@ describe("POST /api/scalev/create-payment", () => {
     });
     updateOrderGatewayDataMock.mockResolvedValue(true);
     markOrderFailedFromGatewayMock.mockResolvedValue(true);
-    createPendingDiscountRedemptionMock.mockResolvedValue({ id: "redemption-1" });
+    createPendingDiscountRedemptionMock.mockResolvedValue({
+      success: true,
+      redemptionId: "redemption-1",
+    });
     markDiscountRedemptionVoidMock.mockResolvedValue(true);
   });
 
@@ -436,5 +439,62 @@ describe("POST /api/scalev/create-payment", () => {
       errorCode: "DISCOUNT_GATEWAY_REJECTED",
     });
     expect(markDiscountRedemptionVoidMock).toHaveBeenCalledWith("order-1");
+  });
+
+  test("fails checkout when the discount reservation becomes unavailable after validation", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+
+    validateDiscountForCheckoutMock.mockResolvedValue({
+      valid: true,
+      quote: {
+        discountCodeId: "discount-1",
+        code: "HEMAT10",
+        discountType: "PERCENTAGE",
+        discountValue: 10,
+        subtotalAmount: 450000,
+        discountAmount: 45000,
+        totalAmount: 405000,
+      },
+    });
+    createPendingDiscountRedemptionMock.mockResolvedValue({
+      success: false,
+      reason: "GLOBAL_LIMIT_REACHED",
+      message: "Kuota kode diskon sudah habis.",
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: "service-1",
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          recipientName: "Penerima",
+          recipientPhone: "081234567890",
+          deliveryMethod: DeliveryMethod.WHATSAPP,
+          sendTo: SendTo.RECIPIENT,
+          discountCode: "HEMAT10",
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: "Kuota kode diskon sudah habis.",
+      errorCode: "DISCOUNT_CODE_INVALID",
+    });
+    expect(markOrderFailedFromGatewayMock).toHaveBeenCalledWith(
+      "order-1",
+      expect.objectContaining({
+        paymentProvider: "scalev",
+        scalevPaymentMethod: "qris",
+      })
+    );
+    expect(createPendingOrderItemsMock).not.toHaveBeenCalled();
+    expect(createScalevOrderMock).not.toHaveBeenCalled();
   });
 });

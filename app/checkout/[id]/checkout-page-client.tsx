@@ -960,6 +960,12 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                           setDiscountCodeInput(event.target.value.toUpperCase());
                           setDiscountError(null);
                         }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            void handleApplyDiscount();
+                          }
+                        }}
                         placeholder="Masukkan kode promo"
                         disabled={isProcessing || isApplyingDiscount}
                       />

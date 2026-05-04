@@ -262,12 +262,7 @@ export function CartCheckoutClient() {
   useEffect(() => {
     setAppliedDiscount((current) => current ? null : current);
     setDiscountError(null);
-  }, [customerEmailValue, customerPhoneValue]);
-
-  useEffect(() => {
-    setAppliedDiscount((current) => current ? null : current);
-    setDiscountError(null);
-  }, [totalAmount]);
+  }, [customerEmailValue, customerPhoneValue, totalAmount]);
 
   const handleApplyDiscount = async () => {
     if (!discountCodeInput.trim()) {
@@ -1092,6 +1087,12 @@ export function CartCheckoutClient() {
                         onChange={(event) => {
                           setDiscountCodeInput(event.target.value.toUpperCase());
                           setDiscountError(null);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            void handleApplyDiscount();
+                          }
                         }}
                         placeholder="Masukkan kode promo"
                         disabled={isProcessing || isApplyingDiscount}

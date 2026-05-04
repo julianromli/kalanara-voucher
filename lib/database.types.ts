@@ -228,8 +228,8 @@ export type Database = {
       discount_code_redemptions: {
         Row: {
           id: string;
-          discount_code_id: string;
-          order_id: string;
+          discount_code_id: string | null;
+          order_id: string | null;
           customer_email_normalized: string;
           customer_phone_normalized: string;
           status: string;
@@ -244,8 +244,8 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          discount_code_id: string;
-          order_id: string;
+          discount_code_id?: string | null;
+          order_id?: string | null;
           customer_email_normalized: string;
           customer_phone_normalized: string;
           status: string;
@@ -260,8 +260,8 @@ export type Database = {
         };
         Update: {
           id?: string;
-          discount_code_id?: string;
-          order_id?: string;
+          discount_code_id?: string | null;
+          order_id?: string | null;
           customer_email_normalized?: string;
           customer_phone_normalized?: string;
           status?: string;
@@ -671,6 +671,25 @@ export type Database = {
       is_super_admin: {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
+      };
+      reserve_discount_redemption: {
+        Args: {
+          p_discount_amount: number;
+          p_discount_code_id: string;
+          p_discount_snapshot_type: string;
+          p_discount_snapshot_value: number;
+          p_final_total_amount: number;
+          p_order_id: string;
+          p_customer_email_normalized: string;
+          p_customer_phone_normalized: string;
+          p_subtotal_amount: number;
+        };
+        Returns: {
+          success: boolean;
+          reason: string | null;
+          message: string | null;
+          redemption_id: string | null;
+        }[];
       };
     };
     Enums: {

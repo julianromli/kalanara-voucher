@@ -4,8 +4,6 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import type {
   DiscountCode,
   DiscountCodeInsert,
-  DiscountCodeRedemption,
-  DiscountCodeRedemptionInsert,
   DiscountCodeRedemptionUpdate,
   DiscountCodeUpdate,
 } from "@/lib/database.types";
@@ -28,6 +26,8 @@ export type DiscountValidationReason =
   | "EXPIRED"
   | "GLOBAL_LIMIT_REACHED"
   | "CUSTOMER_LIMIT_REACHED";
+
+const LIMIT_ENFORCING_REDEMPTION_STATUSES = ["PENDING", "SUCCEEDED"] as const;
 
 export interface DiscountQuote {
   discountCodeId: string;
@@ -74,6 +74,13 @@ interface DiscountRedemptionLimitRow {
   customer_phone_normalized: string;
 }
 
+interface ReserveDiscountRedemptionRpcRow {
+  success: boolean;
+  reason: string | null;
+  message: string | null;
+  redemption_id: string | null;
+}
+
 interface PendingDiscountRedemptionInput {
   discountCodeId: string;
   orderId: string;
@@ -86,12 +93,34 @@ interface PendingDiscountRedemptionInput {
   totalAmount: number;
 }
 
+export type PendingDiscountRedemptionResult =
+  | {
+      success: true;
+      redemptionId: string;
+    }
+  | {
+      success: false;
+      reason: DiscountValidationReason;
+      message: string;
+    };
+
 type NormalizedDiscountCode = Omit<DiscountCode, "discount_type"> & {
   discount_type: DiscountType;
 };
 
 function isDiscountType(value: string): value is DiscountType {
   return DISCOUNT_TYPES.includes(value as DiscountType);
+}
+
+function isDiscountValidationReason(value: string): value is DiscountValidationReason {
+  return (
+    value === "INVALID" ||
+    value === "INACTIVE" ||
+    value === "NOT_STARTED" ||
+    value === "EXPIRED" ||
+    value === "GLOBAL_LIMIT_REACHED" ||
+    value === "CUSTOMER_LIMIT_REACHED"
+  );
 }
 
 function buildInvalidResult(
@@ -161,6 +190,10 @@ export function normalizeCustomerPhone(phone: string) {
 
   if (digits.startsWith("62")) {
     return digits;
+  }
+
+  if (digits.startsWith("8")) {
+    return `62${digits}`;
   }
 
   return digits;
@@ -258,7 +291,7 @@ export async function validateDiscountForCheckout(input: {
     .from("discount_code_redemptions")
     .select("customer_email_normalized, customer_phone_normalized")
     .eq("discount_code_id", discountCode.id)
-    .eq("status", "SUCCEEDED");
+    .in("status", [...LIMIT_ENFORCING_REDEMPTION_STATUSES]);
 
   if (redemptionsError) {
     console.error("Error loading discount redemptions:", redemptionsError);
@@ -321,33 +354,52 @@ export async function validateDiscountForCheckout(input: {
 
 export async function createPendingDiscountRedemption(
   input: PendingDiscountRedemptionInput
-) {
+): Promise<PendingDiscountRedemptionResult> {
   const supabase = getAdminClient();
-  const payload: DiscountCodeRedemptionInsert = {
-    discount_code_id: input.discountCodeId,
-    order_id: input.orderId,
-    customer_email_normalized: normalizeCustomerEmail(input.customerEmail),
-    customer_phone_normalized: normalizeCustomerPhone(input.customerPhone),
-    status: "PENDING",
-    discount_snapshot_type: input.discountType,
-    discount_snapshot_value: input.discountValue,
-    subtotal_amount: input.subtotalAmount,
-    discount_amount: input.discountAmount,
-    final_total_amount: input.totalAmount,
-  };
-
   const { data, error } = await supabase
-    .from("discount_code_redemptions")
-    .insert(payload)
-    .select()
-    .single();
+    .rpc("reserve_discount_redemption", {
+      p_discount_code_id: input.discountCodeId,
+      p_order_id: input.orderId,
+      p_customer_email_normalized: normalizeCustomerEmail(input.customerEmail),
+      p_customer_phone_normalized: normalizeCustomerPhone(input.customerPhone),
+      p_discount_snapshot_type: input.discountType,
+      p_discount_snapshot_value: input.discountValue,
+      p_subtotal_amount: input.subtotalAmount,
+      p_discount_amount: input.discountAmount,
+      p_final_total_amount: input.totalAmount,
+    })
+    .returns<ReserveDiscountRedemptionRpcRow[]>();
 
   if (error) {
-    console.error("Error creating pending discount redemption:", error);
-    return null;
+    console.error("Error reserving pending discount redemption:", error);
+    throw new Error("Gagal mereservasi kode diskon.");
   }
 
-  return data as DiscountCodeRedemption;
+  const result = Array.isArray(data) ? data[0] : null;
+  if (!result) {
+    throw new Error("Gagal mereservasi kode diskon.");
+  }
+
+  if (!result.success) {
+    const reason: DiscountValidationReason =
+      result.reason && isDiscountValidationReason(result.reason)
+        ? result.reason
+        : "INVALID";
+    return {
+      success: false,
+      reason,
+      message: result.message || "Kode diskon belum bisa dipakai.",
+    };
+  }
+
+  if (!result.redemption_id) {
+    throw new Error("Gagal mereservasi kode diskon.");
+  }
+
+  return {
+    success: true,
+    redemptionId: result.redemption_id,
+  };
 }
 
 async function getDiscountRedemptionStatus(orderId: string) {
@@ -446,6 +498,10 @@ export async function getDiscountCodesWithStats() {
 
   const countsByCodeId = new Map<string, number>();
   (redemptions ?? []).forEach((row) => {
+    if (!row.discount_code_id) {
+      return;
+    }
+
     const current = countsByCodeId.get(row.discount_code_id) ?? 0;
     countsByCodeId.set(row.discount_code_id, current + 1);
   });
@@ -469,6 +525,10 @@ function normalizeDiscountCodeFormInput(input: DiscountCodeFormInput) {
   const discountValue = getDiscountValueNumber(input.discountValue);
   if (!Number.isFinite(discountValue) || discountValue < 0) {
     throw new Error("Nilai diskon harus berupa angka 0 atau lebih.");
+  }
+
+  if (input.discountType === "PERCENTAGE" && discountValue > 100) {
+    throw new Error("Diskon persentase maksimal 100%.");
   }
 
   const startsAt = toOptionalDateString(input.startsAt);

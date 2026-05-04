@@ -218,4 +218,77 @@ describe("POST /api/scalev/webhook", () => {
     expect(markDiscountRedemptionVoidMock).toHaveBeenCalledWith("order-1");
     expect(createVoucherOnPaymentSuccessMock).not.toHaveBeenCalled();
   });
+
+  test("returns retryable failure when discount redemption sync fails on completion", async () => {
+    const { POST } = await import("@/app/api/scalev/webhook/route");
+    const payload = JSON.stringify({
+      event: "order.payment_status_changed",
+      data: {
+        id: 99,
+        order_id: "scalev-1",
+        pg_reference_id: "pg-1",
+        payment_status: "paid",
+        payment_method: "qris",
+      },
+    });
+
+    markDiscountRedemptionSucceededMock.mockResolvedValue(false);
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/webhook", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Scalev-Hmac-Sha256": signPayload(payload),
+        },
+        body: payload,
+      }) as never
+    );
+
+    expect(response.status).toBe(500);
+    expect(createVoucherOnPaymentSuccessMock).not.toHaveBeenCalled();
+    expect(updateScalevWebhookEventMock).toHaveBeenCalledWith(
+      "event-1",
+      expect.objectContaining({
+        processing_status: "failed",
+        processing_message: "Failed to synchronize discount redemption",
+      })
+    );
+  });
+
+  test("returns retryable failure when voiding discount redemption fails", async () => {
+    const { POST } = await import("@/app/api/scalev/webhook/route");
+    const payload = JSON.stringify({
+      event: "order.payment_status_changed",
+      data: {
+        id: 99,
+        pg_reference_id: "pg-1",
+        payment_status: "expired",
+        payment_method: "qris",
+      },
+    });
+
+    markDiscountRedemptionVoidMock.mockResolvedValue(false);
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/webhook", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Scalev-Hmac-Sha256": signPayload(payload),
+        },
+        body: payload,
+      }) as never
+    );
+
+    expect(response.status).toBe(500);
+    expect(createVoucherOnPaymentSuccessMock).not.toHaveBeenCalled();
+    expect(updateScalevWebhookEventMock).toHaveBeenCalledWith(
+      "event-1",
+      expect.objectContaining({
+        processing_status: "failed",
+        processing_message: "Failed to void discount redemption",
+      })
+    );
+  });
 });

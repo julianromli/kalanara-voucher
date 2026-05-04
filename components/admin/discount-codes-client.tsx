@@ -75,6 +75,20 @@ function toDateTimeLocalValue(value?: string | null) {
   return adjusted.toISOString().slice(0, 16);
 }
 
+export function toIsoDateTimeValue(value?: string | null) {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) {
+    return normalized;
+  }
+
+  return parsed.toISOString();
+}
+
 function formatDiscountValue(code: DiscountCodeWithStats) {
   return code.discount_type === "FIXED_AMOUNT"
     ? formatCurrency(code.discount_value)
@@ -184,8 +198,8 @@ export function DiscountCodesClient({
         discountType: formState.discountType,
         discountValue: Number(formState.discountValue),
         isActive: formState.isActive,
-        startsAt: formState.startsAt || null,
-        endsAt: formState.endsAt || null,
+        startsAt: toIsoDateTimeValue(formState.startsAt),
+        endsAt: toIsoDateTimeValue(formState.endsAt),
         maxTotalUses: formState.maxTotalUses ? Number(formState.maxTotalUses) : null,
         maxUsesPerCustomer: formState.maxUsesPerCustomer
           ? Number(formState.maxUsesPerCustomer)

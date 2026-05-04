@@ -17,6 +17,9 @@ CREATE TABLE public.discount_codes (
   CONSTRAINT discount_codes_normalized_code_nonempty CHECK (
     length(trim(normalized_code)) > 0
   ),
+  CONSTRAINT discount_codes_percentage_value_range CHECK (
+    discount_type <> 'PERCENTAGE' OR discount_value <= 100
+  ),
   CONSTRAINT discount_codes_valid_window CHECK (
     starts_at IS NULL OR ends_at IS NULL OR starts_at <= ends_at
   )
@@ -69,8 +72,8 @@ EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE TABLE public.discount_code_redemptions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  discount_code_id uuid NOT NULL REFERENCES public.discount_codes(id) ON DELETE CASCADE,
-  order_id uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+  discount_code_id uuid REFERENCES public.discount_codes(id) ON DELETE SET NULL,
+  order_id uuid REFERENCES public.orders(id) ON DELETE SET NULL,
   customer_email_normalized text NOT NULL,
   customer_phone_normalized text NOT NULL,
   status text NOT NULL CHECK (status IN ('PENDING', 'SUCCEEDED', 'VOID')),
@@ -137,6 +140,116 @@ CREATE TRIGGER trigger_discount_code_redemptions_updated_at
 BEFORE UPDATE ON public.discount_code_redemptions
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
+
+CREATE OR REPLACE FUNCTION public.reserve_discount_redemption(
+  p_discount_code_id uuid,
+  p_order_id uuid,
+  p_customer_email_normalized text,
+  p_customer_phone_normalized text,
+  p_discount_snapshot_type text,
+  p_discount_snapshot_value numeric,
+  p_subtotal_amount integer,
+  p_discount_amount integer,
+  p_final_total_amount integer
+)
+RETURNS TABLE (
+  success boolean,
+  reason text,
+  message text,
+  redemption_id uuid
+)
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+DECLARE
+  discount_code_row public.discount_codes%ROWTYPE;
+  total_use_count integer;
+  customer_use_count integer;
+  inserted_redemption_id uuid;
+BEGIN
+  SELECT *
+  INTO discount_code_row
+  FROM public.discount_codes
+  WHERE id = p_discount_code_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT false, 'INVALID'::text, 'Kode diskon tidak ditemukan.'::text, NULL::uuid;
+    RETURN;
+  END IF;
+
+  IF NOT discount_code_row.is_active THEN
+    RETURN QUERY SELECT false, 'INACTIVE'::text, 'Kode diskon sedang tidak aktif.'::text, NULL::uuid;
+    RETURN;
+  END IF;
+
+  IF discount_code_row.starts_at IS NOT NULL AND now() < discount_code_row.starts_at THEN
+    RETURN QUERY SELECT false, 'NOT_STARTED'::text, 'Kode diskon belum berlaku.'::text, NULL::uuid;
+    RETURN;
+  END IF;
+
+  IF discount_code_row.ends_at IS NOT NULL AND now() > discount_code_row.ends_at THEN
+    RETURN QUERY SELECT false, 'EXPIRED'::text, 'Kode diskon sudah kedaluwarsa.'::text, NULL::uuid;
+    RETURN;
+  END IF;
+
+  SELECT count(*)
+  INTO total_use_count
+  FROM public.discount_code_redemptions
+  WHERE discount_code_id = discount_code_row.id
+    AND status IN ('PENDING', 'SUCCEEDED');
+
+  IF discount_code_row.max_total_uses IS NOT NULL
+    AND total_use_count >= discount_code_row.max_total_uses THEN
+    RETURN QUERY SELECT false, 'GLOBAL_LIMIT_REACHED'::text, 'Kuota kode diskon sudah habis.'::text, NULL::uuid;
+    RETURN;
+  END IF;
+
+  SELECT count(*)
+  INTO customer_use_count
+  FROM public.discount_code_redemptions
+  WHERE discount_code_id = discount_code_row.id
+    AND status IN ('PENDING', 'SUCCEEDED')
+    AND (
+      customer_email_normalized = p_customer_email_normalized
+      OR customer_phone_normalized = p_customer_phone_normalized
+    );
+
+  IF discount_code_row.max_uses_per_customer IS NOT NULL
+    AND customer_use_count >= discount_code_row.max_uses_per_customer THEN
+    RETURN QUERY SELECT false, 'CUSTOMER_LIMIT_REACHED'::text, 'Kode diskon sudah pernah dipakai untuk email atau nomor ini.'::text, NULL::uuid;
+    RETURN;
+  END IF;
+
+  INSERT INTO public.discount_code_redemptions (
+    discount_code_id,
+    order_id,
+    customer_email_normalized,
+    customer_phone_normalized,
+    status,
+    discount_snapshot_type,
+    discount_snapshot_value,
+    subtotal_amount,
+    discount_amount,
+    final_total_amount
+  )
+  VALUES (
+    discount_code_row.id,
+    p_order_id,
+    p_customer_email_normalized,
+    p_customer_phone_normalized,
+    'PENDING',
+    p_discount_snapshot_type,
+    p_discount_snapshot_value,
+    p_subtotal_amount,
+    p_discount_amount,
+    p_final_total_amount
+  )
+  RETURNING id INTO inserted_redemption_id;
+
+  RETURN QUERY SELECT true, NULL::text, NULL::text, inserted_redemption_id;
+END;
+$$;
 
 ALTER TABLE public.orders
   ADD COLUMN subtotal_amount integer,

@@ -367,7 +367,23 @@ export async function POST(request: NextRequest) {
 
   if (normalizedStatus === "FAILED") {
     await updateOrderPaymentStatus(order.id, "FAILED", gatewayUpdate);
-    await markDiscountRedemptionVoid(order.id);
+    const redemptionVoided = await markDiscountRedemptionVoid(order.id);
+    if (!redemptionVoided) {
+      if (webhookEvent) {
+        await updateScalevWebhookEvent(webhookEvent.id, {
+          order_id: order.id,
+          processing_status: "failed",
+          processing_message: "Failed to void discount redemption",
+          processed_at: new Date().toISOString(),
+        });
+      }
+
+      return NextResponse.json(
+        { status: "error", message: "Failed to void discount redemption" },
+        { status: 500 }
+      );
+    }
+
     if (webhookEvent) {
       await updateScalevWebhookEvent(webhookEvent.id, {
         order_id: order.id,
@@ -395,7 +411,22 @@ export async function POST(request: NextRequest) {
   }
 
   await updateOrderPaymentStatus(order.id, "COMPLETED", gatewayUpdate);
-  await markDiscountRedemptionSucceeded(order.id);
+  const redemptionSucceeded = await markDiscountRedemptionSucceeded(order.id);
+  if (!redemptionSucceeded) {
+    if (webhookEvent) {
+      await updateScalevWebhookEvent(webhookEvent.id, {
+        order_id: order.id,
+        processing_status: "failed",
+        processing_message: "Failed to synchronize discount redemption",
+        processed_at: new Date().toISOString(),
+      });
+    }
+
+    return NextResponse.json(
+      { status: "error", message: "Failed to synchronize discount redemption" },
+      { status: 500 }
+    );
+  }
 
   let processingStatus: "processed" | "failed" = "processed";
   let processingMessage = "Webhook processed";
