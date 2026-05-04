@@ -32,7 +32,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
 
       <SiteContainer className="relative z-10">
         <div className={`text-center mb-16 ${servicesInView ? "animate-fade-slide-up" : "opacity-0"}`}>
-          <h2 className="font-sans font-semibold text-4xl text-foreground mb-4">
+          <h2 className="font-sans font-semibold text-3xl sm:text-4xl text-foreground mb-4 sm:mb-6 leading-tight">
             Pilihan Paket Voucher
           </h2>
           <div className="h-1 w-20 bg-accent mx-auto rounded-full"></div>
@@ -68,7 +68,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
                   </div>
                   <div className="absolute right-3 top-3 md:right-4 md:top-4">
                     <div className="flex items-center gap-1.5 rounded-full bg-background/95 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground shadow-sm md:px-4 md:text-sm">
-                      <Clock size={14} className="text-foreground" />
+                      <Clock size={14} className="text-foreground" aria-hidden="true" />
                       {service.duration} menit
                     </div>
                   </div>
@@ -92,7 +92,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
                         href={`/voucher/${service.id}`}
                         className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
                       >
-                        Detail <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                        Detail <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" aria-hidden="true" />
                       </Link>
                     </div>
                     <AddToCartButton 
