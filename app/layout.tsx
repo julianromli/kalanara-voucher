@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Outfit, Playfair_Display, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { StoreProvider } from "@/context/StoreContext";
-import { AuthProvider } from "@/context/AuthContext";
-import { ToastProvider } from "@/context/ToastContext";
 import Navbar from "@/components/navbar";
 import { MetaPixel } from "@/components/meta-pixel";
+import { ToastProvider } from "@/context/ToastContext";
+import { AuthProvider } from "@/context/AuthContext";
+import { StoreProvider } from "@/context/StoreContext";
+import { getSiteSetting } from "@/lib/actions/crm";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -80,16 +81,19 @@ export const metadata: Metadata = {
   },
 };
 
-import { getSiteSetting } from "@/lib/actions/crm";
+async function NavbarWithAnnouncement() {
+  const announcementSetting = await getSiteSetting("announcement_text");
+  const announcementText =
+    announcementSetting?.value || "FLASH SALE 5.5 ...... BERAKHIR DALAM ";
 
-export default async function RootLayout({
+  return <Navbar announcementText={announcementText} />;
+}
+
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const announcementSetting = await getSiteSetting("announcement_text");
-  const announcementText = announcementSetting?.value || "FLASH SALE 5.5 ...... BERAKHIR DALAM ";
-
   return (
     <html lang="id" className="scroll-smooth" suppressHydrationWarning>
       <body
@@ -101,7 +105,7 @@ export default async function RootLayout({
           <StoreProvider>
             <ToastProvider>
               <Suspense fallback={null}>
-                <Navbar announcementText={announcementText} />
+                <NavbarWithAnnouncement />
               </Suspense>
               <main>{children}</main>
             </ToastProvider>

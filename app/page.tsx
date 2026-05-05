@@ -8,6 +8,7 @@ import { MeTimeSection } from "@/components/me-time-section";
 import { FlashSaleTestimonials } from "@/components/flash-sale-testimonials";
 import { SiteContainer } from "@/components/site-container";
 import { getServices } from "@/lib/actions/services";
+import { getActiveTestimonials, getSiteSetting } from "@/lib/actions/crm";
 import type { ServiceWithCategory } from "@/lib/actions/services";
 import type { Service } from "@/lib/types";
 import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
@@ -36,30 +37,17 @@ function adaptDBServiceToFrontend(dbService: ServiceWithCategory): Service {
   };
 }
 
-function adaptDBReviewToFrontend(dbReview: DBReview): Review {
-  return {
-    id: dbReview.id,
-    voucherId: dbReview.voucher_id,
-    rating: dbReview.rating,
-    comment: dbReview.comment ?? "",
-    customerName: dbReview.customer_name,
-    createdAt: new Date(dbReview.created_at),
-  };
-}
-
-import { getSiteSetting, getActiveTestimonials } from "@/lib/actions/crm";
-
 export default async function LandingPage() {
-  const [dbServices, dbReviews, heroImageSetting, activeTestimonials] = await Promise.all([
+  const [dbServices, heroImageSetting, activeTestimonials] = await Promise.all([
     getServices(),
-    getReviews(),
     getSiteSetting("hero_image_url"),
     getActiveTestimonials(),
   ]);
 
   const services = dbServices.map(adaptDBServiceToFrontend);
-  const reviews = dbReviews.map(adaptDBReviewToFrontend);
-  const heroImageUrl = heroImageSetting?.value || "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&q=80";
+  const heroImageUrl =
+    heroImageSetting?.value ||
+    "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&q=80";
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -88,7 +76,8 @@ export default async function LandingPage() {
                 Selamat Datang di Kalanara
               </span>
               <h1 className="animate-fade-slide-up animate-stagger-1 font-sans font-semibold text-4xl sm:text-5xl md:text-6xl lg:text-6xl xl:text-7xl text-primary-foreground mb-8 leading-[1.2] text-wrap-balance max-w-2xl hero-headline">
-                Hadiah Spesial<br />
+                Hadiah Spesial
+                <br />
                 untuk{" "}
                 <span className="italic font-normal text-primary-foreground/70">
                   Me Time
