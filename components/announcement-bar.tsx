@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 
-export function AnnouncementBar() {
+export function AnnouncementBar({ text = "FLASH SALE 5.5 ...... BERAKHIR DALAM" }: { text?: string }) {
   const [isVisible, setIsVisible] = useState(true);
   const [timeLeft, setTimeLeft] = useState({
     hours: 0,
@@ -40,7 +40,7 @@ export function AnnouncementBar() {
 
   return (
     <div className="relative w-full bg-foreground text-background text-xs sm:text-sm py-2 px-10 text-center font-medium tracking-wide">
-      FLASH SALE 5.5 - BERAKHIR DALAM{" "}
+      {text}{" "}
       <span className="font-bold tabular-nums">
         {isMounted ? (
           <>

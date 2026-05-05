@@ -34,6 +34,32 @@ export const uploadRouter = {
       imageUrl: file.ufsUrl,
       fileKey: file.key,
     })),
+  heroImageUploader: f({
+    image: {
+      maxFileSize: "8MB",
+      maxFileCount: 1,
+    },
+  })
+    .middleware(async ({ files }) => {
+      const access = await getCurrentAdminAccess();
+
+      if (!access || !access.permissions.includes("crm.manage")) {
+        throw new UploadThingError("Unauthorized");
+      }
+
+      if (files.some((file) => file.size > 8 * 1024 * 1024)) {
+        throw new UploadThingError("Ukuran gambar maksimal 8MB.");
+      }
+
+      return {
+        uploadedBy: access.userId,
+      };
+    })
+    .onUploadComplete(async ({ file, metadata }) => ({
+      uploadedBy: metadata.uploadedBy,
+      imageUrl: file.ufsUrl,
+      fileKey: file.key,
+    })),
 } satisfies FileRouter;
 
 export type UploadRouter = typeof uploadRouter;

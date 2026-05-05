@@ -3,57 +3,12 @@
 import { Quote } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
 import { SiteContainer } from "@/components/site-container";
+import type { Testimonial } from "@/lib/database.types";
 
-interface Testimonial {
-  id: string;
-  for: string;
-  quote: string;
-  initials: string;
-  name: string;
-  location: string;
-}
-
-const testimonials: Testimonial[] = [
-  {
-    id: "t1",
-    for: "untuk mama",
-    quote:
-      "Mama nangis pas buka hadiahnya. Dia bilang ini pertama kalinya dia ngerasa beneran dipamerin. Bukan bunga, bukan kue — tapi waktu buat dia sendiri.",
-    initials: "AR",
-    name: "Arika R.",
-    location: "Jakarta Selatan",
-  },
-  {
-    id: "t2",
-    for: "untuk pasangan",
-    quote:
-      "Udah lama pengen kasih sesuatu yang beda buat istri. Dia selalu bilang fine, tapi aku tahu dia capek. Akhirnya nemu yang pas di sini.",
-    initials: "DH",
-    name: "Dimas H.",
-    location: "Bekasi",
-  },
-  {
-    id: "t3",
-    for: "untuk sahabat",
-    quote:
-      "Ultah dia tinggal seminggu lagi dan aku bingung. Teman-teman bilang “kue aja”, tapi aku mau yang dia ceritain ke orang lain. Ini jawabannya.",
-    initials: "NW",
-    name: "Nadia W.",
-    location: "Depok",
-  },
-  {
-    id: "t4",
-    for: "untuk diri sendiri",
-    quote:
-      "Aku pesan buat diri sendiri. Sudah lama banget nggak meluangkan waktu beneran. Setelah sesi-nya — aku lupa kapan terakhir ngerasa se-tenang ini.",
-    initials: "SR",
-    name: "Sari R.",
-    location: "Tangerang",
-  },
-];
-
-export function FlashSaleTestimonials() {
+export function FlashSaleTestimonials({ testimonials }: { testimonials: Testimonial[] }) {
   const [sectionRef, isInView] = useInView<HTMLElement>({ threshold: 0.1 });
+
+  if (!testimonials || testimonials.length === 0) return null;
 
   return (
     <section ref={sectionRef} className="bg-card py-24 relative overflow-hidden">
@@ -89,7 +44,7 @@ export function FlashSaleTestimonials() {
                 aria-hidden="true"
               />
               <div className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-bold uppercase tracking-wider mb-6">
-                {t.for}
+                {t.for_text}
               </div>
               <p className="text-foreground text-lg italic mb-8 leading-relaxed relative z-10">
                 “{t.quote}”

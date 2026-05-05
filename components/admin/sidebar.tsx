@@ -17,6 +17,7 @@ import {
   StarIcon,
   Tag01Icon,
   UserGroupIcon,
+  Megaphone01Icon,
 } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
@@ -67,6 +68,12 @@ const navItems = [
     label: "Reviews",
     href: "/admin/reviews",
     requiredPermission: AdminPermission.REVIEWS_MANAGE,
+  },
+  {
+    icon: Megaphone01Icon,
+    label: "CRM",
+    href: "/admin/crm",
+    requiredPermission: AdminPermission.CRM_MANAGE,
   },
   {
     icon: Ticket01Icon,
