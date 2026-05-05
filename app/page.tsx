@@ -9,9 +9,7 @@ import { FlashSaleTestimonials } from "@/components/flash-sale-testimonials";
 import { SiteContainer } from "@/components/site-container";
 import { getServices } from "@/lib/actions/services";
 import type { ServiceWithCategory } from "@/lib/actions/services";
-import { getReviews } from "@/lib/actions/reviews";
-import type { Service, Review } from "@/lib/types";
-import type { Review as DBReview } from "@/lib/database.types";
+import type { Service } from "@/lib/types";
 import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
 
 function adaptDBServiceToFrontend(dbService: ServiceWithCategory): Service {
@@ -38,25 +36,9 @@ function adaptDBServiceToFrontend(dbService: ServiceWithCategory): Service {
   };
 }
 
-function adaptDBReviewToFrontend(dbReview: DBReview): Review {
-  return {
-    id: dbReview.id,
-    voucherId: dbReview.voucher_id,
-    rating: dbReview.rating,
-    comment: dbReview.comment ?? "",
-    customerName: dbReview.customer_name,
-    createdAt: new Date(dbReview.created_at),
-  };
-}
-
 export default async function LandingPage() {
-  const [dbServices, dbReviews] = await Promise.all([
-    getServices(),
-    getReviews(),
-  ]);
-
+  const dbServices = await getServices();
   const services = dbServices.map(adaptDBServiceToFrontend);
-  const reviews = dbReviews.map(adaptDBReviewToFrontend);
 
   return (
     <div className="min-h-screen flex flex-col">
