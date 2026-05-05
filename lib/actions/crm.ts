@@ -29,7 +29,9 @@ function revalidateCmsPaths() {
 }
 
 function normalizeSiteSettingKey(key: string): SiteSettingKey | null {
-  return key in SITE_SETTING_DEFAULTS ? (key as SiteSettingKey) : null;
+  return Object.prototype.hasOwnProperty.call(SITE_SETTING_DEFAULTS, key)
+    ? (key as SiteSettingKey)
+    : null;
 }
 
 function normalizeTestimonialInput(

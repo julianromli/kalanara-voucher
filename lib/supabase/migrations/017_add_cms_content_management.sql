@@ -96,14 +96,21 @@ CREATE POLICY "site_settings_delete" ON public.site_settings
 DROP POLICY IF EXISTS "Admin full access" ON public.testimonials;
 DROP POLICY IF EXISTS "Public read access" ON public.testimonials;
 DROP POLICY IF EXISTS "testimonials_select" ON public.testimonials;
+DROP POLICY IF EXISTS "testimonials_select_public_active" ON public.testimonials;
+DROP POLICY IF EXISTS "testimonials_select_crm_manage" ON public.testimonials;
 DROP POLICY IF EXISTS "testimonials_insert" ON public.testimonials;
 DROP POLICY IF EXISTS "testimonials_update" ON public.testimonials;
 DROP POLICY IF EXISTS "testimonials_delete" ON public.testimonials;
 
-CREATE POLICY "testimonials_select" ON public.testimonials
+CREATE POLICY "testimonials_select_public_active" ON public.testimonials
   FOR SELECT
   TO anon, authenticated
-  USING (true);
+  USING (is_active);
+
+CREATE POLICY "testimonials_select_crm_manage" ON public.testimonials
+  FOR SELECT
+  TO authenticated
+  USING ((SELECT public.can_manage_crm()));
 
 CREATE POLICY "testimonials_insert" ON public.testimonials
   FOR INSERT

@@ -77,6 +77,17 @@ describe("crm actions", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/crm", "page");
   });
 
+  it("rejects inherited property names as unsupported site setting keys", async () => {
+    await expect(updateSiteSetting("toString", "bad value")).rejects.toThrow(
+      "Unsupported site setting key."
+    );
+
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(
+      AdminPermission.CRM_MANAGE
+    );
+    expect(createClientMock).not.toHaveBeenCalled();
+  });
+
   it("normalizes testimonial fields before insert and returns the saved row", async () => {
     const createdRow = {
       id: "testimonial-1",
