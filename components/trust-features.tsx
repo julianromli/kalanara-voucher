@@ -46,7 +46,7 @@ const TrustFeatures = () => {
       {/* Content */}
       <SiteContainer className="relative z-10">
         <div className={`text-center mb-16 ${isInView ? "animate-fade-slide-up" : "opacity-0"}`}>
-          <h2 className="font-sans font-semibold text-4xl mb-4">
+          <h2 className="font-sans font-semibold text-3xl sm:text-4xl mb-4 sm:mb-6 leading-tight">
             Kenapa Pilih Kami
           </h2>
           <div className="h-1 w-20 bg-accent mx-auto rounded-full" />

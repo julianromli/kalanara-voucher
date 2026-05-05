@@ -6,6 +6,7 @@ import { StoreProvider } from "@/context/StoreContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ToastProvider } from "@/context/ToastContext";
 import Navbar from "@/components/navbar";
+import { MetaPixel } from "@/components/meta-pixel";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -90,6 +91,7 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${outfit.variable} ${playfair.variable} ${geistMono.variable} font-sans antialiased`}
       >
+        <MetaPixel />
         <AuthProvider>
           <StoreProvider>
             <ToastProvider>

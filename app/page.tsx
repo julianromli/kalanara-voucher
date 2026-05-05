@@ -4,13 +4,12 @@ import { ArrowRight } from "lucide-react";
 import { Footer13 } from "@/components/footer13";
 import { TrustFeatures } from "@/components/trust-features";
 import { ServicesSection } from "@/components/services-section";
-import { TestimonialsSection } from "@/components/testimonials-section";
+import { MeTimeSection } from "@/components/me-time-section";
+import { FlashSaleTestimonials } from "@/components/flash-sale-testimonials";
 import { SiteContainer } from "@/components/site-container";
 import { getServices } from "@/lib/actions/services";
 import type { ServiceWithCategory } from "@/lib/actions/services";
-import { getReviews } from "@/lib/actions/reviews";
-import type { Service, Review } from "@/lib/types";
-import type { Review as DBReview } from "@/lib/database.types";
+import type { Service } from "@/lib/types";
 import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
 
 function adaptDBServiceToFrontend(dbService: ServiceWithCategory): Service {
@@ -37,25 +36,9 @@ function adaptDBServiceToFrontend(dbService: ServiceWithCategory): Service {
   };
 }
 
-function adaptDBReviewToFrontend(dbReview: DBReview): Review {
-  return {
-    id: dbReview.id,
-    voucherId: dbReview.voucher_id,
-    rating: dbReview.rating,
-    comment: dbReview.comment ?? "",
-    customerName: dbReview.customer_name,
-    createdAt: new Date(dbReview.created_at),
-  };
-}
-
 export default async function LandingPage() {
-  const [dbServices, dbReviews] = await Promise.all([
-    getServices(),
-    getReviews(),
-  ]);
-
+  const dbServices = await getServices();
   const services = dbServices.map(adaptDBServiceToFrontend);
-  const reviews = dbReviews.map(adaptDBReviewToFrontend);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -100,7 +83,7 @@ export default async function LandingPage() {
                   className="btn-hover-lift inline-flex items-center gap-3 bg-accent text-accent-foreground px-8 py-4 rounded-lg text-base sm:text-lg font-medium hover:bg-accent/90 transition-all shadow-xl"
                 >
                   Lihat Paket Voucher
-                  <ArrowRight size={20} />
+                  <ArrowRight size={20} aria-hidden="true" />
                 </a>
                 <Link
                   href="/verify"
@@ -114,11 +97,14 @@ export default async function LandingPage() {
         </div>
       </section>
 
+      {/* Me Time Section */}
+      <MeTimeSection />
+
       {/* Services Section */}
       <ServicesSection services={services} />
 
       {/* Testimonials Section */}
-      <TestimonialsSection reviews={reviews} />
+      <FlashSaleTestimonials />
 
       {/* Trust/Features */}
       <TrustFeatures />
