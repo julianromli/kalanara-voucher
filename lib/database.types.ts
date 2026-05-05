@@ -580,6 +580,66 @@ export type Database = {
         };
         Relationships: [];
       };
+      site_settings: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      };
+      testimonials: {
+        Row: {
+          created_at: string
+          for_text: string
+          id: string
+          initials: string
+          is_active: boolean
+          location: string
+          name: string
+          quote: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          for_text: string
+          id?: string
+          initials: string
+          is_active?: boolean
+          location: string
+          name: string
+          quote: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          for_text?: string
+          id?: string
+          initials?: string
+          is_active?: boolean
+          location?: string
+          name?: string
+          quote?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      };
       scalev_webhook_events: {
         Row: {
           id: string;
@@ -744,6 +804,15 @@ export type ScalevWebhookEventInsert =
   Database["public"]["Tables"]["scalev_webhook_events"]["Insert"];
 export type ScalevWebhookEventUpdate =
   Database["public"]["Tables"]["scalev_webhook_events"]["Update"];
+
+export type SiteSetting = Database["public"]["Tables"]["site_settings"]["Row"];
+export type SiteSettingInsert = Database["public"]["Tables"]["site_settings"]["Insert"];
+export type SiteSettingUpdate = Database["public"]["Tables"]["site_settings"]["Update"];
+
+export type Testimonial = Database["public"]["Tables"]["testimonials"]["Row"];
+export type TestimonialInsert = Database["public"]["Tables"]["testimonials"]["Insert"];
+export type TestimonialUpdate = Database["public"]["Tables"]["testimonials"]["Update"];
+
 
 export type ServiceCategory = Database["public"]["Enums"]["service_category"];
 export type PaymentMethod = Database["public"]["Enums"]["payment_method"];

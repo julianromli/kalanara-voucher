@@ -19,6 +19,7 @@ export const AdminPermission = {
   REVIEWS_MANAGE: "reviews.manage",
   USERS_MANAGE: "users.manage",
   SETTINGS_MANAGE_SENSITIVE: "settings.manage_sensitive",
+  CRM_MANAGE: "crm.manage",
 } as const;
 
 export type AdminPermission =
@@ -37,6 +38,7 @@ const ROLE_PERMISSIONS: Record<CanonicalAdminRole, readonly AdminPermission[]> =
     AdminPermission.VOUCHERS_MANAGE,
     AdminPermission.SERVICES_MANAGE,
     AdminPermission.REVIEWS_MANAGE,
+    AdminPermission.CRM_MANAGE,
   ],
   STAFF: [
     AdminPermission.DASHBOARD_VIEW_OPERATIONAL,
@@ -55,6 +57,7 @@ export const ADMIN_ROUTE_PERMISSIONS = {
   "/admin/users": AdminPermission.USERS_MANAGE,
   "/admin/settings": AdminPermission.SETTINGS_MANAGE_SENSITIVE,
   "/admin/help": AdminPermission.DASHBOARD_VIEW_OPERATIONAL,
+  "/admin/crm": AdminPermission.CRM_MANAGE,
 } as const;
 
 export function normalizeAdminRole(role: LegacyAdminRole): CanonicalAdminRole | null {

@@ -80,11 +80,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+import { getSiteSetting } from "@/lib/actions/crm";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const announcementSetting = await getSiteSetting("announcement_text");
+  const announcementText = announcementSetting?.value || "FLASH SALE 5.5 ...... BERAKHIR DALAM ";
+
   return (
     <html lang="id" className="scroll-smooth" suppressHydrationWarning>
       <body
@@ -96,7 +101,7 @@ export default function RootLayout({
           <StoreProvider>
             <ToastProvider>
               <Suspense fallback={null}>
-                <Navbar />
+                <Navbar announcementText={announcementText} />
               </Suspense>
               <main>{children}</main>
             </ToastProvider>

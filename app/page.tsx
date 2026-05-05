@@ -36,9 +36,30 @@ function adaptDBServiceToFrontend(dbService: ServiceWithCategory): Service {
   };
 }
 
+function adaptDBReviewToFrontend(dbReview: DBReview): Review {
+  return {
+    id: dbReview.id,
+    voucherId: dbReview.voucher_id,
+    rating: dbReview.rating,
+    comment: dbReview.comment ?? "",
+    customerName: dbReview.customer_name,
+    createdAt: new Date(dbReview.created_at),
+  };
+}
+
+import { getSiteSetting, getActiveTestimonials } from "@/lib/actions/crm";
+
 export default async function LandingPage() {
-  const dbServices = await getServices();
+  const [dbServices, dbReviews, heroImageSetting, activeTestimonials] = await Promise.all([
+    getServices(),
+    getReviews(),
+    getSiteSetting("hero_image_url"),
+    getActiveTestimonials(),
+  ]);
+
   const services = dbServices.map(adaptDBServiceToFrontend);
+  const reviews = dbReviews.map(adaptDBReviewToFrontend);
+  const heroImageUrl = heroImageSetting?.value || "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&q=80";
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -47,7 +68,7 @@ export default async function LandingPage() {
         {/* Background */}
         <div className="absolute inset-0 bg-primary">
           <Image
-            src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&q=80"
+            src={heroImageUrl}
             alt="Spa Background"
             fill
             sizes="100vw"
@@ -104,7 +125,7 @@ export default async function LandingPage() {
       <ServicesSection services={services} />
 
       {/* Testimonials Section */}
-      <FlashSaleTestimonials />
+      <FlashSaleTestimonials testimonials={activeTestimonials} />
 
       {/* Trust/Features */}
       <TrustFeatures />
