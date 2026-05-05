@@ -12,17 +12,27 @@ export const metadata: Metadata = {
 export default async function CRMPage() {
   await requireAdminPermission(AdminPermission.CRM_MANAGE);
 
-  const announcementSetting = await getSiteSetting("announcement_text");
-  const heroImageSetting = await getSiteSetting("hero_image_url");
-  const testimonials = await getAllTestimonials();
+  const [
+    announcementSetting,
+    countdownEndAtSetting,
+    heroImageSetting,
+    testimonials,
+  ] = await Promise.all([
+    getSiteSetting("announcement_text"),
+    getSiteSetting("announcement_countdown_end_at"),
+    getSiteSetting("hero_image_url"),
+    getAllTestimonials(),
+  ]);
 
   const announcementText = announcementSetting?.value || "";
+  const countdownEndAt = countdownEndAtSetting?.value || "";
   const heroImageUrl = heroImageSetting?.value || "";
 
   return (
     <CRMClient 
-      initialAnnouncement={announcementText} 
-      initialHeroImage={heroImageUrl} 
+      initialAnnouncement={announcementText}
+      initialCountdownEndAt={countdownEndAt}
+      initialHeroImage={heroImageUrl}
       testimonials={testimonials} 
     />
   );

@@ -34,6 +34,7 @@ import {
 
 interface CRMClientProps {
   initialAnnouncement: string;
+  initialCountdownEndAt: string;
   initialHeroImage: string;
   testimonials: Testimonial[];
 }
@@ -82,6 +83,7 @@ function buildTestimonialPayload(
 
 export function CRMClient({
   initialAnnouncement,
+  initialCountdownEndAt,
   initialHeroImage,
   testimonials,
 }: CRMClientProps) {
@@ -89,6 +91,7 @@ export function CRMClient({
   const { showToast } = useToast();
 
   const [announcement, setAnnouncement] = useState(initialAnnouncement);
+  const [countdownEndAt, setCountdownEndAt] = useState(initialCountdownEndAt);
   const [isSavingAnnouncement, setIsSavingAnnouncement] = useState(false);
   const [heroImage, setHeroImage] = useState(initialHeroImage);
   const [isUploadingHero, setIsUploadingHero] = useState(false);
@@ -113,6 +116,10 @@ export function CRMClient({
   }, [initialAnnouncement]);
 
   useEffect(() => {
+    setCountdownEndAt(initialCountdownEndAt);
+  }, [initialCountdownEndAt]);
+
+  useEffect(() => {
     setHeroImage(initialHeroImage);
   }, [initialHeroImage]);
 
@@ -124,8 +131,16 @@ export function CRMClient({
     try {
       setIsSavingAnnouncement(true);
       const trimmedAnnouncement = announcement.trim();
-      await updateSiteSetting("announcement_text", trimmedAnnouncement);
+      const normalizedCountdownEndAt = countdownEndAt
+        ? new Date(countdownEndAt).toISOString()
+        : "";
+
+      await Promise.all([
+        updateSiteSetting("announcement_text", trimmedAnnouncement),
+        updateSiteSetting("announcement_countdown_end_at", normalizedCountdownEndAt),
+      ]);
       setAnnouncement(trimmedAnnouncement);
+      setCountdownEndAt(normalizedCountdownEndAt);
       router.refresh();
       showToast("Announcement saved successfully.", "success");
     } catch (error) {
@@ -226,15 +241,15 @@ export function CRMClient({
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="mb-4">
-        <DashboardHeader title="CRM" />
-        <p className="text-muted-foreground px-3 sm:px-4 md:px-6">
-          Manage website content and settings
-        </p>
-      </div>
+    <>
+      <DashboardHeader title="CRM" />
+      <div className="h-full w-full overflow-y-auto overflow-x-hidden p-4 md:p-6">
+        <div className="flex flex-col gap-6">
+          <p className="text-muted-foreground">
+            Manage website content and settings
+          </p>
 
-      <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Announcement Bar</CardTitle>
@@ -243,15 +258,24 @@ export function CRMClient({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-3">
               <Input
                 value={announcement}
                 onChange={(event) => setAnnouncement(event.target.value)}
                 placeholder="E.g. FLASH SALE 5.5 ...... BERAKHIR DALAM"
               />
-              <Button onClick={handleSaveAnnouncement} disabled={isSavingAnnouncement}>
-                {isSavingAnnouncement ? "Saving..." : "Save"}
-              </Button>
+              <div className="flex gap-2">
+                <Input
+                  type="datetime-local"
+                  value={countdownEndAt ? countdownEndAt.slice(0, 16) : ""}
+                  onChange={(event) => setCountdownEndAt(event.target.value)}
+                  aria-label="Waktu selesai countdown"
+                  className="flex-1"
+                />
+                <Button onClick={handleSaveAnnouncement} disabled={isSavingAnnouncement}>
+                  {isSavingAnnouncement ? "Saving..." : "Save"}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -368,8 +392,8 @@ export function CRMClient({
         </CardContent>
       </Card>
 
-      <Dialog open={isTestimonialModalOpen} onOpenChange={setIsTestimonialModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+          <Dialog open={isTestimonialModalOpen} onOpenChange={setIsTestimonialModalOpen}>
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
               {editingTestimonial ? "Edit Testimonial" : "Add Testimonial"}
@@ -490,7 +514,9 @@ export function CRMClient({
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
-    </div>
+          </Dialog>
+        </div>
+      </div>
+    </>
   );
 }

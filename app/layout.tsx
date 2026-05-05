@@ -82,11 +82,19 @@ export const metadata: Metadata = {
 };
 
 async function NavbarWithAnnouncement() {
-  const announcementSetting = await getSiteSetting("announcement_text");
+  const [announcementSetting, countdownEndAtSetting] = await Promise.all([
+    getSiteSetting("announcement_text"),
+    getSiteSetting("announcement_countdown_end_at"),
+  ]);
   const announcementText =
     announcementSetting?.value || "FLASH SALE 5.5 ...... BERAKHIR DALAM ";
 
-  return <Navbar announcementText={announcementText} />;
+  return (
+    <Navbar
+      announcementText={announcementText}
+      announcementCountdownEndAt={countdownEndAtSetting?.value || undefined}
+    />
+  );
 }
 
 export default function RootLayout({

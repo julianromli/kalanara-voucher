@@ -96,12 +96,24 @@ export function AdminSidebar({
   const router = useRouter();
   const { hasPermission, logout, user } = useAuth();
   const [isMounted, setIsMounted] = useState(false);
+  const [optimisticActiveRoute, setOptimisticActiveRoute] = useState<{
+    href: string;
+    sourcePathname: string;
+  } | null>(null);
+  const activeHref =
+    optimisticActiveRoute?.sourcePathname === pathname
+      ? optimisticActiveRoute.href
+      : pathname;
   const visibleNavItems = navItems.filter((item) => hasPermission(item.requiredPermission));
 
   useEffect(() => {
     const timer = setTimeout(() => setIsMounted(true), 100);
     return () => clearTimeout(timer);
   }, []);
+
+  const activateRouteOptimistically = (href: string) => {
+    setOptimisticActiveRoute({ href, sourcePathname: pathname });
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -116,7 +128,11 @@ export function AdminSidebar({
             "flex items-center justify-between",
             isMounted ? "animate-fade-slide-down" : "opacity-0"
           )}>
-            <Link href="/admin/dashboard" className="flex items-center gap-2">
+            <Link
+              href="/admin/dashboard"
+              className="flex items-center gap-2"
+              onClick={() => activateRouteOptimistically("/admin/dashboard")}
+            >
               <div className="size-8 bg-gradient-to-br from-sage-500 to-sage-700 rounded-lg shadow flex items-center justify-center text-white">
                 <HugeiconsIcon icon={Leaf01Icon} size={20} />
               </div>
@@ -153,7 +169,7 @@ export function AdminSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               {visibleNavItems.map((item, index) => {
-                const isActive = pathname === item.href;
+                const isActive = activeHref === item.href;
                 return (
                   <SidebarMenuItem 
                     key={item.href}
@@ -167,7 +183,10 @@ export function AdminSidebar({
                       isActive={isActive}
                       className="h-9 text-sm nav-item-hover"
                     >
-                      <Link href={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={() => activateRouteOptimistically(item.href)}
+                      >
                         <HugeiconsIcon icon={item.icon} size={16} />
                         <span>{item.label}</span>
                       </Link>
@@ -186,8 +205,15 @@ export function AdminSidebar({
             <SidebarMenu>
               {hasPermission(AdminPermission.SETTINGS_MANAGE_SENSITIVE) && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild className="h-9 text-sm">
-                    <Link href="/admin/settings">
+                  <SidebarMenuButton
+                    asChild
+                    isActive={activeHref === "/admin/settings"}
+                    className="h-9 text-sm"
+                  >
+                    <Link
+                      href="/admin/settings"
+                      onClick={() => activateRouteOptimistically("/admin/settings")}
+                    >
                       <HugeiconsIcon icon={Settings02Icon} size={16} />
                       <span>Settings</span>
                     </Link>
@@ -195,8 +221,15 @@ export function AdminSidebar({
                 </SidebarMenuItem>
               )}
               <SidebarMenuItem>
-                <SidebarMenuButton asChild className="h-9 text-sm">
-                  <Link href="/admin/help">
+                <SidebarMenuButton
+                  asChild
+                  isActive={activeHref === "/admin/help"}
+                  className="h-9 text-sm"
+                >
+                  <Link
+                    href="/admin/help"
+                    onClick={() => activateRouteOptimistically("/admin/help")}
+                  >
                     <HugeiconsIcon icon={HelpCircleIcon} size={16} />
                     <span>Help Center</span>
                   </Link>

@@ -21,7 +21,15 @@ type NavItem = {
   icon?: IconSvgElement;
 };
 
-export default function Navbar({ announcementText }: { announcementText?: string }) {
+interface NavbarProps {
+  announcementText?: string;
+  announcementCountdownEndAt?: string;
+}
+
+export default function Navbar({
+  announcementText,
+  announcementCountdownEndAt,
+}: NavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -66,7 +74,10 @@ export default function Navbar({ announcementText }: { announcementText?: string
       className={`fixed top-0 z-50 w-full transition-all duration-500 ease-out flex flex-col ${isMounted ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
         }`}
     >
-      <AnnouncementBar text={announcementText} />
+      <AnnouncementBar
+        text={announcementText}
+        countdownEndAt={announcementCountdownEndAt}
+      />
       <div
         className={`w-full transition-all duration-500 ${isScrolled
             ? "bg-background/80 backdrop-blur-md border-b border-border shadow-sm text-foreground"

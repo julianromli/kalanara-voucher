@@ -15,6 +15,9 @@ const SITE_SETTING_DEFAULTS = {
   announcement_text: {
     description: "Text for announcement bar at the top of the page",
   },
+  announcement_countdown_end_at: {
+    description: "ISO date and time when the announcement countdown ends",
+  },
   hero_image_url: {
     description: "Background image for the hero section",
   },

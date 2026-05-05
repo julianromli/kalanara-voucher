@@ -3,9 +3,18 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 
-export function AnnouncementBar({ text = "FLASH SALE 5.5 ...... BERAKHIR DALAM" }: { text?: string }) {
+interface AnnouncementBarProps {
+  text?: string;
+  countdownEndAt?: string;
+}
+
+export function AnnouncementBar({
+  text = "FLASH SALE 5.5 ...... BERAKHIR DALAM",
+  countdownEndAt,
+}: AnnouncementBarProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [timeLeft, setTimeLeft] = useState({
+    days: 0,
     hours: 0,
     minutes: 0,
     seconds: 0,
@@ -16,16 +25,19 @@ export function AnnouncementBar({ text = "FLASH SALE 5.5 ...... BERAKHIR DALAM" 
     const mountTimer = setTimeout(() => setIsMounted(true), 10);
     const calculateTimeLeft = () => {
       const now = new Date();
-      // Target end of today (midnight)
-      const tomorrow = new Date(now);
-      tomorrow.setHours(24, 0, 0, 0);
-      const difference = tomorrow.getTime() - now.getTime();
+      const target = countdownEndAt ? new Date(countdownEndAt) : new Date(now);
 
+      if (!countdownEndAt) {
+        target.setHours(24, 0, 0, 0);
+      }
+
+      const difference = Math.max(target.getTime() - now.getTime(), 0);
+      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
       const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
       const minutes = Math.floor((difference / 1000 / 60) % 60);
       const seconds = Math.floor((difference / 1000) % 60);
 
-      setTimeLeft({ hours, minutes, seconds });
+      setTimeLeft({ days, hours, minutes, seconds });
     };
 
     calculateTimeLeft();
@@ -34,7 +46,7 @@ export function AnnouncementBar({ text = "FLASH SALE 5.5 ...... BERAKHIR DALAM" 
       clearInterval(timer);
       clearTimeout(mountTimer);
     };
-  }, []);
+  }, [countdownEndAt]);
 
   if (!isVisible) return null;
 
@@ -44,12 +56,13 @@ export function AnnouncementBar({ text = "FLASH SALE 5.5 ...... BERAKHIR DALAM" 
       <span className="font-bold tabular-nums">
         {isMounted ? (
           <>
+            {timeLeft.days > 0 ? `${String(timeLeft.days).padStart(2, "0")}:` : ""}
             {String(timeLeft.hours).padStart(2, "0")}:
             {String(timeLeft.minutes).padStart(2, "0")}:
             {String(timeLeft.seconds).padStart(2, "0")}
           </>
         ) : (
-          "00:00:00"
+          countdownEndAt ? "00:00:00:00" : "00:00:00"
         )}
       </span>
       <button
