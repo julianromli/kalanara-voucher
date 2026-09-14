@@ -6,11 +6,22 @@ import { X } from "lucide-react";
 interface AnnouncementBarProps {
   text?: string;
   countdownEndAt?: string;
+  countdownEnabled?: boolean;
+}
+
+function getCountdownTarget(countdownEndAt?: string): Date | null {
+  if (!countdownEndAt) {
+    return null;
+  }
+
+  const target = new Date(countdownEndAt);
+  return Number.isNaN(target.getTime()) ? null : target;
 }
 
 export function AnnouncementBar({
   text = "FLASH SALE 5.5 ...... BERAKHIR DALAM",
   countdownEndAt,
+  countdownEnabled = true,
 }: AnnouncementBarProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [timeLeft, setTimeLeft] = useState({
@@ -21,16 +32,21 @@ export function AnnouncementBar({
   });
   const [isMounted, setIsMounted] = useState(false);
 
+  const showCountdown = countdownEnabled && getCountdownTarget(countdownEndAt) !== null;
+
   useEffect(() => {
+    if (!showCountdown) {
+      return;
+    }
+
+    const target = getCountdownTarget(countdownEndAt);
+    if (!target) {
+      return;
+    }
+
     const mountTimer = setTimeout(() => setIsMounted(true), 10);
     const calculateTimeLeft = () => {
       const now = new Date();
-      const target = countdownEndAt ? new Date(countdownEndAt) : new Date(now);
-
-      if (!countdownEndAt) {
-        target.setHours(24, 0, 0, 0);
-      }
-
       const difference = Math.max(target.getTime() - now.getTime(), 0);
       const days = Math.floor(difference / (1000 * 60 * 60 * 24));
       const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
@@ -46,25 +62,30 @@ export function AnnouncementBar({
       clearInterval(timer);
       clearTimeout(mountTimer);
     };
-  }, [countdownEndAt]);
+  }, [countdownEndAt, showCountdown]);
 
   if (!isVisible) return null;
 
   return (
     <div className="relative w-full bg-foreground text-background text-xs sm:text-sm py-2 px-10 text-center font-medium tracking-wide">
-      {text}{" "}
-      <span className="font-bold tabular-nums">
-        {isMounted ? (
-          <>
-            {timeLeft.days > 0 ? `${String(timeLeft.days).padStart(2, "0")}:` : ""}
-            {String(timeLeft.hours).padStart(2, "0")}:
-            {String(timeLeft.minutes).padStart(2, "0")}:
-            {String(timeLeft.seconds).padStart(2, "0")}
-          </>
-        ) : (
-          countdownEndAt ? "00:00:00:00" : "00:00:00"
-        )}
-      </span>
+      {text}
+      {showCountdown ? (
+        <>
+          {" "}
+          <span className="font-bold tabular-nums">
+            {isMounted ? (
+              <>
+                {timeLeft.days > 0 ? `${String(timeLeft.days).padStart(2, "0")}:` : ""}
+                {String(timeLeft.hours).padStart(2, "0")}:
+                {String(timeLeft.minutes).padStart(2, "0")}:
+                {String(timeLeft.seconds).padStart(2, "0")}
+              </>
+            ) : (
+              "00:00:00"
+            )}
+          </span>
+        </>
+      ) : null}
       <button
         onClick={() => setIsVisible(false)}
         className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-background/20 rounded-full transition-colors text-background"

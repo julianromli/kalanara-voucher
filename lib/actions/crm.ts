@@ -18,6 +18,9 @@ const SITE_SETTING_DEFAULTS = {
   announcement_countdown_end_at: {
     description: "ISO date and time when the announcement countdown ends",
   },
+  announcement_countdown_enabled: {
+    description: "Whether the announcement bar shows a countdown timer",
+  },
   hero_image_url: {
     description: "Background image for the hero section",
   },

@@ -77,6 +77,40 @@ describe("crm actions", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/crm", "page");
   });
 
+  it("upserts the announcement countdown enabled flag", async () => {
+    const singleMock = vi.fn().mockResolvedValue({
+      data: {
+        key: "announcement_countdown_enabled",
+        value: "false",
+        description: "Whether the announcement bar shows a countdown timer",
+        updated_at: "2026-09-14T08:00:00.000Z",
+      },
+      error: null,
+    });
+    const selectMock = vi.fn(() => ({ single: singleMock }));
+    const upsertMock = vi.fn(() => ({ select: selectMock }));
+
+    createClientMock.mockResolvedValue({
+      from: vi.fn(() => ({ upsert: upsertMock })),
+    });
+
+    const result = await updateSiteSetting(
+      "announcement_countdown_enabled",
+      " false "
+    );
+
+    expect(upsertMock).toHaveBeenCalledWith(
+      {
+        key: "announcement_countdown_enabled",
+        value: "false",
+        description: "Whether the announcement bar shows a countdown timer",
+        updated_at: expect.any(String),
+      },
+      { onConflict: "key" }
+    );
+    expect(result.value).toBe("false");
+  });
+
   it("rejects inherited property names as unsupported site setting keys", async () => {
     await expect(updateSiteSetting("toString", "bad value")).rejects.toThrow(
       "Unsupported site setting key."

@@ -24,11 +24,13 @@ type NavItem = {
 interface NavbarProps {
   announcementText?: string;
   announcementCountdownEndAt?: string;
+  announcementCountdownEnabled?: boolean;
 }
 
 export default function Navbar({
   announcementText,
   announcementCountdownEndAt,
+  announcementCountdownEnabled = true,
 }: NavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -77,6 +79,7 @@ export default function Navbar({
       <AnnouncementBar
         text={announcementText}
         countdownEndAt={announcementCountdownEndAt}
+        countdownEnabled={announcementCountdownEnabled}
       />
       <div
         className={`w-full transition-all duration-500 ${isScrolled
