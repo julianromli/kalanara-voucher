@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ClientUploadedFileData } from "uploadthing/types";
 import {
   createTestimonial,
+  deleteSiteSetting,
   deleteTestimonial,
   updateSiteSetting,
   updateTestimonial,
@@ -35,6 +36,7 @@ import {
 interface CRMClientProps {
   initialAnnouncement: string;
   initialCountdownEndAt: string;
+  initialCountdownEnabled: boolean;
   initialHeroImage: string;
   testimonials: Testimonial[];
 }
@@ -84,6 +86,7 @@ function buildTestimonialPayload(
 export function CRMClient({
   initialAnnouncement,
   initialCountdownEndAt,
+  initialCountdownEnabled,
   initialHeroImage,
   testimonials,
 }: CRMClientProps) {
@@ -92,6 +95,7 @@ export function CRMClient({
 
   const [announcement, setAnnouncement] = useState(initialAnnouncement);
   const [countdownEndAt, setCountdownEndAt] = useState(initialCountdownEndAt);
+  const [countdownEnabled, setCountdownEnabled] = useState(initialCountdownEnabled);
   const [isSavingAnnouncement, setIsSavingAnnouncement] = useState(false);
   const [heroImage, setHeroImage] = useState(initialHeroImage);
   const [isUploadingHero, setIsUploadingHero] = useState(false);
@@ -120,6 +124,10 @@ export function CRMClient({
   }, [initialCountdownEndAt]);
 
   useEffect(() => {
+    setCountdownEnabled(initialCountdownEnabled);
+  }, [initialCountdownEnabled]);
+
+  useEffect(() => {
     setHeroImage(initialHeroImage);
   }, [initialHeroImage]);
 
@@ -135,10 +143,28 @@ export function CRMClient({
         ? new Date(countdownEndAt).toISOString()
         : "";
 
-      await Promise.all([
+      const announcementWrites: Array<Promise<unknown>> = [
         updateSiteSetting("announcement_text", trimmedAnnouncement),
-        updateSiteSetting("announcement_countdown_end_at", normalizedCountdownEndAt),
-      ]);
+        updateSiteSetting(
+          "announcement_countdown_enabled",
+          countdownEnabled ? "true" : "false"
+        ),
+      ];
+
+      if (normalizedCountdownEndAt) {
+        announcementWrites.push(
+          updateSiteSetting(
+            "announcement_countdown_end_at",
+            normalizedCountdownEndAt
+          )
+        );
+      } else {
+        announcementWrites.push(
+          deleteSiteSetting("announcement_countdown_end_at")
+        );
+      }
+
+      await Promise.all(announcementWrites);
       setAnnouncement(trimmedAnnouncement);
       setCountdownEndAt(normalizedCountdownEndAt);
       router.refresh();
@@ -263,14 +289,39 @@ export function CRMClient({
                 value={announcement}
                 onChange={(event) => setAnnouncement(event.target.value)}
                 placeholder="E.g. FLASH SALE 5.5 ...... BERAKHIR DALAM"
+                disabled={isSavingAnnouncement}
               />
+              <div className="flex items-start gap-3 rounded-lg border p-3">
+                <Checkbox
+                  id="announcement-countdown-enabled"
+                  checked={countdownEnabled}
+                  disabled={isSavingAnnouncement}
+                  onCheckedChange={(checked) =>
+                    setCountdownEnabled(checked === true)
+                  }
+                />
+                <div className="grid gap-1">
+                  <label
+                    htmlFor="announcement-countdown-enabled"
+                    className="text-sm font-medium cursor-pointer"
+                  >
+                    Show countdown timer
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    When this is on, the public site shows remaining time next
+                    to the announcement text. You can still set the end date
+                    when this is off.
+                  </p>
+                </div>
+              </div>
               <div className="flex gap-2">
                 <Input
                   type="datetime-local"
                   value={countdownEndAt ? countdownEndAt.slice(0, 16) : ""}
                   onChange={(event) => setCountdownEndAt(event.target.value)}
-                  aria-label="Waktu selesai countdown"
+                  aria-label="Countdown end date and time"
                   className="flex-1"
+                  disabled={isSavingAnnouncement}
                 />
                 <Button onClick={handleSaveAnnouncement} disabled={isSavingAnnouncement}>
                   {isSavingAnnouncement ? "Saving..." : "Save"}

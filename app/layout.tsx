@@ -8,6 +8,7 @@ import { ToastProvider } from "@/context/ToastContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { StoreProvider } from "@/context/StoreContext";
 import { getSiteSetting } from "@/lib/actions/crm";
+import { isAnnouncementCountdownEnabled } from "@/lib/site-settings";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -82,10 +83,12 @@ export const metadata: Metadata = {
 };
 
 async function NavbarWithAnnouncement() {
-  const [announcementSetting, countdownEndAtSetting] = await Promise.all([
-    getSiteSetting("announcement_text"),
-    getSiteSetting("announcement_countdown_end_at"),
-  ]);
+  const [announcementSetting, countdownEndAtSetting, countdownEnabledSetting] =
+    await Promise.all([
+      getSiteSetting("announcement_text"),
+      getSiteSetting("announcement_countdown_end_at"),
+      getSiteSetting("announcement_countdown_enabled"),
+    ]);
   const announcementText =
     announcementSetting?.value || "FLASH SALE 5.5 ...... BERAKHIR DALAM ";
 
@@ -93,6 +96,9 @@ async function NavbarWithAnnouncement() {
     <Navbar
       announcementText={announcementText}
       announcementCountdownEndAt={countdownEndAtSetting?.value || undefined}
+      announcementCountdownEnabled={isAnnouncementCountdownEnabled(
+        countdownEnabledSetting?.value
+      )}
     />
   );
 }
