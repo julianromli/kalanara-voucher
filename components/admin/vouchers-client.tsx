@@ -68,8 +68,12 @@ import {
   redeemVoucher,
   extendVoucher,
   voidVoucher,
+  type VoucherAdminSummary,
 } from "@/lib/actions/vouchers";
+import { AdminListPagination } from "@/components/admin/admin-list-pagination";
+import type { AdminPage } from "@/lib/actions/admin-pagination";
 import type { VoucherWithService } from "@/lib/database.types";
+import { useAdminListUrl } from "@/hooks/use-admin-list-url";
 import { cn } from "@/lib/utils";
 
 type VoucherStatus = "ALL" | "ACTIVE" | "REDEEMED" | "EXPIRED";
@@ -104,20 +108,37 @@ const STATUS_CONFIG: Record<
 };
 
 interface VouchersClientProps {
-  initialVouchers: VoucherWithService[];
+  initialPage: AdminPage<VoucherWithService>;
+  initialSummary: VoucherAdminSummary;
+  initialQuery: string;
+  initialFilter: string;
 }
 
 const EXTEND_DAYS_SELECT_ID = "voucher-extend-days";
 
-export function VouchersClient({ initialVouchers }: VouchersClientProps) {
+export function VouchersClient({
+  initialPage,
+  initialSummary,
+  initialQuery,
+  initialFilter,
+}: VouchersClientProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
 
   const [vouchers, setVouchers] =
-    useState<VoucherWithService[]>(initialVouchers);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<VoucherStatus>("ALL");
+    useState<VoucherWithService[]>(initialPage.rows);
+  const {
+    query: searchQuery,
+    setQuery: setSearchQuery,
+    filter: statusFilter,
+    setFilter: setStatusFilter,
+    setPage,
+  } = useAdminListUrl({
+    initialQuery,
+    initialFilter,
+    filterParam: "status",
+  });
 
   // Action states
   const [selectedVoucher, setSelectedVoucher] =
@@ -155,22 +176,13 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
   }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
+    setVouchers(initialPage.rows);
+  }, [initialPage.rows]);
+
+  useEffect(() => {
     const timer = setTimeout(() => setIsMounted(true), 100);
     return () => clearTimeout(timer);
   }, []);
-
-  const filteredVouchers = vouchers.filter((voucher) => {
-    const status = getVoucherStatus(voucher);
-    const matchesSearch =
-      voucher.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      voucher.recipient_name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      voucher.recipient_email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      statusFilter === "ALL" || status.toUpperCase() === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
 
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -266,6 +278,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
 
       if (success) {
         showToast(message, "success");
+        router.refresh();
       } else {
         setVouchers(previous);
         showToast(message || "An error occurred", "error");
@@ -309,6 +322,10 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
 
       showToast(result.message, "success");
       setPendingDeleteVoucher(null);
+      router.refresh();
+      if (vouchers.length === 1 && initialPage.page > 1) {
+        setPage(initialPage.page - 1);
+      }
     } catch {
       setVouchers(previous);
       showToast("Failed to delete voucher permanently.", "error");
@@ -323,10 +340,13 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
   }
 
   const stats = {
-    total: vouchers.length,
-    active: vouchers.filter((v) => getVoucherStatus(v) === "active").length,
-    redeemed: vouchers.filter((v) => getVoucherStatus(v) === "redeemed").length,
-    expired: vouchers.filter((v) => getVoucherStatus(v) === "expired").length,
+    total:
+      initialSummary.active +
+      initialSummary.redeemed +
+      initialSummary.expired,
+    active: initialSummary.active,
+    redeemed: initialSummary.redeemed,
+    expired: initialSummary.expired,
   };
 
   return (
@@ -431,7 +451,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
         </div>
 
         {/* Vouchers Table */}
-        {filteredVouchers.length === 0 ? (
+        {vouchers.length === 0 ? (
           <div className="bg-card rounded-2xl shadow-spa border border-border p-12 text-center">
             <HugeiconsIcon
               icon={Ticket01Icon}
@@ -446,6 +466,13 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                 ? "Try adjusting your filters"
                 : "Vouchers will appear here when customers make purchases"}
             </p>
+            <AdminListPagination
+              itemLabel="voucher"
+              page={initialPage.page}
+              totalCount={initialPage.totalCount}
+              totalPages={initialPage.totalPages}
+              onPageChange={setPage}
+            />
           </div>
         ) : (
           <div
@@ -483,7 +510,7 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filteredVouchers.map((voucher, index) => {
+                  {vouchers.map((voucher, index) => {
                     const isOptimistic = optimisticIds.has(voucher.id);
                     const status = getVoucherStatus(voucher);
                     const config = STATUS_CONFIG[status];
@@ -641,6 +668,13 @@ export function VouchersClient({ initialVouchers }: VouchersClientProps) {
                 </tbody>
               </table>
             </div>
+            <AdminListPagination
+              itemLabel="voucher"
+              page={initialPage.page}
+              totalCount={initialPage.totalCount}
+              totalPages={initialPage.totalPages}
+              onPageChange={setPage}
+            />
           </div>
         )}
       </div>

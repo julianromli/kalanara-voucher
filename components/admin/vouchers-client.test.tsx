@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/context/ToastContext";
 import { VouchersClient } from "@/components/admin/vouchers-client";
+import type { AdminPage } from "@/lib/actions/admin-pagination";
 import type { VoucherWithService } from "@/lib/database.types";
 import {
   deleteVoucher,
@@ -12,9 +13,13 @@ import {
 } from "@/lib/actions/vouchers";
 
 const push = vi.fn();
+const replace = vi.fn();
+const refresh = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, replace, refresh }),
+  usePathname: () => "/admin/vouchers",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("@/context/AuthContext", () => ({
@@ -135,9 +140,22 @@ const initialVouchers: VoucherWithService[] = [
 ];
 
 function renderComponent() {
+  const initialPage: AdminPage<VoucherWithService> = {
+    rows: initialVouchers,
+    page: 1,
+    pageSize: 25,
+    totalCount: initialVouchers.length,
+    totalPages: 1,
+  };
+
   return render(
     <ToastProvider>
-      <VouchersClient initialVouchers={initialVouchers} />
+      <VouchersClient
+        initialPage={initialPage}
+        initialSummary={{ active: 123, redeemed: 89, expired: 52 }}
+        initialQuery=""
+        initialFilter="ALL"
+      />
     </ToastProvider>,
   );
 }
@@ -151,6 +169,15 @@ describe("VouchersClient", () => {
     });
     vi.mocked(extendVoucher).mockResolvedValue(true);
     vi.mocked(voidVoucher).mockResolvedValue(true);
+  });
+
+  it("renders global voucher summary counts supplied by the server", () => {
+    renderComponent();
+
+    expect(screen.getByText("264")).toBeInTheDocument();
+    expect(screen.getByText("123")).toBeInTheDocument();
+    expect(screen.getByText("89")).toBeInTheDocument();
+    expect(screen.getByText("52")).toBeInTheDocument();
   });
 
   it("deletes a voucher from the dropdown menu after confirmation", async () => {
@@ -199,6 +226,7 @@ describe("VouchersClient", () => {
     expect(
       await screen.findByText("Voucher berhasil dihapus permanen."),
     ).toBeInTheDocument();
+    expect(refresh).toHaveBeenCalled();
   });
 
   it("restores the voucher row when permanent delete fails", async () => {

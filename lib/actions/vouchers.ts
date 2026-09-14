@@ -6,12 +6,35 @@ import {
   logAdminAudit,
   requireAdminPermission,
 } from "@/lib/auth/admin-rbac-server";
+import {
+  ADMIN_PAGE_SIZE,
+  buildAdminPage,
+  escapePostgrestLike,
+  normalizeAdminListParams,
+  type AdminListParams,
+  type AdminPage,
+} from "@/lib/actions/admin-pagination";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type {
   VoucherWithService,
 } from "@/lib/database.types";
 import type { PublicVoucherLookup } from "@/lib/types";
 import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
+
+const VOUCHER_ADMIN_LIST_SELECT =
+  "id, code, recipient_name, recipient_email, expiry_date, is_redeemed, amount, services(name, duration)";
+const VOUCHER_ADMIN_FILTERS = [
+  "ALL",
+  "ACTIVE",
+  "REDEEMED",
+  "EXPIRED",
+] as const;
+
+export interface VoucherAdminSummary {
+  active: number;
+  redeemed: number;
+  expired: number;
+}
 
 export interface DestructiveVoucherActionResult {
   success: boolean;
@@ -104,21 +127,116 @@ async function hardDeleteVoucherTransactional(
   return result;
 }
 
-export async function getVouchers(): Promise<VoucherWithService[]> {
+export async function getVouchersPage(
+  params: AdminListParams,
+): Promise<AdminPage<VoucherWithService>> {
+  await requireAdminPermission(AdminPermission.VOUCHERS_MANAGE);
+
+  const normalized = normalizeAdminListParams(
+    {
+      page: String(params.page),
+      query: params.query,
+      filter: params.filter,
+    },
+    VOUCHER_ADMIN_FILTERS,
+  );
+  const from = (normalized.page - 1) * ADMIN_PAGE_SIZE;
+  const now = new Date().toISOString();
+  const supabase = getAdminClient();
+  let request = supabase
+    .from("vouchers")
+    .select(VOUCHER_ADMIN_LIST_SELECT, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
+
+  if (normalized.filter === "ACTIVE") {
+    request = request.eq("is_redeemed", false).gt("expiry_date", now);
+  } else if (normalized.filter === "REDEEMED") {
+    request = request.eq("is_redeemed", true);
+  } else if (normalized.filter === "EXPIRED") {
+    request = request.eq("is_redeemed", false).lte("expiry_date", now);
+  }
+
+  if (normalized.query) {
+    const pattern = `"%${escapePostgrestLike(normalized.query)}%"`;
+    request = request.or(
+      `code.ilike.${pattern},recipient_name.ilike.${pattern},recipient_email.ilike.${pattern}`,
+    );
+  }
+
+  const firstResult = await request.range(
+    from,
+    from + ADMIN_PAGE_SIZE - 1,
+  );
+
+  if (firstResult.error) {
+    console.error("Error fetching vouchers:", firstResult.error);
+    throw firstResult.error;
+  }
+
+  const firstPage = buildAdminPage(
+    (firstResult.data as VoucherWithService[]) ?? [],
+    normalized.page,
+    firstResult.count ?? 0,
+  );
+  if (firstPage.page === normalized.page || firstPage.totalCount === 0) {
+    return firstPage;
+  }
+
+  const correctedFrom = (firstPage.page - 1) * ADMIN_PAGE_SIZE;
+  const correctedResult = await request.range(
+    correctedFrom,
+    correctedFrom + ADMIN_PAGE_SIZE - 1,
+  );
+  if (correctedResult.error) {
+    console.error(
+      "Error fetching corrected vouchers page:",
+      correctedResult.error,
+    );
+    throw correctedResult.error;
+  }
+
+  return buildAdminPage(
+    (correctedResult.data as VoucherWithService[]) ?? [],
+    firstPage.page,
+    correctedResult.count ?? firstPage.totalCount,
+  );
+}
+
+export async function getVoucherAdminSummary(): Promise<VoucherAdminSummary> {
   await requireAdminPermission(AdminPermission.VOUCHERS_MANAGE);
 
   const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from("vouchers")
-    .select(`*, services(*)`)
-    .order("created_at", { ascending: false });
+  const now = new Date().toISOString();
+  const [activeResult, redeemedResult, expiredResult] = await Promise.all([
+    supabase
+      .from("vouchers")
+      .select("id", { count: "exact", head: true })
+      .eq("is_redeemed", false)
+      .gt("expiry_date", now),
+    supabase
+      .from("vouchers")
+      .select("id", { count: "exact", head: true })
+      .eq("is_redeemed", true),
+    supabase
+      .from("vouchers")
+      .select("id", { count: "exact", head: true })
+      .eq("is_redeemed", false)
+      .lte("expiry_date", now),
+  ]);
 
-  if (error) {
-    console.error("Error fetching vouchers:", error);
-    return [];
+  for (const result of [activeResult, redeemedResult, expiredResult]) {
+    if (result.error) {
+      console.error("Error counting voucher admin summary:", result.error);
+      throw result.error;
+    }
   }
 
-  return (data as VoucherWithService[]) || [];
+  return {
+    active: activeResult.count ?? 0,
+    redeemed: redeemedResult.count ?? 0,
+    expired: expiredResult.count ?? 0,
+  };
 }
 
 export async function getVoucherByCode(

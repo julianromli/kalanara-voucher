@@ -15,7 +15,7 @@ Each linked file is a self-contained execution plan. Keep each change independen
 | 7 | [007 — Scope navbar data work](./007-scope-navbar-data-work.md) | Route-scope the public shell and replace three reads with one narrow cached query. Finding 11. | 006 | DONE |
 | 8 | [008 — Scope and stabilize admin authentication](./008-scope-and-stabilize-auth.md) | Mount one admin-owned provider and reject stale async auth completions. Finding 12. | 006 | DONE |
 | 9 | [009 — Preload checkout payment options](./009-preload-checkout-payment-options.md) | Remove the post-hydration provider-request waterfall while retaining submit-time validation. Finding 10. | 004 | DONE |
-| 10 | [010 — Paginate admin data](./010-paginate-admin-data.md) | Bound list payloads and move filtering, counts, and dashboard aggregation to the database. Findings 14 and 15. | 001 | OPEN |
+| 10 | [010 — Paginate admin data](./010-paginate-admin-data.md) | Bound list payloads and move filtering, counts, and dashboard aggregation to the database. Findings 14 and 15. | 001 | DONE |
 | 11 | [011 — Associate checkout controls](./011-associate-checkout-controls.md) | Connect labels, errors, and help text; make custom radio focus visible. Findings 17 and 18. | 009 | OPEN |
 | 12 | [012 — Cancel stale voucher lookups](./012-cancel-stale-voucher-lookups.md) | Ensure only the newest manual, initial, or QR verification request can commit state. Finding 16. | None | OPEN |
 

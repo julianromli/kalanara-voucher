@@ -1,6 +1,6 @@
 # 010 — Paginate and filter admin data on the server
 
-- **Status**: OPEN
+- **Status**: DONE
 - **Commit**: b94c4ae
 - **Severity**: HIGH
 - **Category**: Performance
@@ -367,3 +367,27 @@ Verify with `EXPLAIN (ANALYZE, BUFFERS)` before adding indexes. Candidates are c
   - Compare all dashboard metrics against direct SQL under roles with and without business/review permission.
   - Profile 10-character searches before/after. Confirm full-list filter commits disappear and only the input updates before navigation; with “Highlight updates,” the table/grid must not flash on every keypress.
 - **Done when**: payloads are bounded, filtering/counting is database-backed, URLs own list state, dashboard broad reads are gone, permissions are unchanged, and checks/Profiler pass.
+
+## Implementation outcome
+
+- Admin purchases, vouchers, and reviews now use validated URL parameters,
+  exact-count 25-row ranges, escaped PostgREST search values, and deterministic
+  `created_at DESC, id DESC` ordering.
+- Voucher summary cards retain global Active/Redeemed/Expired totals through
+  three exact head-count queries; they never derive totals from current-page
+  rows.
+- The three clients render only the current page, debounce search navigation by
+  300 ms, reset the page after query/filter changes, preserve scroll during URL
+  replacement, refresh after successful mutations, and retreat from an emptied
+  last page.
+- Dashboard totals and seven completed-order buckets come from
+  `023_add_admin_dashboard_aggregates.sql`; recent payloads are capped at five
+  orders and three reviews, while service totals use an exact head count.
+- The migration is `SECURITY INVOKER`, has an empty fixed search path and fixed
+  typed output, and does not modify permissions, roles, or RLS.
+- No indexes or extensions were added. A live Supabase target with
+  representative data is required to run `EXPLAIN (ANALYZE, BUFFERS)` and prove
+  a measurable improvement; that evidence is unavailable in this environment.
+- Environment-bound follow-up: apply migration 023 twice in disposable/staging
+  Supabase, compare RPC totals under each admin role, inspect live query plans,
+  and verify permissions/RLS remain unchanged.

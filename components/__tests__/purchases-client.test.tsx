@@ -59,7 +59,7 @@ describe('PurchasesClient', () => {
     };
 
     // Test requires SidebarProvider wrapper
-    // render(<PurchasesClient initialOrders={mockOrders} />);
+    // render(<PurchasesClient initialPage={mockPage} initialQuery="" initialFilter="ALL" />);
     expect(order.payment_provider).toBe('scalev');
     expect(true).toBe(true);
   });

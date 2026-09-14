@@ -840,6 +840,22 @@ export type Database = {
           channel: Database["public"]["Enums"]["voucher_delivery_channel"];
         }[];
       };
+      get_admin_dashboard_aggregates: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          total_revenue: number;
+          active_vouchers: number;
+          redeemed_vouchers: number;
+          expired_vouchers: number;
+          total_orders: number;
+          total_vouchers: number;
+          total_reviews: number;
+          average_rating: number;
+          bucket_date: string;
+          bucket_revenue: number;
+          bucket_orders: number;
+        }[];
+      };
       generate_voucher_code: {
         Args: Record<PropertyKey, never>;
         Returns: string;

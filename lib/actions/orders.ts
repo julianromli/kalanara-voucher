@@ -6,6 +6,14 @@ import {
   logAdminAudit,
   requireAdminPermission,
 } from "@/lib/auth/admin-rbac-server";
+import {
+  ADMIN_PAGE_SIZE,
+  buildAdminPage,
+  escapePostgrestLike,
+  normalizeAdminListParams,
+  type AdminListParams,
+  type AdminPage,
+} from "@/lib/actions/admin-pagination";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type {
   OrderItemWithService,
@@ -18,8 +26,15 @@ import type {
 
 const ORDER_VOUCHER_SELECT =
   "*, services(*), vouchers:vouchers!orders_voucher_id_fkey(*, services(*))";
-const ORDER_ADMIN_SELECT =
-  "*, services(*), vouchers:vouchers!orders_voucher_id_fkey(*, services(*)), order_items(*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*))";
+const ORDER_ADMIN_LIST_SELECT =
+  "id, customer_email, customer_name, customer_phone, payment_status, payment_provider, total_amount, created_at, payment_order_id, payment_transaction_id, payment_type, payment_transaction_time, scalev_order_id, scalev_pg_reference_id, scalev_payment_method, vouchers:vouchers!orders_voucher_id_fkey(id, code, services(name, duration)), order_items(id, voucher_id, recipient_name, delivery_method, send_to, sort_order, created_at, unit_price, services(name), vouchers:vouchers!order_items_voucher_id_fkey(code))";
+const ORDER_ADMIN_FILTERS = [
+  "ALL",
+  "PENDING",
+  "COMPLETED",
+  "FAILED",
+  "REFUNDED",
+] as const;
 
 export interface DestructiveOrderActionResult {
   success: boolean;
@@ -106,21 +121,72 @@ async function hardDeleteOrdersTransactional(
   return result;
 }
 
-export async function getOrders(): Promise<OrderWithVoucherItems[]> {
+export async function getOrdersPage(
+  params: AdminListParams,
+): Promise<AdminPage<OrderWithVoucherItems>> {
   await requireAdminPermission(AdminPermission.ORDERS_VIEW);
 
+  const normalized = normalizeAdminListParams(
+    {
+      page: String(params.page),
+      query: params.query,
+      filter: params.filter,
+    },
+    ORDER_ADMIN_FILTERS,
+  );
+  const from = (normalized.page - 1) * ADMIN_PAGE_SIZE;
   const supabase = getAdminClient();
-  const { data, error } = await supabase
+  let request = supabase
     .from("orders")
-    .select(ORDER_ADMIN_SELECT)
-    .order("created_at", { ascending: false });
+    .select(ORDER_ADMIN_LIST_SELECT, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
 
-  if (error) {
-    console.error("Error fetching orders:", error);
-    return [];
+  if (normalized.filter !== "ALL") {
+    request = request.eq("payment_status", normalized.filter as PaymentStatus);
   }
 
-  return (data as OrderWithVoucherItems[]) || [];
+  if (normalized.query) {
+    const pattern = `"%${escapePostgrestLike(normalized.query)}%"`;
+    request = request.or(
+      `customer_name.ilike.${pattern},customer_email.ilike.${pattern},payment_order_id.ilike.${pattern},payment_transaction_id.ilike.${pattern}`,
+    );
+  }
+
+  const firstResult = await request.range(
+    from,
+    from + ADMIN_PAGE_SIZE - 1,
+  );
+
+  if (firstResult.error) {
+    console.error("Error fetching orders:", firstResult.error);
+    throw firstResult.error;
+  }
+
+  const firstPage = buildAdminPage(
+    (firstResult.data as OrderWithVoucherItems[]) ?? [],
+    normalized.page,
+    firstResult.count ?? 0,
+  );
+  if (firstPage.page === normalized.page || firstPage.totalCount === 0) {
+    return firstPage;
+  }
+
+  const correctedFrom = (firstPage.page - 1) * ADMIN_PAGE_SIZE;
+  const correctedResult = await request.range(
+    correctedFrom,
+    correctedFrom + ADMIN_PAGE_SIZE - 1,
+  );
+  if (correctedResult.error) {
+    console.error("Error fetching corrected orders page:", correctedResult.error);
+    throw correctedResult.error;
+  }
+
+  return buildAdminPage(
+    (correctedResult.data as OrderWithVoucherItems[]) ?? [],
+    firstPage.page,
+    correctedResult.count ?? firstPage.totalCount,
+  );
 }
 
 export async function getOrderById(id: string): Promise<OrderWithVoucher | null> {
