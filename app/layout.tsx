@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { Outfit, Playfair_Display, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/navbar";
-import { MetaPixel } from "@/components/meta-pixel";
 import { ToastProvider } from "@/context/ToastContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { StoreProvider } from "@/context/StoreContext";
@@ -114,7 +113,6 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${outfit.variable} ${playfair.variable} ${geistMono.variable} font-sans antialiased`}
       >
-        <MetaPixel />
         <AuthProvider>
           <StoreProvider>
             <ToastProvider>

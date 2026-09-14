@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const {
-  getOrderByPaymentOrderIdAndAccessTokenMock,
-  getPublicOrderDetailsMock,
-  getPublicOrderDetailsWithItemsMock,
+  getOrderForStatusByIdMock,
+  getOrderStatusDetailsByIdMock,
+  getOrderStatusDetailsWithItemsByIdMock,
   updateOrderGatewayDataMock,
   updateOrderPaymentStatusMock,
   markDiscountRedemptionSucceededMock,
@@ -17,9 +17,9 @@ const {
   buildPublicOrderStatusMock,
   buildPublicOrderStatusWithItemsMock,
 } = vi.hoisted(() => ({
-  getOrderByPaymentOrderIdAndAccessTokenMock: vi.fn(),
-  getPublicOrderDetailsMock: vi.fn(),
-  getPublicOrderDetailsWithItemsMock: vi.fn(),
+  getOrderForStatusByIdMock: vi.fn(),
+  getOrderStatusDetailsByIdMock: vi.fn(),
+  getOrderStatusDetailsWithItemsByIdMock: vi.fn(),
   updateOrderGatewayDataMock: vi.fn(),
   updateOrderPaymentStatusMock: vi.fn(),
   markDiscountRedemptionSucceededMock: vi.fn(),
@@ -34,10 +34,10 @@ const {
   buildPublicOrderStatusWithItemsMock: vi.fn(),
 }));
 
-vi.mock("@/lib/actions/orders", () => ({
-  getOrderByPaymentOrderIdAndAccessToken: getOrderByPaymentOrderIdAndAccessTokenMock,
-  getPublicOrderDetails: getPublicOrderDetailsMock,
-  getPublicOrderDetailsWithItems: getPublicOrderDetailsWithItemsMock,
+vi.mock("@/lib/payment/order-status-reads", () => ({
+  getOrderForStatusById: getOrderForStatusByIdMock,
+  getOrderStatusDetailsById: getOrderStatusDetailsByIdMock,
+  getOrderStatusDetailsWithItemsById: getOrderStatusDetailsWithItemsByIdMock,
 }));
 
 vi.mock("@/lib/payment/order-writes", () => ({
@@ -67,7 +67,7 @@ vi.mock("@/lib/scalev/mappers", () => ({
   buildPublicOrderStatusWithItems: buildPublicOrderStatusWithItemsMock,
 }));
 
-describe("reconcilePublicOrderStatus", () => {
+describe("reconcilePublicOrderStatusByInternalOrderId", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     updateOrderGatewayDataMock.mockResolvedValue(true);
@@ -84,13 +84,13 @@ describe("reconcilePublicOrderStatus", () => {
   });
 
   test("returns existing completed multi-item status without re-checking Scalev", async () => {
-    const { reconcilePublicOrderStatus } = await import("@/lib/scalev/reconcile");
+    const { reconcilePublicOrderStatusByInternalOrderId } = await import("@/lib/scalev/reconcile");
 
-    getOrderByPaymentOrderIdAndAccessTokenMock.mockResolvedValue({
+    getOrderForStatusByIdMock.mockResolvedValue({
       id: "order-1",
       payment_order_id: "KSP-123",
     });
-    getPublicOrderDetailsWithItemsMock.mockResolvedValue({
+    getOrderStatusDetailsWithItemsByIdMock.mockResolvedValue({
       order_items: [
         {
           id: "item-1",
@@ -99,7 +99,7 @@ describe("reconcilePublicOrderStatus", () => {
         },
       ],
     });
-    getPublicOrderDetailsMock.mockResolvedValue({
+    getOrderStatusDetailsByIdMock.mockResolvedValue({
       id: "order-1",
       payment_status: "COMPLETED",
       payment_provider: "scalev",
@@ -111,7 +111,7 @@ describe("reconcilePublicOrderStatus", () => {
       vouchers: [{ voucherCode: "KSPV-001" }],
     });
 
-    const result = await reconcilePublicOrderStatus("KSP-123", "public-token");
+    const result = await reconcilePublicOrderStatusByInternalOrderId("order-1");
 
     expect(result).toEqual({
       status: "completed",
@@ -122,9 +122,9 @@ describe("reconcilePublicOrderStatus", () => {
   });
 
   test("fulfills pending orders after Scalev reconciliation marks them completed", async () => {
-    const { reconcilePublicOrderStatus } = await import("@/lib/scalev/reconcile");
+    const { reconcilePublicOrderStatusByInternalOrderId } = await import("@/lib/scalev/reconcile");
 
-    getOrderByPaymentOrderIdAndAccessTokenMock
+    getOrderForStatusByIdMock
       .mockResolvedValueOnce({
         id: "order-1",
         payment_order_id: "KSP-123",
@@ -133,7 +133,7 @@ describe("reconcilePublicOrderStatus", () => {
         id: "order-1",
         payment_order_id: "KSP-123",
       });
-    getPublicOrderDetailsMock.mockResolvedValue({
+    getOrderStatusDetailsByIdMock.mockResolvedValue({
       id: "order-1",
       payment_status: "PENDING",
       payment_provider: "scalev",
@@ -148,7 +148,7 @@ describe("reconcilePublicOrderStatus", () => {
       voucher_id: null,
       vouchers: null,
     });
-    getPublicOrderDetailsWithItemsMock
+    getOrderStatusDetailsWithItemsByIdMock
       .mockResolvedValueOnce({
         order_items: [{ id: "item-1", voucher_id: null }],
       })
@@ -175,7 +175,7 @@ describe("reconcilePublicOrderStatus", () => {
       vouchers: [{ voucherCode: "KSPV-001" }],
     });
 
-    const result = await reconcilePublicOrderStatus("KSP-123", "public-token");
+    const result = await reconcilePublicOrderStatusByInternalOrderId("order-1");
 
     expect(updateOrderPaymentStatusMock).toHaveBeenCalledWith(
       "order-1",
@@ -194,13 +194,13 @@ describe("reconcilePublicOrderStatus", () => {
   });
 
   test("throws before fulfillment when discount redemption sync fails after completion", async () => {
-    const { reconcilePublicOrderStatus } = await import("@/lib/scalev/reconcile");
+    const { reconcilePublicOrderStatusByInternalOrderId } = await import("@/lib/scalev/reconcile");
 
-    getOrderByPaymentOrderIdAndAccessTokenMock.mockResolvedValue({
+    getOrderForStatusByIdMock.mockResolvedValue({
       id: "order-1",
       payment_order_id: "KSP-123",
     });
-    getPublicOrderDetailsMock.mockResolvedValue({
+    getOrderStatusDetailsByIdMock.mockResolvedValue({
       id: "order-1",
       payment_status: "PENDING",
       payment_provider: "scalev",
@@ -215,7 +215,7 @@ describe("reconcilePublicOrderStatus", () => {
       voucher_id: null,
       vouchers: null,
     });
-    getPublicOrderDetailsWithItemsMock.mockResolvedValue({
+    getOrderStatusDetailsWithItemsByIdMock.mockResolvedValue({
       order_items: [{ id: "item-1", voucher_id: null }],
     });
     buildPaymentSnapshotMock.mockReturnValue({
@@ -233,19 +233,19 @@ describe("reconcilePublicOrderStatus", () => {
     markDiscountRedemptionSucceededMock.mockResolvedValue(false);
 
     await expect(
-      reconcilePublicOrderStatus("KSP-123", "public-token")
+      reconcilePublicOrderStatusByInternalOrderId("order-1")
     ).rejects.toThrow("Failed to synchronize discount redemption after payment success.");
     expect(createVoucherOnPaymentSuccessMock).not.toHaveBeenCalled();
   });
 
   test("throws when voiding discount redemption fails after failed payment", async () => {
-    const { reconcilePublicOrderStatus } = await import("@/lib/scalev/reconcile");
+    const { reconcilePublicOrderStatusByInternalOrderId } = await import("@/lib/scalev/reconcile");
 
-    getOrderByPaymentOrderIdAndAccessTokenMock.mockResolvedValue({
+    getOrderForStatusByIdMock.mockResolvedValue({
       id: "order-1",
       payment_order_id: "KSP-123",
     });
-    getPublicOrderDetailsMock.mockResolvedValue({
+    getOrderStatusDetailsByIdMock.mockResolvedValue({
       id: "order-1",
       payment_status: "PENDING",
       payment_provider: "scalev",
@@ -260,7 +260,7 @@ describe("reconcilePublicOrderStatus", () => {
       voucher_id: null,
       vouchers: null,
     });
-    getPublicOrderDetailsWithItemsMock.mockResolvedValue({
+    getOrderStatusDetailsWithItemsByIdMock.mockResolvedValue({
       order_items: [{ id: "item-1", voucher_id: null }],
     });
     buildPaymentSnapshotMock.mockReturnValue({
@@ -278,7 +278,7 @@ describe("reconcilePublicOrderStatus", () => {
     markDiscountRedemptionVoidMock.mockResolvedValue(false);
 
     await expect(
-      reconcilePublicOrderStatus("KSP-123", "public-token")
+      reconcilePublicOrderStatusByInternalOrderId("order-1")
     ).rejects.toThrow("Failed to void discount redemption after payment failure.");
   });
 });

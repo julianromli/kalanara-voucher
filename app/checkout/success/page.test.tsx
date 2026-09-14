@@ -13,7 +13,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => ({
     get: (key: string) => {
       if (key === "order_id") return "KSP-123";
-      if (key === "token") return "public-token";
+      if (key === "status_session_id") return "status-session-1";
       return null;
     },
   }),
@@ -168,10 +168,11 @@ describe("CheckoutSuccessPage", () => {
       expect(fetch).toHaveBeenCalledWith("/api/orders/public-status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         cache: "no-store",
         body: JSON.stringify({
           orderId: "KSP-123",
-          token: "public-token",
+          statusSessionId: "status-session-1",
         }),
       });
     });

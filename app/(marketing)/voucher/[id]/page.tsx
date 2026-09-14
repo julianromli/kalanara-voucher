@@ -169,7 +169,11 @@ export default async function VoucherDetailPage({ params }: PageProps) {
               <div className="grid grid-cols-2 gap-3">
                 <AddToCartButton service={service} layout="featured" />
 
-                <Button asChild variant="outline" className="h-auto w-full gap-2 py-4 leading-[0] text-base font-medium">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-auto w-full gap-2 py-4 leading-[0] text-base font-medium"
+                >
                   <Link href={`/checkout/${service.id}`}>
                     <Gift size={20} className="shrink-0" />
                     Beli 1 Voucher Sekarang

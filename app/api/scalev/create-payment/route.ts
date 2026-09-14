@@ -30,6 +30,11 @@ import {
   type ScalevVABankCode,
 } from "@/lib/scalev/types";
 import { DeliveryMethod, SendTo } from "@/lib/types";
+import {
+  createOrderStatusSession,
+  getOrderStatusCookieName,
+  ORDER_STATUS_SESSION_TTL_SECONDS,
+} from "@/lib/payment/order-status-sessions";
 
 interface ValidatedCheckoutLineItem extends ScalevCheckoutLineItem {
   customerName: string;
@@ -527,16 +532,37 @@ export async function POST(
           );
         }
 
-        shouldVoidDiscountRedemption = false;
-        return NextResponse.json({
-          success: true,
-          paymentLink,
-          orderId: scalevOrder.order_id || String(scalevOrder.id),
-          paymentOrderId: order.payment_order_id,
-          publicAccessToken: order.public_access_token,
-          paymentMethod: validatedData.paymentMethod,
-          subPaymentMethod: validatedData.subPaymentMethod,
+        const statusSession = await createOrderStatusSession({
+          orderId: order.id,
         });
+        const response = NextResponse.json<ScalevCreatePaymentResponse>(
+          {
+            success: true,
+            paymentLink,
+            orderId: scalevOrder.order_id || String(scalevOrder.id),
+            paymentOrderId: order.payment_order_id,
+            statusSessionId: statusSession.id,
+            paymentMethod: validatedData.paymentMethod,
+            subPaymentMethod: validatedData.subPaymentMethod,
+          },
+          {
+            headers: { "Cache-Control": "private, no-store" },
+          }
+        );
+        response.cookies.set(
+          getOrderStatusCookieName(statusSession.id),
+          statusSession.rawToken,
+          {
+            httpOnly: true,
+            secure: true,
+            sameSite: "lax",
+            path: "/",
+            maxAge: ORDER_STATUS_SESSION_TTL_SECONDS,
+          }
+        );
+
+        shouldVoidDiscountRedemption = false;
+        return response;
       } catch (error) {
         await markOrderFailedFromGateway(order.id, {
           paymentProvider: "scalev",

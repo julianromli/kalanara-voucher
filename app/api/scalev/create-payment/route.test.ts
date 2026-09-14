@@ -14,6 +14,7 @@ const {
   ensureScalevServiceMappingMock,
   createScalevOrderMock,
   createScalevPaymentIntentMock,
+  createOrderStatusSessionMock,
 } = vi.hoisted(() => ({
   createPendingOrderMock: vi.fn(),
   createPendingOrderItemsMock: vi.fn(),
@@ -27,6 +28,7 @@ const {
   ensureScalevServiceMappingMock: vi.fn(),
   createScalevOrderMock: vi.fn(),
   createScalevPaymentIntentMock: vi.fn(),
+  createOrderStatusSessionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/payment/order-writes", () => ({
@@ -71,6 +73,13 @@ vi.mock("@/lib/scalev/config", () => ({
   }),
 }));
 
+vi.mock("@/lib/payment/order-status-sessions", () => ({
+  createOrderStatusSession: createOrderStatusSessionMock,
+  getOrderStatusCookieName: (sessionId: string) =>
+    `__Host-kalanara-status-${sessionId}`,
+  ORDER_STATUS_SESSION_TTL_SECONDS: 30 * 60,
+}));
+
 describe("POST /api/scalev/create-payment", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -113,6 +122,10 @@ describe("POST /api/scalev/create-payment", () => {
       invoice_url: null,
       reference_id: "pg-1",
     });
+    createOrderStatusSessionMock.mockResolvedValue({
+      id: "status-session-1",
+      rawToken: "short-lived-secret",
+    });
     updateOrderGatewayDataMock.mockResolvedValue(true);
     markOrderFailedFromGatewayMock.mockResolvedValue(true);
     createPendingDiscountRedemptionMock.mockResolvedValue({
@@ -150,6 +163,54 @@ describe("POST /api/scalev/create-payment", () => {
         customer_phone: "6281234567890",
       })
     );
+  });
+
+  test("binds status access to an HttpOnly cookie without exposing either capability", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+
+    const response = await POST(
+      new Request("https://voucher.kalanaraspa.com/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: "service-1",
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          recipientName: "Penerima",
+          recipientPhone: "081234567890",
+          deliveryMethod: DeliveryMethod.WHATSAPP,
+          sendTo: SendTo.RECIPIENT,
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(200);
+    expect(createOrderStatusSessionMock).toHaveBeenCalledWith({
+      orderId: "order-1",
+    });
+
+    const payload = await response.json();
+    expect(payload).toEqual(
+      expect.objectContaining({
+        paymentOrderId: "KSP-123",
+        statusSessionId: "status-session-1",
+      })
+    );
+    expect(payload).not.toHaveProperty("publicAccessToken");
+    expect(JSON.stringify(payload)).not.toContain("public-token");
+    expect(JSON.stringify(payload)).not.toContain("short-lived-secret");
+
+    const cookie = response.headers.get("set-cookie");
+    expect(cookie).toContain(
+      "__Host-kalanara-status-status-session-1=short-lived-secret"
+    );
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("Secure");
+    expect(cookie).toContain("SameSite=lax");
+    expect(cookie).toContain("Path=/");
+    expect(cookie).toContain("Max-Age=1800");
   });
 
   test("rejects recipient email delivery when recipient email is missing", async () => {

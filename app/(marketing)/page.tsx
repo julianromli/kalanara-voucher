@@ -51,9 +51,7 @@ export default async function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Hero Section */}
       <section className="relative flex min-h-[100dvh] items-center overflow-hidden">
-        {/* Background */}
         <div className="absolute inset-0 bg-primary">
           <Image
             src={heroImageUrl}
@@ -63,12 +61,10 @@ export default async function LandingPage() {
             priority
             className="object-cover opacity-50"
           />
-          {/* Gradient overlays for depth */}
           <div className="absolute inset-0 bg-gradient-to-r from-primary/90 via-primary/40 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-t from-primary via-transparent to-primary/30" />
         </div>
 
-        {/* Content aligned to the same container as the navbar */}
         <div className="relative z-10 w-full pt-20">
           <SiteContainer>
             <div className="max-w-3xl">
@@ -107,19 +103,10 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* Me Time Section */}
       <MeTimeSection />
-
-      {/* Services Section */}
       <ServicesSection services={services} />
-
-      {/* Testimonials Section */}
       <FlashSaleTestimonials testimonials={activeTestimonials} />
-
-      {/* Trust/Features */}
       <TrustFeatures />
-
-      {/* Footer */}
       <Footer13 />
     </div>
   );

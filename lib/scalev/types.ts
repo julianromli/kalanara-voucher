@@ -100,7 +100,7 @@ export interface ScalevCreatePaymentResponse {
   paymentLink?: string;
   orderId?: string;
   paymentOrderId?: string;
-  publicAccessToken?: string;
+  statusSessionId?: string;
   paymentMethod?: ScalevPaymentMethod;
   subPaymentMethod?: ScalevVABankCode;
   error?: string;

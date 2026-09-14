@@ -40,10 +40,10 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 import {
-  getOrderItemsByOrderId,
   getPublicOrderDetails,
   getPublicOrderDetailsWithItems,
-} from "@/lib/actions/orders";
+} from "@/lib/payment/order-capability-reads";
+import { getOrderItemsByOrderId } from "@/lib/actions/orders";
 
 describe("getPublicOrderDetails", () => {
   beforeEach(() => {
@@ -67,7 +67,7 @@ describe("getPublicOrderDetails", () => {
     await getPublicOrderDetails("KSP-123", "public-token");
 
     expect(ordersSelect).toHaveBeenCalledWith(
-      "*, vouchers:vouchers!orders_voucher_id_fkey(*, services(*))"
+      "*, services(*), vouchers:vouchers!orders_voucher_id_fkey(*, services(*))"
     );
   });
 

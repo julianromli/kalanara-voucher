@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getPublicOrderDetailsWithItems } from "@/lib/actions/orders";
+import { getPublicOrderDetailsWithItems } from "@/lib/payment/order-capability-reads";
 
 export interface AuthorizedVoucherDelivery {
   orderId: string;

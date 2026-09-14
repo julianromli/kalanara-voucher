@@ -130,7 +130,7 @@ describe("CheckoutPageClient", () => {
           success: true,
           paymentLink: "https://app.scalev.id/order/public/secret-token",
           paymentOrderId: "KSP-123",
-          publicAccessToken: "public-token",
+          statusSessionId: "status-session-1",
         }),
       });
 
@@ -176,7 +176,7 @@ describe("CheckoutPageClient", () => {
 
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith(
-        "/checkout/success?order_id=KSP-123&token=public-token"
+        "/checkout/success?order_id=KSP-123&status_session_id=status-session-1"
       );
     });
 

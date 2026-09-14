@@ -1,10 +1,10 @@
 import "server-only";
 
 import {
-  getOrderByPaymentOrderIdAndAccessToken,
-  getPublicOrderDetails,
-  getPublicOrderDetailsWithItems,
-} from "@/lib/actions/orders";
+  getOrderForStatusById,
+  getOrderStatusDetailsById,
+  getOrderStatusDetailsWithItemsById,
+} from "@/lib/payment/order-status-reads";
 import {
   updateOrderGatewayData,
   updateOrderPaymentStatus,
@@ -28,8 +28,8 @@ import {
 import type { PublicOrderStatusPayload, ScalevPaymentStatusResponse } from "@/lib/scalev/types";
 
 function buildCurrentPublicStatus(
-  orderWithItems: Awaited<ReturnType<typeof getPublicOrderDetailsWithItems>>,
-  legacyOrder: NonNullable<Awaited<ReturnType<typeof getPublicOrderDetails>>>,
+  orderWithItems: Awaited<ReturnType<typeof getOrderStatusDetailsWithItemsById>>,
+  legacyOrder: NonNullable<Awaited<ReturnType<typeof getOrderStatusDetailsById>>>,
   paymentInstructions?: PublicOrderStatusPayload["paymentInstructions"]
 ) {
   return orderWithItems?.order_items.length
@@ -37,26 +37,18 @@ function buildCurrentPublicStatus(
     : buildPublicOrderStatus(legacyOrder, paymentInstructions);
 }
 
-export async function reconcilePublicOrderStatus(
-  paymentOrderId: string,
-  publicAccessToken: string
+export async function reconcilePublicOrderStatusByInternalOrderId(
+  internalOrderId: string
 ): Promise<PublicOrderStatusPayload | null> {
-  const order = await getOrderByPaymentOrderIdAndAccessToken(
-    paymentOrderId,
-    publicAccessToken
-  );
+  const order = await getOrderForStatusById(internalOrderId);
   if (!order) {
     return null;
   }
 
-  const existingOrderWithItems = await getPublicOrderDetailsWithItems(
-    paymentOrderId,
-    publicAccessToken
-  );
-  const existingPublicOrder = await getPublicOrderDetails(
-    paymentOrderId,
-    publicAccessToken
-  );
+  const [existingOrderWithItems, existingPublicOrder] = await Promise.all([
+    getOrderStatusDetailsWithItemsById(internalOrderId),
+    getOrderStatusDetailsById(internalOrderId),
+  ]);
 
   if (!existingPublicOrder) {
     return null;
@@ -161,17 +153,15 @@ export async function reconcilePublicOrderStatus(
       throw new Error("Failed to synchronize discount redemption after payment success.");
     }
 
-    const refreshedBeforeFulfillment = await getPublicOrderDetailsWithItems(
-      paymentOrderId,
-      publicAccessToken
-    );
+    const refreshedBeforeFulfillment =
+      await getOrderStatusDetailsWithItemsById(internalOrderId);
     const alreadyFulfilled =
       refreshedBeforeFulfillment?.order_items.length
         ? refreshedBeforeFulfillment.order_items.every((item) => item.voucher_id)
         : Boolean(existingPublicOrder.voucher_id);
     const latestOrder = alreadyFulfilled
       ? null
-      : await getOrderByPaymentOrderIdAndAccessToken(paymentOrderId, publicAccessToken);
+      : await getOrderForStatusById(internalOrderId);
     if (latestOrder) {
       await createVoucherOnPaymentSuccess(latestOrder);
     }
@@ -217,15 +207,13 @@ export async function reconcilePublicOrderStatus(
     });
   }
 
-  const refreshedWithItems = await getPublicOrderDetailsWithItems(
-    paymentOrderId,
-    publicAccessToken
-  );
+  const refreshedWithItems =
+    await getOrderStatusDetailsWithItemsById(internalOrderId);
   if (refreshedWithItems?.order_items.length) {
     return buildPublicOrderStatusWithItems(refreshedWithItems, snapshot.paymentInstructions);
   }
 
-  const refreshed = await getPublicOrderDetails(paymentOrderId, publicAccessToken);
+  const refreshed = await getOrderStatusDetailsById(internalOrderId);
   return refreshed
     ? buildPublicOrderStatus(refreshed, snapshot.paymentInstructions)
     : null;

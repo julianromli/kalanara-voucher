@@ -10,7 +10,6 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import type {
   OrderItemWithService,
   OrderUpdate,
-  OrderWithItems,
   OrderWithService,
   OrderWithVoucher,
   OrderWithVoucherItems,
@@ -21,8 +20,6 @@ const ORDER_VOUCHER_SELECT =
   "*, services(*), vouchers:vouchers!orders_voucher_id_fkey(*, services(*))";
 const ORDER_ADMIN_SELECT =
   "*, services(*), vouchers:vouchers!orders_voucher_id_fkey(*, services(*)), order_items(*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*))";
-const ORDER_ITEMS_SELECT =
-  "*, services(*), order_items(*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*))";
 
 export interface DestructiveOrderActionResult {
   success: boolean;
@@ -269,26 +266,6 @@ export async function getOrderByPaymentOrderId(
   return data as OrderWithService;
 }
 
-export async function getOrderByPaymentOrderIdAndAccessToken(
-  paymentOrderId: string,
-  publicAccessToken: string
-): Promise<OrderWithService | null> {
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from("orders")
-    .select("*, services(*)")
-    .eq("payment_order_id", paymentOrderId)
-    .eq("public_access_token", publicAccessToken)
-    .single();
-
-  if (error) {
-    console.error("Error fetching order by payment order ID and access token:", error);
-    return null;
-  }
-
-  return data as OrderWithService;
-}
-
 export async function getOrderByTransactionId(
   transactionId: string
 ): Promise<OrderWithService | null> {
@@ -359,46 +336,6 @@ export async function getOrderByScalevOrderId(
   }
 
   return data as OrderWithService;
-}
-
-export async function getPublicOrderDetails(
-  paymentOrderId: string,
-  publicAccessToken: string
-): Promise<OrderWithVoucher | null> {
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from("orders")
-    .select(ORDER_VOUCHER_SELECT)
-    .eq("payment_order_id", paymentOrderId)
-    .eq("public_access_token", publicAccessToken)
-    .single();
-
-  if (error) {
-    console.error("Error fetching public order details:", error);
-    return null;
-  }
-
-  return data as OrderWithVoucher;
-}
-
-export async function getPublicOrderDetailsWithItems(
-  paymentOrderId: string,
-  publicAccessToken: string
-): Promise<OrderWithItems | null> {
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from("orders")
-    .select(ORDER_ITEMS_SELECT)
-    .eq("payment_order_id", paymentOrderId)
-    .eq("public_access_token", publicAccessToken)
-    .single();
-
-  if (error) {
-    console.error("Error fetching public order item details:", error);
-    return null;
-  }
-
-  return data as OrderWithItems;
 }
 
 export async function getOrderItemsByOrderId(

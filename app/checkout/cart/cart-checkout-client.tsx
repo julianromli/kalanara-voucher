@@ -445,7 +445,7 @@ export function CartCheckoutClient() {
         success: boolean;
         paymentLink?: string;
         paymentOrderId?: string;
-        publicAccessToken?: string;
+        statusSessionId?: string;
         error?: string;
       };
 
@@ -454,7 +454,7 @@ export function CartCheckoutClient() {
         !result.success ||
         !result.paymentLink ||
         !result.paymentOrderId ||
-        !result.publicAccessToken
+        !result.statusSessionId
       ) {
         throw new Error(result.error || "Gagal membuat pembayaran.");
       }
@@ -476,7 +476,7 @@ export function CartCheckoutClient() {
         data.lineItems.map((item) => item.cartItemId)
       );
       router.push(
-        `/checkout/success?order_id=${encodeURIComponent(result.paymentOrderId)}&token=${encodeURIComponent(result.publicAccessToken)}`
+        `/checkout/success?order_id=${encodeURIComponent(result.paymentOrderId)}&status_session_id=${encodeURIComponent(result.statusSessionId)}`
       );
     } catch (error) {
       console.error("Cart checkout error:", error);
