@@ -49,6 +49,21 @@ interface AuthProviderProps {
 }
 
 type BrowserSupabaseClient = ReturnType<typeof createClient>;
+type AuthOperationKind =
+  | 'auth-event'
+  | 'bootstrap'
+  | 'login'
+  | 'logout'
+  | 'signed-out'
+  | 'user-event'
+  | 'cleanup';
+
+interface AuthOperation {
+  generation: number;
+  kind: AuthOperationKind;
+  userId?: string;
+  resolution?: Promise<User | null>;
+}
 
 // ============================================================================
 // Helpers
@@ -121,10 +136,57 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children, bootstrapUser = null }: AuthProviderProps) {
   const bootstrapUserRef = useRef<User | null>(bootstrapUser);
   const hasBootstrapUser = bootstrapUserRef.current?.role != null;
+  const authGenerationRef = useRef(0);
+  const authActiveRef = useRef(false);
+  const latestAuthOperationRef = useRef<AuthOperation | null>(null);
   const [supabase] = useState(createClient);
   const [user, setUser] = useState<User | null>(() => bootstrapUserRef.current);
   const [isLoading, setIsLoading] = useState(() => !hasBootstrapUser);
   const isAuthenticated = user?.role != null;
+
+  const beginAuthOperation = useCallback((
+    kind: AuthOperationKind,
+    userId?: string
+  ): AuthOperation => {
+    const operation = {
+      generation: ++authGenerationRef.current,
+      kind,
+      userId,
+    };
+    latestAuthOperationRef.current = operation;
+    return operation;
+  }, []);
+
+  const isCurrentAuthOperation = useCallback(
+    (operation: AuthOperation) =>
+      authActiveRef.current &&
+      operation.generation === authGenerationRef.current,
+    []
+  );
+
+  const commitSignedOut = useCallback((operation: AuthOperation) => {
+    if (!isCurrentAuthOperation(operation)) {
+      return;
+    }
+
+    setUser(null);
+    setIsLoading(false);
+  }, [isCurrentAuthOperation]);
+
+  const resolveUserForOperation = useCallback(async (
+    supabaseUser: SupabaseUser,
+    operation: AuthOperation
+  ): Promise<User | null> => {
+    const resolvedUser = await extractUserFromSupabaseUser(supabase, supabaseUser);
+    const nextUser = resolvedUser ?? bootstrapUserRef.current;
+
+    if (isCurrentAuthOperation(operation)) {
+      setUser(nextUser);
+      setIsLoading(false);
+    }
+
+    return nextUser;
+  }, [isCurrentAuthOperation, supabase]);
 
   // Initialize auth state on mount
   useEffect(() => {
@@ -134,44 +196,70 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       return;
     }
 
+    authActiveRef.current = true;
+
     // Get initial session
     const initializeAuth = async () => {
+      const operation = beginAuthOperation('bootstrap');
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        
+
+        if (!isCurrentAuthOperation(operation)) {
+          return;
+        }
+
         if (session?.user) {
-          const resolvedUser = await extractUserFromSupabaseUser(supabase, session.user);
-          setUser(resolvedUser ?? bootstrapUserRef.current);
+          await resolveUserForOperation(session.user, operation);
         } else if (!hasBootstrapUser) {
           setUser(null);
         }
       } catch (error) {
+        if (!isCurrentAuthOperation(operation)) {
+          return;
+        }
+
         // Handle storage access errors gracefully
         console.error('Error initializing auth:', error);
         if (!hasBootstrapUser) {
           setUser(null);
         }
       } finally {
-        setIsLoading(false);
+        if (isCurrentAuthOperation(operation)) {
+          setIsLoading(false);
+        }
       }
     };
 
-    initializeAuth();
+    void initializeAuth();
 
     // Listen for auth state changes
     let subscription: { unsubscribe: () => void } | null = null;
     
     try {
       const { data } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          if (event === 'SIGNED_IN' && session?.user) {
-            setUser((await extractUserFromSupabaseUser(supabase, session.user)) ?? bootstrapUserRef.current);
-          } else if (event === 'SIGNED_OUT') {
-            setUser(null);
-          } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-            setUser((await extractUserFromSupabaseUser(supabase, session.user)) ?? bootstrapUserRef.current);
-          } else if (event === 'USER_UPDATED' && session?.user) {
-            setUser((await extractUserFromSupabaseUser(supabase, session.user)) ?? bootstrapUserRef.current);
+        (event, session) => {
+          const isUserBearingEvent =
+            event === 'SIGNED_IN' ||
+            event === 'TOKEN_REFRESHED' ||
+            event === 'USER_UPDATED';
+          const operation = beginAuthOperation(
+            event === 'SIGNED_OUT'
+              ? 'signed-out'
+              : isUserBearingEvent && session?.user
+                ? 'user-event'
+                : 'auth-event',
+            session?.user?.id
+          );
+
+          if (event === 'SIGNED_OUT') {
+            commitSignedOut(operation);
+            return;
+          }
+
+          if (isUserBearingEvent && session?.user) {
+            operation.resolution = resolveUserForOperation(session.user, operation);
+            void operation.resolution;
           }
         }
       );
@@ -182,16 +270,78 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
 
     // Cleanup subscription on unmount
     return () => {
+      authActiveRef.current = false;
+      beginAuthOperation('cleanup');
       subscription?.unsubscribe();
     };
-  }, [hasBootstrapUser, supabase]);
+  }, [
+    beginAuthOperation,
+    commitSignedOut,
+    hasBootstrapUser,
+    isCurrentAuthOperation,
+    resolveUserForOperation,
+    supabase,
+  ]);
 
   const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
+    const operation = beginAuthOperation('login');
+    const canceledResult: LoginResult = {
+      success: false,
+      error: 'Unable to sign in. Please try again.',
+    };
+
+    const rejectAdminLogin = async (): Promise<LoginResult> => {
+      const signOutOperation = beginAuthOperation('logout');
+
+      try {
+        await supabase.auth.signOut();
+      } finally {
+        commitSignedOut(signOutOperation);
+      }
+
+      return {
+        success: false,
+        error: 'Akun ini tidak memiliki akses admin.',
+      };
+    };
+
+    const resultFromNewerOperation = async (
+      userId: string
+    ): Promise<LoginResult> => {
+      while (authActiveRef.current) {
+        const latestOperation = latestAuthOperationRef.current;
+
+        if (
+          latestOperation?.kind !== 'user-event' ||
+          latestOperation.userId !== userId ||
+          !latestOperation.resolution
+        ) {
+          return canceledResult;
+        }
+
+        const resolvedUser = await latestOperation.resolution;
+
+        if (latestOperation.generation !== authGenerationRef.current) {
+          continue;
+        }
+
+        return resolvedUser ? { success: true } : rejectAdminLogin();
+      }
+
+      return canceledResult;
+    };
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+
+      if (!isCurrentAuthOperation(operation)) {
+        return data.user
+          ? resultFromNewerOperation(data.user.id)
+          : canceledResult;
+      }
 
       if (error) {
         return {
@@ -203,13 +353,12 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       if (data.user) {
         const resolvedUser = await extractUserFromSupabaseUser(supabase, data.user);
 
+        if (!isCurrentAuthOperation(operation)) {
+          return resultFromNewerOperation(data.user.id);
+        }
+
         if (!resolvedUser) {
-          await supabase.auth.signOut();
-          setUser(null);
-          return {
-            success: false,
-            error: 'Akun ini tidak memiliki akses admin.',
-          };
+          return rejectAdminLogin();
         }
 
         setUser(resolvedUser);
@@ -227,18 +376,25 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
         error: 'A network error occurred. Please check your connection.',
       };
     }
-  }, [supabase]);
+  }, [
+    beginAuthOperation,
+    commitSignedOut,
+    isCurrentAuthOperation,
+    supabase,
+  ]);
 
   const logout = useCallback(async (): Promise<void> => {
+    const operation = beginAuthOperation('logout');
+
     try {
       await supabase.auth.signOut();
-      setUser(null);
+      commitSignedOut(operation);
     } catch (error) {
       console.error('Logout error:', error);
       // Still clear local state even if the API call fails
-      setUser(null);
+      commitSignedOut(operation);
     }
-  }, [supabase]);
+  }, [beginAuthOperation, commitSignedOut, supabase]);
 
   const value: AuthContextType = {
     user,

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Outfit, Playfair_Display, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/context/ToastContext";
-import { AuthProvider } from "@/context/AuthContext";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -87,11 +86,9 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${outfit.variable} ${playfair.variable} ${geistMono.variable} font-sans antialiased`}
       >
-        <AuthProvider>
-          <ToastProvider>
-            <main>{children}</main>
-          </ToastProvider>
-        </AuthProvider>
+        <ToastProvider>
+          <main>{children}</main>
+        </ToastProvider>
       </body>
     </html>
   );

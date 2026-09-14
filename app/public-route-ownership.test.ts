@@ -7,11 +7,12 @@ const readAppFile = (path: string) =>
   readFileSync(resolve(root, "app", path), "utf8");
 
 describe("public route ownership", () => {
-  test("keeps global providers in root without navbar or settings work", () => {
+  test("keeps only public-safe global providers in root", () => {
     const rootLayout = readAppFile("layout.tsx");
 
-    expect(rootLayout).toContain("<AuthProvider>");
     expect(rootLayout).toContain("<ToastProvider>");
+    expect(rootLayout).not.toContain("AuthProvider");
+    expect(rootLayout).not.toContain("@/context/AuthContext");
     expect(rootLayout).not.toContain("Navbar");
     expect(rootLayout).not.toContain("getAnnouncementSettings");
     expect(rootLayout).not.toContain("getSiteSetting");

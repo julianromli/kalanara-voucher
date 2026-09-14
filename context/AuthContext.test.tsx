@@ -1,24 +1,53 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
+import { useEffect } from "react";
+import {
+  AuthProvider,
+  type LoginResult,
+  type User,
+  useAuth,
+} from "@/context/AuthContext";
 
-const getSessionMock = vi.fn();
-const onAuthStateChangeMock = vi.fn();
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+}
+
+function deferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+
+  return { promise, resolve };
+}
+
+type AdminLookupResult = {
+  data: { name: string; role: string } | null;
+};
+
+const mocks = vi.hoisted(() => ({
+  adminLookups: [] as Array<Promise<AdminLookupResult>>,
+  authCallback: null as
+    | ((event: AuthChangeEvent, session: Session | null) => void)
+    | null,
+  getSession: vi.fn(),
+  onAuthStateChange: vi.fn(),
+  signInWithPassword: vi.fn(),
+  signOut: vi.fn(),
+  unsubscribe: vi.fn(),
+  from: vi.fn(),
+}));
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     auth: {
-      getSession: getSessionMock,
-      onAuthStateChange: onAuthStateChangeMock,
-      signInWithPassword: vi.fn(),
-      signOut: vi.fn(),
+      getSession: mocks.getSession,
+      onAuthStateChange: mocks.onAuthStateChange,
+      signInWithPassword: mocks.signInWithPassword,
+      signOut: mocks.signOut,
     },
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          maybeSingle: vi.fn(),
-        })),
-      })),
-    })),
+    from: mocks.from,
   }),
 }));
 
@@ -27,31 +56,69 @@ vi.mock("@/lib/auth/admin-rbac", () => ({
   normalizeAdminRole: vi.fn((role) => role ?? null),
 }));
 
-function AuthStateProbe() {
-  const { isAuthenticated, isLoading } = useAuth();
+const supabaseUser = (id: string, email = `${id}@kalanara.com`) =>
+  ({
+    id,
+    email,
+    user_metadata: {},
+  }) as Session["user"];
+
+const sessionFor = (id: string, email?: string) =>
+  ({ user: supabaseUser(id, email) }) as Session;
+
+let latestAuth: ReturnType<typeof useAuth> | null = null;
+
+function AuthStateProbe({ onRender }: { onRender?: (user: User | null) => void }) {
+  const auth = useAuth();
+
+  useEffect(() => {
+    latestAuth = auth;
+    onRender?.(auth.user);
+  }, [auth, onRender]);
 
   return (
     <div>
-      <span data-testid="loading">{String(isLoading)}</span>
-      <span data-testid="authenticated">{String(isAuthenticated)}</span>
+      <span data-testid="loading">{String(auth.isLoading)}</span>
+      <span data-testid="authenticated">{String(auth.isAuthenticated)}</span>
+      <span data-testid="user-id">{auth.user?.id ?? "none"}</span>
+      <span data-testid="user-name">{auth.user?.name ?? "none"}</span>
     </div>
   );
 }
 
 describe("AuthProvider", () => {
   beforeEach(() => {
-    getSessionMock.mockResolvedValue({ data: { session: null } });
-    onAuthStateChangeMock.mockReturnValue({
+    vi.clearAllMocks();
+    latestAuth = null;
+    mocks.adminLookups.length = 0;
+    mocks.authCallback = null;
+    mocks.getSession.mockResolvedValue({ data: { session: null } });
+    mocks.signInWithPassword.mockResolvedValue({
+      data: { user: null },
+      error: null,
+    });
+    mocks.signOut.mockResolvedValue({ error: null });
+    mocks.from.mockImplementation(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn(
+            () =>
+              mocks.adminLookups.shift() ??
+              Promise.resolve({ data: null }),
+          ),
+        })),
+      })),
+    }));
+    mocks.onAuthStateChange.mockImplementation((callback) => {
+      mocks.authCallback = callback;
+      return {
       data: {
         subscription: {
-          unsubscribe: vi.fn(),
+            unsubscribe: mocks.unsubscribe,
         },
       },
+      };
     });
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   it("keeps unauthenticated visitors signed out after auth initialization", async () => {
@@ -90,5 +157,185 @@ describe("AuthProvider", () => {
     });
 
     expect(screen.getByTestId("authenticated")).toHaveTextContent("true");
+  });
+
+  it("does not let a late bootstrap admin lookup undo a newer sign-out", async () => {
+    const lookup = deferred<AdminLookupResult>();
+    mocks.adminLookups.push(lookup.promise);
+    mocks.getSession.mockResolvedValue({
+      data: { session: sessionFor("bootstrap-admin") },
+    });
+
+    render(
+      <AuthProvider>
+        <AuthStateProbe />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(mocks.from).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      mocks.authCallback?.("SIGNED_OUT", null);
+    });
+
+    await act(async () => {
+      lookup.resolve({ data: { name: "Admin Lama", role: "SUPER_ADMIN" } });
+      await lookup.promise;
+    });
+
+    expect(screen.getByTestId("authenticated")).toHaveTextContent("false");
+    expect(screen.getByTestId("user-id")).toHaveTextContent("none");
+    expect(screen.getByTestId("loading")).toHaveTextContent("false");
+  });
+
+  it("keeps the latest user-bearing event when lookups resolve in reverse order", async () => {
+    const firstLookup = deferred<AdminLookupResult>();
+    const secondLookup = deferred<AdminLookupResult>();
+
+    render(
+      <AuthProvider>
+        <AuthStateProbe />
+      </AuthProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("loading")).toHaveTextContent("false")
+    );
+
+    mocks.adminLookups.push(firstLookup.promise, secondLookup.promise);
+    act(() => {
+      mocks.authCallback?.("SIGNED_IN", sessionFor("admin-1"));
+      mocks.authCallback?.("USER_UPDATED", sessionFor("admin-2"));
+    });
+
+    await waitFor(() => expect(mocks.from).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      secondLookup.resolve({ data: { name: "Admin Terbaru", role: "MANAGER" } });
+      await secondLookup.promise;
+    });
+    expect(screen.getByTestId("user-id")).toHaveTextContent("admin-2");
+    expect(screen.getByTestId("user-name")).toHaveTextContent("Admin Terbaru");
+
+    await act(async () => {
+      firstLookup.resolve({ data: { name: "Admin Lama", role: "SUPER_ADMIN" } });
+      await firstLookup.promise;
+    });
+    expect(screen.getByTestId("user-id")).toHaveTextContent("admin-2");
+    expect(screen.getByTestId("user-name")).toHaveTextContent("Admin Terbaru");
+  });
+
+  it("invalidates pending auth work when the provider unmounts", async () => {
+    const lookup = deferred<AdminLookupResult>();
+    const renderedUsers: Array<string | null> = [];
+    mocks.adminLookups.push(lookup.promise);
+    mocks.getSession.mockResolvedValue({
+      data: { session: sessionFor("pending-admin") },
+    });
+
+    const { unmount } = render(
+      <AuthProvider>
+        <AuthStateProbe
+          onRender={(user) => renderedUsers.push(user?.id ?? null)}
+        />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(mocks.from).toHaveBeenCalledTimes(1));
+    unmount();
+    const rendersAtUnmount = renderedUsers.length;
+
+    await act(async () => {
+      lookup.resolve({ data: { name: "Terlambat", role: "STAFF" } });
+      await lookup.promise;
+    });
+
+    expect(mocks.unsubscribe).toHaveBeenCalledTimes(1);
+    expect(renderedUsers).toHaveLength(rendersAtUnmount);
+  });
+
+  it("does not let a late login resolution restore state after logout", async () => {
+    const loginLookup = deferred<AdminLookupResult>();
+    mocks.signInWithPassword.mockResolvedValue({
+      data: { user: supabaseUser("login-admin") },
+      error: null,
+    });
+
+    render(
+      <AuthProvider>
+        <AuthStateProbe />
+      </AuthProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("loading")).toHaveTextContent("false")
+    );
+    mocks.adminLookups.push(loginLookup.promise);
+
+    let loginPromise!: Promise<LoginResult>;
+    act(() => {
+      loginPromise = latestAuth!.login("admin@kalanara.com", "secret");
+    });
+    await waitFor(() => expect(mocks.from).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await latestAuth!.logout();
+    });
+
+    let result!: LoginResult;
+    await act(async () => {
+      loginLookup.resolve({ data: { name: "Admin", role: "SUPER_ADMIN" } });
+      result = await loginPromise;
+    });
+
+    expect(result.success).toBe(false);
+    expect(screen.getByTestId("authenticated")).toHaveTextContent("false");
+    expect(screen.getByTestId("user-id")).toHaveTextContent("none");
+  });
+
+  it("lets login follow the newer matching signed-in event resolution", async () => {
+    const signIn = deferred<{
+      data: { user: Session["user"] };
+      error: null;
+    }>();
+    const eventLookup = deferred<AdminLookupResult>();
+    const user = supabaseUser("event-admin");
+    mocks.signInWithPassword.mockReturnValue(signIn.promise);
+
+    render(
+      <AuthProvider>
+        <AuthStateProbe />
+      </AuthProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("loading")).toHaveTextContent("false")
+    );
+
+    let loginPromise!: Promise<LoginResult>;
+    act(() => {
+      loginPromise = latestAuth!.login("admin@kalanara.com", "secret");
+    });
+
+    mocks.adminLookups.push(eventLookup.promise);
+    act(() => {
+      mocks.authCallback?.("SIGNED_IN", sessionFor(user.id, user.email));
+    });
+    await waitFor(() => expect(mocks.from).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      signIn.resolve({ data: { user }, error: null });
+      await signIn.promise;
+    });
+
+    let result!: LoginResult;
+    await act(async () => {
+      eventLookup.resolve({ data: { name: "Admin Event", role: "MANAGER" } });
+      result = await loginPromise;
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(screen.getByTestId("user-id")).toHaveTextContent("event-admin");
+    expect(screen.getByTestId("user-name")).toHaveTextContent("Admin Event");
   });
 });
