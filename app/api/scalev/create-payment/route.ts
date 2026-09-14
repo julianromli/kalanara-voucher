@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  createPendingOrder,
-  createPendingOrderItems,
+  createPendingOrderForCheckout,
+  createPendingOrderItemsForOrder,
   markOrderFailedFromGateway,
   updateOrderGatewayData,
-} from "@/lib/actions/orders";
+} from "@/lib/payment/order-writes";
 import {
-  allocateDiscountAcrossItems,
   createPendingDiscountRedemption,
   markDiscountRedemptionVoid,
   normalizeCustomerPhone,
@@ -317,14 +316,10 @@ export async function POST(
         ? discountValidation.quote
         : null;
     const totalAmount = discountQuote?.totalAmount ?? subtotalAmount;
-    const itemDiscounts = allocateDiscountAcrossItems(
-      services.map((service) => service.price),
-      discountQuote?.discountAmount ?? 0
-    );
     const firstLine = validatedData.lineItems[0];
     const isSingleLine = validatedData.lineItems.length === 1;
 
-    const order = await createPendingOrder({
+    const order = await createPendingOrderForCheckout({
       service_id: isSingleLine ? services[0].id : null,
       customer_email: validatedData.customerEmail,
       customer_name: validatedData.customerName,
@@ -408,14 +403,10 @@ export async function POST(
         services.map((service) => ensureScalevServiceMapping(service))
       );
 
-      const orderItems = await createPendingOrderItems(
+      const orderItems = await createPendingOrderItemsForOrder(
+        order.id,
         validatedData.lineItems.map((item, index) => ({
-          order_id: order.id,
           service_id: services[index].id,
-          original_unit_price: services[index].price,
-          discount_amount: itemDiscounts[index] ?? 0,
-          final_unit_price: services[index].price - (itemDiscounts[index] ?? 0),
-          unit_price: services[index].price - (itemDiscounts[index] ?? 0),
           recipient_name: item.recipientName,
           recipient_email: item.recipientEmail || null,
           recipient_phone: item.recipientPhone || null,

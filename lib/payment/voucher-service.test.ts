@@ -1,31 +1,26 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const {
-  createVoucherMock,
-  getVoucherBySourceOrderIdMock,
-  getVoucherBySourceOrderItemIdMock,
+  createVoucherForPaidOrderMock,
   updateOrderVoucherIdMock,
   getOrderItemsByOrderIdMock,
-  updateOrderItemVoucherIdMock,
 } = vi.hoisted(() => ({
-  createVoucherMock: vi.fn(),
-  getVoucherBySourceOrderIdMock: vi.fn(),
-  getVoucherBySourceOrderItemIdMock: vi.fn(),
+  createVoucherForPaidOrderMock: vi.fn(),
   updateOrderVoucherIdMock: vi.fn(),
   getOrderItemsByOrderIdMock: vi.fn(),
-  updateOrderItemVoucherIdMock: vi.fn(),
 }));
 
-vi.mock("@/lib/actions/vouchers", () => ({
-  createVoucher: createVoucherMock,
-  getVoucherBySourceOrderId: getVoucherBySourceOrderIdMock,
-  getVoucherBySourceOrderItemId: getVoucherBySourceOrderItemIdMock,
+vi.mock("@/lib/payment/voucher-writes", () => ({
+  createVoucherForPaidOrder: createVoucherForPaidOrderMock,
+  createVoucherForPaidOrderItem: createVoucherForPaidOrderMock,
 }));
 
 vi.mock("@/lib/actions/orders", () => ({
-  updateOrderVoucherId: updateOrderVoucherIdMock,
   getOrderItemsByOrderId: getOrderItemsByOrderIdMock,
-  updateOrderItemVoucherId: updateOrderItemVoucherIdMock,
+}));
+
+vi.mock("@/lib/payment/order-writes", () => ({
+  updateOrderVoucherId: updateOrderVoucherIdMock,
 }));
 
 describe("createVoucherOnPaymentSuccess", () => {
@@ -40,14 +35,11 @@ describe("createVoucherOnPaymentSuccess", () => {
       })
     );
 
-    getVoucherBySourceOrderIdMock.mockResolvedValue(null);
-    getVoucherBySourceOrderItemIdMock.mockResolvedValue(null);
-    createVoucherMock.mockResolvedValue({
+    createVoucherForPaidOrderMock.mockResolvedValue({
       id: "voucher-1",
       code: "KSPV-001",
     });
     updateOrderVoucherIdMock.mockResolvedValue(true);
-    updateOrderItemVoucherIdMock.mockResolvedValue(true);
     getOrderItemsByOrderIdMock.mockResolvedValue([]);
   });
 
@@ -80,12 +72,7 @@ describe("createVoucherOnPaymentSuccess", () => {
       voucherCode: "KSPV-001",
       voucherCount: 1,
     });
-    expect(createVoucherMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        recipient_name: "Penerima",
-        recipient_email: "buyer@example.com",
-      })
-    );
+    expect(createVoucherForPaidOrderMock).toHaveBeenCalledWith("order-1");
     expect(fetch).toHaveBeenCalledWith(
       "https://voucher.kalanaraspa.com/api/whatsapp/send-voucher",
       expect.objectContaining({

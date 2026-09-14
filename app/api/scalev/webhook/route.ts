@@ -6,13 +6,15 @@ import {
   getOrderByScalevOrderId,
   getOrderByScalevOrderPk,
   getOrderByScalevPgReferenceId,
+} from "@/lib/actions/orders";
+import {
   updateOrderGatewayData,
   updateOrderPaymentStatus,
-} from "@/lib/actions/orders";
+} from "@/lib/payment/order-writes";
 import {
   createScalevWebhookEvent,
   updateScalevWebhookEvent,
-} from "@/lib/actions/scalevWebhookEvents";
+} from "@/lib/scalev/webhook-events";
 import {
   markDiscountRedemptionSucceeded,
   markDiscountRedemptionVoid,

@@ -29,9 +29,10 @@ const {
   createScalevPaymentIntentMock: vi.fn(),
 }));
 
-vi.mock("@/lib/actions/orders", () => ({
+vi.mock("@/lib/payment/order-writes", () => ({
   createPendingOrder: createPendingOrderMock,
-  createPendingOrderItems: createPendingOrderItemsMock,
+  createPendingOrderForCheckout: createPendingOrderMock,
+  createPendingOrderItemsForOrder: createPendingOrderItemsMock,
   updateOrderGatewayData: updateOrderGatewayDataMock,
   markOrderFailedFromGateway: markOrderFailedFromGatewayMock,
 }));
@@ -92,7 +93,9 @@ describe("POST /api/scalev/create-payment", () => {
       payment_order_id: "KSP-123",
       public_access_token: "public-token",
     });
-    createPendingOrderItemsMock.mockImplementation(async (items: unknown[]) => items);
+    createPendingOrderItemsMock.mockImplementation(
+      async (_orderId: string, items: unknown[]) => items
+    );
     createScalevOrderMock.mockResolvedValue({
       id: 99,
       order_id: "scalev-1",
@@ -226,18 +229,13 @@ describe("POST /api/scalev/create-payment", () => {
         total_amount: 700000,
       })
     );
-    expect(createPendingOrderItemsMock).toHaveBeenCalledWith([
-      expect.objectContaining({
-        order_id: "order-1",
-        service_id: "service-1",
-        unit_price: 450000,
-      }),
-      expect.objectContaining({
-        order_id: "order-1",
-        service_id: "service-2",
-        unit_price: 250000,
-      }),
+    expect(createPendingOrderItemsMock).toHaveBeenCalledWith("order-1", [
+      expect.objectContaining({ service_id: "service-1" }),
+      expect.objectContaining({ service_id: "service-2" }),
     ]);
+    expect(createPendingOrderItemsMock.mock.calls[0][1][0]).not.toHaveProperty(
+      "unit_price"
+    );
     expect(createScalevOrderMock).toHaveBeenCalledWith(
       expect.objectContaining({
         ordervariants: [
@@ -332,14 +330,12 @@ describe("POST /api/scalev/create-payment", () => {
         total_amount: 405000,
       })
     );
-    expect(createPendingOrderItemsMock).toHaveBeenCalledWith([
-      expect.objectContaining({
-        original_unit_price: 450000,
-        discount_amount: 45000,
-        final_unit_price: 405000,
-        unit_price: 405000,
-      }),
+    expect(createPendingOrderItemsMock).toHaveBeenCalledWith("order-1", [
+      expect.objectContaining({ service_id: "service-1" }),
     ]);
+    expect(createPendingOrderItemsMock.mock.calls[0][1][0]).not.toHaveProperty(
+      "original_unit_price"
+    );
     expect(createPendingDiscountRedemptionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         discountCodeId: "discount-1",

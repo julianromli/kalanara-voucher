@@ -6,7 +6,7 @@ Each linked file is a self-contained execution plan. Keep each change independen
 
 | Order | Plan | Scope / audit findings | Dependencies | Status |
 |---:|---|---|---|:---:|
-| 1 | [001 — Secure privileged server actions](./001-secure-privileged-server-actions.md) | Replace externally callable service-role helpers with authorized actions and server-only internals. Finding 1. | None | OPEN |
+| 1 | [001 — Secure privileged server actions](./001-secure-privileged-server-actions.md) | Replace externally callable service-role helpers with authorized actions and server-only internals. Finding 1. | None | DONE |
 | 2 | [002 — Upgrade the vulnerable Next.js runtime](./002-upgrade-vulnerable-next-runtime.md) | Patch the scanner-verified RSC denial-of-service vulnerability. Finding 7. | None | OPEN |
 | 3 | [003 — Protect the order capability token](./003-protect-order-capability-token.md) | Remove the durable capability from URLs/browser data and keep third-party scripts off sensitive routes. Finding 6. | 001 | OPEN |
 | 4 | [004 — Enforce an atomic payment state machine](./004-enforce-payment-state-machine.md) | Make provider transitions monotonic and stop downstream work after rejected writes. Findings 2 and 4. | 001 | OPEN |

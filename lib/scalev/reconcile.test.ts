@@ -38,6 +38,9 @@ vi.mock("@/lib/actions/orders", () => ({
   getOrderByPaymentOrderIdAndAccessToken: getOrderByPaymentOrderIdAndAccessTokenMock,
   getPublicOrderDetails: getPublicOrderDetailsMock,
   getPublicOrderDetailsWithItems: getPublicOrderDetailsWithItemsMock,
+}));
+
+vi.mock("@/lib/payment/order-writes", () => ({
   updateOrderGatewayData: updateOrderGatewayDataMock,
   updateOrderPaymentStatus: updateOrderPaymentStatusMock,
 }));

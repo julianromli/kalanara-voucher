@@ -32,11 +32,14 @@ vi.mock("@/lib/actions/orders", () => ({
   getOrderByScalevOrderId: getOrderByScalevOrderIdMock,
   getOrderByScalevOrderPk: getOrderByScalevOrderPkMock,
   getOrderByScalevPgReferenceId: getOrderByScalevPgReferenceIdMock,
+}));
+
+vi.mock("@/lib/payment/order-writes", () => ({
   updateOrderGatewayData: updateOrderGatewayDataMock,
   updateOrderPaymentStatus: updateOrderPaymentStatusMock,
 }));
 
-vi.mock("@/lib/actions/scalevWebhookEvents", () => ({
+vi.mock("@/lib/scalev/webhook-events", () => ({
   createScalevWebhookEvent: createScalevWebhookEventMock,
   updateScalevWebhookEvent: updateScalevWebhookEventMock,
 }));

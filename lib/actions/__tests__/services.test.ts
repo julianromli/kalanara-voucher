@@ -65,8 +65,8 @@ import {
   getServices,
   setServiceActiveState,
   updateService,
-  updateServiceScalevMapping,
 } from "@/lib/actions/services";
+import { updateServiceScalevMapping } from "@/lib/scalev/service-writes";
 import { AdminPermission, hasPermissionForRole } from "@/lib/auth/admin-rbac";
 
 const joinedSelect = "*, category_relation:service_categories!category_id(*)";
@@ -216,6 +216,12 @@ beforeEach(() => {
 });
 
 describe("service actions", () => {
+  it("does not expose Scalev mapping writes as Server Actions", async () => {
+    const serviceActions = await import("@/lib/actions/services");
+
+    expect(serviceActions).not.toHaveProperty("updateServiceScalevMapping");
+  });
+
   it("grants service creation and image permissions only to super admins", () => {
     expect(hasPermissionForRole("SUPER_ADMIN", AdminPermission.SERVICES_CREATE)).toBe(true);
     expect(hasPermissionForRole("SUPER_ADMIN", AdminPermission.SERVICE_IMAGES_MANAGE)).toBe(true);

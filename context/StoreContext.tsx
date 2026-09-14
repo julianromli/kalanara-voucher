@@ -20,12 +20,8 @@ import { resolveServiceImageUrl } from '@/lib/utils/serviceImages';
 
 // Server actions
 import { getServices } from '@/lib/actions/services';
-import {
-  createVoucher as createVoucherAction,
-  redeemVoucher as redeemVoucherAction,
-} from '@/lib/actions/vouchers';
-import { createOrder as createOrderAction } from '@/lib/actions/orders';
-import { getReviews, createReview as createReviewAction } from '@/lib/actions/reviews';
+import { redeemVoucher as redeemVoucherAction } from '@/lib/actions/vouchers';
+import { getReviews } from '@/lib/actions/reviews';
 
 // ============================================================================
 // Types
@@ -38,9 +34,6 @@ interface StoreContextType {
   reviews: FrontendReview[];
   isLoading: boolean;
   error: string | null;
-  addVoucher: (voucher: FrontendVoucher) => Promise<void>;
-  addOrder: (order: FrontendOrder) => Promise<void>;
-  addReview: (review: FrontendReview) => Promise<void>;
   redeemVoucher: (code: string) => Promise<{ success: boolean; message: string }>;
   getVoucherByCode: (code: string) => FrontendVoucher | undefined;
   getServiceById: (id: string) => FrontendService | undefined;
@@ -192,7 +185,6 @@ export function StoreProvider({ children }: StoreProviderProps) {
   const [reviews, setReviews] = useState<FrontendReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isHydrated, setIsHydrated] = useState(false);
 
   /**
    * Fetches all data from Supabase and updates state
@@ -233,7 +225,6 @@ export function StoreProvider({ children }: StoreProviderProps) {
       }
     } finally {
       setIsLoading(false);
-      setIsHydrated(true);
     }
   }, []);
 
@@ -262,124 +253,6 @@ export function StoreProvider({ children }: StoreProviderProps) {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
-
-  /**
-   * Adds a voucher to both Supabase and local state
-   */
-  const addVoucher = useCallback(
-    async (voucher: FrontendVoucher) => {
-      try {
-        // Create voucher in Supabase
-        const dbVoucher = await createVoucherAction({
-          service_id: voucher.service.id,
-          recipient_name: voucher.recipientName,
-          recipient_email: voucher.recipientEmail,
-          sender_name: voucher.senderName,
-          sender_message: voucher.senderMessage || null,
-          expiry_date: voucher.expiryDate.toISOString(),
-          amount: voucher.amount,
-        });
-
-        if (dbVoucher) {
-          // Refresh data from Supabase to get the complete voucher with service
-          await fetchDataFromSupabase();
-        } else {
-          // Fallback: add to local state only
-          setVouchers((prev) => [...prev, voucher]);
-          if (isHydrated) {
-            localStorage.setItem(STORAGE_KEYS.VOUCHERS, JSON.stringify([...vouchers, voucher]));
-          }
-        }
-      } catch (err) {
-        console.error('Error adding voucher:', err);
-        // Fallback: add to local state only
-        setVouchers((prev) => [...prev, voucher]);
-        if (isHydrated) {
-          localStorage.setItem(STORAGE_KEYS.VOUCHERS, JSON.stringify([...vouchers, voucher]));
-        }
-      }
-    },
-    [vouchers, isHydrated, fetchDataFromSupabase]
-  );
-
-  /**
-   * Adds an order to both Supabase and local state
-   */
-  const addOrder = useCallback(
-    async (order: FrontendOrder) => {
-      try {
-        // Create order in Supabase
-        const dbOrder = await createOrderAction({
-          voucher_id: order.voucher.id,
-          customer_email: order.customerEmail,
-          customer_name: order.customerName,
-          customer_phone: order.customerPhone,
-          payment_method: order.paymentMethod as 'CREDIT_CARD' | 'BANK_TRANSFER' | 'E_WALLET',
-          payment_status: order.paymentStatus as
-            | 'PENDING'
-            | 'COMPLETED'
-            | 'FAILED'
-            | 'REFUNDED',
-          total_amount: order.totalAmount,
-        });
-
-        if (dbOrder) {
-          // Refresh data from Supabase
-          await fetchDataFromSupabase();
-        } else {
-          // Fallback: add to local state only
-          setOrders((prev) => [...prev, order]);
-          if (isHydrated) {
-            localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify([...orders, order]));
-          }
-        }
-      } catch (err) {
-        console.error('Error adding order:', err);
-        // Fallback: add to local state only
-        setOrders((prev) => [...prev, order]);
-        if (isHydrated) {
-          localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify([...orders, order]));
-        }
-      }
-    },
-    [orders, isHydrated, fetchDataFromSupabase]
-  );
-
-  /**
-   * Adds a review to both Supabase and local state
-   */
-  const addReview = useCallback(
-    async (review: FrontendReview) => {
-      try {
-        // Create review in Supabase
-        const dbReview = await createReviewAction({
-          voucher_id: review.voucherId,
-          rating: review.rating,
-          comment: review.comment || null,
-          customer_name: review.customerName,
-        });
-
-        if (dbReview) {
-          // Refresh data from Supabase
-          await fetchDataFromSupabase();
-        } else {
-          // Fallback: add to local state only
-          setReviews((prev) => [...prev, review]);
-          if (isHydrated) {
-            localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify([...reviews, review]));
-          }
-        }
-      } catch (err) {
-        console.error('Error adding review:', err);
-        // Fallback: add to local state only
-        setReviews((prev) => [...prev, review]);
-        if (isHydrated) {
-          localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify([...reviews, review]));
-        }
-      }
-    },
-    [reviews, isHydrated, fetchDataFromSupabase]
-  );
 
   /**
    * Redeems a voucher by code
@@ -477,9 +350,6 @@ export function StoreProvider({ children }: StoreProviderProps) {
     reviews,
     isLoading,
     error,
-    addVoucher,
-    addOrder,
-    addReview,
     redeemVoucher,
     getVoucherByCode,
     getServiceById,

@@ -142,23 +142,6 @@ export async function createPublicReview(
   return { success: true };
 }
 
-export async function createReview(review: ReviewInsert): Promise<Review | null> {
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from("reviews")
-    .insert(review)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error creating review:", error);
-    return null;
-  }
-
-  revalidateTag("dashboard-stats", "max");
-  return data;
-}
-
 export async function deleteReview(id: string): Promise<boolean> {
   const access = await requireAdminPermission(AdminPermission.REVIEWS_MANAGE);
 

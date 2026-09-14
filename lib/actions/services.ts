@@ -398,36 +398,6 @@ export async function setServiceActiveState(
   return data as ServiceWithCategory;
 }
 
-export async function updateServiceScalevMapping(
-  id: string,
-  updates: Pick<
-    ServiceUpdate,
-    | "scalev_product_id"
-    | "scalev_variant_id"
-    | "scalev_variant_unique_id"
-    | "scalev_sync_status"
-    | "scalev_last_synced_at"
-  >
-): Promise<Service | null> {
-  // This path is used by checkout-driven Scalev sync, so it cannot depend on
-  // an interactive admin session even though it still writes via the service role.
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from("services")
-    .update(updates)
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error updating service Scalev mapping:", error);
-    return null;
-  }
-
-  revalidateServiceCatalogData();
-  return data;
-}
-
 export async function deleteService(id: string): Promise<boolean> {
   const service = await setServiceActiveState(id, false);
   return Boolean(service);

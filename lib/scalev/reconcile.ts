@@ -4,9 +4,11 @@ import {
   getOrderByPaymentOrderIdAndAccessToken,
   getPublicOrderDetails,
   getPublicOrderDetailsWithItems,
+} from "@/lib/actions/orders";
+import {
   updateOrderGatewayData,
   updateOrderPaymentStatus,
-} from "@/lib/actions/orders";
+} from "@/lib/payment/order-writes";
 import {
   markDiscountRedemptionSucceeded,
   markDiscountRedemptionVoid,

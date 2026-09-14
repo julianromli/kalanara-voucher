@@ -3,22 +3,23 @@
  * @description Handles voucher creation and delivery after successful payment
  */
 
+import "server-only";
+
 import {
   getOrderItemsByOrderId,
-  updateOrderItemVoucherId,
-  updateOrderVoucherId,
 } from "@/lib/actions/orders";
 import {
-  createVoucher,
-  getVoucherBySourceOrderId,
-  getVoucherBySourceOrderItemId,
-} from "@/lib/actions/vouchers";
+  updateOrderVoucherId,
+} from "@/lib/payment/order-writes";
+import {
+  createVoucherForPaidOrder,
+  createVoucherForPaidOrderItem,
+} from "@/lib/payment/voucher-writes";
 import { sendVoucherEmail, sendVoucherWhatsApp } from "@/lib/payment/public-voucher-delivery";
 import type {
   OrderItemWithService,
   OrderWithService,
   Voucher,
-  VoucherInsert,
 } from "@/lib/database.types";
 
 export interface VoucherCreationResult {
@@ -32,12 +33,6 @@ export interface VoucherCreationResult {
 interface EffectiveDeliveryTarget {
   email: string | null;
   phone: string | null;
-}
-
-function calculateExpiryDate(): string {
-  const expiryDate = new Date();
-  expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-  return expiryDate.toISOString();
 }
 
 function getEffectiveDeliveryTarget(
@@ -87,47 +82,14 @@ async function createVoucherForOrderItem(
     return item.vouchers;
   }
 
-  const existingVoucher = await getVoucherBySourceOrderItemId(item.id);
-  if (existingVoucher) {
-    if (!item.voucher_id) {
-      const linked = await updateOrderItemVoucherId(item.id, existingVoucher.id);
-      if (!linked) {
-        throw new Error(
-          `Failed to relink existing voucher ${existingVoucher.id} to order item ${item.id}`
-        );
-      }
-    }
-
-    return existingVoucher;
-  }
-
   const validationError = validateVoucherSource(order, item);
   if (validationError) {
     throw new Error(validationError);
   }
 
-  const effectiveTarget = getEffectiveDeliveryTarget(order, item);
-  const voucherData: Omit<VoucherInsert, "code"> = {
-    source_order_id: null,
-    source_order_item_id: item.id,
-    service_id: item.service_id,
-    recipient_name: item.recipient_name,
-    recipient_email: effectiveTarget.email ?? order.customer_email,
-    sender_name: order.customer_name,
-    sender_message: item.sender_message,
-    expiry_date: calculateExpiryDate(),
-    amount: item.unit_price,
-    is_redeemed: false,
-  };
-
-  const voucher = await createVoucher(voucherData);
+  const voucher = await createVoucherForPaidOrderItem(order.id, item.id);
   if (!voucher) {
     throw new Error("Failed to create voucher in database");
-  }
-
-  const linked = await updateOrderItemVoucherId(item.id, voucher.id);
-  if (!linked) {
-    throw new Error(`Failed to link voucher ${voucher.id} to order item ${item.id}`);
   }
   return voucher;
 }
@@ -147,45 +109,9 @@ async function createSingleVoucher(order: OrderWithService): Promise<VoucherCrea
     };
   }
 
-  const existingVoucher = await getVoucherBySourceOrderId(order.id);
-  if (existingVoucher) {
-    await updateOrderVoucherId(order.id, existingVoucher.id);
-
-    return {
-      success: true,
-      voucherId: existingVoucher.id,
-      voucherCode: existingVoucher.code,
-      voucherCount: 1,
-      error: "Voucher already created",
-    };
-  }
-
-  const effectiveTarget = getEffectiveDeliveryTarget(order);
-  const voucherData: Omit<VoucherInsert, "code"> = {
-    source_order_id: order.id,
-    service_id: order.service_id as string,
-    recipient_name: order.recipient_name as string,
-    recipient_email: effectiveTarget.email ?? order.customer_email,
-    sender_name: order.customer_name,
-    sender_message: order.sender_message,
-    expiry_date: calculateExpiryDate(),
-    amount: order.total_amount,
-    is_redeemed: false,
-  };
-
-  const voucher = await createVoucher(voucherData);
+  const voucher = await createVoucherForPaidOrder(order.id);
   if (!voucher) {
     return { success: false, error: "Failed to create voucher in database" };
-  }
-
-  const updateSuccess = await updateOrderVoucherId(order.id, voucher.id);
-  if (!updateSuccess) {
-    return {
-      success: false,
-      voucherId: voucher.id,
-      voucherCode: voucher.code,
-      error: "Failed to link voucher to order",
-    };
   }
 
   return {
