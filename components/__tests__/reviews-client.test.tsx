@@ -105,7 +105,7 @@ describe("ReviewsClient pagination", () => {
     expect(screen.getByText("Ayu")).toBeInTheDocument();
     expect(screen.getByText("26 ulasan")).toBeInTheDocument();
     expect(
-      screen.getByRole("navigation", { name: "Pagination ulasan" }),
+      screen.getByRole("navigation", { name: "Navigasi halaman ulasan" }),
     ).toBeInTheDocument();
     expect(screen.getByText("26 ulasan")).toHaveAttribute("aria-live", "polite");
     expect(screen.getByText("Halaman 2 dari 2")).toHaveAttribute(

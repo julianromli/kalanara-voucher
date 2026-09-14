@@ -96,6 +96,14 @@ describe("voucher destructive actions", () => {
     voucherInsertMock.mockImplementation(() => ({
           select: vi.fn(() => ({ single: voucherInsertSingleMock })),
     }));
+    linkEqMock.mockReturnValue({
+      select: vi.fn(() => ({
+        maybeSingle: vi.fn().mockResolvedValue({
+          data: { id: "item-1" },
+          error: null,
+        }),
+      })),
+    });
   });
 
   test("deleteVoucher calls transactional RPC, revalidates surfaces, and audits success", async () => {
@@ -228,8 +236,6 @@ describe("voucher destructive actions", () => {
       data: { id: "voucher-1", code: "KSP-2026-ABCDEFGH" },
       error: null,
     });
-    linkEqMock.mockResolvedValue({ error: null });
-
     const { createVoucherForPaidOrderItem } = await import(
       "@/lib/payment/voucher-writes"
     );
