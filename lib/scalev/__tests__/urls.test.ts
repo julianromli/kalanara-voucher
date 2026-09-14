@@ -20,6 +20,15 @@ describe("buildScalevPublicOrderUrl", () => {
       )
     ).toBe("https://pay.kalanara.test/scalev/order/public/secret-token");
   });
+
+  it("ignores query and fragment data when appending the public order path", () => {
+    expect(
+      buildScalevPublicOrderUrl(
+        "secret-token",
+        "https://pay.kalanara.test/scalev?campaign=test#checkout"
+      )
+    ).toBe("https://pay.kalanara.test/scalev/order/public/secret-token");
+  });
 });
 
 describe("isScalevHostedPublicOrderUrl", () => {

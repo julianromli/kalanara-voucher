@@ -81,7 +81,9 @@ export function buildScalevPublicOrderUrl(
   const trimmedPath = normalized.replace(/^\/+/, "");
   const configuredBase = parseTrustedBaseUrl(configuredPublicBaseUrl);
   const baseUrl = (
-    configuredBase?.href || DEFAULT_SCALEV_PUBLIC_BASE_URL
+    configuredBase
+      ? `${configuredBase.origin}${configuredBase.pathname}`
+      : DEFAULT_SCALEV_PUBLIC_BASE_URL
   ).replace(/\/+$/, "");
   const candidate = trimmedPath.startsWith("order/public/")
     ? `${baseUrl}/${trimmedPath}`
