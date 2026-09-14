@@ -1,6 +1,6 @@
 # 011 — Associate and visibly focus checkout controls
 
-- **Status**: OPEN
+- **Status**: DONE
 - **Commit**: b94c4ae
 - **Severity**: HIGH
 - **Category**: Accessibility

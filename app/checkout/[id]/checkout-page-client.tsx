@@ -570,35 +570,58 @@ export function CheckoutPageClient({
                 </h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                    <label
+                      htmlFor="checkout-recipient-name"
+                      className="mb-2 block text-sm font-medium text-muted-foreground"
+                    >
                       Nama Penerima
                     </label>
                     <Input
+                      id="checkout-recipient-name"
                       {...register("recipientName", {
                         required: "Nama penerima wajib diisi",
                       })}
                       placeholder="Nama penerima voucher"
                       className={errors.recipientName ? "border-destructive" : ""}
+                      aria-invalid={Boolean(errors.recipientName)}
+                      aria-describedby={[
+                        "checkout-recipient-name-help",
+                        errors.recipientName ? "checkout-recipient-name-error" : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
                     />
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p
+                      id="checkout-recipient-name-help"
+                      className="mt-1 text-xs text-muted-foreground"
+                    >
                       Nama ini akan tercetak di voucher.
                     </p>
                     {errors.recipientName ? (
-                      <p className="mt-1 text-xs text-destructive" role="alert">
+                      <p
+                        id="checkout-recipient-name-error"
+                        className="mt-1 text-xs text-destructive"
+                        role="alert"
+                      >
                         {errors.recipientName.message}
                       </p>
                     ) : null}
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                    <label
+                      htmlFor="checkout-sender-message"
+                      className="mb-2 block text-sm font-medium text-muted-foreground"
+                    >
                       Pesan untuk Penerima
                     </label>
                     <textarea
+                      id="checkout-sender-message"
                       {...register("senderMessage")}
                       rows={3}
                       placeholder="Tulis pesan singkat jika mau"
                       className="min-h-24 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
+                      aria-invalid={false}
                     />
                   </div>
 
@@ -610,24 +633,30 @@ export function CheckoutPageClient({
                       {[
                         { value: SendTo.RECIPIENT, label: "Langsung ke Penerima" },
                         { value: SendTo.PURCHASER, label: "Kirim ke Saya" },
-                      ].map((option) => (
-                        <label
-                          key={option.value}
-                          className={`flex min-h-14 cursor-pointer items-center justify-center rounded-xl border p-3 text-center text-sm transition-all sm:text-base ${
-                            sendTo === option.value
-                              ? "border-primary bg-muted font-medium text-foreground"
-                              : "border-border text-muted-foreground hover:border-muted-foreground"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            value={option.value}
-                            {...register("sendTo", { required: true })}
-                            className="sr-only"
-                          />
-                          {option.label}
-                        </label>
-                      ))}
+                      ].map((option) => {
+                        const radioId = `checkout-send-to-${option.value}`;
+
+                        return (
+                          <label
+                            key={option.value}
+                            htmlFor={radioId}
+                            className={`flex min-h-14 cursor-pointer items-center justify-center rounded-xl border p-3 text-center text-sm transition-[color,background-color,border-color,box-shadow] focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 sm:text-base ${
+                              sendTo === option.value
+                                ? "border-primary bg-muted font-medium text-foreground"
+                                : "border-border text-muted-foreground hover:border-muted-foreground"
+                            }`}
+                          >
+                            <input
+                              id={radioId}
+                              type="radio"
+                              value={option.value}
+                              {...register("sendTo", { required: true })}
+                              className="sr-only"
+                            />
+                            {option.label}
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -644,27 +673,33 @@ export function CheckoutPageClient({
                       { value: DeliveryMethod.WHATSAPP, label: "WhatsApp", icon: MessageCircle },
                       { value: DeliveryMethod.EMAIL, label: "Email", icon: Mail },
                       { value: DeliveryMethod.BOTH, label: "Email & WhatsApp", icon: Send },
-                    ].map((method) => (
-                      <label
-                        key={method.value}
-                        className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border p-4 transition-all ${
-                          deliveryMethod === method.value
-                            ? "border-primary bg-muted"
-                            : "border-border hover:border-muted-foreground"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          value={method.value}
-                          {...register("deliveryMethod", { required: true })}
-                          className="sr-only"
-                        />
-                        <method.icon size={20} className="text-muted-foreground" />
-                        <span className="text-sm text-foreground sm:text-base">
-                          {method.label}
-                        </span>
-                      </label>
-                    ))}
+                    ].map((method) => {
+                      const radioId = `checkout-delivery-${method.value}`;
+
+                      return (
+                        <label
+                          key={method.value}
+                          htmlFor={radioId}
+                          className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border p-4 transition-[background-color,border-color,box-shadow] focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${
+                            deliveryMethod === method.value
+                              ? "border-primary bg-muted"
+                              : "border-border hover:border-muted-foreground"
+                          }`}
+                        >
+                          <input
+                            id={radioId}
+                            type="radio"
+                            value={method.value}
+                            {...register("deliveryMethod", { required: true })}
+                            className="sr-only"
+                          />
+                          <method.icon size={20} className="text-muted-foreground" />
+                          <span className="text-sm text-foreground sm:text-base">
+                            {method.label}
+                          </span>
+                        </label>
+                      );
+                    })}
                   </div>
 
                   <div className="rounded-2xl border border-border bg-background p-4">
@@ -682,20 +717,37 @@ export function CheckoutPageClient({
 
                   {showRecipientPhone ? (
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                      <label
+                        htmlFor="checkout-recipient-phone"
+                        className="mb-2 block text-sm font-medium text-muted-foreground"
+                      >
                         WhatsApp Penerima
                       </label>
                       <Input
+                        id="checkout-recipient-phone"
                         {...registerPhoneField("recipientPhone")}
                         placeholder="+62 812 3456 7890"
                         className={errors.recipientPhone ? "border-destructive" : ""}
                         aria-invalid={Boolean(errors.recipientPhone)}
+                        aria-describedby={[
+                          "checkout-recipient-phone-help",
+                          errors.recipientPhone ? "checkout-recipient-phone-error" : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
                       />
-                      <p className="mt-1 text-xs text-muted-foreground">
+                      <p
+                        id="checkout-recipient-phone-help"
+                        className="mt-1 text-xs text-muted-foreground"
+                      >
                         Gunakan format 08xxxxxxxx atau +62xxxxxxxx
                       </p>
                       {errors.recipientPhone ? (
-                        <p className="mt-1 text-xs text-destructive" role="alert">
+                        <p
+                          id="checkout-recipient-phone-error"
+                          className="mt-1 text-xs text-destructive"
+                          role="alert"
+                        >
                           {errors.recipientPhone.message}
                         </p>
                       ) : null}
@@ -704,10 +756,14 @@ export function CheckoutPageClient({
 
                   {showRecipientEmail ? (
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                      <label
+                        htmlFor="checkout-recipient-email"
+                        className="mb-2 block text-sm font-medium text-muted-foreground"
+                      >
                         Email Penerima
                       </label>
                       <Input
+                        id="checkout-recipient-email"
                         {...register("recipientEmail", {
                           required: showRecipientEmail
                             ? "Email penerima wajib diisi"
@@ -725,9 +781,18 @@ export function CheckoutPageClient({
                         placeholder="penerima@email.com"
                         className={errors.recipientEmail ? "border-destructive" : ""}
                         aria-invalid={Boolean(errors.recipientEmail)}
+                        aria-describedby={
+                          errors.recipientEmail
+                            ? "checkout-recipient-email-error"
+                            : undefined
+                        }
                       />
                       {errors.recipientEmail ? (
-                        <p className="mt-1 text-xs text-destructive" role="alert">
+                        <p
+                          id="checkout-recipient-email-error"
+                          className="mt-1 text-xs text-destructive"
+                          role="alert"
+                        >
                           {errors.recipientEmail.message}
                         </p>
                       ) : null}
@@ -745,10 +810,14 @@ export function CheckoutPageClient({
                 </p>
                 <div className="space-y-4">
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                    <label
+                      htmlFor="checkout-customer-name"
+                      className="mb-2 block text-sm font-medium text-muted-foreground"
+                    >
                       Nama Lengkap
                     </label>
                     <Input
+                      id="checkout-customer-name"
                       {...register("customerName", {
                         required: "Nama lengkap wajib diisi",
                         setValueAs: (value: unknown) =>
@@ -756,18 +825,30 @@ export function CheckoutPageClient({
                       })}
                       placeholder="Nama kamu"
                       className={errors.customerName ? "border-destructive" : ""}
+                      aria-invalid={Boolean(errors.customerName)}
+                      aria-describedby={
+                        errors.customerName ? "checkout-customer-name-error" : undefined
+                      }
                     />
                     {errors.customerName ? (
-                      <p className="mt-1 text-xs text-destructive" role="alert">
+                      <p
+                        id="checkout-customer-name-error"
+                        className="mt-1 text-xs text-destructive"
+                        role="alert"
+                      >
                         {errors.customerName.message}
                       </p>
                     ) : null}
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                    <label
+                      htmlFor="checkout-customer-email"
+                      className="mb-2 block text-sm font-medium text-muted-foreground"
+                    >
                       Email
                     </label>
                     <Input
+                      id="checkout-customer-email"
                       {...register("customerEmail", {
                         required: "Email wajib diisi",
                         pattern: {
@@ -780,27 +861,53 @@ export function CheckoutPageClient({
                       type="email"
                       placeholder="nama@email.com"
                       className={errors.customerEmail ? "border-destructive" : ""}
+                      aria-invalid={Boolean(errors.customerEmail)}
+                      aria-describedby={
+                        errors.customerEmail ? "checkout-customer-email-error" : undefined
+                      }
                     />
                     {errors.customerEmail ? (
-                      <p className="mt-1 text-xs text-destructive" role="alert">
+                      <p
+                        id="checkout-customer-email-error"
+                        className="mt-1 text-xs text-destructive"
+                        role="alert"
+                      >
                         {errors.customerEmail.message}
                       </p>
                     ) : null}
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-muted-foreground">
+                    <label
+                      htmlFor="checkout-customer-phone"
+                      className="mb-2 block text-sm font-medium text-muted-foreground"
+                    >
                       WhatsApp
                     </label>
                     <Input
+                      id="checkout-customer-phone"
                       {...registerPhoneField("customerPhone")}
                       placeholder="+62 812 3456 7890"
                       className={errors.customerPhone ? "border-destructive" : ""}
+                      aria-invalid={Boolean(errors.customerPhone)}
+                      aria-describedby={[
+                        "checkout-customer-phone-help",
+                        errors.customerPhone ? "checkout-customer-phone-error" : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
                     />
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p
+                      id="checkout-customer-phone-help"
+                      className="mt-1 text-xs text-muted-foreground"
+                    >
                       Gunakan format 08xxxxxxxx atau +62xxxxxxxx
                     </p>
                     {errors.customerPhone ? (
-                      <p className="mt-1 text-xs text-destructive" role="alert">
+                      <p
+                        id="checkout-customer-phone-error"
+                        className="mt-1 text-xs text-destructive"
+                        role="alert"
+                      >
                         {errors.customerPhone.message}
                       </p>
                     ) : null}
@@ -853,39 +960,49 @@ export function CheckoutPageClient({
                 ) : (
                   <>
                     <div className="space-y-3">
-                      {paymentOptions.map((option) => (
-                        <label
-                          key={option.code}
-                          className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all ${
-                            paymentMethod === option.code
-                              ? "border-primary bg-muted"
-                              : "border-border hover:border-muted-foreground"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="paymentMethod"
-                            value={option.code}
-                            checked={paymentMethod === option.code}
-                            onChange={() => setPaymentMethod(option.code)}
-                            className="mt-1"
-                          />
-                          <div className="space-y-1">
-                            <p className="font-medium text-foreground">{option.label}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {getPaymentMethodDescription(option.code)}
-                            </p>
-                          </div>
-                        </label>
-                      ))}
+                      {paymentOptions.map((option) => {
+                        const radioId = `checkout-payment-${option.code}`;
+
+                        return (
+                          <label
+                            key={option.code}
+                            htmlFor={radioId}
+                            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-[background-color,border-color] ${
+                              paymentMethod === option.code
+                                ? "border-primary bg-muted"
+                                : "border-border hover:border-muted-foreground"
+                            }`}
+                          >
+                            <input
+                              id={radioId}
+                              type="radio"
+                              name="paymentMethod"
+                              value={option.code}
+                              checked={paymentMethod === option.code}
+                              onChange={() => setPaymentMethod(option.code)}
+                              className="mt-1"
+                            />
+                            <div className="space-y-1">
+                              <p className="font-medium text-foreground">{option.label}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {getPaymentMethodDescription(option.code)}
+                              </p>
+                            </div>
+                          </label>
+                        );
+                      })}
                     </div>
 
                     {paymentMethod === "va" && selectedPaymentOption?.subMethods?.length ? (
                       <div className="mt-4 space-y-2">
-                        <label className="block text-sm font-medium text-muted-foreground">
+                        <label
+                          htmlFor="checkout-va-bank"
+                          className="block text-sm font-medium text-muted-foreground"
+                        >
                           Bank Virtual Account
                         </label>
                         <select
+                          id="checkout-va-bank"
                           value={subPaymentMethod}
                           onChange={(event) =>
                             setSubPaymentMethod(event.target.value as ScalevVABankCode)

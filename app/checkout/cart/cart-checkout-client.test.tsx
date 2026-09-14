@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { CartCheckoutClient } from "@/app/checkout/cart/cart-checkout-client";
 import { ToastProvider } from "@/context/ToastContext";
@@ -141,6 +142,101 @@ describe("CartCheckoutClient", () => {
     expect(screen.getAllByPlaceholderText("Nama penerima voucher")).toHaveLength(2);
     expect(screen.getAllByDisplayValue("Penerima Utama")).toHaveLength(2);
     expect(screen.getAllByDisplayValue("0812 9999 0000")).toHaveLength(2);
+  });
+
+  test("associates cart labels with unique stable item controls and supports keyboard radios", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", vi.fn());
+
+    renderCheckout({
+      storeUniqueId: "store-123",
+      paymentOptions: [
+        { code: "qris", label: "QRIS" },
+        { code: "va", label: "Virtual Account", subMethods: ["BCA", "BNI"] },
+      ],
+    });
+
+    expect(await screen.findByText("QRIS")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nama Lengkap")).toHaveAttribute(
+      "id",
+      "cart-customer-name"
+    );
+    expect(screen.getByLabelText("Email", { selector: "#cart-customer-email" })).toHaveAttribute(
+      "id",
+      "cart-customer-email"
+    );
+    expect(screen.getByLabelText("WhatsApp", { selector: "#cart-customer-phone" })).toHaveAttribute(
+      "id",
+      "cart-customer-phone"
+    );
+
+    const recipientNames = screen.getAllByLabelText("Nama Penerima");
+    const senderMessages = screen.getAllByLabelText("Pesan untuk Penerima");
+    const recipientPhones = screen.getAllByLabelText("WhatsApp Penerima");
+    expect(recipientNames).toHaveLength(2);
+    expect(senderMessages).toHaveLength(2);
+    expect(recipientPhones).toHaveLength(2);
+
+    const repeatedIds = [
+      ...recipientNames,
+      ...senderMessages,
+      ...recipientPhones,
+    ].map((control) => control.id);
+    expect(new Set(repeatedIds).size).toBe(repeatedIds.length);
+    expect(repeatedIds.every((id) => id.startsWith("cart-voucher-"))).toBe(true);
+    const ids = Array.from(document.querySelectorAll("[id]"), (element) => element.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const label of document.querySelectorAll("label")) {
+      expect(label.htmlFor).not.toBe("");
+      expect(document.getElementById(label.htmlFor)).not.toBeNull();
+    }
+    for (const control of document.querySelectorAll("[aria-describedby]")) {
+      for (const descriptionId of control.getAttribute("aria-describedby")!.split(" ")) {
+        expect(document.getElementById(descriptionId)).not.toBeNull();
+      }
+    }
+    for (const radio of document.querySelectorAll('input[type="radio"].sr-only')) {
+      expect(radio.closest("label")).toHaveClass("focus-within:ring-2");
+    }
+
+    const secondRecipientRadio = screen.getAllByRole("radio", { name: "Saya" })[1];
+    const secondRecipientCard = secondRecipientRadio.closest("label");
+    expect(secondRecipientCard).toHaveAttribute("for", secondRecipientRadio.id);
+    expect(secondRecipientCard).toHaveClass("focus-within:ring-2");
+    expect(secondRecipientCard?.className).not.toContain("transition-all");
+
+    secondRecipientRadio.focus();
+    await user.keyboard("[Space]");
+    expect(secondRecipientRadio).toBeChecked();
+
+    const firstEmailDelivery = screen.getAllByRole("radio", { name: "Email" })[0];
+    firstEmailDelivery.focus();
+    await user.keyboard("[Space]");
+    expect(firstEmailDelivery).toBeChecked();
+    expect(await screen.findAllByLabelText("Email Penerima")).toHaveLength(1);
+
+    const vaPayment = screen.getByRole("radio", { name: /^Virtual Account/ });
+    expect(vaPayment).toHaveAttribute("id", "cart-payment-va");
+    await user.click(vaPayment);
+    expect(screen.getByLabelText("Bank Virtual Account")).toHaveAttribute(
+      "id",
+      "cart-va-bank"
+    );
+
+    await user.click(screen.getAllByRole("button", { name: "Lanjut ke Pembayaran" })[0]);
+
+    const firstRecipientName = recipientNames[0];
+    await waitFor(() =>
+      expect(firstRecipientName).toHaveAttribute("aria-invalid", "true")
+    );
+    expect(firstRecipientName).toHaveAttribute(
+      "aria-describedby",
+      `${firstRecipientName.id}-error`
+    );
+    expect(document.getElementById(`${firstRecipientName.id}-error`)).toHaveTextContent(
+      "Nama penerima wajib diisi"
+    );
+    expect(screen.getByLabelText("Nama Lengkap")).toHaveFocus();
   });
 
   test("keeps cart items and starts a recoverable pending checkout", async () => {

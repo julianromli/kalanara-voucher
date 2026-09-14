@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { CheckoutPageClient } from "@/app/checkout/[id]/checkout-page-client";
 import { ToastProvider } from "@/context/ToastContext";
@@ -132,6 +133,115 @@ describe("CheckoutPageClient", () => {
         )
       ).toBeInTheDocument();
     });
+  });
+
+  test("associates checkout labels, descriptions, radio cards, and keyboard controls", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", vi.fn());
+
+    renderCheckout({
+      storeUniqueId: "store-123",
+      paymentOptions: [
+        { code: "qris", label: "QRIS" },
+        { code: "va", label: "Virtual Account", subMethods: ["BCA", "BNI"] },
+      ],
+    });
+
+    expect(screen.getByLabelText("Nama Penerima")).toHaveAttribute(
+      "id",
+      "checkout-recipient-name"
+    );
+    expect(screen.getByLabelText("Pesan untuk Penerima")).toHaveAttribute(
+      "id",
+      "checkout-sender-message"
+    );
+    expect(screen.getByLabelText("WhatsApp Penerima")).toHaveAttribute(
+      "id",
+      "checkout-recipient-phone"
+    );
+    expect(screen.getByLabelText("Nama Lengkap")).toHaveAttribute(
+      "id",
+      "checkout-customer-name"
+    );
+    expect(screen.getByLabelText("Email", { selector: "#checkout-customer-email" })).toHaveAttribute(
+      "id",
+      "checkout-customer-email"
+    );
+    expect(screen.getByLabelText("WhatsApp", { selector: "#checkout-customer-phone" })).toHaveAttribute(
+      "id",
+      "checkout-customer-phone"
+    );
+
+    const recipientName = screen.getByLabelText("Nama Penerima");
+    expect(recipientName).toHaveAttribute(
+      "aria-describedby",
+      "checkout-recipient-name-help"
+    );
+    expect(document.getElementById("checkout-recipient-name-help")).toHaveTextContent(
+      "Nama ini akan tercetak di voucher."
+    );
+    const ids = Array.from(document.querySelectorAll("[id]"), (element) => element.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const label of document.querySelectorAll("label")) {
+      expect(label.htmlFor).not.toBe("");
+      expect(document.getElementById(label.htmlFor)).not.toBeNull();
+    }
+    for (const control of document.querySelectorAll("[aria-describedby]")) {
+      for (const descriptionId of control.getAttribute("aria-describedby")!.split(" ")) {
+        expect(document.getElementById(descriptionId)).not.toBeNull();
+      }
+    }
+    for (const radio of document.querySelectorAll('input[type="radio"].sr-only')) {
+      expect(radio.closest("label")).toHaveClass("focus-within:ring-2");
+    }
+
+    const sendToPurchaser = screen.getByRole("radio", { name: "Kirim ke Saya" });
+    const sendToCard = sendToPurchaser.closest("label");
+    expect(sendToPurchaser).toHaveAttribute("id", "checkout-send-to-PURCHASER");
+    expect(sendToCard).toHaveAttribute("for", "checkout-send-to-PURCHASER");
+    expect(sendToCard).toHaveClass("focus-within:ring-2");
+    expect(sendToCard?.className).not.toContain("transition-all");
+
+    sendToPurchaser.focus();
+    await user.keyboard("[Space]");
+    expect(sendToPurchaser).toBeChecked();
+
+    const sendToRecipient = screen.getByRole("radio", {
+      name: "Langsung ke Penerima",
+    });
+    sendToRecipient.focus();
+    await user.keyboard("[Space]");
+    expect(sendToRecipient).toBeChecked();
+
+    const emailDelivery = screen.getByRole("radio", { name: "Email" });
+    emailDelivery.focus();
+    await user.keyboard("[Space]");
+    expect(emailDelivery).toBeChecked();
+    expect(await screen.findByLabelText("Email Penerima")).toHaveAttribute(
+      "id",
+      "checkout-recipient-email"
+    );
+
+    const vaPayment = screen.getByRole("radio", { name: /^Virtual Account/ });
+    expect(vaPayment).toHaveAttribute("id", "checkout-payment-va");
+    expect(vaPayment.closest("label")).toHaveAttribute("for", "checkout-payment-va");
+    await user.click(vaPayment);
+    expect(screen.getByLabelText("Bank Virtual Account")).toHaveAttribute(
+      "id",
+      "checkout-va-bank"
+    );
+
+    await user.click(screen.getAllByRole("button", { name: "Lanjut ke Pembayaran" })[0]);
+
+    await waitFor(() => expect(recipientName).toHaveAttribute("aria-invalid", "true"));
+    expect(recipientName).toHaveAttribute(
+      "aria-describedby",
+      "checkout-recipient-name-help checkout-recipient-name-error"
+    );
+    expect(document.getElementById("checkout-recipient-name-error")).toHaveTextContent(
+      "Nama penerima wajib diisi"
+    );
+    expect(recipientName).toHaveFocus();
   });
 
   test("submits purchaser WhatsApp checkout without recipient contact and writes popup shell", async () => {
