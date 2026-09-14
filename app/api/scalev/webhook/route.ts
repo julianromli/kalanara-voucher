@@ -17,6 +17,7 @@ import {
   markDiscountRedemptionVoid,
 } from "@/lib/discounts/service";
 import { createVoucherOnPaymentSuccess } from "@/lib/payment/voucher-service";
+import { sanitizeScalevPublicUrl } from "@/lib/scalev/urls";
 import { getScalevConfig } from "@/lib/scalev/config";
 import { resolveScalevProviderEventAt } from "@/lib/scalev/provider-event-time";
 import type {
@@ -335,7 +336,7 @@ export async function POST(request: NextRequest) {
     transactionId: data.pg_reference_id || order.payment_transaction_id,
     paymentType: data.payment_method || order.scalev_payment_method,
     transactionTime: providerEvent.timestamp,
-    paymentLink: order.payment_link,
+    paymentLink: sanitizeScalevPublicUrl(order.payment_link),
     scalevOrderPk: data.id || order.scalev_order_pk,
     scalevOrderId: data.order_id || order.scalev_order_id,
     scalevPgReferenceId: data.pg_reference_id || order.scalev_pg_reference_id,

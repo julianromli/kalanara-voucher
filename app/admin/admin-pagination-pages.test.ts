@@ -76,6 +76,8 @@ describe("paginated admin page wiring", () => {
       }),
     })) as ReactElement<Record<string, unknown>>;
 
+    expect(requireAdminRouteAccessMock).toHaveBeenCalledOnce();
+    expect(requireAdminRouteAccessMock).toHaveBeenCalledWith("/admin/purchases");
     expect(getOrdersPageMock).toHaveBeenCalledWith({
       page: 2,
       query: "ayu",
@@ -97,6 +99,8 @@ describe("paginated admin page wiring", () => {
       searchParams: Promise.resolve({ status: "ACTIVE" }),
     })) as ReactElement<Record<string, unknown>>;
 
+    expect(requireAdminRouteAccessMock).toHaveBeenCalledOnce();
+    expect(requireAdminRouteAccessMock).toHaveBeenCalledWith("/admin/vouchers");
     expect(result.props).toMatchObject({
       initialPage: emptyPage,
       initialSummary: { active: 3, redeemed: 2, expired: 1 },
@@ -112,6 +116,8 @@ describe("paginated admin page wiring", () => {
       searchParams: Promise.resolve({ rating: "5" }),
     })) as ReactElement<Record<string, unknown>>;
 
+    expect(requireAdminRouteAccessMock).toHaveBeenCalledOnce();
+    expect(requireAdminRouteAccessMock).toHaveBeenCalledWith("/admin/reviews");
     expect(result.props).toMatchObject({
       initialPage: emptyPage,
       initialFilter: "5",

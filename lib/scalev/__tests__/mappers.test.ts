@@ -52,7 +52,7 @@ describe("buildPaymentSnapshot", () => {
         pg_reference_id: "PG-1",
         payment_method: "qris",
         sub_payment_method: null,
-        invoice_url: "https://example.com/pay",
+        invoice_url: "https://app.scalev.id/pay",
         paid_time: "2026-09-14T11:58:00.000Z",
       },
       null
@@ -63,7 +63,7 @@ describe("buildPaymentSnapshot", () => {
     expect(snapshot.pgReferenceId).toBe("PG-1");
     expect(snapshot.paymentMethod).toBe("qris");
     expect(snapshot.normalizedStatus).toBe("COMPLETED");
-    expect(snapshot.paymentLink).toBe("https://example.com/pay");
+    expect(snapshot.paymentLink).toBe("https://app.scalev.id/pay");
     expect(snapshot.providerEventAt).toBe("2026-09-14T11:58:00.000Z");
   });
 
@@ -88,13 +88,42 @@ describe("buildPaymentSnapshot", () => {
     const snapshot = buildPaymentSnapshot(
       {
         payment_status: "pending",
-        payment_link: "https://scalev.example/direct",
+        payment_link: "https://app.scalev.id/direct",
         secret_slug: "fallback-secret",
       },
       null
     );
 
-    expect(snapshot.paymentLink).toBe("https://scalev.example/direct");
+    expect(snapshot.paymentLink).toBe("https://app.scalev.id/direct");
+  });
+
+  it("rejects external links and falls back to a safe secret slug", () => {
+    const snapshot = buildPaymentSnapshot(
+      {
+        payment_status: "pending",
+        invoice_url: "https://app.scalev.id.evil.test/invoice",
+        payment_link: "https://example.com/direct",
+        secret_slug: "fallback-secret",
+      },
+      null
+    );
+
+    expect(snapshot.paymentLink).toBe(
+      "https://app.scalev.id/order/public/fallback-secret"
+    );
+  });
+
+  it("rejects an absolute secret slug on a lookalike host", () => {
+    const snapshot = buildPaymentSnapshot(
+      {
+        payment_status: "pending",
+        secret_slug:
+          "https://app.scalev.id.evil.test/order/public/stolen-secret",
+      },
+      null
+    );
+
+    expect(snapshot.paymentLink).toBeNull();
   });
 
   it("extracts QRIS instructions from pg_payment_info when no hosted link is available", () => {

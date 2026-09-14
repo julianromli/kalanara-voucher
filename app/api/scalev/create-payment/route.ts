@@ -19,7 +19,10 @@ import {
 } from "@/lib/scalev/client";
 import { getScalevConfig } from "@/lib/scalev/config";
 import { ensureScalevServiceMapping } from "@/lib/scalev/catalog-sync";
-import { buildScalevPublicOrderUrl } from "@/lib/scalev/urls";
+import {
+  buildScalevPublicOrderUrl,
+  sanitizeScalevPublicUrl,
+} from "@/lib/scalev/urls";
 import {
   SCALEV_PAYMENT_METHODS,
   SCALEV_VA_BANK_CODES,
@@ -240,10 +243,10 @@ function extractPaymentLink(
   } | null
 ) {
   return (
-    intent?.payment_url ||
-    intent?.invoice_url ||
-    createdOrder.invoice_url ||
-    createdOrder.payment_link ||
+    sanitizeScalevPublicUrl(intent?.payment_url) ||
+    sanitizeScalevPublicUrl(intent?.invoice_url) ||
+    sanitizeScalevPublicUrl(createdOrder.invoice_url) ||
+    sanitizeScalevPublicUrl(createdOrder.payment_link) ||
     buildScalevPublicOrderUrl(createdOrder.secret_slug) ||
     null
   );

@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const {
   afterMock,
   deleteLte,
+  deleteQuery,
   insertSingle,
   insertQuery,
   resolveSingle,
@@ -36,6 +37,7 @@ const {
   return {
     afterMock,
     deleteLte,
+    deleteQuery,
     insertSingle,
     insertQuery,
     resolveSingle,
@@ -76,6 +78,10 @@ describe("order status sessions", () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   test("stores only a SHA-256 hash without coupling global cleanup to checkout", async () => {
     const { createOrderStatusSession } = await import(
       "@/lib/payment/order-status-sessions"
@@ -105,6 +111,8 @@ describe("order status sessions", () => {
   });
 
   test("schedules expired-session cleanup after the response lifecycle", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-14T12:28:00.000Z"));
     const { scheduleExpiredOrderStatusSessionCleanup } = await import(
       "@/lib/payment/order-status-sessions"
     );
@@ -113,6 +121,42 @@ describe("order status sessions", () => {
 
     expect(afterMock).toHaveBeenCalledOnce();
     expect(afterMock).toHaveBeenCalledWith(expect.any(Function));
+    const cleanup = afterMock.mock.calls[0]?.[0] as () => Promise<void>;
+    await cleanup();
+
+    expect(from).toHaveBeenCalledWith("order_status_sessions");
+    expect(deleteQuery).toHaveBeenCalledOnce();
+    expect(deleteLte).toHaveBeenCalledWith(
+      "expires_at",
+      "2026-09-14T12:28:00.000Z"
+    );
+  });
+
+  test("swallows and logs scheduled cleanup errors", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-14T12:28:00.000Z"));
+    deleteLte.mockResolvedValue({
+      error: { message: "database unavailable" },
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const { scheduleExpiredOrderStatusSessionCleanup } = await import(
+      "@/lib/payment/order-status-sessions"
+    );
+
+    scheduleExpiredOrderStatusSessionCleanup();
+    const cleanup = afterMock.mock.calls[0]?.[0] as () => Promise<void>;
+
+    await expect(cleanup()).resolves.toBeUndefined();
+    expect(deleteLte).toHaveBeenCalledWith(
+      "expires_at",
+      "2026-09-14T12:28:00.000Z"
+    );
+    expect(consoleError).toHaveBeenCalledWith(
+      "Failed to clean expired order status sessions."
+    );
+    consoleError.mockRestore();
   });
 
   test("binds resolution to session, hash, payment order, and expiry", async () => {

@@ -53,7 +53,9 @@ export function useAdminListUrl({
   const setFilter = (nextFilter: string) => {
     setLocalFilter(nextFilter);
     replaceParams((params) => {
-      const currentQuery = query.trim().slice(0, 100);
+      const queryToPreserve =
+        query === initialQuery ? (params.get("query") ?? "") : query;
+      const currentQuery = queryToPreserve.trim().slice(0, 100);
       if (currentQuery) {
         params.set("query", currentQuery);
       } else {

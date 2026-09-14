@@ -128,6 +128,60 @@ describe("reconcilePublicOrderStatusByInternalOrderId", () => {
     );
   });
 
+  test("reloads public status after completing a partially fulfilled order", async () => {
+    const { reconcilePublicOrderStatusByInternalOrderId } = await import(
+      "@/lib/scalev/reconcile"
+    );
+    const partialOrder = {
+      id: "order-1",
+      payment_status: "COMPLETED",
+      order_items: [
+        { id: "item-1", voucher_id: "voucher-1", vouchers: { code: "KSPV-001" } },
+        { id: "item-2", voucher_id: null, vouchers: null },
+      ],
+    };
+    const fulfilledOrder = {
+      ...partialOrder,
+      order_items: [
+        partialOrder.order_items[0],
+        { id: "item-2", voucher_id: "voucher-2", vouchers: { code: "KSPV-002" } },
+      ],
+    };
+    const publicOrder = {
+      id: "order-1",
+      payment_status: "COMPLETED",
+      payment_provider: "scalev",
+      vouchers: null,
+    };
+
+    getOrderForStatusByIdMock.mockResolvedValue({
+      id: "order-1",
+      payment_order_id: "KSP-123",
+    });
+    getOrderStatusDetailsWithItemsByIdMock
+      .mockResolvedValueOnce(partialOrder)
+      .mockResolvedValueOnce(fulfilledOrder);
+    getOrderStatusDetailsByIdMock.mockResolvedValue(publicOrder);
+    buildPublicOrderStatusWithItemsMock.mockImplementation(
+      (orderWithItems: typeof partialOrder) => ({
+        status: orderWithItems === fulfilledOrder ? "completed" : "pending",
+        vouchers: orderWithItems.order_items.flatMap((item) =>
+          item.vouchers ? [item.vouchers] : []
+        ),
+      })
+    );
+
+    await expect(
+      reconcilePublicOrderStatusByInternalOrderId("order-1")
+    ).resolves.toEqual({
+      status: "completed",
+      vouchers: [{ code: "KSPV-001" }, { code: "KSPV-002" }],
+    });
+    expect(getOrderStatusDetailsWithItemsByIdMock).toHaveBeenCalledTimes(2);
+    expect(createVoucherOnPaymentSuccessMock).toHaveBeenCalledOnce();
+    expect(checkScalevPaymentStatusMock).not.toHaveBeenCalled();
+  });
+
   test("fulfills pending orders after Scalev reconciliation marks them completed", async () => {
     const { reconcilePublicOrderStatusByInternalOrderId } = await import("@/lib/scalev/reconcile");
 
@@ -423,12 +477,12 @@ describe("reconcilePublicOrderStatusByInternalOrderId", () => {
     });
     getScalevOrderByPgReferenceMock.mockResolvedValue({
       id: 99,
-      payment_link: "https://scalev.example/discovered",
+      payment_link: "https://app.scalev.id/discovered",
     });
     buildPaymentSnapshotMock
       .mockReturnValueOnce({
         normalizedStatus: "PENDING",
-        paymentLink: "https://scalev.example/discovered",
+        paymentLink: "https://app.scalev.id/discovered",
       })
       .mockReturnValueOnce({
         normalizedStatus: "PENDING",
@@ -441,7 +495,7 @@ describe("reconcilePublicOrderStatusByInternalOrderId", () => {
     expect(transitionOrderPaymentStateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         gatewayUpdate: expect.objectContaining({
-          paymentLink: "https://scalev.example/discovered",
+          paymentLink: "https://app.scalev.id/discovered",
         }),
       })
     );

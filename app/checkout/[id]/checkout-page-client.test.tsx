@@ -68,7 +68,7 @@ describe("CheckoutPageClient", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  test("shows loading and prevents duplicate requests while retrying an empty preload", async () => {
+  test("shows loading and requests payment options when retrying an empty preload", async () => {
     let resolveRetry:
       | ((response: {
           ok: boolean;
@@ -97,13 +97,14 @@ describe("CheckoutPageClient", () => {
     ).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
 
-    const retryButton = screen.getByRole("button", { name: "Coba Muat Ulang" });
-    fireEvent.click(retryButton);
-    fireEvent.click(retryButton);
+    fireEvent.click(screen.getByRole("button", { name: "Coba Muat Ulang" }));
 
     expect(
       screen.getByText("Sedang menyiapkan metode pembayaran...")
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Coba Muat Ulang" })
+    ).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith("/api/scalev/payment-options", {
       cache: "no-store",

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-const { order, maybeSingle, from } = vi.hoisted(() => {
+const { select, order, maybeSingle, from } = vi.hoisted(() => {
   const maybeSingle = vi.fn();
   const order = vi.fn();
   const eq = vi.fn();
@@ -9,7 +9,7 @@ const { order, maybeSingle, from } = vi.hoisted(() => {
   order.mockReturnValue(query);
   const select = vi.fn(() => query);
   const from = vi.fn(() => ({ select }));
-  return { order, maybeSingle, from };
+  return { select, order, maybeSingle, from };
 });
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -39,6 +39,18 @@ describe("order status reads", () => {
         { ascending: true, referencedTable: "order_items" },
       ],
     ]);
+  });
+
+  test("selects the root voucher relation required by OrderWithItems", async () => {
+    const { getOrderStatusDetailsWithItemsById } = await import(
+      "@/lib/payment/order-status-reads"
+    );
+
+    await getOrderStatusDetailsWithItemsById("order-1");
+
+    expect(select).toHaveBeenCalledWith(
+      "*, services(*), vouchers:vouchers!orders_voucher_id_fkey(*, services(*)), order_items(*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*))"
+    );
   });
 
   test.each([

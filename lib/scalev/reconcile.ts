@@ -27,6 +27,7 @@ import {
   buildPublicOrderStatusWithItems,
 } from "@/lib/scalev/mappers";
 import { resolveScalevProviderEventAt } from "@/lib/scalev/provider-event-time";
+import { sanitizeScalevPublicUrl } from "@/lib/scalev/urls";
 import type {
   PublicOrderStatusPayload,
   ScalevPaymentSnapshot,
@@ -71,7 +72,9 @@ function buildGatewayUpdate(
       snapshot.pgReferenceId || existingOrder.payment_transaction_id,
     paymentType: snapshot.paymentMethod,
     transactionTime: providerEventAt,
-    paymentLink: snapshot.paymentLink || existingOrder.payment_link,
+    paymentLink:
+      sanitizeScalevPublicUrl(snapshot.paymentLink) ||
+      sanitizeScalevPublicUrl(existingOrder.payment_link),
     scalevOrderPk: snapshot.orderPk || orderPk,
     scalevOrderId: snapshot.orderId || existingOrder.scalev_order_id,
     scalevPgReferenceId:
@@ -120,7 +123,7 @@ export async function reconcilePublicOrderStatusByInternalOrderId(
       (existingPublicOrder.voucher_id && existingPublicOrder.vouchers))
   ) {
     await createVoucherOnPaymentSuccess(order);
-    return buildCurrentPublicStatus(existingOrderWithItems, existingPublicOrder);
+    return loadCurrentPublicStatus(internalOrderId);
   }
 
   if (existingPublicOrder.payment_provider !== "scalev") {

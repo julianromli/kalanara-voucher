@@ -16,7 +16,10 @@ import type {
   OrderWithVoucher,
 } from "@/lib/database.types";
 import { DeliveryMethod, SendTo } from "@/lib/types";
-import { buildScalevPublicOrderUrl } from "@/lib/scalev/urls";
+import {
+  buildScalevPublicOrderUrl,
+  sanitizeScalevPublicUrl,
+} from "@/lib/scalev/urls";
 
 const PENDING_STATUSES = new Set([
   "unpaid",
@@ -129,8 +132,8 @@ export function buildPaymentSnapshot(
     pgReferenceId:
       payment?.pg_reference_id ?? settlement?.pg_reference_id ?? null,
     paymentLink:
-      payment?.invoice_url ??
-      payment?.payment_link ??
+      sanitizeScalevPublicUrl(payment?.invoice_url) ??
+      sanitizeScalevPublicUrl(payment?.payment_link) ??
       buildScalevPublicOrderUrl(payment?.secret_slug) ??
       null,
     paymentInstructions: extractScalevPaymentInstructions(payment),
@@ -218,7 +221,7 @@ export function buildPublicOrderStatus(
     paymentStatus: order.payment_status,
     paymentMethod: order.scalev_payment_method || order.payment_type,
     provider: order.payment_provider,
-    paymentLink: order.payment_link,
+    paymentLink: sanitizeScalevPublicUrl(order.payment_link),
     paymentInstructions,
     message:
       status === "pending"
@@ -279,7 +282,7 @@ export function buildPublicOrderStatusWithItems(
     paymentStatus: order.payment_status,
     paymentMethod: order.scalev_payment_method || order.payment_type,
     provider: order.payment_provider,
-    paymentLink: order.payment_link,
+    paymentLink: sanitizeScalevPublicUrl(order.payment_link),
     paymentInstructions,
     message:
       status === "pending"

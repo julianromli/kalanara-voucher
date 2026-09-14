@@ -10,7 +10,7 @@ import type {
 const ORDER_VOUCHER_SELECT =
   "*, services(*), vouchers:vouchers!orders_voucher_id_fkey(*, services(*))";
 const ORDER_ITEMS_SELECT =
-  "*, services(*), order_items(*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*))";
+  "*, services(*), vouchers:vouchers!orders_voucher_id_fkey(*, services(*)), order_items(*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*))";
 
 function throwOrderStatusReadError(cause: unknown): never {
   throw new Error("Failed to fetch order status.", { cause });

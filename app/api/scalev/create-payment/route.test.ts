@@ -359,6 +359,54 @@ describe("POST /api/scalev/create-payment", () => {
     );
   });
 
+  test("does not persist or expose provider links from an external host", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+    createScalevPaymentIntentMock.mockResolvedValue({
+      payment_url: "https://app.scalev.id.evil.test/pay",
+      invoice_url: "https://example.com/invoice",
+      reference_id: "pg-1",
+    });
+    createScalevOrderMock.mockResolvedValue({
+      id: 99,
+      order_id: "scalev-1",
+      payment_method: "qris",
+      payment_link: "https://lookalike-scalev.id/pay",
+      secret_slug: "safe-secret",
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: "service-1",
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          recipientName: "Penerima",
+          recipientPhone: "081234567890",
+          deliveryMethod: DeliveryMethod.WHATSAPP,
+          sendTo: SendTo.RECIPIENT,
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(200);
+    expect(transitionOrderPaymentStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gatewayUpdate: expect.objectContaining({
+          paymentLink: "https://app.scalev.id/order/public/safe-secret",
+        }),
+      })
+    );
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        paymentLink: "https://app.scalev.id/order/public/safe-secret",
+      })
+    );
+  });
+
   test("fails when gateway metadata cannot be persisted locally", async () => {
     const { POST } = await import("@/app/api/scalev/create-payment/route");
 
