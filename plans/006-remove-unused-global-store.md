@@ -1,6 +1,6 @@
 # 006 — Remove the unused global store
 
-- **Status**: OPEN
+- **Status**: DONE
 - **Commit**: b94c4ae
 - **Severity**: HIGH
 - **Category**: Performance

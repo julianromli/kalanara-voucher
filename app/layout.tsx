@@ -5,7 +5,6 @@ import "./globals.css";
 import Navbar from "@/components/navbar";
 import { ToastProvider } from "@/context/ToastContext";
 import { AuthProvider } from "@/context/AuthContext";
-import { StoreProvider } from "@/context/StoreContext";
 import { getSiteSetting } from "@/lib/actions/crm";
 import { isAnnouncementCountdownEnabled } from "@/lib/site-settings";
 
@@ -114,14 +113,12 @@ export default function RootLayout({
         className={`${outfit.variable} ${playfair.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <AuthProvider>
-          <StoreProvider>
-            <ToastProvider>
-              <Suspense fallback={null}>
-                <NavbarWithAnnouncement />
-              </Suspense>
-              <main>{children}</main>
-            </ToastProvider>
-          </StoreProvider>
+          <ToastProvider>
+            <Suspense fallback={null}>
+              <NavbarWithAnnouncement />
+            </Suspense>
+            <main>{children}</main>
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>
