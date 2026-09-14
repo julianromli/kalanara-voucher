@@ -1,6 +1,6 @@
 # 005 — Make voucher delivery idempotent
 
-- **Status**: OPEN
+- **Status**: DONE
 - **Commit**: b94c4ae
 - **Severity**: HIGH
 - **Category**: Bugs & correctness

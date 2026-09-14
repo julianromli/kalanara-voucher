@@ -180,6 +180,76 @@ export type Database = {
           }
         ];
       };
+      voucher_delivery_outbox: {
+        Row: {
+          id: string;
+          order_id: string;
+          order_item_id: string | null;
+          voucher_id: string;
+          channel: Database["public"]["Enums"]["voucher_delivery_channel"];
+          status: Database["public"]["Enums"]["voucher_delivery_status"];
+          attempt_count: number;
+          next_attempt_at: string;
+          claimed_at: string | null;
+          sent_at: string | null;
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          order_item_id?: string | null;
+          voucher_id: string;
+          channel: Database["public"]["Enums"]["voucher_delivery_channel"];
+          status?: Database["public"]["Enums"]["voucher_delivery_status"];
+          attempt_count?: number;
+          next_attempt_at?: string;
+          claimed_at?: string | null;
+          sent_at?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          order_item_id?: string | null;
+          voucher_id?: string;
+          channel?: Database["public"]["Enums"]["voucher_delivery_channel"];
+          status?: Database["public"]["Enums"]["voucher_delivery_status"];
+          attempt_count?: number;
+          next_attempt_at?: string;
+          claimed_at?: string | null;
+          sent_at?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "voucher_delivery_outbox_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "voucher_delivery_outbox_order_item_id_fkey";
+            columns: ["order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "order_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "voucher_delivery_outbox_voucher_id_fkey";
+            columns: ["voucher_id"];
+            isOneToOne: false;
+            referencedRelation: "vouchers";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       discount_codes: {
         Row: {
           id: string;
@@ -758,6 +828,18 @@ export type Database = {
           deleted_webhook_event_count: number;
         }[];
       };
+      claim_voucher_deliveries: {
+        Args: {
+          p_order_id: string;
+          p_order_item_id: string | null;
+          p_voucher_id: string;
+          p_channels: Database["public"]["Enums"]["voucher_delivery_channel"][];
+        };
+        Returns: {
+          id: string;
+          channel: Database["public"]["Enums"]["voucher_delivery_channel"];
+        }[];
+      };
       generate_voucher_code: {
         Args: Record<PropertyKey, never>;
         Returns: string;
@@ -827,6 +909,8 @@ export type Database = {
       payment_method: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
       payment_status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
       admin_role: "SUPER_ADMIN" | "MANAGER" | "STAFF";
+      voucher_delivery_channel: "EMAIL" | "WHATSAPP";
+      voucher_delivery_status: "PENDING" | "PROCESSING" | "SENT" | "FAILED";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -842,6 +926,13 @@ export type ServiceUpdate = Database["public"]["Tables"]["services"]["Update"];
 export type Voucher = Database["public"]["Tables"]["vouchers"]["Row"];
 export type VoucherInsert = Database["public"]["Tables"]["vouchers"]["Insert"];
 export type VoucherUpdate = Database["public"]["Tables"]["vouchers"]["Update"];
+
+export type VoucherDeliveryOutbox =
+  Database["public"]["Tables"]["voucher_delivery_outbox"]["Row"];
+export type VoucherDeliveryOutboxInsert =
+  Database["public"]["Tables"]["voucher_delivery_outbox"]["Insert"];
+export type VoucherDeliveryOutboxUpdate =
+  Database["public"]["Tables"]["voucher_delivery_outbox"]["Update"];
 
 export type Order = Database["public"]["Tables"]["orders"]["Row"];
 export type OrderInsert = Database["public"]["Tables"]["orders"]["Insert"];
@@ -890,6 +981,10 @@ export type ServiceCategory = Database["public"]["Enums"]["service_category"];
 export type PaymentMethod = Database["public"]["Enums"]["payment_method"];
 export type PaymentStatus = Database["public"]["Enums"]["payment_status"];
 export type AdminRole = Database["public"]["Enums"]["admin_role"];
+export type VoucherDeliveryChannel =
+  Database["public"]["Enums"]["voucher_delivery_channel"];
+export type VoucherDeliveryStatus =
+  Database["public"]["Enums"]["voucher_delivery_status"];
 
 // Joined types for frontend use
 export type VoucherWithService = Voucher & {

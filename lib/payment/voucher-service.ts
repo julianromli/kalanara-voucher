@@ -15,6 +15,12 @@ import {
   createVoucherForPaidOrder,
   createVoucherForPaidOrderItem,
 } from "@/lib/payment/voucher-writes";
+import {
+  claimVoucherDeliveries,
+  markVoucherDeliveryFailed,
+  markVoucherDeliverySent,
+  type VoucherDeliveryChannel,
+} from "@/lib/payment/voucher-delivery-outbox";
 import { sendVoucherEmail, sendVoucherWhatsApp } from "@/lib/payment/public-voucher-delivery";
 import type {
   OrderItemWithService,
@@ -94,36 +100,60 @@ async function createVoucherForOrderItem(
   return voucher;
 }
 
-async function createSingleVoucher(order: OrderWithService): Promise<VoucherCreationResult> {
+interface SingleVoucherCreation {
+  result: VoucherCreationResult;
+  voucher: Voucher | null;
+}
+
+async function createSingleVoucher(
+  order: OrderWithService
+): Promise<SingleVoucherCreation> {
   const validationError = validateVoucherSource(order);
   if (validationError) {
-    return { success: false, error: validationError };
-  }
-
-  if (order.voucher_id) {
     return {
-      success: true,
-      voucherId: order.voucher_id,
-      voucherCount: 1,
-      error: "Voucher already created",
+      result: { success: false, error: validationError },
+      voucher: null,
     };
   }
 
   const voucher = await createVoucherForPaidOrder(order.id);
   if (!voucher) {
-    return { success: false, error: "Failed to create voucher in database" };
+    return {
+      result: {
+        success: false,
+        error: "Failed to create voucher in database",
+      },
+      voucher: null,
+    };
   }
 
   return {
-    success: true,
-    voucherId: voucher.id,
-    voucherCode: voucher.code,
-    voucherCount: 1,
+    result: {
+      success: true,
+      voucherId: voucher.id,
+      voucherCode: voucher.code,
+      voucherCount: 1,
+      ...(order.voucher_id ? { error: "Voucher already created" } : {}),
+    },
+    voucher,
   };
 }
 
-async function triggerSingleVoucherDelivery(
+function getDeliveryChannels(
+  deliveryMethod: OrderWithService["delivery_method"]
+): VoucherDeliveryChannel[] {
+  if (deliveryMethod === "BOTH") {
+    return ["EMAIL", "WHATSAPP"];
+  }
+  if (deliveryMethod === "EMAIL" || deliveryMethod === "WHATSAPP") {
+    return [deliveryMethod];
+  }
+  return [];
+}
+
+async function deliverVoucher(
   order: OrderWithService,
+  voucher: Voucher,
   item?: OrderItemWithService
 ): Promise<void> {
   if (!order.payment_order_id || !order.public_access_token) {
@@ -131,16 +161,40 @@ async function triggerSingleVoucherDelivery(
     return;
   }
 
-  const deliveryMethod = item?.delivery_method ?? order.delivery_method;
+  const channels = getDeliveryChannels(
+    item?.delivery_method ?? order.delivery_method
+  );
   const itemId = item?.id;
+  const claimed = await claimVoucherDeliveries({
+    orderId: order.id,
+    orderItemId: itemId ?? null,
+    voucherId: voucher.id,
+    channels,
+  });
 
-  if (deliveryMethod === "EMAIL" || deliveryMethod === "BOTH") {
-    await sendVoucherEmail(order.payment_order_id, order.public_access_token, itemId);
-  }
-
-  if (deliveryMethod === "WHATSAPP" || deliveryMethod === "BOTH") {
-    await sendVoucherWhatsApp(order.payment_order_id, order.public_access_token, itemId);
-  }
+  await Promise.all(
+    claimed.map(async (delivery) => {
+      try {
+        if (delivery.channel === "EMAIL") {
+          await sendVoucherEmail(
+            order.payment_order_id!,
+            order.public_access_token!,
+            itemId
+          );
+        } else {
+          await sendVoucherWhatsApp(
+            order.payment_order_id!,
+            order.public_access_token!,
+            itemId
+          );
+        }
+        await markVoucherDeliverySent(delivery.id);
+      } catch (error) {
+        await markVoucherDeliveryFailed(delivery.id, error);
+        throw error;
+      }
+    })
+  );
 }
 
 export async function createVoucherOnPaymentSuccess(
@@ -158,7 +212,11 @@ export async function createVoucherOnPaymentSuccess(
         await updateOrderVoucherId(order.id, firstVoucher.id);
       }
 
-      await Promise.all(orderItems.map((item) => triggerSingleVoucherDelivery(order, item)));
+      await Promise.all(
+        orderItems.map((item, index) =>
+          deliverVoucher(order, createdVouchers[index]!, item)
+        )
+      );
 
       return {
         success: true,
@@ -168,12 +226,12 @@ export async function createVoucherOnPaymentSuccess(
       };
     }
 
-    const result = await createSingleVoucher(order);
-    if (result.success) {
-      await triggerSingleVoucherDelivery(order);
+    const singleCreation = await createSingleVoucher(order);
+    if (singleCreation.result.success && singleCreation.voucher) {
+      await deliverVoucher(order, singleCreation.voucher);
     }
 
-    return result;
+    return singleCreation.result;
   } catch (error) {
     console.error("[VoucherService] Error creating voucher:", error);
     return {
