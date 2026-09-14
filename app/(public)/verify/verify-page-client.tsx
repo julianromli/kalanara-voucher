@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
   Search,
@@ -30,8 +30,19 @@ export function VerifyPageClient({ initialCode }: VerifyPageClientProps) {
     found: boolean;
     voucher?: PublicVoucherLookup;
   } | null>(null);
+  const activeRequestRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
 
-  const verifyCode = async (voucherCode: string) => {
+  const verifyCode = useCallback(async (voucherCode: string) => {
+    activeRequestRef.current?.abort();
+
+    const controller = new AbortController();
+    const requestId = requestIdRef.current + 1;
+    activeRequestRef.current = controller;
+    requestIdRef.current = requestId;
+    const isStale = () =>
+      controller.signal.aborted || requestId !== requestIdRef.current;
+
     setIsSearching(true);
     setSearchResult(null);
     setCode(voucherCode.toUpperCase());
@@ -41,8 +52,13 @@ export function VerifyPageClient({ initialCode }: VerifyPageClientProps) {
         `/api/vouchers/public-lookup?code=${encodeURIComponent(
           voucherCode.trim().toUpperCase()
         )}`,
-        { cache: "no-store" }
+        {
+          cache: "no-store",
+          signal: controller.signal,
+        }
       );
+
+      if (isStale()) return;
 
       if (response.status === 404) {
         setSearchResult({ found: false });
@@ -58,29 +74,45 @@ export function VerifyPageClient({ initialCode }: VerifyPageClientProps) {
         voucher?: PublicVoucherLookup;
       };
 
+      if (isStale()) return;
+
       if (result.found && result.voucher) {
         setSearchResult({ found: true, voucher: result.voucher });
       } else {
         setSearchResult({ found: false });
       }
     } catch (error) {
+      if (
+        isStale() ||
+        (error instanceof DOMException && error.name === "AbortError")
+      ) {
+        return;
+      }
+
       console.error("Voucher verification failed:", error);
       setSearchResult({ found: false });
     } finally {
-      setIsSearching(false);
+      if (!isStale()) {
+        setIsSearching(false);
+        activeRequestRef.current = null;
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (initialCode) {
       void verifyCode(initialCode);
     }
-  }, [initialCode]);
 
-  const handleVerify = async (event: React.FormEvent) => {
+    return () => {
+      activeRequestRef.current?.abort();
+    };
+  }, [initialCode, verifyCode]);
+
+  const handleVerify = (event: React.FormEvent) => {
     event.preventDefault();
     if (!code.trim()) return;
-    await verifyCode(code);
+    void verifyCode(code);
   };
 
   const handleQRScan = (scannedCode: string) => {
