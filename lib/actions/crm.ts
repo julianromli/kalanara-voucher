@@ -115,8 +115,12 @@ export async function updateSiteSetting(
     throw new Error("Unsupported site setting key.");
   }
 
-  const supabase = await createClient();
   const normalizedValue = value.trim();
+  if (!normalizedValue) {
+    throw new Error("Site setting value cannot be blank.");
+  }
+
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("site_settings")
@@ -138,6 +142,28 @@ export async function updateSiteSetting(
 
   revalidateCmsPaths();
   return data;
+}
+
+export async function deleteSiteSetting(key: string): Promise<boolean> {
+  await requireAdminPermission(AdminPermission.CRM_MANAGE);
+
+  const normalizedKey = normalizeSiteSettingKey(key);
+  if (!normalizedKey) {
+    throw new Error("Unsupported site setting key.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("site_settings")
+    .delete()
+    .eq("key", normalizedKey);
+
+  if (error) {
+    throw error;
+  }
+
+  revalidateCmsPaths();
+  return true;
 }
 
 export async function getActiveTestimonials(): Promise<Testimonial[]> {

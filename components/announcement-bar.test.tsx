@@ -22,7 +22,8 @@ describe("AnnouncementBar", () => {
     );
 
     expect(screen.getByText("Promo me time")).toBeInTheDocument();
-    expect(screen.queryByText(/\d{2}:\d{2}:\d{2}/)).not.toBeInTheDocument();
+    expect(screen.queryByText("00:00:00")).not.toBeInTheDocument();
+    expect(screen.queryByText("00:00:00:00")).not.toBeInTheDocument();
   });
 
   it("shows text only when the timer is on but no valid end date exists", () => {
@@ -31,10 +32,11 @@ describe("AnnouncementBar", () => {
     );
 
     expect(screen.getByText("Promo me time")).toBeInTheDocument();
-    expect(screen.queryByText(/\d{2}:\d{2}:\d{2}/)).not.toBeInTheDocument();
+    expect(screen.queryByText("00:00:00")).not.toBeInTheDocument();
+    expect(screen.queryByText("00:00:00:00")).not.toBeInTheDocument();
   });
 
-  it("shows text and a ticking countdown when the timer is on and an end date exists", () => {
+  it("shows a same-day placeholder, then the mounted countdown value", () => {
     render(
       <AnnouncementBar
         text="Promo me time"
@@ -43,11 +45,34 @@ describe("AnnouncementBar", () => {
       />
     );
 
+    expect(screen.getByText("00:00:00")).toBeInTheDocument();
+    expect(screen.queryByText("02:00:00")).not.toBeInTheDocument();
+
     act(() => {
       vi.advanceTimersByTime(20);
     });
 
     expect(screen.getByText(/Promo me time/)).toBeInTheDocument();
-    expect(screen.getByText(/\d{2}:\d{2}:\d{2}/)).toBeInTheDocument();
+    expect(screen.getByText("02:00:00")).toBeInTheDocument();
+    expect(screen.queryByText("00:00:00")).not.toBeInTheDocument();
+  });
+
+  it("uses a four-part placeholder when the end date is more than a day away", () => {
+    render(
+      <AnnouncementBar
+        text="Promo me time"
+        countdownEndAt="2026-09-16T12:00:00.000Z"
+        countdownEnabled
+      />
+    );
+
+    expect(screen.getByText("00:00:00:00")).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(20);
+    });
+
+    expect(screen.getByText("02:02:00:00")).toBeInTheDocument();
+    expect(screen.queryByText("00:00:00:00")).not.toBeInTheDocument();
   });
 });

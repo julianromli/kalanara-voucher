@@ -18,6 +18,32 @@ function getCountdownTarget(countdownEndAt?: string): Date | null {
   return Number.isNaN(target.getTime()) ? null : target;
 }
 
+function padCountdownPart(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function formatCountdown(timeLeft: {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+}): string {
+  const clock = `${padCountdownPart(timeLeft.hours)}:${padCountdownPart(timeLeft.minutes)}:${padCountdownPart(timeLeft.seconds)}`;
+  return timeLeft.days > 0 ? `${padCountdownPart(timeLeft.days)}:${clock}` : clock;
+}
+
+function getCountdownPlaceholder(countdownEndAt?: string): string {
+  const target = getCountdownTarget(countdownEndAt);
+  if (!target) {
+    return "00:00:00";
+  }
+
+  const days = Math.floor(
+    Math.max(target.getTime() - Date.now(), 0) / (1000 * 60 * 60 * 24)
+  );
+  return days > 0 ? "00:00:00:00" : "00:00:00";
+}
+
 export function AnnouncementBar({
   text = "FLASH SALE 5.5 ...... BERAKHIR DALAM",
   countdownEndAt,
@@ -73,16 +99,9 @@ export function AnnouncementBar({
         <>
           {" "}
           <span className="font-bold tabular-nums">
-            {isMounted ? (
-              <>
-                {timeLeft.days > 0 ? `${String(timeLeft.days).padStart(2, "0")}:` : ""}
-                {String(timeLeft.hours).padStart(2, "0")}:
-                {String(timeLeft.minutes).padStart(2, "0")}:
-                {String(timeLeft.seconds).padStart(2, "0")}
-              </>
-            ) : (
-              "00:00:00"
-            )}
+            {isMounted
+              ? formatCountdown(timeLeft)
+              : getCountdownPlaceholder(countdownEndAt)}
           </span>
         </>
       ) : null}

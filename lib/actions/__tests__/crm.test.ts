@@ -24,6 +24,7 @@ vi.mock("@/lib/auth/admin-rbac-server", () => ({
 
 import {
   createTestimonial,
+  deleteSiteSetting,
   deleteTestimonial,
   updateSiteSetting,
   updateTestimonial,
@@ -111,8 +112,50 @@ describe("crm actions", () => {
     expect(result.value).toBe("false");
   });
 
+  it("rejects blank site setting values instead of upserting an empty string", async () => {
+    await expect(updateSiteSetting("announcement_countdown_end_at", "   ")).rejects.toThrow(
+      "Site setting value cannot be blank."
+    );
+
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(
+      AdminPermission.CRM_MANAGE
+    );
+    expect(createClientMock).not.toHaveBeenCalled();
+  });
+
+  it("deletes a site setting row and revalidates cms paths", async () => {
+    const eqMock = vi.fn().mockResolvedValue({ error: null });
+    const deleteMock = vi.fn(() => ({ eq: eqMock }));
+
+    createClientMock.mockResolvedValue({
+      from: vi.fn(() => ({ delete: deleteMock })),
+    });
+
+    await expect(
+      deleteSiteSetting("announcement_countdown_end_at")
+    ).resolves.toBe(true);
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(
+      AdminPermission.CRM_MANAGE
+    );
+    expect(eqMock).toHaveBeenCalledWith("key", "announcement_countdown_end_at");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/", "layout");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/crm", "page");
+  });
+
   it("rejects inherited property names as unsupported site setting keys", async () => {
     await expect(updateSiteSetting("toString", "bad value")).rejects.toThrow(
+      "Unsupported site setting key."
+    );
+
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(
+      AdminPermission.CRM_MANAGE
+    );
+    expect(createClientMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects inherited property names when deleting site settings", async () => {
+    await expect(deleteSiteSetting("toString")).rejects.toThrow(
       "Unsupported site setting key."
     );
 

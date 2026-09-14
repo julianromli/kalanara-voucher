@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ClientUploadedFileData } from "uploadthing/types";
 import {
   createTestimonial,
+  deleteSiteSetting,
   deleteTestimonial,
   updateSiteSetting,
   updateTestimonial,
@@ -142,14 +143,28 @@ export function CRMClient({
         ? new Date(countdownEndAt).toISOString()
         : "";
 
-      await Promise.all([
+      const announcementWrites: Array<Promise<unknown>> = [
         updateSiteSetting("announcement_text", trimmedAnnouncement),
-        updateSiteSetting("announcement_countdown_end_at", normalizedCountdownEndAt),
         updateSiteSetting(
           "announcement_countdown_enabled",
           countdownEnabled ? "true" : "false"
         ),
-      ]);
+      ];
+
+      if (normalizedCountdownEndAt) {
+        announcementWrites.push(
+          updateSiteSetting(
+            "announcement_countdown_end_at",
+            normalizedCountdownEndAt
+          )
+        );
+      } else {
+        announcementWrites.push(
+          deleteSiteSetting("announcement_countdown_end_at")
+        );
+      }
+
+      await Promise.all(announcementWrites);
       setAnnouncement(trimmedAnnouncement);
       setCountdownEndAt(normalizedCountdownEndAt);
       router.refresh();
@@ -274,11 +289,13 @@ export function CRMClient({
                 value={announcement}
                 onChange={(event) => setAnnouncement(event.target.value)}
                 placeholder="E.g. FLASH SALE 5.5 ...... BERAKHIR DALAM"
+                disabled={isSavingAnnouncement}
               />
               <div className="flex items-start gap-3 rounded-lg border p-3">
                 <Checkbox
                   id="announcement-countdown-enabled"
                   checked={countdownEnabled}
+                  disabled={isSavingAnnouncement}
                   onCheckedChange={(checked) =>
                     setCountdownEnabled(checked === true)
                   }
@@ -304,6 +321,7 @@ export function CRMClient({
                   onChange={(event) => setCountdownEndAt(event.target.value)}
                   aria-label="Countdown end date and time"
                   className="flex-1"
+                  disabled={isSavingAnnouncement}
                 />
                 <Button onClick={handleSaveAnnouncement} disabled={isSavingAnnouncement}>
                   {isSavingAnnouncement ? "Saving..." : "Save"}
