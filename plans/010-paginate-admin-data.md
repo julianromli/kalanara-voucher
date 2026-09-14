@@ -108,7 +108,7 @@ Pages pass those arrays directly (`app/admin/(protected)/purchases/page.tsx:9-24
 ```tsx
 // components/admin/reviews-client.tsx:34-40 — current
   const filteredReviews = reviews.filter((review) => {
-    const matchesSearch = 
+    const matchesSearch =
       review.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (review.comment && review.comment.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesRating = ratingFilter === "ALL" || review.rating.toString() === ratingFilter;

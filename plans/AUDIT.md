@@ -1,6 +1,6 @@
 # React Improvement Audit
 
-Audit target: `b94c4ae`  
+Audit target: `b94c4ae`
 Scope: production application code only; read-only review plus React Doctor 0.9.14 evidence.
 
 ## Executive assessment
