@@ -3,8 +3,8 @@ import {
   createPendingOrderForCheckout,
   createPendingOrderItemsForOrder,
   markOrderFailedFromGateway,
-  updateOrderGatewayData,
 } from "@/lib/payment/order-writes";
+import { transitionOrderPaymentState } from "@/lib/payment/payment-state";
 import {
   createPendingDiscountRedemption,
   markDiscountRedemptionVoid,
@@ -475,11 +475,12 @@ export async function POST(
           paymentIntent?.reference_id ||
           scalevOrder.pg_reference_id ||
           null;
+        const gatewayReceiptTime = new Date().toISOString();
         const gatewayUpdate = {
           paymentProvider: "scalev" as const,
           transactionId: pgReferenceId,
           paymentType: scalevOrder.payment_method || validatedData.paymentMethod,
-          transactionTime: new Date().toISOString(),
+          transactionTime: gatewayReceiptTime,
           paymentLink,
           scalevOrderPk: scalevOrder.id,
           scalevOrderId: scalevOrder.order_id || null,
@@ -491,11 +492,17 @@ export async function POST(
           scalevStoreUniqueId: getScalevConfig().storeUniqueId,
           scalevRawStatus: scalevOrder.status || null,
           scalevRawPaymentStatus: scalevOrder.payment_status || null,
-          scalevLastCheckedAt: new Date().toISOString(),
+          scalevLastCheckedAt: gatewayReceiptTime,
         };
 
-        const gatewayDataPersisted = await updateOrderGatewayData(order.id, gatewayUpdate);
-        if (!gatewayDataPersisted) {
+        const gatewayTransition = await transitionOrderPaymentState({
+          orderId: order.id,
+          targetStatus: "PENDING",
+          provider: "scalev",
+          providerEventAt: gatewayReceiptTime,
+          gatewayUpdate,
+        });
+        if (!gatewayTransition.accepted) {
           console.error("[Scalev] Failed to persist gateway metadata for local order", {
             orderId: order.id,
             paymentOrderId: order.payment_order_id,

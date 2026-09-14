@@ -98,6 +98,18 @@ export function buildPaymentSnapshot(
 ): ScalevPaymentSnapshot {
   const paymentStatus = payment?.payment_status ?? settlement?.payment_status ?? null;
   const orderStatus = payment?.status ?? settlement?.status ?? null;
+  const providerEventAt =
+    payment?.settled_time ??
+    settlement?.settled_time ??
+    payment?.paid_time ??
+    settlement?.paid_time ??
+    payment?.conflict_time ??
+    settlement?.conflict_time ??
+    payment?.unpaid_time ??
+    settlement?.unpaid_time ??
+    payment?.last_updated_at ??
+    settlement?.last_updated_at ??
+    null;
 
   return {
     orderPk: payment?.id ?? settlement?.id ?? null,
@@ -113,6 +125,7 @@ export function buildPaymentSnapshot(
     subPaymentMethod: payment?.sub_payment_method ?? null,
     rawPaymentStatus: paymentStatus,
     rawStatus: orderStatus,
+    providerEventAt,
     normalizedStatus: normalizeScalevStatus(paymentStatus, orderStatus),
   };
 }

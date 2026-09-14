@@ -7,10 +7,8 @@ import {
   getOrderByScalevOrderPk,
   getOrderByScalevPgReferenceId,
 } from "@/lib/actions/orders";
-import {
-  updateOrderGatewayData,
-  updateOrderPaymentStatus,
-} from "@/lib/payment/order-writes";
+import { getOrderForStatusById } from "@/lib/payment/order-status-reads";
+import { transitionOrderPaymentState } from "@/lib/payment/payment-state";
 import {
   createScalevWebhookEvent,
   updateScalevWebhookEvent,
@@ -21,6 +19,7 @@ import {
 } from "@/lib/discounts/service";
 import { createVoucherOnPaymentSuccess } from "@/lib/payment/voucher-service";
 import { getScalevConfig } from "@/lib/scalev/config";
+import { resolveScalevProviderEventAt } from "@/lib/scalev/provider-event-time";
 import type {
   ScalevNormalizedPaymentStatus,
   ScalevWebhookPayload,
@@ -106,16 +105,16 @@ function normalizeWebhookPaymentStatus(
   }
 }
 
-function extractWebhookTransactionTime(
+function extractWebhookProviderEventAt(
   payload: ScalevWebhookPaymentStatusChangedData
-): string {
+): string | null {
   return (
     payload.settled_time ||
     payload.paid_time ||
     payload.conflict_time ||
     payload.unpaid_time ||
     payload.last_updated_at ||
-    new Date().toISOString()
+    null
   );
 }
 
@@ -167,6 +166,7 @@ export async function HEAD() {
 }
 
 export async function POST(request: NextRequest) {
+  const receivedAt = new Date().toISOString();
   const rawBody = await request.text();
   const signature = request.headers.get("X-Scalev-Hmac-Sha256");
   const eventHash = buildWebhookEventHash(rawBody);
@@ -322,7 +322,7 @@ export async function POST(request: NextRequest) {
 
   const order = await findOrderFromWebhook(data);
   if (!order) {
-    console.warn("[Scalev Webhook] Unable to match webhook to local order", data);
+    console.warn("[Scalev Webhook] Unable to match webhook to a local order.");
     if (webhookEvent) {
       await updateScalevWebhookEvent(webhookEvent.id, {
         processing_status: "ignored",
@@ -335,11 +335,16 @@ export async function POST(request: NextRequest) {
   }
 
   const normalizedStatus = normalizeWebhookPaymentStatus(data.payment_status);
+  const providerEventAt = resolveScalevProviderEventAt(
+    extractWebhookProviderEventAt(data),
+    receivedAt,
+    "webhook"
+  );
   const gatewayUpdate = {
     paymentProvider: "scalev",
     transactionId: data.pg_reference_id || order.payment_transaction_id,
     paymentType: data.payment_method || order.scalev_payment_method,
-    transactionTime: extractWebhookTransactionTime(data),
+    transactionTime: providerEventAt,
     paymentLink: order.payment_link,
     scalevOrderPk: data.id || order.scalev_order_pk,
     scalevOrderId: data.order_id || order.scalev_order_id,
@@ -350,11 +355,35 @@ export async function POST(request: NextRequest) {
     scalevStoreUniqueId: order.scalev_store_unique_id,
     scalevRawStatus: order.scalev_raw_status,
     scalevRawPaymentStatus: data.payment_status || order.scalev_raw_payment_status,
-    scalevLastCheckedAt: new Date().toISOString(),
+    scalevLastCheckedAt: receivedAt,
   };
 
-  if (normalizedStatus === "PENDING") {
-    await updateOrderGatewayData(order.id, gatewayUpdate);
+  const transition = await transitionOrderPaymentState({
+    orderId: order.id,
+    targetStatus: normalizedStatus,
+    provider: "scalev",
+    providerEventAt,
+    gatewayUpdate,
+  });
+
+  if (!transition.accepted) {
+    if (webhookEvent) {
+      await updateScalevWebhookEvent(webhookEvent.id, {
+        order_id: order.id,
+        processing_status:
+          transition.reason === "database_error" ? "failed" : "ignored",
+        processing_message: `Payment state update rejected: ${transition.reason}`,
+        processed_at: new Date().toISOString(),
+      });
+    }
+
+    return NextResponse.json(
+      { status: "ok", message: "Payment state update rejected" },
+      { status: 200 }
+    );
+  }
+
+  if (transition.currentStatus === "PENDING") {
     if (webhookEvent) {
       await updateScalevWebhookEvent(webhookEvent.id, {
         order_id: order.id,
@@ -367,8 +396,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: "ok", message: "Pending status recorded" });
   }
 
-  if (normalizedStatus === "FAILED") {
-    await updateOrderPaymentStatus(order.id, "FAILED", gatewayUpdate);
+  if (transition.currentStatus === "FAILED") {
     const redemptionVoided = await markDiscountRedemptionVoid(order.id);
     if (!redemptionVoided) {
       if (webhookEvent) {
@@ -398,8 +426,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: "ok", message: "Failure status recorded" });
   }
 
-  if (normalizedStatus === "REFUNDED") {
-    await updateOrderPaymentStatus(order.id, "REFUNDED", gatewayUpdate);
+  if (transition.currentStatus === "REFUNDED") {
     if (webhookEvent) {
       await updateScalevWebhookEvent(webhookEvent.id, {
         order_id: order.id,
@@ -412,7 +439,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: "ok", message: "Refund status recorded" });
   }
 
-  await updateOrderPaymentStatus(order.id, "COMPLETED", gatewayUpdate);
+  const acceptedOrder = await getOrderForStatusById(order.id);
+  if (!acceptedOrder || acceptedOrder.payment_status !== "COMPLETED") {
+    if (webhookEvent) {
+      await updateScalevWebhookEvent(webhookEvent.id, {
+        order_id: order.id,
+        processing_status: "failed",
+        processing_message: "Completed order could not be reloaded",
+        processed_at: new Date().toISOString(),
+      });
+    }
+    return NextResponse.json(
+      { status: "ok", message: "Completed order could not be reloaded" },
+      { status: 200 }
+    );
+  }
+
   const redemptionSucceeded = await markDiscountRedemptionSucceeded(order.id);
   if (!redemptionSucceeded) {
     if (webhookEvent) {
@@ -433,15 +475,12 @@ export async function POST(request: NextRequest) {
   let processingStatus: "processed" | "failed" = "processed";
   let processingMessage = "Webhook processed";
 
-  const alreadyFulfilled = await isOrderAlreadyFulfilled(order);
+  const alreadyFulfilled = await isOrderAlreadyFulfilled(acceptedOrder);
   if (alreadyFulfilled) {
     processingMessage = "Payment completed; vouchers already fulfilled";
   } else {
     try {
-      const result = await createVoucherOnPaymentSuccess({
-        ...order,
-        payment_status: "COMPLETED",
-      });
+      const result = await createVoucherOnPaymentSuccess(acceptedOrder);
       if (!result.success) {
         processingStatus = "failed";
         processingMessage = result.error || "Payment completed, but voucher creation failed";

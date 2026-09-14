@@ -243,6 +243,11 @@ export interface ScalevOrderRecord {
   invoice_url?: string | null;
   payment_link?: string | null;
   secret_slug?: string | null;
+  paid_time?: string | null;
+  settled_time?: string | null;
+  conflict_time?: string | null;
+  unpaid_time?: string | null;
+  last_updated_at?: string | null;
   metadata?: Record<string, unknown> | null;
 }
 
@@ -284,6 +289,11 @@ export interface ScalevPaymentStatusResponse {
   sub_payment_method?: string | null;
   invoice_url?: string | null;
   secret_slug?: string | null;
+  paid_time?: string | null;
+  settled_time?: string | null;
+  conflict_time?: string | null;
+  unpaid_time?: string | null;
+  last_updated_at?: string | null;
   pg_payment_info?: ScalevGatewayPaymentInfo | null;
 }
 
@@ -293,6 +303,11 @@ export interface ScalevSettlementStatusResponse {
   payment_status?: string | null;
   status?: string | null;
   pg_reference_id?: string | null;
+  paid_time?: string | null;
+  settled_time?: string | null;
+  conflict_time?: string | null;
+  unpaid_time?: string | null;
+  last_updated_at?: string | null;
 }
 
 export interface ScalevPaymentSnapshot {
@@ -305,6 +320,7 @@ export interface ScalevPaymentSnapshot {
   subPaymentMethod?: string | null;
   rawPaymentStatus?: string | null;
   rawStatus?: string | null;
+  providerEventAt?: string | null;
   normalizedStatus: ScalevNormalizedPaymentStatus;
 }
 

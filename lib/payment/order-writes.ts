@@ -1,8 +1,11 @@
 import "server-only";
 
 import { randomBytes } from "node:crypto";
-import { revalidateTag } from "next/cache";
 import { allocateDiscountAcrossItems } from "@/lib/discounts/service";
+import {
+  transitionOrderPaymentState,
+  type GatewayPaymentUpdate,
+} from "@/lib/payment/payment-state";
 import { mapScalevPaymentMethodToLocal } from "@/lib/scalev/mappers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type {
@@ -12,7 +15,6 @@ import type {
   OrderItemInsert,
   OrderItemUpdate,
   OrderUpdate,
-  PaymentStatus,
 } from "@/lib/database.types";
 import type {
   ScalevPendingOrderData,
@@ -31,25 +33,7 @@ export type PendingOrderItemInput = Pick<
   | "sort_order"
 >;
 
-export interface GatewayPaymentUpdate {
-  transactionId?: string | null;
-  paymentType?: string | null;
-  transactionTime?: string | null;
-  transaction_id?: string | null;
-  payment_type?: string | null;
-  transaction_time?: string | null;
-  paymentProvider?: string;
-  paymentLink?: string | null;
-  scalevOrderPk?: number | null;
-  scalevOrderId?: string | null;
-  scalevPgReferenceId?: string | null;
-  scalevPaymentMethod?: string | null;
-  scalevSubPaymentMethod?: string | null;
-  scalevStoreUniqueId?: string | null;
-  scalevLastCheckedAt?: string | null;
-  scalevRawStatus?: string | null;
-  scalevRawPaymentStatus?: string | null;
-}
+export type { GatewayPaymentUpdate } from "@/lib/payment/payment-state";
 
 function generatePaymentOrderId(): string {
   const timestamp = Date.now();
@@ -243,61 +227,6 @@ export async function createPendingOrderItemsForOrder(
   return (data as OrderItem[]) || [];
 }
 
-export async function updateOrderPaymentStatus(
-  orderId: string,
-  status: PaymentStatus,
-  paymentData?: GatewayPaymentUpdate
-): Promise<boolean> {
-  const supabase = getAdminClient();
-  const updateData: OrderUpdate = {
-    payment_status: status,
-  };
-
-  if (paymentData) {
-    updateData.payment_provider =
-      paymentData.paymentProvider || updateData.payment_provider;
-    updateData.payment_transaction_id =
-      paymentData.transactionId ?? paymentData.transaction_id ?? null;
-    updateData.payment_type =
-      paymentData.paymentType ?? paymentData.payment_type ?? null;
-    updateData.payment_transaction_time =
-      paymentData.transactionTime ?? paymentData.transaction_time ?? null;
-    updateData.payment_link = paymentData.paymentLink ?? null;
-    updateData.scalev_order_pk = paymentData.scalevOrderPk ?? null;
-    updateData.scalev_order_id = paymentData.scalevOrderId ?? null;
-    updateData.scalev_pg_reference_id = paymentData.scalevPgReferenceId ?? null;
-    updateData.scalev_payment_method = paymentData.scalevPaymentMethod ?? null;
-    updateData.scalev_sub_payment_method =
-      paymentData.scalevSubPaymentMethod ?? null;
-    updateData.scalev_store_unique_id =
-      paymentData.scalevStoreUniqueId ?? null;
-    updateData.scalev_last_checked_at = paymentData.scalevLastCheckedAt ?? null;
-    updateData.scalev_raw_status = paymentData.scalevRawStatus ?? null;
-    updateData.scalev_raw_payment_status =
-      paymentData.scalevRawPaymentStatus ?? null;
-  }
-
-  const { error } = await supabase
-    .from("orders")
-    .update(updateData)
-    .eq("id", orderId);
-
-  if (error) {
-    console.error("Error updating gateway order status:", error);
-    return false;
-  }
-
-  revalidateTag("dashboard-stats", "max");
-  return true;
-}
-
-export async function updateOrderGatewayData(
-  orderId: string,
-  updates: GatewayPaymentUpdate
-): Promise<boolean> {
-  return updateOrderPaymentStatus(orderId, "PENDING", updates);
-}
-
 export async function markOrderFailedFromGateway(
   orderId: string,
   details?: Pick<
@@ -305,6 +234,7 @@ export async function markOrderFailedFromGateway(
     | "paymentProvider"
     | "transactionId"
     | "paymentType"
+    | "transactionTime"
     | "scalevOrderPk"
     | "scalevOrderId"
     | "scalevPgReferenceId"
@@ -315,10 +245,20 @@ export async function markOrderFailedFromGateway(
     | "scalevRawPaymentStatus"
   >
 ): Promise<boolean> {
-  return updateOrderPaymentStatus(orderId, "FAILED", {
-    ...details,
-    scalevLastCheckedAt: new Date().toISOString(),
+  const receiptTime = new Date().toISOString();
+  const result = await transitionOrderPaymentState({
+    orderId,
+    targetStatus: "FAILED",
+    provider: details?.paymentProvider || "scalev",
+    providerEventAt: details?.transactionTime || receiptTime,
+    gatewayUpdate: {
+      ...details,
+      transactionTime: details?.transactionTime || receiptTime,
+      scalevLastCheckedAt: receiptTime,
+    },
   });
+
+  return result.accepted;
 }
 
 export async function updateOrderVoucherId(

@@ -6,9 +6,10 @@ import {
   getOrderStatusDetailsWithItemsById,
 } from "@/lib/payment/order-status-reads";
 import {
-  updateOrderGatewayData,
-  updateOrderPaymentStatus,
-} from "@/lib/payment/order-writes";
+  transitionOrderPaymentState,
+  type GatewayPaymentUpdate,
+  type PaymentTransitionResult,
+} from "@/lib/payment/payment-state";
 import {
   markDiscountRedemptionSucceeded,
   markDiscountRedemptionVoid,
@@ -25,7 +26,12 @@ import {
   buildPublicOrderStatus,
   buildPublicOrderStatusWithItems,
 } from "@/lib/scalev/mappers";
-import type { PublicOrderStatusPayload, ScalevPaymentStatusResponse } from "@/lib/scalev/types";
+import { resolveScalevProviderEventAt } from "@/lib/scalev/provider-event-time";
+import type {
+  PublicOrderStatusPayload,
+  ScalevPaymentSnapshot,
+  ScalevPaymentStatusResponse,
+} from "@/lib/scalev/types";
 
 function buildCurrentPublicStatus(
   orderWithItems: Awaited<ReturnType<typeof getOrderStatusDetailsWithItemsById>>,
@@ -37,9 +43,62 @@ function buildCurrentPublicStatus(
     : buildPublicOrderStatus(legacyOrder, paymentInstructions);
 }
 
+async function loadCurrentPublicStatus(
+  internalOrderId: string,
+  paymentInstructions?: PublicOrderStatusPayload["paymentInstructions"]
+): Promise<PublicOrderStatusPayload | null> {
+  const [orderWithItems, legacyOrder] = await Promise.all([
+    getOrderStatusDetailsWithItemsById(internalOrderId),
+    getOrderStatusDetailsById(internalOrderId),
+  ]);
+  return legacyOrder
+    ? buildCurrentPublicStatus(orderWithItems, legacyOrder, paymentInstructions)
+    : null;
+}
+
+function buildGatewayUpdate(
+  snapshot: ScalevPaymentSnapshot,
+  existingOrder: NonNullable<
+    Awaited<ReturnType<typeof getOrderStatusDetailsById>>
+  >,
+  orderPk: number,
+  observedAt: string
+): GatewayPaymentUpdate {
+  return {
+    paymentProvider: "scalev",
+    transactionId:
+      snapshot.pgReferenceId || existingOrder.payment_transaction_id,
+    paymentType: snapshot.paymentMethod,
+    transactionTime: observedAt,
+    paymentLink: snapshot.paymentLink || existingOrder.payment_link,
+    scalevOrderPk: snapshot.orderPk || orderPk,
+    scalevOrderId: snapshot.orderId || existingOrder.scalev_order_id,
+    scalevPgReferenceId:
+      snapshot.pgReferenceId || existingOrder.scalev_pg_reference_id,
+    scalevPaymentMethod:
+      snapshot.paymentMethod || existingOrder.scalev_payment_method,
+    scalevSubPaymentMethod:
+      snapshot.subPaymentMethod || existingOrder.scalev_sub_payment_method,
+    scalevStoreUniqueId: existingOrder.scalev_store_unique_id,
+    scalevRawStatus: snapshot.rawStatus,
+    scalevRawPaymentStatus: snapshot.rawPaymentStatus,
+    scalevLastCheckedAt: observedAt,
+  };
+}
+
+function logRejectedReconciliation(transition: PaymentTransitionResult) {
+  if (!transition.accepted) {
+    // Do not log order/customer identifiers or provider payloads.
+    console.warn(
+      `[Scalev] Reconciliation payment transition stopped: ${transition.reason}.`
+    );
+  }
+}
+
 export async function reconcilePublicOrderStatusByInternalOrderId(
   internalOrderId: string
 ): Promise<PublicOrderStatusPayload | null> {
+  const receivedAt = new Date().toISOString();
   const order = await getOrderForStatusById(internalOrderId);
   if (!order) {
     return null;
@@ -67,6 +126,7 @@ export async function reconcilePublicOrderStatusByInternalOrderId(
   }
 
   let orderPk = existingPublicOrder.scalev_order_pk;
+  let discoveredPayment: ScalevPaymentStatusResponse | null = null;
 
   if (!orderPk && existingPublicOrder.scalev_pg_reference_id) {
     const externalOrder = await getScalevOrderByPgReference(
@@ -75,18 +135,7 @@ export async function reconcilePublicOrderStatusByInternalOrderId(
 
     if (externalOrder?.id) {
       orderPk = externalOrder.id;
-      await updateOrderGatewayData(existingPublicOrder.id, {
-        paymentProvider: "scalev",
-        paymentLink: externalOrder.invoice_url || externalOrder.payment_link || null,
-        scalevOrderPk: externalOrder.id,
-        scalevOrderId: externalOrder.order_id || null,
-        scalevPgReferenceId: externalOrder.pg_reference_id || null,
-        scalevPaymentMethod: externalOrder.payment_method || null,
-        scalevSubPaymentMethod: externalOrder.sub_payment_method || null,
-        scalevRawStatus: externalOrder.status || null,
-        scalevRawPaymentStatus: externalOrder.payment_status || null,
-        scalevLastCheckedAt: new Date().toISOString(),
-      });
+      discoveredPayment = externalOrder as ScalevPaymentStatusResponse;
     }
   }
 
@@ -102,52 +151,37 @@ export async function reconcilePublicOrderStatusByInternalOrderId(
   let latestPayment = payment;
   if (!latestPayment) {
     const orderRecord = await retrieveScalevOrder(orderPk).catch(() => null);
-    latestPayment = orderRecord as ScalevPaymentStatusResponse | null;
+    latestPayment =
+      (orderRecord as ScalevPaymentStatusResponse | null) || discoveredPayment;
   }
 
   const snapshot = buildPaymentSnapshot(latestPayment, settlement);
-
-  await updateOrderGatewayData(existingPublicOrder.id, {
-    paymentProvider: "scalev",
-    transactionId:
-      snapshot.pgReferenceId || existingPublicOrder.payment_transaction_id,
-    paymentType: snapshot.paymentMethod,
-    transactionTime: new Date().toISOString(),
-    paymentLink: snapshot.paymentLink || existingPublicOrder.payment_link,
-    scalevOrderPk: snapshot.orderPk || orderPk,
-    scalevOrderId: snapshot.orderId || existingPublicOrder.scalev_order_id,
-    scalevPgReferenceId:
-      snapshot.pgReferenceId || existingPublicOrder.scalev_pg_reference_id,
-    scalevPaymentMethod:
-      snapshot.paymentMethod || existingPublicOrder.scalev_payment_method,
-    scalevSubPaymentMethod:
-      snapshot.subPaymentMethod || existingPublicOrder.scalev_sub_payment_method,
-    scalevStoreUniqueId: existingPublicOrder.scalev_store_unique_id,
-    scalevRawStatus: snapshot.rawStatus,
-    scalevRawPaymentStatus: snapshot.rawPaymentStatus,
-    scalevLastCheckedAt: new Date().toISOString(),
+  const providerEventAt = resolveScalevProviderEventAt(
+    snapshot.providerEventAt,
+    receivedAt,
+    "reconciliation"
+  );
+  const transition = await transitionOrderPaymentState({
+    orderId: existingPublicOrder.id,
+    targetStatus: snapshot.normalizedStatus,
+    provider: "scalev",
+    providerEventAt,
+    gatewayUpdate: buildGatewayUpdate(
+      snapshot,
+      existingPublicOrder,
+      orderPk,
+      receivedAt
+    ),
   });
+  if (!transition.accepted) {
+    logRejectedReconciliation(transition);
+    return loadCurrentPublicStatus(
+      internalOrderId,
+      snapshot.paymentInstructions
+    );
+  }
 
-  if (snapshot.normalizedStatus === "COMPLETED") {
-    await updateOrderPaymentStatus(existingPublicOrder.id, "COMPLETED", {
-      paymentProvider: "scalev",
-      transactionId: snapshot.pgReferenceId || existingPublicOrder.payment_transaction_id,
-      paymentType: snapshot.paymentMethod,
-      transactionTime: new Date().toISOString(),
-      paymentLink: snapshot.paymentLink || existingPublicOrder.payment_link,
-      scalevOrderPk: snapshot.orderPk || orderPk,
-      scalevOrderId: snapshot.orderId || existingPublicOrder.scalev_order_id,
-      scalevPgReferenceId:
-        snapshot.pgReferenceId || existingPublicOrder.scalev_pg_reference_id,
-      scalevPaymentMethod:
-        snapshot.paymentMethod || existingPublicOrder.scalev_payment_method,
-      scalevSubPaymentMethod:
-        snapshot.subPaymentMethod || existingPublicOrder.scalev_sub_payment_method,
-      scalevStoreUniqueId: existingPublicOrder.scalev_store_unique_id,
-      scalevRawStatus: snapshot.rawStatus,
-      scalevRawPaymentStatus: snapshot.rawPaymentStatus,
-      scalevLastCheckedAt: new Date().toISOString(),
-    });
+  if (transition.currentStatus === "COMPLETED") {
     const redemptionMarked = await markDiscountRedemptionSucceeded(existingPublicOrder.id);
     if (!redemptionMarked) {
       throw new Error("Failed to synchronize discount redemption after payment success.");
@@ -155,56 +189,22 @@ export async function reconcilePublicOrderStatusByInternalOrderId(
 
     const refreshedBeforeFulfillment =
       await getOrderStatusDetailsWithItemsById(internalOrderId);
+    const latestOrder = await getOrderForStatusById(internalOrderId);
     const alreadyFulfilled =
       refreshedBeforeFulfillment?.order_items.length
         ? refreshedBeforeFulfillment.order_items.every((item) => item.voucher_id)
-        : Boolean(existingPublicOrder.voucher_id);
-    const latestOrder = alreadyFulfilled
-      ? null
-      : await getOrderForStatusById(internalOrderId);
-    if (latestOrder) {
+        : Boolean(latestOrder?.voucher_id);
+    if (
+      !alreadyFulfilled &&
+      latestOrder?.payment_status === "COMPLETED"
+    ) {
       await createVoucherOnPaymentSuccess(latestOrder);
     }
-  } else if (snapshot.normalizedStatus === "FAILED") {
-    await updateOrderPaymentStatus(existingPublicOrder.id, "FAILED", {
-      paymentProvider: "scalev",
-      transactionId: snapshot.pgReferenceId || existingPublicOrder.payment_transaction_id,
-      paymentType: snapshot.paymentMethod,
-      scalevOrderPk: snapshot.orderPk || orderPk,
-      scalevOrderId: snapshot.orderId || existingPublicOrder.scalev_order_id,
-      scalevPgReferenceId:
-        snapshot.pgReferenceId || existingPublicOrder.scalev_pg_reference_id,
-      scalevPaymentMethod:
-        snapshot.paymentMethod || existingPublicOrder.scalev_payment_method,
-      scalevSubPaymentMethod:
-        snapshot.subPaymentMethod || existingPublicOrder.scalev_sub_payment_method,
-      scalevStoreUniqueId: existingPublicOrder.scalev_store_unique_id,
-      scalevRawStatus: snapshot.rawStatus,
-      scalevRawPaymentStatus: snapshot.rawPaymentStatus,
-      scalevLastCheckedAt: new Date().toISOString(),
-    });
+  } else if (transition.currentStatus === "FAILED") {
     const redemptionVoided = await markDiscountRedemptionVoid(existingPublicOrder.id);
     if (!redemptionVoided) {
       throw new Error("Failed to void discount redemption after payment failure.");
     }
-  } else if (snapshot.normalizedStatus === "REFUNDED") {
-    await updateOrderPaymentStatus(existingPublicOrder.id, "REFUNDED", {
-      paymentProvider: "scalev",
-      transactionId: snapshot.pgReferenceId || existingPublicOrder.payment_transaction_id,
-      paymentType: snapshot.paymentMethod,
-      scalevOrderPk: snapshot.orderPk || orderPk,
-      scalevOrderId: snapshot.orderId || existingPublicOrder.scalev_order_id,
-      scalevPgReferenceId:
-        snapshot.pgReferenceId || existingPublicOrder.scalev_pg_reference_id,
-      scalevPaymentMethod:
-        snapshot.paymentMethod || existingPublicOrder.scalev_payment_method,
-      scalevSubPaymentMethod:
-        snapshot.subPaymentMethod || existingPublicOrder.scalev_sub_payment_method,
-      scalevStoreUniqueId: existingPublicOrder.scalev_store_unique_id,
-      scalevRawStatus: snapshot.rawStatus,
-      scalevRawPaymentStatus: snapshot.rawPaymentStatus,
-      scalevLastCheckedAt: new Date().toISOString(),
-    });
   }
 
   const refreshedWithItems =

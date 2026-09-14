@@ -52,6 +52,7 @@ describe("buildPaymentSnapshot", () => {
         payment_method: "qris",
         sub_payment_method: null,
         invoice_url: "https://example.com/pay",
+        paid_time: "2026-09-14T11:58:00.000Z",
       },
       null
     );
@@ -62,6 +63,7 @@ describe("buildPaymentSnapshot", () => {
     expect(snapshot.paymentMethod).toBe("qris");
     expect(snapshot.normalizedStatus).toBe("COMPLETED");
     expect(snapshot.paymentLink).toBe("https://example.com/pay");
+    expect(snapshot.providerEventAt).toBe("2026-09-14T11:58:00.000Z");
   });
 
   it("builds a hosted Scalev URL when only secret_slug is returned", () => {

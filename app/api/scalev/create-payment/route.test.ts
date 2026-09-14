@@ -4,7 +4,7 @@ import { DeliveryMethod, SendTo } from "@/lib/types";
 const {
   createPendingOrderMock,
   createPendingOrderItemsMock,
-  updateOrderGatewayDataMock,
+  transitionOrderPaymentStateMock,
   markOrderFailedFromGatewayMock,
   validateDiscountForCheckoutMock,
   createPendingDiscountRedemptionMock,
@@ -18,7 +18,7 @@ const {
 } = vi.hoisted(() => ({
   createPendingOrderMock: vi.fn(),
   createPendingOrderItemsMock: vi.fn(),
-  updateOrderGatewayDataMock: vi.fn(),
+  transitionOrderPaymentStateMock: vi.fn(),
   markOrderFailedFromGatewayMock: vi.fn(),
   validateDiscountForCheckoutMock: vi.fn(),
   createPendingDiscountRedemptionMock: vi.fn(),
@@ -35,8 +35,11 @@ vi.mock("@/lib/payment/order-writes", () => ({
   createPendingOrder: createPendingOrderMock,
   createPendingOrderForCheckout: createPendingOrderMock,
   createPendingOrderItemsForOrder: createPendingOrderItemsMock,
-  updateOrderGatewayData: updateOrderGatewayDataMock,
   markOrderFailedFromGateway: markOrderFailedFromGatewayMock,
+}));
+
+vi.mock("@/lib/payment/payment-state", () => ({
+  transitionOrderPaymentState: transitionOrderPaymentStateMock,
 }));
 
 vi.mock("@/lib/discounts/service", () => ({
@@ -126,7 +129,14 @@ describe("POST /api/scalev/create-payment", () => {
       id: "status-session-1",
       rawToken: "short-lived-secret",
     });
-    updateOrderGatewayDataMock.mockResolvedValue(true);
+    transitionOrderPaymentStateMock.mockResolvedValue({
+      accepted: true,
+      changed: false,
+      reason: "idempotent",
+      previousStatus: "PENDING",
+      currentStatus: "PENDING",
+      stateVersion: 1,
+    });
     markOrderFailedFromGatewayMock.mockResolvedValue(true);
     createPendingDiscountRedemptionMock.mockResolvedValue({
       success: true,
@@ -310,7 +320,11 @@ describe("POST /api/scalev/create-payment", () => {
   test("fails when gateway metadata cannot be persisted locally", async () => {
     const { POST } = await import("@/app/api/scalev/create-payment/route");
 
-    updateOrderGatewayDataMock.mockResolvedValue(false);
+    transitionOrderPaymentStateMock.mockResolvedValue({
+      accepted: false,
+      changed: false,
+      reason: "database_error",
+    });
 
     const response = await POST(
       new Request("http://localhost/api/scalev/create-payment", {

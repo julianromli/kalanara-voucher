@@ -9,7 +9,7 @@ Each linked file is a self-contained execution plan. Keep each change independen
 | 1 | [001 — Secure privileged server actions](./001-secure-privileged-server-actions.md) | Replace externally callable service-role helpers with authorized actions and server-only internals. Finding 1. | None | DONE |
 | 2 | [002 — Upgrade the vulnerable Next.js runtime](./002-upgrade-vulnerable-next-runtime.md) | Patch the scanner-verified RSC denial-of-service vulnerability. Finding 7. | None | DONE |
 | 3 | [003 — Protect the order capability token](./003-protect-order-capability-token.md) | Remove the durable capability from URLs/browser data and keep third-party scripts off sensitive routes. Finding 6. | 001 | DONE |
-| 4 | [004 — Enforce an atomic payment state machine](./004-enforce-payment-state-machine.md) | Make provider transitions monotonic and stop downstream work after rejected writes. Findings 2 and 4. | 001 | OPEN |
+| 4 | [004 — Enforce an atomic payment state machine](./004-enforce-payment-state-machine.md) | Make provider transitions monotonic and stop downstream work after rejected writes. Findings 2 and 4. | 001 | DONE |
 | 5 | [005 — Make voucher delivery idempotent](./005-make-voucher-delivery-idempotent.md) | Add durable per-item/per-channel claims and retry state. Finding 3. | 004 | OPEN |
 | 6 | [006 — Remove the unused global store](./006-remove-unused-global-store.md) | Remove global client fetch, storage, and provider work with no production consumer. Finding 13. | 001 | OPEN |
 | 7 | [007 — Scope navbar data work](./007-scope-navbar-data-work.md) | Route-scope the public shell and replace three reads with one narrow cached query. Finding 11. | 006 | OPEN |

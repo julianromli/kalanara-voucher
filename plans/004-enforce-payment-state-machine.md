@@ -1,6 +1,6 @@
 # 004 — Enforce an atomic payment state machine
 
-- **Status**: OPEN
+- **Status**: DONE
 - **Commit**: b94c4ae
 - **Title**: Enforce an atomic payment state machine
 - **Severity**: HIGH

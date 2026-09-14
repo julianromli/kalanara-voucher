@@ -333,6 +333,8 @@ export type Database = {
           payment_method: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
           payment_status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           payment_provider: string;
+          payment_provider_event_at: string | null;
+          payment_state_version: number;
           subtotal_amount: number;
           discount_code_id: string | null;
           discount_code: string | null;
@@ -375,6 +377,8 @@ export type Database = {
           payment_method: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           payment_provider?: string;
+          payment_provider_event_at?: string | null;
+          payment_state_version?: number;
           subtotal_amount?: number;
           discount_code_id?: string | null;
           discount_code?: string | null;
@@ -417,6 +421,8 @@ export type Database = {
           payment_method?: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           payment_provider?: string;
+          payment_provider_event_at?: string | null;
+          payment_state_version?: number;
           subtotal_amount?: number;
           discount_code_id?: string | null;
           discount_code?: string | null;
@@ -779,6 +785,40 @@ export type Database = {
           reason: string | null;
           message: string | null;
           redemption_id: string | null;
+        }[];
+      };
+      transition_order_payment_state: {
+        Args: {
+          p_order_id: string;
+          p_target_status: Database["public"]["Enums"]["payment_status"];
+          p_provider: string;
+          p_provider_event_at: string;
+          p_expected_version?: number | null;
+          p_transaction_id?: string | null;
+          p_payment_type?: string | null;
+          p_transaction_time?: string | null;
+          p_payment_link?: string | null;
+          p_scalev_order_pk?: number | null;
+          p_scalev_order_id?: string | null;
+          p_scalev_pg_reference_id?: string | null;
+          p_scalev_payment_method?: string | null;
+          p_scalev_sub_payment_method?: string | null;
+          p_scalev_store_unique_id?: string | null;
+          p_scalev_raw_status?: string | null;
+          p_scalev_raw_payment_status?: string | null;
+          p_scalev_last_checked_at?: string | null;
+        };
+        Returns: {
+          accepted: boolean;
+          changed: boolean;
+          reason: string;
+          previous_status:
+            | Database["public"]["Enums"]["payment_status"]
+            | null;
+          current_status:
+            | Database["public"]["Enums"]["payment_status"]
+            | null;
+          state_version: number | null;
         }[];
       };
     };

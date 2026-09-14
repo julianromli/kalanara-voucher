@@ -29,6 +29,8 @@ describe('PurchasesClient', () => {
       total_amount: 500000,
       payment_status: 'PENDING',
       payment_provider: 'scalev',
+      payment_provider_event_at: null,
+      payment_state_version: 0,
       created_at: '2025-12-01',
       payment_order_id: null,
       public_access_token: 'test-public-access-token',

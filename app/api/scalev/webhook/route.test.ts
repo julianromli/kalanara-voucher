@@ -6,8 +6,8 @@ const {
   getOrderByScalevOrderIdMock,
   getOrderByScalevOrderPkMock,
   getOrderByScalevPgReferenceIdMock,
-  updateOrderGatewayDataMock,
-  updateOrderPaymentStatusMock,
+  getOrderForStatusByIdMock,
+  transitionOrderPaymentStateMock,
   markDiscountRedemptionSucceededMock,
   markDiscountRedemptionVoidMock,
   createScalevWebhookEventMock,
@@ -18,8 +18,8 @@ const {
   getOrderByScalevOrderIdMock: vi.fn(),
   getOrderByScalevOrderPkMock: vi.fn(),
   getOrderByScalevPgReferenceIdMock: vi.fn(),
-  updateOrderGatewayDataMock: vi.fn(),
-  updateOrderPaymentStatusMock: vi.fn(),
+  getOrderForStatusByIdMock: vi.fn(),
+  transitionOrderPaymentStateMock: vi.fn(),
   markDiscountRedemptionSucceededMock: vi.fn(),
   markDiscountRedemptionVoidMock: vi.fn(),
   createScalevWebhookEventMock: vi.fn(),
@@ -34,9 +34,12 @@ vi.mock("@/lib/actions/orders", () => ({
   getOrderByScalevPgReferenceId: getOrderByScalevPgReferenceIdMock,
 }));
 
-vi.mock("@/lib/payment/order-writes", () => ({
-  updateOrderGatewayData: updateOrderGatewayDataMock,
-  updateOrderPaymentStatus: updateOrderPaymentStatusMock,
+vi.mock("@/lib/payment/order-status-reads", () => ({
+  getOrderForStatusById: getOrderForStatusByIdMock,
+}));
+
+vi.mock("@/lib/payment/payment-state", () => ({
+  transitionOrderPaymentState: transitionOrderPaymentStateMock,
 }));
 
 vi.mock("@/lib/scalev/webhook-events", () => ({
@@ -68,8 +71,16 @@ describe("POST /api/scalev/webhook", () => {
     vi.clearAllMocks();
     createScalevWebhookEventMock.mockResolvedValue({ id: "event-1" });
     updateScalevWebhookEventMock.mockResolvedValue(true);
-    updateOrderGatewayDataMock.mockResolvedValue(true);
-    updateOrderPaymentStatusMock.mockResolvedValue(true);
+    transitionOrderPaymentStateMock.mockImplementation(
+      async ({ targetStatus }: { targetStatus: string }) => ({
+        accepted: true,
+        changed: true,
+        reason: "applied",
+        previousStatus: "PENDING",
+        currentStatus: targetStatus,
+        stateVersion: 1,
+      })
+    );
     markDiscountRedemptionSucceededMock.mockResolvedValue(true);
     markDiscountRedemptionVoidMock.mockResolvedValue(true);
     createVoucherOnPaymentSuccessMock.mockResolvedValue({ success: true, voucherCount: 1 });
@@ -87,6 +98,12 @@ describe("POST /api/scalev/webhook", () => {
     });
     getOrderByScalevPgReferenceIdMock.mockResolvedValue(null);
     getOrderByScalevOrderIdMock.mockResolvedValue(null);
+    getOrderForStatusByIdMock.mockResolvedValue({
+      id: "order-1",
+      payment_order_id: "KSP-123",
+      payment_provider: "scalev",
+      payment_status: "COMPLETED",
+    });
     getOrderItemsByOrderIdMock.mockResolvedValue([]);
   });
 
@@ -134,10 +151,13 @@ describe("POST /api/scalev/webhook", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(updateOrderPaymentStatusMock).toHaveBeenCalledWith(
-      "order-1",
-      "COMPLETED",
-      expect.any(Object)
+    expect(transitionOrderPaymentStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: "order-1",
+        targetStatus: "COMPLETED",
+        provider: "scalev",
+        providerEventAt: expect.any(String),
+      })
     );
     expect(createVoucherOnPaymentSuccessMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -213,14 +233,53 @@ describe("POST /api/scalev/webhook", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(updateOrderPaymentStatusMock).toHaveBeenCalledWith(
-      "order-1",
-      "FAILED",
-      expect.any(Object)
+    expect(transitionOrderPaymentStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: "order-1",
+        targetStatus: "FAILED",
+      })
     );
     expect(markDiscountRedemptionVoidMock).toHaveBeenCalledWith("order-1");
     expect(createVoucherOnPaymentSuccessMock).not.toHaveBeenCalled();
   });
+
+  test.each([
+    ["pending", "Pending status recorded"],
+    ["refunded", "Refund status recorded"],
+  ])(
+    "records accepted %s without completion or failure side effects",
+    async (paymentStatus, expectedMessage) => {
+      const { POST } = await import("@/app/api/scalev/webhook/route");
+      const payload = JSON.stringify({
+        event: "order.payment_status_changed",
+        data: {
+          id: 99,
+          payment_status: paymentStatus,
+          last_updated_at: "2026-09-14T11:58:00.000Z",
+        },
+      });
+
+      const response = await POST(
+        new Request("http://localhost/api/scalev/webhook", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Scalev-Hmac-Sha256": signPayload(payload),
+          },
+          body: payload,
+        }) as never
+      );
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({
+        status: "ok",
+        message: expectedMessage,
+      });
+      expect(markDiscountRedemptionSucceededMock).not.toHaveBeenCalled();
+      expect(markDiscountRedemptionVoidMock).not.toHaveBeenCalled();
+      expect(createVoucherOnPaymentSuccessMock).not.toHaveBeenCalled();
+    }
+  );
 
   test("acknowledges webhook when discount redemption sync fails on completion", async () => {
     const { POST } = await import("@/app/api/scalev/webhook/route");
@@ -300,6 +359,103 @@ describe("POST /api/scalev/webhook", () => {
         processing_status: "failed",
         processing_message: "Failed to void discount redemption",
       })
+    );
+  });
+
+  test.each([
+    "not_found",
+    "missing_provider_event_at",
+    "version_conflict",
+    "stale_provider_event",
+    "transition_rejected",
+    "database_error",
+  ] as const)(
+    "records %s and stops every downstream payment side effect",
+    async (reason) => {
+      const { POST } = await import("@/app/api/scalev/webhook/route");
+      transitionOrderPaymentStateMock.mockResolvedValue({
+        accepted: false,
+        changed: false,
+        reason,
+      });
+      const payload = JSON.stringify({
+        event: "order.payment_status_changed",
+        data: {
+          id: 99,
+          pg_reference_id: "pg-1",
+          payment_status: "paid",
+          paid_time: "2026-09-14T11:58:00.000Z",
+        },
+      });
+
+      const response = await POST(
+        new Request("http://localhost/api/scalev/webhook", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Scalev-Hmac-Sha256": signPayload(payload),
+          },
+          body: payload,
+        }) as never
+      );
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({
+        status: "ok",
+        message: "Payment state update rejected",
+      });
+      expect(transitionOrderPaymentStateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          providerEventAt: "2026-09-14T11:58:00.000Z",
+        })
+      );
+      expect(updateScalevWebhookEventMock).toHaveBeenCalledWith(
+        "event-1",
+        expect.objectContaining({
+          processing_message: `Payment state update rejected: ${reason}`,
+        })
+      );
+      expect(markDiscountRedemptionSucceededMock).not.toHaveBeenCalled();
+      expect(markDiscountRedemptionVoidMock).not.toHaveBeenCalled();
+      expect(createVoucherOnPaymentSuccessMock).not.toHaveBeenCalled();
+    }
+  );
+
+  test("accepted idempotent completion re-fetches and may retry fulfillment", async () => {
+    const { POST } = await import("@/app/api/scalev/webhook/route");
+    transitionOrderPaymentStateMock.mockResolvedValue({
+      accepted: true,
+      changed: false,
+      reason: "idempotent",
+      previousStatus: "COMPLETED",
+      currentStatus: "COMPLETED",
+      stateVersion: 8,
+    });
+    getOrderForStatusByIdMock.mockResolvedValue({
+      id: "order-1",
+      payment_order_id: "KSP-123",
+      payment_status: "COMPLETED",
+      payment_provider: "scalev",
+    });
+    const payload = JSON.stringify({
+      event: "order.payment_status_changed",
+      data: { id: 99, payment_status: "paid" },
+    });
+
+    await POST(
+      new Request("http://localhost/api/scalev/webhook", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Scalev-Hmac-Sha256": signPayload(payload),
+        },
+        body: payload,
+      }) as never
+    );
+
+    expect(getOrderForStatusByIdMock).toHaveBeenCalledWith("order-1");
+    expect(createVoucherOnPaymentSuccessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_status: "COMPLETED" })
     );
   });
 });

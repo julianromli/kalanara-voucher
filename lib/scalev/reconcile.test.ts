@@ -4,8 +4,7 @@ const {
   getOrderForStatusByIdMock,
   getOrderStatusDetailsByIdMock,
   getOrderStatusDetailsWithItemsByIdMock,
-  updateOrderGatewayDataMock,
-  updateOrderPaymentStatusMock,
+  transitionOrderPaymentStateMock,
   markDiscountRedemptionSucceededMock,
   markDiscountRedemptionVoidMock,
   createVoucherOnPaymentSuccessMock,
@@ -20,8 +19,7 @@ const {
   getOrderForStatusByIdMock: vi.fn(),
   getOrderStatusDetailsByIdMock: vi.fn(),
   getOrderStatusDetailsWithItemsByIdMock: vi.fn(),
-  updateOrderGatewayDataMock: vi.fn(),
-  updateOrderPaymentStatusMock: vi.fn(),
+  transitionOrderPaymentStateMock: vi.fn(),
   markDiscountRedemptionSucceededMock: vi.fn(),
   markDiscountRedemptionVoidMock: vi.fn(),
   createVoucherOnPaymentSuccessMock: vi.fn(),
@@ -40,9 +38,8 @@ vi.mock("@/lib/payment/order-status-reads", () => ({
   getOrderStatusDetailsWithItemsById: getOrderStatusDetailsWithItemsByIdMock,
 }));
 
-vi.mock("@/lib/payment/order-writes", () => ({
-  updateOrderGatewayData: updateOrderGatewayDataMock,
-  updateOrderPaymentStatus: updateOrderPaymentStatusMock,
+vi.mock("@/lib/payment/payment-state", () => ({
+  transitionOrderPaymentState: transitionOrderPaymentStateMock,
 }));
 
 vi.mock("@/lib/payment/voucher-service", () => ({
@@ -70,8 +67,16 @@ vi.mock("@/lib/scalev/mappers", () => ({
 describe("reconcilePublicOrderStatusByInternalOrderId", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    updateOrderGatewayDataMock.mockResolvedValue(true);
-    updateOrderPaymentStatusMock.mockResolvedValue(true);
+    transitionOrderPaymentStateMock.mockImplementation(
+      async ({ targetStatus }: { targetStatus: string }) => ({
+        accepted: true,
+        changed: true,
+        reason: "applied",
+        previousStatus: "PENDING",
+        currentStatus: targetStatus,
+        stateVersion: 1,
+      })
+    );
     markDiscountRedemptionSucceededMock.mockResolvedValue(true);
     markDiscountRedemptionVoidMock.mockResolvedValue(true);
     createVoucherOnPaymentSuccessMock.mockResolvedValue({ success: true, voucherCount: 1 });
@@ -132,6 +137,7 @@ describe("reconcilePublicOrderStatusByInternalOrderId", () => {
       .mockResolvedValueOnce({
         id: "order-1",
         payment_order_id: "KSP-123",
+        payment_status: "COMPLETED",
       });
     getOrderStatusDetailsByIdMock.mockResolvedValue({
       id: "order-1",
@@ -177,10 +183,13 @@ describe("reconcilePublicOrderStatusByInternalOrderId", () => {
 
     const result = await reconcilePublicOrderStatusByInternalOrderId("order-1");
 
-    expect(updateOrderPaymentStatusMock).toHaveBeenCalledWith(
-      "order-1",
-      "COMPLETED",
-      expect.any(Object)
+    expect(transitionOrderPaymentStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: "order-1",
+        targetStatus: "COMPLETED",
+        provider: "scalev",
+        providerEventAt: expect.any(String),
+      })
     );
     expect(createVoucherOnPaymentSuccessMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -280,5 +289,110 @@ describe("reconcilePublicOrderStatusByInternalOrderId", () => {
     await expect(
       reconcilePublicOrderStatusByInternalOrderId("order-1")
     ).rejects.toThrow("Failed to void discount redemption after payment failure.");
+  });
+
+  test.each([
+    "not_found",
+    "missing_provider_event_at",
+    "version_conflict",
+    "stale_provider_event",
+    "transition_rejected",
+    "database_error",
+  ] as const)("stops downstream work when transition returns %s", async (reason) => {
+    const { reconcilePublicOrderStatusByInternalOrderId } = await import(
+      "@/lib/scalev/reconcile"
+    );
+    getOrderForStatusByIdMock.mockResolvedValue({
+      id: "order-1",
+      payment_order_id: "KSP-123",
+    });
+    getOrderStatusDetailsByIdMock.mockResolvedValue({
+      id: "order-1",
+      payment_status: "PENDING",
+      payment_provider: "scalev",
+      scalev_order_pk: 99,
+      scalev_pg_reference_id: "pg-1",
+      voucher_id: null,
+      vouchers: null,
+    });
+    getOrderStatusDetailsWithItemsByIdMock.mockResolvedValue({
+      order_items: [{ id: "item-1", voucher_id: null }],
+    });
+    buildPaymentSnapshotMock.mockReturnValue({
+      normalizedStatus: "COMPLETED",
+      providerEventAt: "2026-09-14T11:58:00.000Z",
+      pgReferenceId: "pg-1",
+      orderPk: 99,
+      rawStatus: "paid",
+      rawPaymentStatus: "paid",
+    });
+    transitionOrderPaymentStateMock.mockResolvedValue({
+      accepted: false,
+      changed: false,
+      reason,
+    });
+    buildPublicOrderStatusWithItemsMock.mockReturnValue({
+      status: "pending",
+      vouchers: [],
+    });
+
+    await expect(
+      reconcilePublicOrderStatusByInternalOrderId("order-1")
+    ).resolves.toEqual({ status: "pending", vouchers: [] });
+    expect(markDiscountRedemptionSucceededMock).not.toHaveBeenCalled();
+    expect(markDiscountRedemptionVoidMock).not.toHaveBeenCalled();
+    expect(createVoucherOnPaymentSuccessMock).not.toHaveBeenCalled();
+  });
+
+  test("accepted idempotent completion may retry fulfillment from a re-fetched order", async () => {
+    const { reconcilePublicOrderStatusByInternalOrderId } = await import(
+      "@/lib/scalev/reconcile"
+    );
+    getOrderForStatusByIdMock
+      .mockResolvedValueOnce({ id: "order-1", payment_order_id: "KSP-123" })
+      .mockResolvedValueOnce({
+        id: "order-1",
+        payment_order_id: "KSP-123",
+        payment_status: "COMPLETED",
+      });
+    getOrderStatusDetailsByIdMock.mockResolvedValue({
+      id: "order-1",
+      payment_status: "COMPLETED",
+      payment_provider: "scalev",
+      scalev_order_pk: 99,
+      scalev_pg_reference_id: "pg-1",
+      voucher_id: null,
+      vouchers: null,
+    });
+    getOrderStatusDetailsWithItemsByIdMock
+      .mockResolvedValueOnce({ order_items: [{ id: "item-1", voucher_id: null }] })
+      .mockResolvedValueOnce({ order_items: [{ id: "item-1", voucher_id: null }] })
+      .mockResolvedValueOnce({
+        order_items: [{ id: "item-1", voucher_id: "voucher-1" }],
+      });
+    buildPaymentSnapshotMock.mockReturnValue({
+      normalizedStatus: "COMPLETED",
+      providerEventAt: "2026-09-14T11:58:00.000Z",
+      orderPk: 99,
+      rawStatus: "paid",
+      rawPaymentStatus: "paid",
+    });
+    transitionOrderPaymentStateMock.mockResolvedValue({
+      accepted: true,
+      changed: false,
+      reason: "idempotent",
+      previousStatus: "COMPLETED",
+      currentStatus: "COMPLETED",
+      stateVersion: 8,
+    });
+
+    await reconcilePublicOrderStatusByInternalOrderId("order-1");
+
+    expect(createVoucherOnPaymentSuccessMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "order-1",
+        payment_status: "COMPLETED",
+      })
+    );
   });
 });
