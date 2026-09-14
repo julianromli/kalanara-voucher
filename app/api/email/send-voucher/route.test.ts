@@ -87,4 +87,40 @@ describe("POST /api/email/send-voucher", () => {
     expect(firstOptions.idempotencyKey.length).toBeLessThanOrEqual(256);
     expect(firstOptions.idempotencyKey).not.toContain("caller-controlled");
   });
+
+  test("uses a new idempotency key when rendered voucher content changes", async () => {
+    const { POST } = await import("@/app/api/email/send-voucher/route");
+    const makeRequest = () =>
+      new Request("http://localhost/api/email/send-voucher", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-forwarded-for": "203.0.113.43",
+        },
+        body: JSON.stringify({
+          orderId: "server-order-1",
+          token: "server-token",
+        }),
+      }) as never;
+
+    await POST(makeRequest());
+    getAuthorizedVoucherDeliveryMock.mockResolvedValueOnce({
+      orderId: "server-order-1",
+      token: "server-token",
+      voucherCode: "KSPV-001",
+      recipientEmail: "recipient@example.com",
+      recipientName: "Penerima",
+      senderName: "Pengirim",
+      senderMessage: "Pesan yang diperbarui",
+      serviceName: "Balinese Massage",
+      serviceDuration: 60,
+      amount: 450000,
+      expiryDate: "2027-02-01T00:00:00.000Z",
+    });
+    await POST(makeRequest());
+
+    const firstKey = resendSendMock.mock.calls[0][1].idempotencyKey;
+    const secondKey = resendSendMock.mock.calls[1][1].idempotencyKey;
+    expect(secondKey).not.toBe(firstKey);
+  });
 });

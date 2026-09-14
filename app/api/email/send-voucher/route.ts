@@ -47,12 +47,19 @@ function sanitizeHeaderValue(value: string): string {
 function getEmailIdempotencyKey(
   delivery: AuthorizedVoucherDelivery
 ): string {
-  const deliveryIdentity = [
-    "EMAIL",
-    delivery.orderId,
-    delivery.voucherCode,
-    delivery.recipientEmail?.trim().toLowerCase() ?? "",
-  ].join("\0");
+  const deliveryIdentity = JSON.stringify({
+    channel: "EMAIL",
+    orderId: delivery.orderId,
+    voucherCode: delivery.voucherCode,
+    recipientEmail: delivery.recipientEmail?.trim().toLowerCase() ?? "",
+    recipientName: delivery.recipientName,
+    senderName: delivery.senderName,
+    senderMessage: delivery.senderMessage,
+    serviceName: delivery.serviceName,
+    serviceDuration: delivery.serviceDuration,
+    amount: delivery.amount,
+    expiryDate: delivery.expiryDate,
+  });
   const digest = createHash("sha256").update(deliveryIdentity).digest("hex");
   return `voucher-email-${digest}`;
 }
