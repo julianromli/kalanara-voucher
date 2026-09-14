@@ -107,6 +107,9 @@ describe("voucher delivery outbox migration contract", () => {
 
   test("requires the current claim token for atomic SENT and FAILED finalization", () => {
     const sql = readMigration();
+    const failedFinalization = sql.match(
+      /create function public\.finalize_voucher_delivery_failed\([\s\S]*?as \$\$([\s\S]*?)\$\$;/i
+    )?.[1];
 
     expect(sql).toMatch(/claim_token uuid/i);
     expect(sql).toMatch(
@@ -118,13 +121,16 @@ describe("voucher delivery outbox migration contract", () => {
     expect(sql).toMatch(
       /where outbox\.id = p_delivery_id[\s\S]*outbox\.status = 'PROCESSING'[\s\S]*outbox\.claim_token = p_claim_token/i
     );
-    expect(sql).toMatch(
+    expect(failedFinalization).toBeDefined();
+    expect(failedFinalization).toMatch(
       /pg_catalog\.power\(\s*2,\s*least\(\s*greatest\(outbox\.attempt_count - 1,\s*0\),\s*6\s*\)\s*\)::integer/i
     );
-    expect(sql).toMatch(
+    expect(failedFinalization).toMatch(
       /least\(\s*pg_catalog\.power\([\s\S]*\)::integer,\s*60\s*\)/i
     );
-    expect(sql).not.toMatch(/pg_catalog\.(?:least|greatest)\s*\(/i);
+    expect(failedFinalization).not.toMatch(
+      /pg_catalog\.(?:least|greatest)\s*\(/i
+    );
     expect(sql).toMatch(
       /set status = 'SENT',[\s\S]*claim_token = null[\s\S]*where outbox\.id = p_delivery_id/i
     );

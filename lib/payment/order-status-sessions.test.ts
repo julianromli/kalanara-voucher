@@ -80,6 +80,7 @@ describe("order status sessions", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   test("stores only a SHA-256 hash without coupling global cleanup to checkout", async () => {
@@ -156,7 +157,6 @@ describe("order status sessions", () => {
     expect(consoleError).toHaveBeenCalledWith(
       "Failed to clean expired order status sessions."
     );
-    consoleError.mockRestore();
   });
 
   test("binds resolution to session, hash, payment order, and expiry", async () => {

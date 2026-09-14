@@ -1,5 +1,8 @@
 const DEFAULT_SCALEV_PUBLIC_BASE_URL = "https://app.scalev.id";
-const OFFICIAL_SCALEV_PUBLIC_HOSTNAME = "app.scalev.id";
+const OFFICIAL_SCALEV_HOSTNAMES = [
+  "app.scalev.id",
+  "checkout.scalev.id",
+] as const;
 
 function getConfiguredScalevPublicBaseUrl() {
   return (
@@ -35,7 +38,7 @@ export function sanitizeScalevPublicUrl(
   }
 
   const configuredBase = parseTrustedBaseUrl(configuredPublicBaseUrl);
-  const allowedHostnames = new Set([OFFICIAL_SCALEV_PUBLIC_HOSTNAME]);
+  const allowedHostnames = new Set<string>(OFFICIAL_SCALEV_HOSTNAMES);
   if (configuredBase) {
     allowedHostnames.add(configuredBase.hostname.toLowerCase());
   }
@@ -77,7 +80,9 @@ export function buildScalevPublicOrderUrl(
 
   const trimmedPath = normalized.replace(/^\/+/, "");
   const configuredBase = parseTrustedBaseUrl(configuredPublicBaseUrl);
-  const baseUrl = configuredBase?.origin || DEFAULT_SCALEV_PUBLIC_BASE_URL;
+  const baseUrl = (
+    configuredBase?.href || DEFAULT_SCALEV_PUBLIC_BASE_URL
+  ).replace(/\/+$/, "");
   const candidate = trimmedPath.startsWith("order/public/")
     ? `${baseUrl}/${trimmedPath}`
     : `${baseUrl}/order/public/${trimmedPath}`;
@@ -86,10 +91,29 @@ export function buildScalevPublicOrderUrl(
 }
 
 export function isScalevHostedPublicOrderUrl(urlValue?: string | null) {
-  const sanitized = sanitizeScalevPublicUrl(urlValue);
-  if (!sanitized) {
+  if (!urlValue) {
     return false;
   }
 
-  return new URL(sanitized).pathname.startsWith("/order/public/");
+  try {
+    const url = new URL(urlValue);
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      url.port
+    ) {
+      return false;
+    }
+
+    // This is a UI classification only. Server boundaries sanitize and
+    // allowlist every payment URL before it reaches browser code.
+    return (
+      url.pathname.includes("/order/public/") ||
+      url.pathname.startsWith("/pay/") ||
+      url.pathname.startsWith("/invoice/")
+    );
+  } catch {
+    return false;
+  }
 }

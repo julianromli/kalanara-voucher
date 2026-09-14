@@ -11,6 +11,15 @@ describe("buildScalevPublicOrderUrl", () => {
       "https://app.scalev.id/order/public/secret-token"
     );
   });
+
+  it("preserves a configured public base path", () => {
+    expect(
+      buildScalevPublicOrderUrl(
+        "secret-token",
+        "https://pay.kalanara.test/scalev"
+      )
+    ).toBe("https://pay.kalanara.test/scalev/order/public/secret-token");
+  });
 });
 
 describe("isScalevHostedPublicOrderUrl", () => {
@@ -18,6 +27,19 @@ describe("isScalevHostedPublicOrderUrl", () => {
     expect(
       isScalevHostedPublicOrderUrl(
         "https://app.scalev.id/order/public/secret-token"
+      )
+    ).toBe(true);
+  });
+
+  it("classifies custom public-order and official checkout paths in the browser", () => {
+    expect(
+      isScalevHostedPublicOrderUrl(
+        "https://pay.kalanara.test/order/public/secret-token"
+      )
+    ).toBe(true);
+    expect(
+      isScalevHostedPublicOrderUrl(
+        "https://checkout.scalev.id/pay/hosted-123"
       )
     ).toBe(true);
   });
@@ -30,6 +52,7 @@ describe("isScalevHostedPublicOrderUrl", () => {
 describe("sanitizeScalevPublicUrl", () => {
   it.each([
     "https://app.scalev.id/order/public/secret-token",
+    "https://checkout.scalev.id/pay/hosted-123",
     "https://pay.kalanara.test/invoice/123",
   ])("allows trusted HTTPS hosts: %s", (url) => {
     expect(
