@@ -34,6 +34,7 @@ import {
   createOrderStatusSession,
   getOrderStatusCookieName,
   ORDER_STATUS_SESSION_TTL_SECONDS,
+  scheduleExpiredOrderStatusSessionCleanup,
 } from "@/lib/payment/order-status-sessions";
 
 interface ValidatedCheckoutLineItem extends ScalevCheckoutLineItem {
@@ -568,6 +569,7 @@ export async function POST(
             maxAge: ORDER_STATUS_SESSION_TTL_SECONDS,
           }
         );
+        scheduleExpiredOrderStatusSessionCleanup();
 
         shouldVoidDiscountRedemption = false;
         return response;

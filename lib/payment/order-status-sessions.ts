@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
+import { after } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 
 export const ORDER_STATUS_SESSION_TTL_SECONDS = 30 * 60;
@@ -53,6 +54,16 @@ export async function deleteExpiredOrderStatusSessions(
       cause: error,
     });
   }
+}
+
+export function scheduleExpiredOrderStatusSessionCleanup(): void {
+  after(async () => {
+    try {
+      await deleteExpiredOrderStatusSessions();
+    } catch {
+      console.error("Failed to clean expired order status sessions.");
+    }
+  });
 }
 
 export async function createOrderStatusSession({

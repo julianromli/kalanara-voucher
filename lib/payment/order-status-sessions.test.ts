@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const {
+  afterMock,
   deleteLte,
   insertSingle,
   insertQuery,
@@ -13,6 +14,7 @@ const {
   from,
   getAdminClient,
 } = vi.hoisted(() => {
+  const afterMock = vi.fn();
   const deleteLte = vi.fn();
   const deleteQuery = vi.fn(() => ({ lte: deleteLte }));
   const insertSingle = vi.fn();
@@ -32,6 +34,7 @@ const {
   const getAdminClient = vi.fn(() => ({ from }));
 
   return {
+    afterMock,
     deleteLte,
     insertSingle,
     insertQuery,
@@ -44,6 +47,10 @@ const {
     getAdminClient,
   };
 });
+
+vi.mock("next/server", () => ({
+  after: afterMock,
+}));
 
 vi.mock("@/lib/supabase/admin", () => ({
   getAdminClient,
@@ -95,6 +102,17 @@ describe("order status sessions", () => {
       id: sessionId,
       rawToken: "deterministic-test-secret",
     });
+  });
+
+  test("schedules expired-session cleanup after the response lifecycle", async () => {
+    const { scheduleExpiredOrderStatusSessionCleanup } = await import(
+      "@/lib/payment/order-status-sessions"
+    );
+
+    scheduleExpiredOrderStatusSessionCleanup();
+
+    expect(afterMock).toHaveBeenCalledOnce();
+    expect(afterMock).toHaveBeenCalledWith(expect.any(Function));
   });
 
   test("binds resolution to session, hash, payment order, and expiry", async () => {

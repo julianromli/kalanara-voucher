@@ -15,6 +15,7 @@ const {
   createScalevOrderMock,
   createScalevPaymentIntentMock,
   createOrderStatusSessionMock,
+  scheduleExpiredOrderStatusSessionCleanupMock,
 } = vi.hoisted(() => ({
   createPendingOrderMock: vi.fn(),
   createPendingOrderItemsMock: vi.fn(),
@@ -29,6 +30,7 @@ const {
   createScalevOrderMock: vi.fn(),
   createScalevPaymentIntentMock: vi.fn(),
   createOrderStatusSessionMock: vi.fn(),
+  scheduleExpiredOrderStatusSessionCleanupMock: vi.fn(),
 }));
 
 vi.mock("@/lib/payment/order-writes", () => ({
@@ -81,6 +83,8 @@ vi.mock("@/lib/payment/order-status-sessions", () => ({
   getOrderStatusCookieName: (sessionId: string) =>
     `__Host-kalanara-status-${sessionId}`,
   ORDER_STATUS_SESSION_TTL_SECONDS: 30 * 60,
+  scheduleExpiredOrderStatusSessionCleanup:
+    scheduleExpiredOrderStatusSessionCleanupMock,
 }));
 
 describe("POST /api/scalev/create-payment", () => {
@@ -221,6 +225,7 @@ describe("POST /api/scalev/create-payment", () => {
     expect(cookie).toContain("SameSite=lax");
     expect(cookie).toContain("Path=/");
     expect(cookie).toContain("Max-Age=1800");
+    expect(scheduleExpiredOrderStatusSessionCleanupMock).toHaveBeenCalledOnce();
   });
 
   test("rejects recipient email delivery when recipient email is missing", async () => {
