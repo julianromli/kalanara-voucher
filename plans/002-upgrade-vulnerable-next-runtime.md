@@ -1,6 +1,6 @@
 # 002 — Upgrade the vulnerable Next.js runtime
 
-- **Status**: OPEN
+- **Status**: DONE
 - **Commit**: b94c4ae
 - **Title**: Upgrade the vulnerable Next.js runtime
 - **Severity**: HIGH
