@@ -3,7 +3,7 @@ import Navbar from "@/components/navbar";
 import {
   getAnnouncementSettings,
   type AnnouncementSettings,
-} from "@/lib/actions/crm";
+} from "@/lib/announcementSettings";
 import { isAnnouncementCountdownEnabled } from "@/lib/site-settings";
 
 interface PublicLayoutProps {
@@ -21,7 +21,7 @@ export async function PublicNavbar() {
   return (
     <Navbar
       announcementText={
-        settings.announcementText || "FLASH SALE 5.5 ...... BERAKHIR DALAM "
+        settings.announcementText || "PROMO 5.5 BERAKHIR DALAM "
       }
       announcementCountdownEndAt={settings.countdownEndAt || undefined}
       announcementCountdownEnabled={isAnnouncementCountdownEnabled(

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidateServiceCatalogData } from "@/lib/actions/revalidateServiceCatalog";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { Service, ServiceUpdate } from "@/lib/database.types";
 
@@ -28,10 +28,6 @@ export async function updateServiceScalevMapping(
     return null;
   }
 
-  revalidateTag("dashboard-stats", "max");
-  revalidatePath("/", "page");
-  revalidatePath("/admin/services", "page");
-  revalidatePath("/checkout/[id]", "page");
-  revalidatePath("/voucher/[id]", "page");
+  revalidateServiceCatalogData();
   return data;
 }

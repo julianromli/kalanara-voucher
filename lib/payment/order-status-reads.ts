@@ -12,6 +12,10 @@ const ORDER_VOUCHER_SELECT =
 const ORDER_ITEMS_SELECT =
   "*, services(*), order_items(*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*))";
 
+function throwOrderStatusReadError(cause: unknown): never {
+  throw new Error("Failed to fetch order status.", { cause });
+}
+
 export async function getOrderForStatusById(
   orderId: string
 ): Promise<OrderWithService | null> {
@@ -19,14 +23,13 @@ export async function getOrderForStatusById(
     .from("orders")
     .select("*, services(*)")
     .eq("id", orderId)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    console.error("Error fetching order for status reconciliation:", error);
-    return null;
+    throwOrderStatusReadError(error);
   }
 
-  return data as OrderWithService;
+  return data as OrderWithService | null;
 }
 
 export async function getOrderStatusDetailsById(
@@ -36,14 +39,13 @@ export async function getOrderStatusDetailsById(
     .from("orders")
     .select(ORDER_VOUCHER_SELECT)
     .eq("id", orderId)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    console.error("Error fetching order status details:", error);
-    return null;
+    throwOrderStatusReadError(error);
   }
 
-  return data as OrderWithVoucher;
+  return data as OrderWithVoucher | null;
 }
 
 export async function getOrderStatusDetailsWithItemsById(
@@ -55,12 +57,11 @@ export async function getOrderStatusDetailsWithItemsById(
     .eq("id", orderId)
     .order("sort_order", { ascending: true, referencedTable: "order_items" })
     .order("created_at", { ascending: true, referencedTable: "order_items" })
-    .single();
+    .maybeSingle();
 
   if (error) {
-    console.error("Error fetching order item status details:", error);
-    return null;
+    throwOrderStatusReadError(error);
   }
 
-  return data as OrderWithItems;
+  return data as OrderWithItems | null;
 }

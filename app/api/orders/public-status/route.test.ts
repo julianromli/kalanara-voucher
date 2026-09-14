@@ -70,11 +70,7 @@ describe("POST /api/orders/public-status", () => {
     expect(reconcilePublicOrderStatusByInternalOrderId).not.toHaveBeenCalled();
   });
 
-  test.each([
-    ["modified cookie", "modified-secret"],
-    ["expired cookie", "expired-secret"],
-    ["cookie bound to another order", "cross-order-secret"],
-  ])("rejects a %s without returning order data", async (_label, rawToken) => {
+  test("rejects a status session rejected by the resolver", async () => {
     resolveActiveOrderStatusSession.mockResolvedValue(null);
     const { POST } = await import("@/app/api/orders/public-status/route");
 
@@ -83,7 +79,7 @@ describe("POST /api/orders/public-status", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Cookie: `__Host-kalanara-status-${sessionId}=${rawToken}`,
+          Cookie: `__Host-kalanara-status-${sessionId}=rejected-secret`,
         },
         body: JSON.stringify({
           orderId: "KSP-123",

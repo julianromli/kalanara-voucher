@@ -20,7 +20,7 @@ import {
   markVoucherDeliveryFailed,
   markVoucherDeliverySent,
   type VoucherDeliveryChannel,
-} from "@/lib/payment/voucher-delivery-outbox";
+} from "@/lib/payment/voucherDeliveryOutbox";
 import { sendVoucherEmail, sendVoucherWhatsApp } from "@/lib/payment/public-voucher-delivery";
 import type {
   OrderItemWithService,
@@ -156,11 +156,6 @@ async function deliverVoucher(
   voucher: Voucher,
   item?: OrderItemWithService
 ): Promise<void> {
-  if (!order.payment_order_id || !order.public_access_token) {
-    console.error(`[VoucherService] Missing public access credentials for order ${order.id}`);
-    return;
-  }
-
   const channels = getDeliveryChannels(
     item?.delivery_method ?? order.delivery_method
   );
@@ -171,6 +166,32 @@ async function deliverVoucher(
     voucherId: voucher.id,
     channels,
   });
+
+  if (claimed.length === 0) {
+    return;
+  }
+
+  if (!order.payment_order_id || !order.public_access_token) {
+    const credentialsError = new Error(
+      "Missing public access credentials for voucher delivery"
+    );
+    const failedUpdates = await Promise.allSettled(
+      claimed.map((delivery) =>
+        markVoucherDeliveryFailed(
+          delivery.id,
+          delivery.claimToken,
+          credentialsError
+        )
+      )
+    );
+    const failedPersistence = failedUpdates.find(
+      (result): result is PromiseRejectedResult => result.status === "rejected"
+    );
+    if (failedPersistence) {
+      throw failedPersistence.reason;
+    }
+    throw credentialsError;
+  }
 
   await Promise.all(
     claimed.map(async (delivery) => {

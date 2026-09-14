@@ -28,6 +28,8 @@ describe("public route ownership", () => {
     expect(publicLayout).toMatch(
       /import\s+Navbar\s+from\s+["']@\/components\/navbar["']/
     );
+    expect(publicLayout).toContain('from "@/lib/announcementSettings"');
+    expect(publicLayout).not.toContain('from "@/lib/actions/crm"');
     expect(publicLayout).toContain("getAnnouncementSettings");
     expect(navbar).not.toContain("usePathname");
     expect(navbar).not.toContain('startsWith("/checkout")');

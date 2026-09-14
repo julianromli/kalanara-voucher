@@ -66,7 +66,7 @@ import {
   setServiceActiveState,
   updateService,
 } from "@/lib/actions/services";
-import { updateServiceScalevMapping } from "@/lib/scalev/service-writes";
+import { updateServiceScalevMapping } from "@/lib/scalev/serviceWrites";
 import { AdminPermission, hasPermissionForRole } from "@/lib/auth/admin-rbac";
 
 const joinedSelect = "*, category_relation:service_categories!category_id(*)";

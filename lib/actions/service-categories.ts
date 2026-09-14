@@ -7,7 +7,7 @@ import {
 } from "@/lib/auth/admin-rbac-server";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { revalidateServiceCatalogData } from "@/lib/actions/revalidate-service-catalog";
+import { revalidateServiceCatalogData } from "@/lib/actions/revalidateServiceCatalog";
 import type { Database } from "@/lib/database.types";
 
 type ServiceCategoryRow = Database["public"]["Tables"]["service_categories"]["Row"];

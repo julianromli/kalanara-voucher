@@ -5,7 +5,7 @@ const { getAnnouncementSettingsMock } = vi.hoisted(() => ({
   getAnnouncementSettingsMock: vi.fn(),
 }));
 
-vi.mock("@/lib/actions/crm", () => ({
+vi.mock("@/lib/announcementSettings", () => ({
   getAnnouncementSettings: getAnnouncementSettingsMock,
 }));
 
@@ -45,7 +45,7 @@ describe("PublicLayout", () => {
     const navbar = await PublicNavbar();
 
     expect(navbar.props).toMatchObject({
-      announcementText: "FLASH SALE 5.5 ...... BERAKHIR DALAM ",
+      announcementText: "PROMO 5.5 BERAKHIR DALAM ",
       announcementCountdownEndAt: undefined,
       announcementCountdownEnabled: true,
     });

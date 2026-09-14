@@ -20,7 +20,7 @@ describe("voucher delivery outbox persistence", () => {
 
   test("claims deliveries through the atomic RPC and returns claimed rows", async () => {
     const { claimVoucherDeliveries } = await import(
-      "@/lib/payment/voucher-delivery-outbox"
+      "@/lib/payment/voucherDeliveryOutbox"
     );
     rpcMock.mockResolvedValue({
       data: [
@@ -59,7 +59,7 @@ describe("voucher delivery outbox persistence", () => {
 
   test("throws when claim persistence fails or returns a malformed row", async () => {
     const { claimVoucherDeliveries } = await import(
-      "@/lib/payment/voucher-delivery-outbox"
+      "@/lib/payment/voucherDeliveryOutbox"
     );
     rpcMock.mockResolvedValueOnce({
       data: null,
@@ -90,7 +90,7 @@ describe("voucher delivery outbox persistence", () => {
 
   test("finalizes SENT atomically with the immutable claim token", async () => {
     const { markVoucherDeliverySent } = await import(
-      "@/lib/payment/voucher-delivery-outbox"
+      "@/lib/payment/voucherDeliveryOutbox"
     );
     rpcMock.mockResolvedValue({ data: false, error: null });
 
@@ -107,7 +107,7 @@ describe("voucher delivery outbox persistence", () => {
 
   test("bounds errors and finalizes FAILED atomically with the claim token", async () => {
     const { markVoucherDeliveryFailed } = await import(
-      "@/lib/payment/voucher-delivery-outbox"
+      "@/lib/payment/voucherDeliveryOutbox"
     );
     rpcMock.mockResolvedValue({ data: true, error: null });
 
@@ -127,7 +127,7 @@ describe("voucher delivery outbox persistence", () => {
 
   test("throws when FAILED persistence is not confirmed", async () => {
     const { markVoucherDeliveryFailed } = await import(
-      "@/lib/payment/voucher-delivery-outbox"
+      "@/lib/payment/voucherDeliveryOutbox"
     );
     rpcMock.mockResolvedValue({
       data: false,

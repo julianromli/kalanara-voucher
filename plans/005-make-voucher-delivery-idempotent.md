@@ -133,7 +133,7 @@ Define one `SECURITY DEFINER SET search_path = ''` RPC that fully qualifies ever
 4. perform no HTTP/provider work.
 
 ```ts
-// lib/payment/voucher-delivery-outbox.ts — target API
+// lib/payment/voucherDeliveryOutbox.ts — target API
 export type VoucherDeliveryChannel = "EMAIL" | "WHATSAPP";
 export interface ClaimedVoucherDelivery {
   id: string;
@@ -203,7 +203,7 @@ Pass each concrete `Voucher` returned/reused by item or single-voucher creation 
 
 1. Add migration `020_add_voucher_delivery_outbox.sql` with the exact schema/index/RLS/RPC contract above; deny direct anon access.
 2. Add generated-equivalent table, enum, aliases, and RPC result types to `lib/database.types.ts`.
-3. Add `lib/payment/voucher-delivery-outbox.ts` using `getAdminClient()` and explicit error checks for claim/SENT/FAILED transitions.
+3. Add `lib/payment/voucherDeliveryOutbox.ts` using `getAdminClient()` and explicit error checks for claim/SENT/FAILED transitions.
 4. Replace `triggerSingleVoucherDelivery` at `lib/payment/voucher-service.ts:199-217` with channel expansion and claimed delivery. Preserve EMAIL/WHATSAPP/BOTH and no-item compatibility.
 5. Refactor the single branch to retain the concrete new/existing voucher while keeping exported `VoucherCreationResult` unchanged.
 6. Keep webhook/reconcile preflight checks only as fast paths; correctness must depend on the durable claim.

@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import {
   AuthProvider,
   type LoginResult,
-  type User,
   useAuth,
 } from "@/context/AuthContext";
 
@@ -68,13 +67,12 @@ const sessionFor = (id: string, email?: string) =>
 
 let latestAuth: ReturnType<typeof useAuth> | null = null;
 
-function AuthStateProbe({ onRender }: { onRender?: (user: User | null) => void }) {
+function AuthStateProbe() {
   const auth = useAuth();
 
   useEffect(() => {
     latestAuth = auth;
-    onRender?.(auth.user);
-  }, [auth, onRender]);
+  }, [auth]);
 
   return (
     <div>
@@ -288,9 +286,8 @@ describe("AuthProvider", () => {
     expect(screen.getByTestId("user-name")).toHaveTextContent("Admin Terbaru");
   });
 
-  it("invalidates pending auth work when the provider unmounts", async () => {
+  it("unsubscribes when the provider unmounts during a pending lookup", async () => {
     const lookup = deferred<AdminLookupResult>();
-    const renderedUsers: Array<string | null> = [];
     mocks.adminLookups.push(lookup.promise);
     mocks.getSession.mockResolvedValue({
       data: { session: sessionFor("pending-admin") },
@@ -298,23 +295,18 @@ describe("AuthProvider", () => {
 
     const { unmount } = render(
       <AuthProvider>
-        <AuthStateProbe
-          onRender={(user) => renderedUsers.push(user?.id ?? null)}
-        />
+        <AuthStateProbe />
       </AuthProvider>
     );
 
     await waitFor(() => expect(mocks.from).toHaveBeenCalledTimes(1));
     unmount();
-    const rendersAtUnmount = renderedUsers.length;
+    expect(mocks.unsubscribe).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       lookup.resolve({ data: { name: "Terlambat", role: "STAFF" } });
       await lookup.promise;
     });
-
-    expect(mocks.unsubscribe).toHaveBeenCalledTimes(1);
-    expect(renderedUsers).toHaveLength(rendersAtUnmount);
   });
 
   it("does not let a late login resolution restore state after logout", async () => {

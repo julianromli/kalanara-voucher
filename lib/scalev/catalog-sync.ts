@@ -10,7 +10,7 @@ import {
 import { type ScalevCatalogProductInput } from "@/lib/scalev/types";
 import type { Service } from "@/lib/database.types";
 import { getActiveServicesForScalevSync } from "@/lib/actions/services";
-import { updateServiceScalevMapping } from "@/lib/scalev/service-writes";
+import { updateServiceScalevMapping } from "@/lib/scalev/serviceWrites";
 
 const SCALEV_PRODUCT_DESCRIPTION_MAX_LENGTH = 255;
 

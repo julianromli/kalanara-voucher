@@ -1,36 +1,47 @@
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { relative, resolve, sep } from "node:path";
 import { describe, expect, test } from "vitest";
 
 const root = process.cwd();
+const appRoot = resolve(root, "app");
+
+function getProductionAppSourceFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      return getProductionAppSourceFiles(path);
+    }
+
+    if (
+      !/\.[cm]?[jt]sx?$/.test(entry.name) ||
+      /\.test\.[cm]?[jt]sx?$/.test(entry.name)
+    ) {
+      return [];
+    }
+
+    return [path];
+  });
+}
 
 describe("third-party script route isolation", () => {
   test("mounts Meta Pixel only in the explicit marketing route group", () => {
-    const rootLayout = readFileSync(resolve(root, "app/layout.tsx"), "utf8");
-    const voucherMarketingLayout = readFileSync(
-      resolve(root, "app/(marketing)/layout.tsx"),
-      "utf8"
-    );
-    const landingMarketingLayout = readFileSync(
-      resolve(root, "app/(public)/(marketing)/layout.tsx"),
-      "utf8"
-    );
-    const publicLayout = readFileSync(
-      resolve(root, "app/(public)/layout.tsx"),
-      "utf8"
-    );
-    const adminLayout = readFileSync(
-      resolve(root, "app/admin/layout.tsx"),
-      "utf8"
-    );
+    const metaPixelFiles = getProductionAppSourceFiles(appRoot)
+      .filter((path) => readFileSync(path, "utf8").includes("MetaPixel"))
+      .map((path) => relative(appRoot, path).split(sep).join("/"))
+      .sort();
+    const allowedLayouts = [
+      "(marketing)/layout.tsx",
+      "(public)/(marketing)/layout.tsx",
+    ];
 
-    for (const pixelFreeLayout of [rootLayout, publicLayout, adminLayout]) {
-      expect(pixelFreeLayout).not.toContain("MetaPixel");
-    }
-    for (const marketingLayout of [
-      voucherMarketingLayout,
-      landingMarketingLayout,
-    ]) {
+    expect(metaPixelFiles).toEqual(allowedLayouts);
+
+    for (const marketingLayoutPath of allowedLayouts) {
+      const marketingLayout = readFileSync(
+        resolve(appRoot, marketingLayoutPath),
+        "utf8"
+      );
       expect(marketingLayout).toContain('import { MetaPixel }');
       expect(marketingLayout).toContain("<MetaPixel />");
     }

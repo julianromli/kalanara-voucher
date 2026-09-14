@@ -26,7 +26,7 @@ vi.mock("@/lib/actions/services", () => ({
   getActiveServicesForScalevSync: serviceActionMocks.getActiveServicesForScalevSyncMock,
 }));
 
-vi.mock("@/lib/scalev/service-writes", () => ({
+vi.mock("@/lib/scalev/serviceWrites", () => ({
   updateServiceScalevMapping: serviceActionMocks.updateServiceScalevMappingMock,
 }));
 

@@ -39,7 +39,7 @@ vi.mock("@/lib/payment/order-writes", () => ({
   updateOrderVoucherId: updateOrderVoucherIdMock,
 }));
 
-vi.mock("@/lib/payment/voucher-delivery-outbox", () => ({
+vi.mock("@/lib/payment/voucherDeliveryOutbox", () => ({
   claimVoucherDeliveries: claimVoucherDeliveriesMock,
   markVoucherDeliveryFailed: markVoucherDeliveryFailedMock,
   markVoucherDeliverySent: markVoucherDeliverySentMock,
@@ -263,5 +263,74 @@ describe("createVoucherOnPaymentSuccess", () => {
       success: false,
       error: "provider unavailable",
     });
+  });
+
+  test("claims every configured channel and marks each failed when public credentials are missing", async () => {
+    const { createVoucherOnPaymentSuccess } = await import(
+      "@/lib/payment/voucher-service"
+    );
+    getOrderItemsByOrderIdMock.mockResolvedValue([item]);
+    claimVoucherDeliveriesMock.mockResolvedValue([
+      { id: "delivery-email", channel: "EMAIL", claimToken: "claim-email" },
+      {
+        id: "delivery-whatsapp",
+        channel: "WHATSAPP",
+        claimToken: "claim-whatsapp",
+      },
+    ]);
+
+    const result = await createVoucherOnPaymentSuccess({
+      ...order,
+      payment_order_id: null,
+      public_access_token: null,
+    } as unknown as OrderWithService);
+
+    expect(claimVoucherDeliveriesMock).toHaveBeenCalledWith({
+      orderId: "order-1",
+      orderItemId: "item-1",
+      voucherId: "voucher-1",
+      channels: ["EMAIL", "WHATSAPP"],
+    });
+    expect(markVoucherDeliveryFailedMock).toHaveBeenCalledTimes(2);
+    expect(markVoucherDeliveryFailedMock).toHaveBeenCalledWith(
+      "delivery-email",
+      "claim-email",
+      expect.objectContaining({
+        message: "Missing public access credentials for voucher delivery",
+      })
+    );
+    expect(markVoucherDeliveryFailedMock).toHaveBeenCalledWith(
+      "delivery-whatsapp",
+      "claim-whatsapp",
+      expect.objectContaining({
+        message: "Missing public access credentials for voucher delivery",
+      })
+    );
+    expect(sendVoucherEmailMock).not.toHaveBeenCalled();
+    expect(sendVoucherWhatsAppMock).not.toHaveBeenCalled();
+    expect(markVoucherDeliverySentMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      success: false,
+      error: "Missing public access credentials for voucher delivery",
+    });
+  });
+
+  test("does not require delivery credentials when no channel is claimable", async () => {
+    const { createVoucherOnPaymentSuccess } = await import(
+      "@/lib/payment/voucher-service"
+    );
+    getOrderItemsByOrderIdMock.mockResolvedValue([item]);
+    claimVoucherDeliveriesMock.mockResolvedValue([]);
+
+    const result = await createVoucherOnPaymentSuccess({
+      ...order,
+      payment_order_id: null,
+      public_access_token: null,
+    } as unknown as OrderWithService);
+
+    expect(result.success).toBe(true);
+    expect(markVoucherDeliveryFailedMock).not.toHaveBeenCalled();
+    expect(sendVoucherEmailMock).not.toHaveBeenCalled();
+    expect(sendVoucherWhatsAppMock).not.toHaveBeenCalled();
   });
 });
