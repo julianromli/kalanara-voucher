@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { CheckoutPageClient } from "@/app/checkout/[id]/checkout-page-client";
 import { ToastProvider } from "@/context/ToastContext";
+import type { ScalevCheckoutConfig } from "@/lib/scalev/types";
 import { ServiceCategory } from "@/lib/types";
 
 const push = vi.fn();
@@ -24,10 +25,21 @@ const service = {
   image: "https://example.com/service.jpg",
 };
 
-function renderCheckout() {
+const initialPaymentConfig: ScalevCheckoutConfig = {
+  storeUniqueId: "store-123",
+  paymentNotice: undefined,
+  paymentOptions: [{ code: "qris", label: "QRIS" }],
+};
+
+function renderCheckout(
+  paymentConfig: ScalevCheckoutConfig = initialPaymentConfig
+) {
   render(
     <ToastProvider>
-      <CheckoutPageClient service={service} />
+      <CheckoutPageClient
+        service={service}
+        initialPaymentConfig={paymentConfig}
+      />
     </ToastProvider>
   );
 }
@@ -40,35 +52,56 @@ describe("CheckoutPageClient", () => {
     back.mockReset();
   });
 
-  test("renders checkout shell while payment config is still loading", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
+  test("renders preloaded payment options without a mount-time request", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
 
     renderCheckout();
 
     expect(screen.getByText("Selesaikan Pembelian")).toBeInTheDocument();
     expect(screen.getByText("Ringkasan Pesanan")).toBeInTheDocument();
-    expect(screen.getByText("Sedang menyiapkan metode pembayaran...")).toBeInTheDocument();
+    expect(screen.getByText("QRIS")).toBeInTheDocument();
+    expect(screen.queryByText("Sedang menyiapkan metode pembayaran...")).not.toBeInTheDocument();
     expect(screen.queryByText("Memproses Pembayaran...")).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("retries an empty preload with exactly one request and recovers", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        config: initialPaymentConfig,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderCheckout({
+      storeUniqueId: "store-123",
+      paymentOptions: [],
+    });
+
+    expect(
+      screen.getByText("Metode pembayaran sedang tidak tersedia.")
+    ).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Coba Muat Ulang" }));
+
+    expect(await screen.findByText("QRIS")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/scalev/payment-options", {
+      cache: "no-store",
+    });
   });
 
   test("shows conditional recipient contact fields based on sendTo and delivery method", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          success: true,
-          config: {
-            paymentNotice: null,
-            paymentOptions: [{ code: "qris", label: "QRIS" }],
-          },
-        }),
-      })
-    );
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
 
     renderCheckout();
 
-    expect(await screen.findByText("QRIS")).toBeInTheDocument();
+    expect(screen.getByText("QRIS")).toBeInTheDocument();
     expect(screen.getByText("WhatsApp Penerima")).toBeInTheDocument();
     expect(screen.queryByText("Email Penerima")).not.toBeInTheDocument();
 
@@ -118,16 +151,6 @@ describe("CheckoutPageClient", () => {
         ok: true,
         json: async () => ({
           success: true,
-          config: {
-            paymentNotice: null,
-            paymentOptions: [{ code: "qris", label: "QRIS" }],
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
           paymentLink: "https://app.scalev.id/order/public/secret-token",
           paymentOrderId: "KSP-123",
           statusSessionId: "status-session-1",
@@ -139,7 +162,7 @@ describe("CheckoutPageClient", () => {
 
     renderCheckout();
 
-    expect(await screen.findByText("QRIS")).toBeInTheDocument();
+    expect(screen.getByText("QRIS")).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {
       target: { value: "Penerima" },
@@ -158,19 +181,19 @@ describe("CheckoutPageClient", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Lanjut ke Pembayaran" })[0]);
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    const secondCall = fetchMock.mock.calls[1];
-    expect(secondCall?.[0]).toBe("/api/scalev/create-payment");
-    expect(JSON.parse(secondCall?.[1]?.body as string)).toEqual(
+    const createPaymentCall = fetchMock.mock.calls[0];
+    expect(createPaymentCall?.[0]).toBe("/api/scalev/create-payment");
+    expect(JSON.parse(createPaymentCall?.[1]?.body as string)).toEqual(
       expect.objectContaining({
         sendTo: "PURCHASER",
         deliveryMethod: "WHATSAPP",
         customerPhone: "0812 3456 7890",
       })
     );
-    expect(JSON.parse(secondCall?.[1]?.body as string)).not.toHaveProperty(
+    expect(JSON.parse(createPaymentCall?.[1]?.body as string)).not.toHaveProperty(
       "recipientPhone"
     );
 
@@ -192,16 +215,6 @@ describe("CheckoutPageClient", () => {
         ok: true,
         json: async () => ({
           success: true,
-          config: {
-            paymentNotice: null,
-            paymentOptions: [{ code: "qris", label: "QRIS" }],
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
           pricing: {
             code: "HEMAT10",
             discountAmount: 45000,
@@ -215,7 +228,7 @@ describe("CheckoutPageClient", () => {
 
     renderCheckout();
 
-    expect(await screen.findByText("QRIS")).toBeInTheDocument();
+    expect(screen.getByText("QRIS")).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {
       target: { value: "Penerima" },
@@ -241,10 +254,10 @@ describe("CheckoutPageClient", () => {
     fireEvent.keyDown(discountInput, { key: "Enter", code: "Enter" });
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    expect(fetchMock.mock.calls[1]?.[0]).toBe("/api/discount-codes/preview");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/discount-codes/preview");
     expect(push).not.toHaveBeenCalled();
   });
 });

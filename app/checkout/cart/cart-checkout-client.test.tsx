@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { CartCheckoutClient } from "@/app/checkout/cart/cart-checkout-client";
 import { ToastProvider } from "@/context/ToastContext";
+import type { ScalevCheckoutConfig } from "@/lib/scalev/types";
 import { useCartStore } from "@/store/cart-store";
 
 const push = vi.fn();
@@ -14,10 +15,17 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-function renderCheckout() {
+const initialPaymentConfig: ScalevCheckoutConfig = {
+  storeUniqueId: "store-123",
+  paymentOptions: [{ code: "qris", label: "QRIS" }],
+};
+
+function renderCheckout(
+  paymentConfig: ScalevCheckoutConfig = initialPaymentConfig
+) {
   render(
     <ToastProvider>
-      <CartCheckoutClient />
+      <CartCheckoutClient initialPaymentConfig={paymentConfig} />
     </ToastProvider>
   );
 }
@@ -56,20 +64,51 @@ describe("CartCheckoutClient", () => {
     });
   });
 
+  test("renders preloaded payment options without a mount-time request", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderCheckout();
+
+    expect(await screen.findByText("QRIS")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Sedang menyiapkan metode pembayaran...")
+    ).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("retries an empty preload with exactly one request and recovers", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        config: initialPaymentConfig,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderCheckout({
+      storeUniqueId: "store-123",
+      paymentOptions: [],
+    });
+
+    expect(
+      await screen.findByText("Metode pembayaran sedang tidak tersedia.")
+    ).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Coba Muat Ulang" }));
+
+    expect(await screen.findByText("QRIS")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/scalev/payment-options", {
+      cache: "no-store",
+    });
+  });
+
   test("collapses secondary vouchers into summaries and restores editable fields on toggle off", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          success: true,
-          config: {
-            paymentNotice: null,
-            paymentOptions: [{ code: "qris", label: "QRIS" }],
-          },
-        }),
-      })
-    );
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
 
     renderCheckout();
 
@@ -121,16 +160,6 @@ describe("CartCheckoutClient", () => {
         ok: true,
         json: async () => ({
           success: true,
-          config: {
-            paymentNotice: null,
-            paymentOptions: [{ code: "qris", label: "QRIS" }],
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
           paymentLink: "https://app.scalev.id/order/public/secret-token",
           paymentOrderId: "KSP-123",
           statusSessionId: "status-session-1",
@@ -174,10 +203,10 @@ describe("CartCheckoutClient", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Lanjut ke Pembayaran" })[0]);
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    const createPaymentCall = fetchMock.mock.calls[1];
+    const createPaymentCall = fetchMock.mock.calls[0];
     const requestBody = JSON.parse(createPaymentCall?.[1]?.body as string) as {
       lineItems: Array<{ recipientName: string; recipientPhone?: string }>;
     };

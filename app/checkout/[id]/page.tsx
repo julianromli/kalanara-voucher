@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { CheckoutPageClient } from "@/app/checkout/[id]/checkout-page-client";
 import { getServiceById } from "@/lib/actions/services";
+import { getScalevCheckoutConfig } from "@/lib/scalev/checkout-config";
 import type { Service } from "@/lib/types";
 import type { ServiceWithCategory } from "@/lib/actions/services";
 import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
@@ -39,11 +40,20 @@ function toServiceModel(service: ServiceWithCategory | null): Service | null {
 
 export default async function CheckoutPage({ params }: PageProps) {
   const { id } = await params;
-  const service = toServiceModel(await getServiceById(id));
+  const [serviceResult, initialPaymentConfig] = await Promise.all([
+    getServiceById(id),
+    getScalevCheckoutConfig(),
+  ]);
+  const service = toServiceModel(serviceResult);
 
   if (!service || !service.id) {
     notFound();
   }
 
-  return <CheckoutPageClient service={service} />;
+  return (
+    <CheckoutPageClient
+      service={service}
+      initialPaymentConfig={initialPaymentConfig}
+    />
+  );
 }

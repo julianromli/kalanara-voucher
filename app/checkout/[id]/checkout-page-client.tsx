@@ -35,6 +35,7 @@ const PHONE_PATTERN = /^(\+62|62|0)[\d\s-]{8,14}$/;
 
 interface CheckoutPageClientProps {
   service: Service;
+  initialPaymentConfig: ScalevCheckoutConfig;
 }
 
 interface CheckoutForm {
@@ -208,15 +209,25 @@ function writePaymentLoadingShell(paymentWindow: Window | null) {
   popupDocument.close();
 }
 
-export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
+export function CheckoutPageClient({
+  service,
+  initialPaymentConfig,
+}: CheckoutPageClientProps) {
   const router = useRouter();
   const { showToast } = useToast();
   const announcementRef = useRef<HTMLDivElement>(null);
+  const initialPaymentMethod =
+    initialPaymentConfig.paymentOptions[0]?.code ?? null;
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentConfig, setPaymentConfig] = useState<ScalevCheckoutConfig | null>(null);
-  const [paymentError, setPaymentError] = useState<string | null>(null);
-  const [paymentConfigReloadKey, setPaymentConfigReloadKey] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<ScalevPaymentMethod | null>(null);
+  const [paymentConfig, setPaymentConfig] =
+    useState<ScalevCheckoutConfig | null>(initialPaymentConfig);
+  const [paymentError, setPaymentError] = useState<string | null>(
+    initialPaymentMethod
+      ? null
+      : "Metode pembayaran sedang tidak tersedia."
+  );
+  const [paymentMethod, setPaymentMethod] =
+    useState<ScalevPaymentMethod | null>(initialPaymentMethod);
   const [subPaymentMethod, setSubPaymentMethod] = useState<ScalevVABankCode | "">("");
   const [discountCodeInput, setDiscountCodeInput] = useState("");
   const [appliedDiscount, setAppliedDiscount] =
@@ -278,61 +289,48 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
     }, 1000);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const retryPaymentOptions = async () => {
+    setPaymentError(null);
 
-    async function loadPaymentOptions() {
-      setPaymentError(null);
-
-      try {
-        const response = await fetch("/api/scalev/payment-options", {
-          cache: "no-store",
-        });
-        const result = (await response.json()) as {
-          success: boolean;
-          config?: ScalevCheckoutConfig;
-        };
-
-        if (cancelled) {
-          return;
-        }
-
-        if (!response.ok || !result.success || !result.config) {
-          throw new Error("Gagal memuat metode pembayaran.");
-        }
-
-        setPaymentConfig(result.config);
-        const nextMethod = result.config.paymentOptions[0]?.code ?? null;
-
-        if (!nextMethod) {
-          setPaymentError("Metode pembayaran sedang tidak tersedia.");
-          return;
-        }
-
-        setPaymentMethod((current) => {
-          if (current && result.config?.paymentOptions.some((option) => option.code === current)) {
-            return current;
-          }
-
-          return nextMethod;
-        });
-      } catch (error) {
-        console.error("Failed to load Scalev payment options:", error);
-        if (!cancelled) {
-          setPaymentConfig(null);
-          setPaymentMethod(null);
-          setSubPaymentMethod("");
-          setPaymentError("Gagal memuat metode pembayaran. Coba muat ulang.");
-        }
+    try {
+      const response = await fetch("/api/scalev/payment-options", {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error("Gagal memuat metode pembayaran.");
       }
+
+      const result = (await response.json()) as {
+        success: boolean;
+        config?: ScalevCheckoutConfig;
+      };
+
+      if (!result.success || !result.config) {
+        throw new Error("Gagal memuat metode pembayaran.");
+      }
+
+      const nextMethod = result.config.paymentOptions[0]?.code ?? null;
+      setPaymentConfig(result.config);
+      setPaymentMethod((current) =>
+        current &&
+        result.config?.paymentOptions.some(
+          (option) => option.code === current
+        )
+          ? current
+          : nextMethod
+      );
+
+      if (!nextMethod) {
+        setPaymentError("Metode pembayaran sedang tidak tersedia.");
+      }
+    } catch (error) {
+      console.error("Failed to load Scalev payment options:", error);
+      setPaymentConfig(null);
+      setPaymentMethod(null);
+      setSubPaymentMethod("");
+      setPaymentError("Gagal memuat metode pembayaran. Coba muat ulang.");
     }
-
-    void loadPaymentOptions();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [paymentConfigReloadKey]);
+  };
 
   useEffect(() => {
     clearErrors(["recipientPhone", "recipientEmail"]);
@@ -845,7 +843,7 @@ export function CheckoutPageClient({ service }: CheckoutPageClientProps) {
                           type="button"
                           variant="outline"
                           className="mt-4"
-                          onClick={() => setPaymentConfigReloadKey((value) => value + 1)}
+                          onClick={() => void retryPaymentOptions()}
                         >
                           Coba Muat Ulang
                         </Button>

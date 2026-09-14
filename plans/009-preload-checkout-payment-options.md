@@ -1,6 +1,6 @@
 # 009 — Preload checkout payment options on the server
 
-- **Status**: OPEN
+- **Status**: DONE
 - **Commit**: b94c4ae
 - **Severity**: HIGH
 - **Category**: Performance

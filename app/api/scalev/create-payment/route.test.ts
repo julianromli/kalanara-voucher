@@ -252,6 +252,43 @@ describe("POST /api/scalev/create-payment", () => {
     expect(createPendingOrderMock).not.toHaveBeenCalled();
   });
 
+  test("rejects a preloaded payment method when fresh provider availability is stale", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+    getScalevCheckoutAvailabilityMock.mockResolvedValue({
+      paymentMethods: ["va"],
+      subPaymentMethods: ["BCA"],
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: "service-1",
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          recipientName: "Penerima",
+          recipientPhone: "081234567890",
+          deliveryMethod: DeliveryMethod.WHATSAPP,
+          sendTo: SendTo.RECIPIENT,
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: "Metode pembayaran tidak tersedia.",
+      errorCode: "PAYMENT_METHOD_UNAVAILABLE",
+    });
+    expect(getScalevCheckoutAvailabilityMock).toHaveBeenCalledTimes(1);
+    expect(getServiceByIdMock).not.toHaveBeenCalled();
+    expect(createPendingOrderMock).not.toHaveBeenCalled();
+    expect(createScalevOrderMock).not.toHaveBeenCalled();
+  });
+
   test("creates order items for cart checkout", async () => {
     const { POST } = await import("@/app/api/scalev/create-payment/route");
 
