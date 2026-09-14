@@ -16,10 +16,22 @@ describe("payment fulfillment corrective migration", () => {
       /vouchers\.source_order_item_id in \([\s\S]*from public\.order_items[\s\S]*order_id = any\(target_order_ids\)/i
     );
     expect(sql).toMatch(
-      /detached_order_items[\s\S]*update public\.order_items[\s\S]*set voucher_id = null/i
+      /update public\.order_items\s+set voucher_id = null[\s\S]*where public\.order_items\.id = any\(target_order_item_ids\)/i
     );
-    expect(sql.indexOf("deleted_vouchers AS")).toBeLessThan(
-      sql.indexOf("deleted_orders AS")
+    expect(sql.indexOf("INTO related_voucher_ids")).toBeLessThan(
+      sql.indexOf("DELETE FROM public.scalev_webhook_events")
+    );
+  });
+
+  test("detaches voucher links and deletes rows in separate sequential statements", () => {
+    expect(sql).not.toMatch(
+      /\bwith\s+\w+\s+as\s*\(\s*(?:delete|update)\b/i
+    );
+    expect(sql).not.toMatch(
+      /\),\s*\w+\s+as\s*\(\s*(?:delete|update)\b/i
+    );
+    expect(sql).toMatch(
+      /delete from public\.scalev_webhook_events[\s\S]*?;\s*get diagnostics deleted_webhook_event_count = row_count;\s*update public\.orders[\s\S]*?;\s*update public\.order_items[\s\S]*?;\s*delete from public\.reviews[\s\S]*?;\s*get diagnostics deleted_review_count = row_count;\s*delete from public\.vouchers[\s\S]*?;\s*get diagnostics deleted_voucher_count = row_count;\s*delete from public\.orders[\s\S]*?;\s*get diagnostics deleted_order_count = row_count;\s*return query/i
     );
   });
 

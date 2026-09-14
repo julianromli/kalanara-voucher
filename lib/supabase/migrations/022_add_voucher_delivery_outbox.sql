@@ -198,11 +198,11 @@ AS $$
         last_error = pg_catalog.left(p_error, 1000),
         next_attempt_at = pg_catalog.now() +
           pg_catalog.make_interval(mins =>
-            pg_catalog.least(
+            LEAST(
               pg_catalog.power(
                 2,
-                pg_catalog.least(
-                  pg_catalog.greatest(outbox.attempt_count - 1, 0),
+                LEAST(
+                  GREATEST(outbox.attempt_count - 1, 0),
                   6
                 )
               )::integer,

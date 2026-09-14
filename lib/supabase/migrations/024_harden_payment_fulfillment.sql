@@ -93,52 +93,45 @@ BEGIN
     END IF;
   END IF;
 
+  DELETE FROM public.scalev_webhook_events
+  WHERE scalev_webhook_events.order_id = ANY(target_order_ids);
+  GET DIAGNOSTICS deleted_webhook_event_count = ROW_COUNT;
+
+  UPDATE public.orders
+  SET voucher_id = NULL
+  WHERE public.orders.id = ANY(target_order_ids)
+    AND public.orders.voucher_id = ANY(related_voucher_ids);
+
+  UPDATE public.order_items
+  SET voucher_id = NULL
+  WHERE public.order_items.id = ANY(target_order_item_ids)
+    AND public.order_items.voucher_id = ANY(related_voucher_ids);
+
+  DELETE FROM public.reviews
+  WHERE public.reviews.voucher_id = ANY(related_voucher_ids);
+  GET DIAGNOSTICS deleted_review_count = ROW_COUNT;
+
+  DELETE FROM public.vouchers
+  WHERE public.vouchers.id = ANY(related_voucher_ids);
+  GET DIAGNOSTICS deleted_voucher_count = ROW_COUNT;
+
+  DELETE FROM public.orders
+  WHERE public.orders.id = ANY(target_order_ids);
+  GET DIAGNOSTICS deleted_order_count = ROW_COUNT;
+
   RETURN QUERY
-  WITH deleted_webhooks AS (
-    DELETE FROM public.scalev_webhook_events
-    WHERE scalev_webhook_events.order_id = ANY(target_order_ids)
-    RETURNING id
-  ), detached_orders AS (
-    UPDATE public.orders
-    SET voucher_id = NULL
-    WHERE public.orders.id = ANY(target_order_ids)
-      AND public.orders.voucher_id = ANY(related_voucher_ids)
-    RETURNING id
-  ), detached_order_items AS (
-    UPDATE public.order_items
-    SET voucher_id = NULL
-    WHERE public.order_items.id = ANY(target_order_item_ids)
-      AND public.order_items.voucher_id = ANY(related_voucher_ids)
-    RETURNING id
-  ), deleted_reviews AS (
-    DELETE FROM public.reviews
-    WHERE public.reviews.voucher_id = ANY(related_voucher_ids)
-    RETURNING id
-  ), deleted_vouchers AS (
-    DELETE FROM public.vouchers
-    WHERE public.vouchers.id = ANY(related_voucher_ids)
-      AND (SELECT COUNT(*) FROM detached_orders) >= 0
-      AND (SELECT COUNT(*) FROM detached_order_items) >= 0
-      AND (SELECT COUNT(*) FROM deleted_reviews) >= 0
-    RETURNING id
-  ), deleted_orders AS (
-    DELETE FROM public.orders
-    WHERE public.orders.id = ANY(target_order_ids)
-      AND (SELECT COUNT(*) FROM deleted_vouchers) >= 0
-    RETURNING id
-  )
   SELECT
     true,
     CASE
-      WHEN (SELECT COUNT(*) FROM deleted_orders) = 1
+      WHEN deleted_order_count = 1
         THEN 'Pembelian berhasil dihapus permanen.'
-      ELSE (SELECT COUNT(*) FROM deleted_orders)::text
+      ELSE deleted_order_count::text
         || ' pembelian berhasil dihapus permanen.'
     END,
-    (SELECT COUNT(*)::integer FROM deleted_orders),
-    (SELECT COUNT(*)::integer FROM deleted_vouchers),
-    (SELECT COUNT(*)::integer FROM deleted_reviews),
-    (SELECT COUNT(*)::integer FROM deleted_webhooks);
+    deleted_order_count,
+    deleted_voucher_count,
+    deleted_review_count,
+    deleted_webhook_event_count;
 END;
 $$;
 
