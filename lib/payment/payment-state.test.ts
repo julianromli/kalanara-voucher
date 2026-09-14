@@ -179,4 +179,37 @@ describe("transitionOrderPaymentState", () => {
       reason: "database_error",
     });
   });
+
+  test("preserves an accepted transition when cache invalidation throws", async () => {
+    const { transitionOrderPaymentState } = await import(
+      "@/lib/payment/payment-state"
+    );
+    rpcMock.mockResolvedValue({
+      data: [{
+        accepted: true,
+        changed: true,
+        reason: "applied",
+        previous_status: "PENDING",
+        current_status: "COMPLETED",
+        state_version: 2,
+      }],
+      error: null,
+    });
+    revalidateTagMock.mockImplementation(() => {
+      throw new Error("cache unavailable");
+    });
+
+    await expect(
+      transitionOrderPaymentState({
+        orderId: "order-1",
+        targetStatus: "COMPLETED",
+        provider: "scalev",
+        providerEventAt: "2026-09-14T12:00:00.000Z",
+        providerEventAtIsFallback: false,
+      })
+    ).resolves.toMatchObject({
+      accepted: true,
+      currentStatus: "COMPLETED",
+    });
+  });
 });

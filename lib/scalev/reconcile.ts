@@ -62,14 +62,15 @@ function buildGatewayUpdate(
     Awaited<ReturnType<typeof getOrderStatusDetailsById>>
   >,
   orderPk: number,
-  observedAt: string
+  providerEventAt: string,
+  receivedAt: string
 ): GatewayPaymentUpdate {
   return {
     paymentProvider: "scalev",
     transactionId:
       snapshot.pgReferenceId || existingOrder.payment_transaction_id,
     paymentType: snapshot.paymentMethod,
-    transactionTime: observedAt,
+    transactionTime: providerEventAt,
     paymentLink: snapshot.paymentLink || existingOrder.payment_link,
     scalevOrderPk: snapshot.orderPk || orderPk,
     scalevOrderId: snapshot.orderId || existingOrder.scalev_order_id,
@@ -82,7 +83,7 @@ function buildGatewayUpdate(
     scalevStoreUniqueId: existingOrder.scalev_store_unique_id,
     scalevRawStatus: snapshot.rawStatus,
     scalevRawPaymentStatus: snapshot.rawPaymentStatus,
-    scalevLastCheckedAt: observedAt,
+    scalevLastCheckedAt: receivedAt,
   };
 }
 
@@ -118,6 +119,7 @@ export async function reconcilePublicOrderStatusByInternalOrderId(
     (existingOrderWithItems?.order_items.some((item) => item.vouchers) ||
       (existingPublicOrder.voucher_id && existingPublicOrder.vouchers))
   ) {
+    await createVoucherOnPaymentSuccess(order);
     return buildCurrentPublicStatus(existingOrderWithItems, existingPublicOrder);
   }
 
@@ -155,8 +157,16 @@ export async function reconcilePublicOrderStatusByInternalOrderId(
       (orderRecord as ScalevPaymentStatusResponse | null) || discoveredPayment;
   }
 
-  const snapshot = buildPaymentSnapshot(latestPayment, settlement);
-  const providerEventAt = resolveScalevProviderEventAt(
+  const discoveredSnapshot = discoveredPayment
+    ? buildPaymentSnapshot(discoveredPayment, null)
+    : null;
+  const currentSnapshot = buildPaymentSnapshot(latestPayment, settlement);
+  const snapshot: ScalevPaymentSnapshot = {
+    ...currentSnapshot,
+    paymentLink:
+      currentSnapshot.paymentLink ?? discoveredSnapshot?.paymentLink ?? null,
+  };
+  const providerEvent = resolveScalevProviderEventAt(
     snapshot.providerEventAt,
     receivedAt,
     "reconciliation"
@@ -165,11 +175,13 @@ export async function reconcilePublicOrderStatusByInternalOrderId(
     orderId: existingPublicOrder.id,
     targetStatus: snapshot.normalizedStatus,
     provider: "scalev",
-    providerEventAt,
+    providerEventAt: providerEvent.timestamp,
+    providerEventAtIsFallback: providerEvent.isFallback,
     gatewayUpdate: buildGatewayUpdate(
       snapshot,
       existingPublicOrder,
       orderPk,
+      providerEvent.timestamp,
       receivedAt
     ),
   });

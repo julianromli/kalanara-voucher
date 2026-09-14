@@ -8,9 +8,9 @@ import { VouchersClient } from "@/components/admin/vouchers-client";
 
 interface AdminVouchersPageProps {
   searchParams: Promise<{
-    page?: string;
-    query?: string;
-    status?: string;
+    page?: string | string[];
+    query?: string | string[];
+    status?: string | string[];
   }>;
 }
 

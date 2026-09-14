@@ -191,6 +191,7 @@ export type Database = {
           attempt_count: number;
           next_attempt_at: string;
           claimed_at: string | null;
+          claim_token: string | null;
           sent_at: string | null;
           last_error: string | null;
           created_at: string;
@@ -206,6 +207,7 @@ export type Database = {
           attempt_count?: number;
           next_attempt_at?: string;
           claimed_at?: string | null;
+          claim_token?: string | null;
           sent_at?: string | null;
           last_error?: string | null;
           created_at?: string;
@@ -221,6 +223,7 @@ export type Database = {
           attempt_count?: number;
           next_attempt_at?: string;
           claimed_at?: string | null;
+          claim_token?: string | null;
           sent_at?: string | null;
           last_error?: string | null;
           created_at?: string;
@@ -404,6 +407,7 @@ export type Database = {
           payment_status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           payment_provider: string;
           payment_provider_event_at: string | null;
+          payment_provider_event_at_is_fallback: boolean;
           payment_state_version: number;
           subtotal_amount: number;
           discount_code_id: string | null;
@@ -448,6 +452,7 @@ export type Database = {
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           payment_provider?: string;
           payment_provider_event_at?: string | null;
+          payment_provider_event_at_is_fallback?: boolean;
           payment_state_version?: number;
           subtotal_amount?: number;
           discount_code_id?: string | null;
@@ -492,6 +497,7 @@ export type Database = {
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           payment_provider?: string;
           payment_provider_event_at?: string | null;
+          payment_provider_event_at_is_fallback?: boolean;
           payment_state_version?: number;
           subtotal_amount?: number;
           discount_code_id?: string | null;
@@ -838,7 +844,20 @@ export type Database = {
         Returns: {
           id: string;
           channel: Database["public"]["Enums"]["voucher_delivery_channel"];
+          claim_token: string;
         }[];
+      };
+      finalize_voucher_delivery_sent: {
+        Args: { p_delivery_id: string; p_claim_token: string };
+        Returns: boolean;
+      };
+      finalize_voucher_delivery_failed: {
+        Args: {
+          p_delivery_id: string;
+          p_claim_token: string;
+          p_error: string;
+        };
+        Returns: boolean;
       };
       get_admin_dashboard_aggregates: {
         Args: Record<PropertyKey, never>;
@@ -855,6 +874,12 @@ export type Database = {
           bucket_revenue: number;
           bucket_orders: number;
         }[];
+      };
+      search_admin_orders: {
+        Args: {
+          search_query: string;
+        };
+        Returns: Database["public"]["Tables"]["orders"]["Row"][];
       };
       generate_voucher_code: {
         Args: Record<PropertyKey, never>;
@@ -891,6 +916,7 @@ export type Database = {
           p_target_status: Database["public"]["Enums"]["payment_status"];
           p_provider: string;
           p_provider_event_at: string;
+          p_provider_event_at_is_fallback?: boolean;
           p_expected_version?: number | null;
           p_transaction_id?: string | null;
           p_payment_type?: string | null;
@@ -1029,5 +1055,6 @@ export type OrderItemWithService = OrderItem & {
 
 export type OrderWithItems = Order & {
   services: Service | null;
+  vouchers: VoucherWithService | null;
   order_items: OrderItemWithService[];
 };

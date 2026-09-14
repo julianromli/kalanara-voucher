@@ -2,7 +2,7 @@ import { PurchasesClient } from "@/components/admin/purchases-client";
 import {
   normalizeAdminListParams,
 } from "@/lib/actions/admin-pagination";
-import { getOrdersPage } from "@/lib/actions/orders";
+import { getOrdersPage, getOrdersTotalCount } from "@/lib/actions/orders";
 import {
   AdminPermission,
   hasPermissionForRole,
@@ -11,9 +11,9 @@ import { requireAdminRouteAccess } from "@/lib/auth/admin-rbac-server";
 
 interface AdminPurchasesPageProps {
   searchParams: Promise<{
-    page?: string;
-    query?: string;
-    status?: string;
+    page?: string | string[];
+    query?: string | string[];
+    status?: string | string[];
   }>;
 }
 
@@ -38,12 +38,16 @@ export default async function AdminPurchasesPage({
     },
     PURCHASE_FILTERS,
   );
-  const ordersPage = await getOrdersPage(params);
+  const [ordersPage, ordersTotalCount] = await Promise.all([
+    getOrdersPage(params),
+    getOrdersTotalCount(),
+  ]);
 
   return (
       <PurchasesClient
         key={`${params.query}:${params.filter}`}
         initialPage={ordersPage}
+        initialTotalCount={ordersTotalCount}
         initialQuery={params.query}
         initialFilter={params.filter}
         canUpdatePaymentStatus={hasPermissionForRole(

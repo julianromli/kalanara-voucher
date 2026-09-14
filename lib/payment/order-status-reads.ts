@@ -53,6 +53,8 @@ export async function getOrderStatusDetailsWithItemsById(
     .from("orders")
     .select(ORDER_ITEMS_SELECT)
     .eq("id", orderId)
+    .order("sort_order", { ascending: true, referencedTable: "order_items" })
+    .order("created_at", { ascending: true, referencedTable: "order_items" })
     .single();
 
   if (error) {

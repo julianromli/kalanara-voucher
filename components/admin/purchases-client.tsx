@@ -46,6 +46,7 @@ import type { OrderItemWithService, OrderWithVoucherItems } from "@/lib/database
 
 interface PurchasesClientProps {
   initialPage: AdminPage<OrderWithVoucherItems>;
+  initialTotalCount: number;
   initialQuery: string;
   initialFilter: string;
   canUpdatePaymentStatus: boolean;
@@ -127,6 +128,7 @@ function getOrderVoucherSummary(order: OrderWithVoucherItems) {
 
 export function PurchasesClient({
   initialPage,
+  initialTotalCount,
   initialQuery,
   initialFilter,
   canUpdatePaymentStatus,
@@ -311,7 +313,7 @@ export function PurchasesClient({
                   setDeleteMode("all");
                 }}
                 disabled={
-                  initialPage.totalCount === 0 ||
+                  initialTotalCount === 0 ||
                   isDeleteBusy ||
                   Boolean(isUpdatingStatus)
                 }
@@ -757,8 +759,8 @@ export function PurchasesClient({
 
           {deleteMode === "all" ? (
             <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-muted-foreground">
-              {initialPage.totalCount} purchase
-              {initialPage.totalCount === 1 ? "" : "s"} will be
+              {initialTotalCount} purchase
+              {initialTotalCount === 1 ? "" : "s"} will be
               removed from the admin view after the server confirms the hard
               delete.
             </div>

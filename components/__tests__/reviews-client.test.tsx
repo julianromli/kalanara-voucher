@@ -1,10 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { ReviewsClient } from "@/components/admin/reviews-client";
 import { ToastProvider } from "@/context/ToastContext";
 import { deleteReview } from "@/lib/actions/reviews";
+import type { ReviewAdminListRow } from "@/lib/actions/reviews";
 import type { AdminPage } from "@/lib/actions/admin-pagination";
-import type { Review } from "@/lib/database.types";
 
 const replace = vi.fn();
 const refresh = vi.fn();
@@ -30,16 +30,14 @@ vi.mock("@/lib/actions/reviews", () => ({
   deleteReview: vi.fn(),
 }));
 
-const review: Review = {
+const review: ReviewAdminListRow = {
   id: "review-1",
-  voucher_id: "voucher-1",
   rating: 5,
   comment: "Sangat nyaman",
   customer_name: "Ayu",
-  created_at: "2026-04-01T00:00:00.000Z",
 };
 
-const initialPage: AdminPage<Review> = {
+const initialPage: AdminPage<ReviewAdminListRow> = {
   rows: [review],
   page: 2,
   pageSize: 25,
@@ -60,6 +58,10 @@ describe("ReviewsClient pagination", () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   test("debounces URL-owned search for 300ms, resets page, and preserves scroll", () => {
     vi.useFakeTimers();
     renderComponent();
@@ -77,7 +79,23 @@ describe("ReviewsClient pagination", () => {
       "/admin/reviews?query=ayu+spa&rating=5",
       { scroll: false },
     );
-    vi.useRealTimers();
+  });
+
+  test("filter changes immediately and include the current typed query before debounce", () => {
+    vi.useFakeTimers();
+    renderComponent();
+
+    fireEvent.change(screen.getByPlaceholderText("Search reviews..."), {
+      target: { value: "query terbaru" },
+    });
+    const ratingFilter = screen.getByRole("combobox");
+    fireEvent.change(ratingFilter, { target: { value: "4" } });
+
+    expect(ratingFilter).toHaveValue("4");
+    expect(replace).toHaveBeenCalledWith(
+      "/admin/reviews?query=query+terbaru&rating=4",
+      { scroll: false },
+    );
   });
 
   test("renders only supplied rows, shows count/page controls, and refreshes after mutation", async () => {
@@ -86,7 +104,14 @@ describe("ReviewsClient pagination", () => {
 
     expect(screen.getByText("Ayu")).toBeInTheDocument();
     expect(screen.getByText("26 ulasan")).toBeInTheDocument();
-    expect(screen.getByText("Halaman 2 dari 2")).toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: "Pagination ulasan" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("26 ulasan")).toHaveAttribute("aria-live", "polite");
+    expect(screen.getByText("Halaman 2 dari 2")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     expect(
       screen.getByRole("button", { name: "Sebelumnya" }),
     ).toBeInTheDocument();

@@ -5,9 +5,9 @@ import { ReviewsClient } from "@/components/admin/reviews-client";
 
 interface AdminReviewsPageProps {
   searchParams: Promise<{
-    page?: string;
-    query?: string;
-    rating?: string;
+    page?: string | string[];
+    query?: string | string[];
+    rating?: string | string[];
   }>;
 }
 

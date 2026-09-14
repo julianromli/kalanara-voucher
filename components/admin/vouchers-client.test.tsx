@@ -4,11 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/context/ToastContext";
 import { VouchersClient } from "@/components/admin/vouchers-client";
 import type { AdminPage } from "@/lib/actions/admin-pagination";
-import type { VoucherWithService } from "@/lib/database.types";
 import {
   deleteVoucher,
   extendVoucher,
   redeemVoucher,
+  type VoucherAdminListRow,
   voidVoucher,
 } from "@/lib/actions/vouchers";
 
@@ -82,65 +82,35 @@ Object.assign(navigator, {
 });
 
 const serviceRow = {
-  id: "service-1",
   name: "Balinese Massage",
-  description: "Relaxing treatment",
   duration: 90,
-  price: 550000,
-  category: "MASSAGE",
-  category_id: null,
-  image_url: null,
-  is_active: true,
-  scalev_product_id: null,
-  scalev_variant_id: null,
-  scalev_variant_unique_id: null,
-  scalev_sync_status: null,
-  scalev_last_synced_at: null,
-  created_at: "2026-04-01T00:00:00.000Z",
-  updated_at: "2026-04-01T00:00:00.000Z",
 } as const;
 
-const initialVouchers: VoucherWithService[] = [
+const initialVouchers: VoucherAdminListRow[] = [
   {
     id: "voucher-1",
     code: "KSP-2026-ACTIVE01",
-    source_order_id: "order-1",
-    source_order_item_id: null,
-    service_id: "service-1",
     recipient_name: "Ayu",
     recipient_email: "ayu@example.com",
-    sender_name: "Budi",
-    sender_message: "Selamat menikmati",
-    purchase_date: "2026-04-01T00:00:00.000Z",
     expiry_date: "2026-12-31T00:00:00.000Z",
     is_redeemed: false,
-    redeemed_at: null,
     amount: 550000,
-    created_at: "2026-04-01T00:00:00.000Z",
     services: serviceRow,
   },
   {
     id: "voucher-2",
     code: "KSP-2026-USED0002",
-    source_order_id: "order-2",
-    source_order_item_id: null,
-    service_id: "service-1",
     recipient_name: "Citra",
     recipient_email: "citra@example.com",
-    sender_name: "Dewi",
-    sender_message: null,
-    purchase_date: "2026-04-01T00:00:00.000Z",
     expiry_date: "2026-12-31T00:00:00.000Z",
     is_redeemed: true,
-    redeemed_at: "2026-04-02T00:00:00.000Z",
     amount: 550000,
-    created_at: "2026-04-01T00:00:00.000Z",
     services: serviceRow,
   },
 ];
 
 function renderComponent() {
-  const initialPage: AdminPage<VoucherWithService> = {
+  const initialPage: AdminPage<VoucherAdminListRow> = {
     rows: initialVouchers,
     page: 1,
     pageSize: 25,

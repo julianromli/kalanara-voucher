@@ -23,6 +23,13 @@ const REVIEW_ADMIN_LIST_SELECT =
   "id, rating, comment, customer_name";
 const REVIEW_ADMIN_FILTERS = ["ALL", "1", "2", "3", "4", "5"] as const;
 
+export interface ReviewAdminListRow {
+  id: string;
+  rating: number;
+  comment: string | null;
+  customer_name: string;
+}
+
 interface PublicReviewVoucherRow {
   id: string;
   services: {
@@ -92,7 +99,7 @@ export async function getReviewsByRating(minRating: number): Promise<Review[]> {
 
 export async function getAdminReviewsPage(
   params: AdminListParams,
-): Promise<AdminPage<Review>> {
+): Promise<AdminPage<ReviewAdminListRow>> {
   await requireAdminPermission(AdminPermission.REVIEWS_MANAGE);
 
   const normalized = normalizeAdminListParams(
@@ -133,7 +140,7 @@ export async function getAdminReviewsPage(
   }
 
   const firstPage = buildAdminPage(
-    (firstResult.data as Review[]) ?? [],
+    (firstResult.data as ReviewAdminListRow[]) ?? [],
     normalized.page,
     firstResult.count ?? 0,
   );
@@ -155,7 +162,7 @@ export async function getAdminReviewsPage(
   }
 
   return buildAdminPage(
-    (correctedResult.data as Review[]) ?? [],
+    (correctedResult.data as ReviewAdminListRow[]) ?? [],
     firstPage.page,
     correctedResult.count ?? firstPage.totalCount,
   );

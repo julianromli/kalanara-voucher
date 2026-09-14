@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  ADMIN_MAX_PAGE,
   ADMIN_PAGE_SIZE,
   buildAdminPage,
   escapePostgrestLike,
@@ -53,5 +54,29 @@ describe("admin pagination contracts", () => {
     expect(escapePostgrestLike(String.raw`50%_off,(vip)\guest"quote`)).toBe(
       String.raw`50\%\_off\,\(vip\)\\guest\"quote`,
     );
+  });
+
+  test("normalizes repeated parameters and caps pages to a bounded offset", () => {
+    expect(
+      normalizeAdminListParams(
+        {
+          page: [String(Number.MAX_SAFE_INTEGER), "2"],
+          query: ["  ayu  ", "ignored"],
+          filter: ["completed", "PENDING"],
+        },
+        ["ALL", "PENDING", "COMPLETED"],
+      ),
+    ).toEqual({
+      page: ADMIN_MAX_PAGE,
+      query: "ayu",
+      filter: "COMPLETED",
+    });
+
+    expect((ADMIN_MAX_PAGE - 1) * ADMIN_PAGE_SIZE).toBeLessThanOrEqual(
+      250_000,
+    );
+    expect(
+      buildAdminPage([], ADMIN_MAX_PAGE, Number.MAX_SAFE_INTEGER).totalPages,
+    ).toBe(ADMIN_MAX_PAGE);
   });
 });

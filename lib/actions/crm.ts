@@ -4,7 +4,7 @@ import {
   cacheLife,
   cacheTag,
   revalidatePath,
-  revalidateTag,
+  updateTag,
 } from "next/cache";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 import { requireAdminPermission } from "@/lib/auth/admin-rbac-server";
@@ -48,7 +48,7 @@ export interface AnnouncementSettings {
 }
 
 function revalidateCmsPaths() {
-  revalidateTag(ANNOUNCEMENT_SETTINGS_CACHE_TAG, "max");
+  updateTag(ANNOUNCEMENT_SETTINGS_CACHE_TAG);
   revalidatePath("/", "layout");
   revalidatePath("/", "page");
   revalidatePath("/admin/crm", "page");
@@ -137,7 +137,7 @@ export async function getAnnouncementSettings(): Promise<AnnouncementSettings> {
 
   if (error) {
     console.error("Error fetching announcement settings:", error);
-    return {};
+    throw error;
   }
 
   const values = new Map(

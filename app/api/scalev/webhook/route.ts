@@ -2,7 +2,6 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import type { Json } from "@/lib/database.types";
 import {
-  getOrderItemsByOrderId,
   getOrderByScalevOrderId,
   getOrderByScalevOrderPk,
   getOrderByScalevPgReferenceId,
@@ -108,14 +107,18 @@ function normalizeWebhookPaymentStatus(
 function extractWebhookProviderEventAt(
   payload: ScalevWebhookPaymentStatusChangedData
 ): string | null {
-  return (
-    payload.settled_time ||
-    payload.paid_time ||
-    payload.conflict_time ||
-    payload.unpaid_time ||
-    payload.last_updated_at ||
-    null
-  );
+  return [
+    payload.settled_time,
+    payload.paid_time,
+    payload.conflict_time,
+    payload.unpaid_time,
+    payload.last_updated_at,
+  ].find(
+    (value): value is string =>
+      typeof value === "string" &&
+      value.trim().length > 0 &&
+      Number.isFinite(Date.parse(value))
+  ) ?? null;
 }
 
 async function findOrderFromWebhook(payload: ScalevWebhookPaymentStatusChangedData) {
@@ -138,19 +141,6 @@ async function findOrderFromWebhook(payload: ScalevWebhookPaymentStatusChangedDa
   }
 
   return null;
-}
-
-async function isOrderAlreadyFulfilled(order: Awaited<ReturnType<typeof findOrderFromWebhook>>) {
-  if (!order) {
-    return false;
-  }
-
-  const items = await getOrderItemsByOrderId(order.id);
-  if (items.length > 0) {
-    return items.every((item) => Boolean(item.voucher_id && item.vouchers));
-  }
-
-  return Boolean(order.voucher_id);
 }
 
 export async function GET() {
@@ -335,7 +325,7 @@ export async function POST(request: NextRequest) {
   }
 
   const normalizedStatus = normalizeWebhookPaymentStatus(data.payment_status);
-  const providerEventAt = resolveScalevProviderEventAt(
+  const providerEvent = resolveScalevProviderEventAt(
     extractWebhookProviderEventAt(data),
     receivedAt,
     "webhook"
@@ -344,7 +334,7 @@ export async function POST(request: NextRequest) {
     paymentProvider: "scalev",
     transactionId: data.pg_reference_id || order.payment_transaction_id,
     paymentType: data.payment_method || order.scalev_payment_method,
-    transactionTime: providerEventAt,
+    transactionTime: providerEvent.timestamp,
     paymentLink: order.payment_link,
     scalevOrderPk: data.id || order.scalev_order_pk,
     scalevOrderId: data.order_id || order.scalev_order_id,
@@ -362,7 +352,8 @@ export async function POST(request: NextRequest) {
     orderId: order.id,
     targetStatus: normalizedStatus,
     provider: "scalev",
-    providerEventAt,
+    providerEventAt: providerEvent.timestamp,
+    providerEventAtIsFallback: providerEvent.isFallback,
     gatewayUpdate,
   });
 
@@ -475,21 +466,16 @@ export async function POST(request: NextRequest) {
   let processingStatus: "processed" | "failed" = "processed";
   let processingMessage = "Webhook processed";
 
-  const alreadyFulfilled = await isOrderAlreadyFulfilled(acceptedOrder);
-  if (alreadyFulfilled) {
-    processingMessage = "Payment completed; vouchers already fulfilled";
-  } else {
-    try {
-      const result = await createVoucherOnPaymentSuccess(acceptedOrder);
-      if (!result.success) {
-        processingStatus = "failed";
-        processingMessage = result.error || "Payment completed, but voucher creation failed";
-      }
-    } catch (error) {
-      console.error("[Scalev Webhook] Voucher creation failed:", error);
+  try {
+    const result = await createVoucherOnPaymentSuccess(acceptedOrder);
+    if (!result.success) {
       processingStatus = "failed";
-      processingMessage = "Payment completed, but voucher creation failed";
+      processingMessage = result.error || "Payment completed, but voucher creation failed";
     }
+  } catch (error) {
+    console.error("[Scalev Webhook] Voucher creation failed:", error);
+    processingStatus = "failed";
+    processingMessage = "Payment completed, but voucher creation failed";
   }
 
   if (webhookEvent) {

@@ -20,6 +20,8 @@ vi.mock("@/lib/payment/order-status-sessions", () => ({
 }));
 
 describe("POST /api/orders/public-status", () => {
+  const sessionId = "123e4567-e89b-42d3-a456-426614174000";
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -33,7 +35,7 @@ describe("POST /api/orders/public-status", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderId: "KSP-123",
-          statusSessionId: "status-session-1",
+          statusSessionId: sessionId,
         }),
       })
     );
@@ -42,6 +44,28 @@ describe("POST /api/orders/public-status", () => {
     await expect(response.json()).resolves.toEqual({
       error: "Sesi status pembayaran diperlukan.",
     });
+    expect(resolveActiveOrderStatusSession).not.toHaveBeenCalled();
+    expect(reconcilePublicOrderStatusByInternalOrderId).not.toHaveBeenCalled();
+  });
+
+  test("rejects a malformed status session UUID before querying Postgres", async () => {
+    const { POST } = await import("@/app/api/orders/public-status/route");
+
+    const response = await POST(
+      new NextRequest("https://voucher.kalanaraspa.com/api/orders/public-status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: "__Host-kalanara-status-not-a-uuid=secret",
+        },
+        body: JSON.stringify({
+          orderId: "KSP-123",
+          statusSessionId: "not-a-uuid",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(401);
     expect(resolveActiveOrderStatusSession).not.toHaveBeenCalled();
     expect(reconcilePublicOrderStatusByInternalOrderId).not.toHaveBeenCalled();
   });
@@ -59,11 +83,11 @@ describe("POST /api/orders/public-status", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Cookie: `__Host-kalanara-status-status-session-1=${rawToken}`,
+          Cookie: `__Host-kalanara-status-${sessionId}=${rawToken}`,
         },
         body: JSON.stringify({
           orderId: "KSP-123",
-          statusSessionId: "status-session-1",
+          statusSessionId: sessionId,
         }),
       })
     );
@@ -77,7 +101,7 @@ describe("POST /api/orders/public-status", () => {
 
   test("returns a private no-store payload for a valid bound session", async () => {
     resolveActiveOrderStatusSession.mockResolvedValue({
-      id: "status-session-1",
+      id: sessionId,
       orderId: "internal-order-1",
       expiresAt: "2026-09-14T12:58:00.000Z",
     });
@@ -95,18 +119,18 @@ describe("POST /api/orders/public-status", () => {
         headers: {
           "Content-Type": "application/json",
           Cookie:
-            "__Host-kalanara-status-status-session-1=short-lived-secret",
+            `__Host-kalanara-status-${sessionId}=short-lived-secret`,
         },
         body: JSON.stringify({
           orderId: "KSP-123",
-          statusSessionId: "status-session-1",
+          statusSessionId: sessionId,
         }),
       })
     );
 
     expect(response.status).toBe(200);
     expect(resolveActiveOrderStatusSession).toHaveBeenCalledWith({
-      sessionId: "status-session-1",
+      sessionId,
       paymentOrderId: "KSP-123",
       rawToken: "short-lived-secret",
     });

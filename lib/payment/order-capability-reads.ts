@@ -6,7 +6,7 @@ import type { OrderWithItems, OrderWithVoucher } from "@/lib/database.types";
 const ORDER_VOUCHER_SELECT =
   "*, services(*), vouchers:vouchers!orders_voucher_id_fkey(*, services(*))";
 const ORDER_ITEMS_SELECT =
-  "*, services(*), order_items(*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*))";
+  "*, services(*), vouchers:vouchers!orders_voucher_id_fkey(*, services(*)), order_items(*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*))";
 
 /**
  * Compatibility read for server-to-server voucher delivery routes.
@@ -44,6 +44,8 @@ export async function getPublicOrderDetailsWithItems(
     .select(ORDER_ITEMS_SELECT)
     .eq("payment_order_id", paymentOrderId)
     .eq("public_access_token", publicAccessToken)
+    .order("sort_order", { ascending: true, referencedTable: "order_items" })
+    .order("created_at", { ascending: true, referencedTable: "order_items" })
     .single();
 
   if (error) {

@@ -15,8 +15,18 @@ describe("third-party script route isolation", () => {
       resolve(root, "app/(public)/(marketing)/layout.tsx"),
       "utf8"
     );
+    const publicLayout = readFileSync(
+      resolve(root, "app/(public)/layout.tsx"),
+      "utf8"
+    );
+    const adminLayout = readFileSync(
+      resolve(root, "app/admin/layout.tsx"),
+      "utf8"
+    );
 
-    expect(rootLayout).not.toContain("MetaPixel");
+    for (const pixelFreeLayout of [rootLayout, publicLayout, adminLayout]) {
+      expect(pixelFreeLayout).not.toContain("MetaPixel");
+    }
     for (const marketingLayout of [
       voucherMarketingLayout,
       landingMarketingLayout,

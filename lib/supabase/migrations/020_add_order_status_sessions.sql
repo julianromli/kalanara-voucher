@@ -26,8 +26,8 @@ CREATE TABLE public.order_status_sessions (
 CREATE INDEX order_status_sessions_order_expiry_idx
   ON public.order_status_sessions (order_id, expires_at);
 
--- Supports the global expired-session cleanup performed during session
--- creation without scanning all active rows.
+-- Supports independently scheduled global expired-session cleanup without
+-- adding unrelated table-wide work to checkout creation.
 CREATE INDEX order_status_sessions_expiry_idx
   ON public.order_status_sessions (expires_at);
 

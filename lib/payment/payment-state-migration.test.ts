@@ -43,7 +43,9 @@ describe("payment state migration contract", () => {
     expect(sql).toMatch(/from public\.orders as o[\s\S]*for update;/i);
     expect(sql).toMatch(/p_expected_version <> v_version/i);
     expect(sql).toContain("'version_conflict'");
-    expect(sql).toMatch(/p_provider_event_at < v_event_at/i);
+    expect(sql).toMatch(
+      /not p_provider_event_at_is_fallback[\s\S]*not v_event_at_is_fallback[\s\S]*p_provider_event_at < v_event_at/i
+    );
     expect(sql).toContain("'stale_provider_event'");
     expect(sql).toMatch(
       /v_status = 'PENDING'[\s\S]*p_target_status in \('COMPLETED', 'FAILED'\)/i
@@ -105,5 +107,27 @@ describe("payment state migration contract", () => {
     );
     expect(sql).not.toMatch(/security definer/i);
     expect(sql).not.toMatch(/\bgrant\b[\s\S]*\bto (anon|authenticated)\b/i);
+  });
+
+  test("tracks receipt fallback provenance separately and removes the legacy anon update policy", () => {
+    const sql = readFileSync(migrationPath, "utf8");
+
+    expect(sql).toMatch(/payment_provider_event_at_is_fallback boolean not null default false/i);
+    expect(sql).toMatch(/p_provider_event_at_is_fallback boolean/i);
+    expect(sql).toMatch(
+      /payment_provider_event_at = case[\s\S]*when p_provider_event_at_is_fallback[\s\S]*then o\.payment_provider_event_at[\s\S]*else p_provider_event_at[\s\S]*end/i
+    );
+    expect(sql).toMatch(
+      /payment_provider_event_at_is_fallback = case[\s\S]*when p_provider_event_at_is_fallback[\s\S]*then o\.payment_provider_event_at_is_fallback[\s\S]*else false[\s\S]*end/i
+    );
+    expect(sql).toMatch(
+      /payment_transaction_time = case[\s\S]*when p_provider_event_at_is_fallback[\s\S]*then o\.payment_transaction_time[\s\S]*else coalesce\(p_transaction_time, o\.payment_transaction_time\)[\s\S]*end/i
+    );
+    expect(sql).toMatch(
+      /fallback receipt time is tracked only in scalev_last_checked_at/i
+    );
+    expect(sql).toMatch(
+      /drop policy if exists "orders_anon_update" on public\.orders/i
+    );
   });
 });

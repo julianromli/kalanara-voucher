@@ -28,6 +28,7 @@ describe("getScalevCheckoutConfig", () => {
     const config = await getScalevCheckoutConfig();
 
     expect(config).toEqual({
+      availability: "available",
       storeUniqueId: "store-123",
       paymentOptions: [
         { code: "qris", label: "QRIS" },
@@ -53,5 +54,17 @@ describe("getScalevCheckoutConfig", () => {
     await getScalevCheckoutConfig();
 
     expect(getScalevCheckoutAvailabilityMock).toHaveBeenCalledTimes(2);
+  });
+
+  test("bounds provider availability loading with an abort signal", async () => {
+    const { getScalevCheckoutConfig } = await import(
+      "@/lib/scalev/checkout-config"
+    );
+
+    await getScalevCheckoutConfig();
+
+    expect(getScalevCheckoutAvailabilityMock).toHaveBeenCalledWith(
+      expect.any(AbortSignal)
+    );
   });
 });

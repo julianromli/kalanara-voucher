@@ -95,7 +95,7 @@ describe("createVoucherOnPaymentSuccess", () => {
       code: "KSPV-001",
     });
     claimVoucherDeliveriesMock.mockResolvedValue([
-      { id: "delivery-whatsapp", channel: "WHATSAPP" },
+      { id: "delivery-whatsapp", channel: "WHATSAPP", claimToken: "claim-1" },
     ]);
     markVoucherDeliveryFailedMock.mockResolvedValue(undefined);
     markVoucherDeliverySentMock.mockResolvedValue(undefined);
@@ -131,7 +131,8 @@ describe("createVoucherOnPaymentSuccess", () => {
       undefined
     );
     expect(markVoucherDeliverySentMock).toHaveBeenCalledWith(
-      "delivery-whatsapp"
+      "delivery-whatsapp",
+      "claim-1"
     );
   });
 
@@ -140,7 +141,9 @@ describe("createVoucherOnPaymentSuccess", () => {
       "@/lib/payment/voucher-service"
     );
     claimVoucherDeliveriesMock
-      .mockResolvedValueOnce([{ id: "delivery-1", channel: "WHATSAPP" }])
+      .mockResolvedValueOnce([
+        { id: "delivery-1", channel: "WHATSAPP", claimToken: "claim-1" },
+      ])
       .mockResolvedValueOnce([]);
 
     const results = await Promise.all([
@@ -160,8 +163,12 @@ describe("createVoucherOnPaymentSuccess", () => {
     );
     getOrderItemsByOrderIdMock.mockResolvedValue([item]);
     claimVoucherDeliveriesMock.mockResolvedValue([
-      { id: "delivery-email", channel: "EMAIL" },
-      { id: "delivery-whatsapp", channel: "WHATSAPP" },
+      { id: "delivery-email", channel: "EMAIL", claimToken: "claim-email" },
+      {
+        id: "delivery-whatsapp",
+        channel: "WHATSAPP",
+        claimToken: "claim-whatsapp",
+      },
     ]);
 
     const result = await createVoucherOnPaymentSuccess(order);
@@ -248,6 +255,7 @@ describe("createVoucherOnPaymentSuccess", () => {
 
     expect(markVoucherDeliveryFailedMock).toHaveBeenCalledWith(
       "delivery-whatsapp",
+      "claim-1",
       sendError
     );
     expect(markVoucherDeliverySentMock).not.toHaveBeenCalled();

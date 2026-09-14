@@ -251,6 +251,7 @@ export async function markOrderFailedFromGateway(
     targetStatus: "FAILED",
     provider: details?.paymentProvider || "scalev",
     providerEventAt: details?.transactionTime || receiptTime,
+    providerEventAtIsFallback: !details?.transactionTime,
     gatewayUpdate: {
       ...details,
       transactionTime: details?.transactionTime || receiptTime,
@@ -266,12 +267,14 @@ export async function updateOrderVoucherId(
   voucherId: string
 ): Promise<boolean> {
   const supabase = getAdminClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("orders")
     .update({ voucher_id: voucherId } satisfies OrderUpdate)
-    .eq("id", orderId);
+    .eq("id", orderId)
+    .select("id")
+    .maybeSingle();
 
-  if (error) {
+  if (error || !data) {
     console.error("Error updating order voucher ID:", error);
     return false;
   }
@@ -284,12 +287,14 @@ export async function updateOrderItemVoucherId(
   voucherId: string
 ): Promise<boolean> {
   const supabase = getAdminClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("order_items")
     .update({ voucher_id: voucherId } satisfies OrderItemUpdate)
-    .eq("id", orderItemId);
+    .eq("id", orderItemId)
+    .select("id")
+    .maybeSingle();
 
-  if (error) {
+  if (error || !data) {
     console.error("Error updating order item voucher ID:", error);
     return false;
   }

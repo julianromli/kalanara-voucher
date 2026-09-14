@@ -168,7 +168,7 @@ describe("POST /api/scalev/webhook", () => {
     expect(markDiscountRedemptionSucceededMock).toHaveBeenCalledWith("order-1");
   });
 
-  test("skips duplicate fulfillment when every order item already has a voucher", async () => {
+  test("re-enters delivery when vouchers exist so retryable channels can be claimed", async () => {
     const { POST } = await import("@/app/api/scalev/webhook/route");
     const payload = JSON.stringify({
       event: "order.payment_status_changed",
@@ -200,11 +200,13 @@ describe("POST /api/scalev/webhook", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(createVoucherOnPaymentSuccessMock).not.toHaveBeenCalled();
+    expect(createVoucherOnPaymentSuccessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "order-1" })
+    );
     expect(updateScalevWebhookEventMock).toHaveBeenCalledWith(
       "event-1",
       expect.objectContaining({
-        processing_message: "Payment completed; vouchers already fulfilled",
+        processing_message: "Webhook processed",
       })
     );
   });

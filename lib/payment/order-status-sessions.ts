@@ -6,6 +6,8 @@ import { getAdminClient } from "@/lib/supabase/admin";
 export const ORDER_STATUS_SESSION_TTL_SECONDS = 30 * 60;
 const ORDER_STATUS_SESSION_TTL_MS = ORDER_STATUS_SESSION_TTL_SECONDS * 1000;
 const NOT_FOUND_ERROR_CODE = "PGRST116";
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface CreateOrderStatusSessionInput {
   orderId: string;
@@ -61,8 +63,6 @@ export async function createOrderStatusSession({
   id: string;
   rawToken: string;
 }> {
-  await deleteExpiredOrderStatusSessions(now);
-
   const expiresAt = new Date(now.getTime() + ORDER_STATUS_SESSION_TTL_MS);
   const { data, error } = await getAdminClient()
     .from("order_status_sessions")
@@ -89,6 +89,10 @@ export async function resolveActiveOrderStatusSession({
   rawToken,
   now = new Date(),
 }: ResolveActiveOrderStatusSessionInput): Promise<ActiveOrderStatusSession | null> {
+  if (!UUID_PATTERN.test(sessionId)) {
+    return null;
+  }
+
   const { data, error } = await getAdminClient()
     .from("order_status_sessions")
     .select("id, order_id, expires_at, orders!inner(payment_order_id)")

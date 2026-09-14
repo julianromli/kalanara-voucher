@@ -88,7 +88,7 @@ describe("reconcilePublicOrderStatusByInternalOrderId", () => {
     buildPublicOrderStatusWithItemsMock.mockReturnValue({ status: "completed", vouchers: [] });
   });
 
-  test("returns existing completed multi-item status without re-checking Scalev", async () => {
+  test("re-enters delivery for completed linked vouchers without re-checking Scalev", async () => {
     const { reconcilePublicOrderStatusByInternalOrderId } = await import("@/lib/scalev/reconcile");
 
     getOrderForStatusByIdMock.mockResolvedValue({
@@ -123,7 +123,9 @@ describe("reconcilePublicOrderStatusByInternalOrderId", () => {
       vouchers: [{ voucherCode: "KSPV-001" }],
     });
     expect(checkScalevPaymentStatusMock).not.toHaveBeenCalled();
-    expect(createVoucherOnPaymentSuccessMock).not.toHaveBeenCalled();
+    expect(createVoucherOnPaymentSuccessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "order-1" })
+    );
   });
 
   test("fulfills pending orders after Scalev reconciliation marks them completed", async () => {
@@ -166,6 +168,7 @@ describe("reconcilePublicOrderStatusByInternalOrderId", () => {
       });
     buildPaymentSnapshotMock.mockReturnValue({
       normalizedStatus: "COMPLETED",
+      providerEventAt: "2026-09-14T11:58:00.000Z",
       pgReferenceId: "pg-1",
       paymentMethod: "qris",
       subPaymentMethod: null,
@@ -188,7 +191,13 @@ describe("reconcilePublicOrderStatusByInternalOrderId", () => {
         orderId: "order-1",
         targetStatus: "COMPLETED",
         provider: "scalev",
-        providerEventAt: expect.any(String),
+        providerEventAt: "2026-09-14T11:58:00.000Z",
+        providerEventAtIsFallback: false,
+        gatewayUpdate: expect.objectContaining({
+          transactionTime: "2026-09-14T11:58:00.000Z",
+          paymentLink: "https://app.scalev.id/order/public/secret-token",
+          scalevLastCheckedAt: expect.any(String),
+        }),
       })
     );
     expect(createVoucherOnPaymentSuccessMock).toHaveBeenCalledWith(
@@ -392,6 +401,48 @@ describe("reconcilePublicOrderStatusByInternalOrderId", () => {
       expect.objectContaining({
         id: "order-1",
         payment_status: "COMPLETED",
+      })
+    );
+  });
+
+  test("preserves a payment link discovered during pg-reference lookup", async () => {
+    const { reconcilePublicOrderStatusByInternalOrderId } = await import(
+      "@/lib/scalev/reconcile"
+    );
+    getOrderForStatusByIdMock.mockResolvedValue({ id: "order-1" });
+    getOrderStatusDetailsWithItemsByIdMock.mockResolvedValue({
+      order_items: [],
+    });
+    getOrderStatusDetailsByIdMock.mockResolvedValue({
+      id: "order-1",
+      payment_status: "PENDING",
+      payment_provider: "scalev",
+      scalev_order_pk: null,
+      scalev_pg_reference_id: "pg-1",
+      payment_link: null,
+    });
+    getScalevOrderByPgReferenceMock.mockResolvedValue({
+      id: 99,
+      payment_link: "https://scalev.example/discovered",
+    });
+    buildPaymentSnapshotMock
+      .mockReturnValueOnce({
+        normalizedStatus: "PENDING",
+        paymentLink: "https://scalev.example/discovered",
+      })
+      .mockReturnValueOnce({
+        normalizedStatus: "PENDING",
+        providerEventAt: "2026-09-14T11:58:00.000Z",
+        paymentLink: null,
+      });
+
+    await reconcilePublicOrderStatusByInternalOrderId("order-1");
+
+    expect(transitionOrderPaymentStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gatewayUpdate: expect.objectContaining({
+          paymentLink: "https://scalev.example/discovered",
+        }),
       })
     );
   });

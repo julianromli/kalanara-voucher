@@ -1,6 +1,9 @@
 import { Suspense } from "react";
 import Navbar from "@/components/navbar";
-import { getAnnouncementSettings } from "@/lib/actions/crm";
+import {
+  getAnnouncementSettings,
+  type AnnouncementSettings,
+} from "@/lib/actions/crm";
 import { isAnnouncementCountdownEnabled } from "@/lib/site-settings";
 
 interface PublicLayoutProps {
@@ -8,7 +11,12 @@ interface PublicLayoutProps {
 }
 
 export async function PublicNavbar() {
-  const settings = await getAnnouncementSettings();
+  const settings = await getAnnouncementSettings().catch(
+    (error): AnnouncementSettings => {
+      console.error("Error loading announcement settings:", error);
+      return {};
+    }
+  );
 
   return (
     <Navbar

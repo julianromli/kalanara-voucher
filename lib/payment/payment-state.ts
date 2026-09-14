@@ -54,6 +54,7 @@ export interface TransitionOrderPaymentStateInput {
   targetStatus: PaymentStatus;
   provider: string;
   providerEventAt: string | null;
+  providerEventAtIsFallback?: boolean;
   expectedVersion?: number | null;
   gatewayUpdate?: GatewayPaymentUpdate;
 }
@@ -97,6 +98,8 @@ export async function transitionOrderPaymentState(
         p_target_status: input.targetStatus,
         p_provider: input.provider,
         p_provider_event_at: input.providerEventAt as string,
+        p_provider_event_at_is_fallback:
+          input.providerEventAtIsFallback ?? false,
         p_expected_version: input.expectedVersion ?? null,
         p_transaction_id:
           update?.transactionId ?? update?.transaction_id ?? null,
@@ -148,8 +151,7 @@ export async function transitionOrderPaymentState(
         return databaseError();
       }
 
-      revalidateTag("dashboard-stats", "max");
-      return {
+      const result: PaymentTransitionResult = {
         accepted: true,
         changed: row.changed,
         reason: row.reason as "applied" | "idempotent",
@@ -157,6 +159,12 @@ export async function transitionOrderPaymentState(
         currentStatus: row.current_status,
         stateVersion: row.state_version,
       };
+      try {
+        revalidateTag("dashboard-stats", "max");
+      } catch {
+        console.error("[Payment State] Cache invalidation failed after transition commit.");
+      }
+      return result;
     }
 
     if (

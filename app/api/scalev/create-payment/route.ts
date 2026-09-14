@@ -500,6 +500,7 @@ export async function POST(
           targetStatus: "PENDING",
           provider: "scalev",
           providerEventAt: gatewayReceiptTime,
+          providerEventAtIsFallback: true,
           gatewayUpdate,
         });
         if (!gatewayTransition.accepted) {

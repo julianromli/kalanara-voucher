@@ -1,5 +1,6 @@
 export const ADMIN_PAGE_SIZE = 25;
 export const ADMIN_QUERY_MAX_LENGTH = 100;
+export const ADMIN_MAX_PAGE = 10_000;
 
 export interface AdminListParams {
   page: number;
@@ -16,21 +17,33 @@ export interface AdminPage<T> {
 }
 
 interface RawAdminListParams {
-  page?: string;
-  query?: string;
-  filter?: string;
+  page?: string | string[];
+  query?: string | string[];
+  filter?: string | string[];
+}
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 export function normalizeAdminListParams(
   input: RawAdminListParams,
   allowedFilters: readonly string[] = ["ALL"],
 ): AdminListParams {
-  const parsedPage = Number.parseInt(input.page ?? "1", 10);
-  const requestedFilter = (input.filter ?? "ALL").trim().toUpperCase();
+  const parsedPage = Number.parseInt(firstParam(input.page) ?? "1", 10);
+  const requestedFilter = (firstParam(input.filter) ?? "ALL")
+    .trim()
+    .toUpperCase();
+  const page =
+    Number.isFinite(parsedPage) && parsedPage > 0
+      ? Math.min(parsedPage, ADMIN_MAX_PAGE)
+      : 1;
 
   return {
-    page: Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1,
-    query: (input.query ?? "").trim().slice(0, ADMIN_QUERY_MAX_LENGTH),
+    page,
+    query: (firstParam(input.query) ?? "")
+      .trim()
+      .slice(0, ADMIN_QUERY_MAX_LENGTH),
     filter: allowedFilters.includes(requestedFilter) ? requestedFilter : "ALL",
   };
 }
@@ -44,7 +57,10 @@ export function buildAdminPage<T>(
   requestedPage: number,
   totalCount: number,
 ): AdminPage<T> {
-  const totalPages = Math.max(1, Math.ceil(totalCount / ADMIN_PAGE_SIZE));
+  const totalPages = Math.min(
+    ADMIN_MAX_PAGE,
+    Math.max(1, Math.ceil(totalCount / ADMIN_PAGE_SIZE)),
+  );
 
   return {
     rows,

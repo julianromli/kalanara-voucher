@@ -56,7 +56,7 @@ function createQueryResult(data: unknown[] = [], count = 0) {
     from: vi.fn(() => builder),
   });
 
-  return calls;
+  return { ...calls, builder };
 }
 
 function createHeadCountResult(count: number) {
@@ -89,8 +89,13 @@ describe("paginated admin list actions", () => {
     });
   });
 
-  test("orders use a narrow exact-count range with validated filters and escaped search", async () => {
+  test("orders use a narrow exact-count RPC range with validated filters and service-aware search", async () => {
     const calls = createQueryResult([{ id: "order-26" }], 26);
+    const rpc = vi.fn(() => calls.builder);
+    getAdminClientMock.mockReturnValue({
+      from: vi.fn(() => calls.builder),
+      rpc,
+    });
     const { getOrdersPage } = await import("@/lib/actions/orders");
 
     const result = await getOrdersPage({
@@ -111,9 +116,11 @@ describe("paginated admin list actions", () => {
     });
     expect(calls.order).toHaveBeenNthCalledWith(2, "id", { ascending: false });
     expect(calls.eq).toHaveBeenCalledWith("payment_status", "COMPLETED");
-    expect(calls.or).toHaveBeenCalledWith(
-      expect.stringContaining(String.raw`ayu\%\,\(vip\)`),
+    expect(rpc).toHaveBeenCalledWith(
+      "search_admin_orders",
+      { search_query: "ayu%,(vip)" },
     );
+    expect(calls.or).not.toHaveBeenCalled();
     expect(calls.range).toHaveBeenCalledWith(25, 49);
     expect(result).toMatchObject({
       rows: [{ id: "order-26" }],
@@ -122,6 +129,25 @@ describe("paginated admin list actions", () => {
       totalCount: 26,
       totalPages: 2,
     });
+  });
+
+  test("orders expose a separate unfiltered exact head count for destructive controls", async () => {
+    const total = createHeadCountResult(73);
+    const from = vi.fn(() => total.builder);
+    getAdminClientMock.mockReturnValue({ from });
+
+    const { getOrdersTotalCount } = await import("@/lib/actions/orders");
+    await expect(getOrdersTotalCount()).resolves.toBe(73);
+
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(
+      AdminPermission.ORDERS_VIEW,
+    );
+    expect(from).toHaveBeenCalledWith("orders");
+    expect(total.calls.select).toHaveBeenCalledWith("id", {
+      count: "exact",
+      head: true,
+    });
+    expect(total.calls.eq).not.toHaveBeenCalled();
   });
 
   test("voucher ACTIVE status is filtered in the database", async () => {

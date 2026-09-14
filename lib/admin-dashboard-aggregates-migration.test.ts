@@ -29,10 +29,16 @@ describe("admin dashboard aggregate migration contract", () => {
     expect(sql).toMatch(/round\(avg\(r\.rating\)::numeric,\s*1\)/i);
   });
 
-  test("does not modify grants, roles, RLS, indexes, or extensions", () => {
+  test("allows execution only for the server-side service role", () => {
     const sql = readFileSync(migrationPath, "utf8");
 
-    expect(sql).not.toMatch(/\b(grant|revoke|alter role)\b/i);
+    expect(sql).toMatch(
+      /revoke all on function public\.get_admin_dashboard_aggregates\(\)\s+from public,\s*anon,\s*authenticated/i,
+    );
+    expect(sql).toMatch(
+      /grant execute on function public\.get_admin_dashboard_aggregates\(\)\s+to service_role/i,
+    );
+    expect(sql).not.toMatch(/\balter role\b/i);
     expect(sql).not.toMatch(/\b(policy|row level security)\b/i);
     expect(sql).not.toMatch(/\b(create index|create extension)\b/i);
   });

@@ -68,18 +68,18 @@ import {
   redeemVoucher,
   extendVoucher,
   voidVoucher,
+  type VoucherAdminListRow,
   type VoucherAdminSummary,
 } from "@/lib/actions/vouchers";
 import { AdminListPagination } from "@/components/admin/admin-list-pagination";
 import type { AdminPage } from "@/lib/actions/admin-pagination";
-import type { VoucherWithService } from "@/lib/database.types";
 import { useAdminListUrl } from "@/hooks/use-admin-list-url";
 import { cn } from "@/lib/utils";
 
 type VoucherStatus = "ALL" | "ACTIVE" | "REDEEMED" | "EXPIRED";
 
 function getVoucherStatus(
-  voucher: VoucherWithService,
+  voucher: VoucherAdminListRow,
 ): "active" | "redeemed" | "expired" {
   if (voucher.is_redeemed) return "redeemed";
   if (new Date(voucher.expiry_date) < new Date()) return "expired";
@@ -108,7 +108,7 @@ const STATUS_CONFIG: Record<
 };
 
 interface VouchersClientProps {
-  initialPage: AdminPage<VoucherWithService>;
+  initialPage: AdminPage<VoucherAdminListRow>;
   initialSummary: VoucherAdminSummary;
   initialQuery: string;
   initialFilter: string;
@@ -127,7 +127,7 @@ export function VouchersClient({
   const { showToast } = useToast();
 
   const [vouchers, setVouchers] =
-    useState<VoucherWithService[]>(initialPage.rows);
+    useState<VoucherAdminListRow[]>(initialPage.rows);
   const {
     query: searchQuery,
     setQuery: setSearchQuery,
@@ -142,12 +142,12 @@ export function VouchersClient({
 
   // Action states
   const [selectedVoucher, setSelectedVoucher] =
-    useState<VoucherWithService | null>(null);
+    useState<VoucherAdminListRow | null>(null);
   const [actionType, setActionType] = useState<
     "redeem" | "extend" | "void" | null
   >(null);
   const [pendingDeleteVoucher, setPendingDeleteVoucher] =
-    useState<VoucherWithService | null>(null);
+    useState<VoucherAdminListRow | null>(null);
   const [extendDays, setExtendDays] = useState(30);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDeletingVoucher, setIsDeletingVoucher] = useState<string | null>(
@@ -191,7 +191,7 @@ export function VouchersClient({
   };
 
   const openActionDialog = (
-    voucher: VoucherWithService,
+    voucher: VoucherAdminListRow,
     action: "redeem" | "extend" | "void",
   ) => {
     setSelectedVoucher(voucher);

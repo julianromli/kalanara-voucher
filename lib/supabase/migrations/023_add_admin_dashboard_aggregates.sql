@@ -6,8 +6,9 @@
 --   1. Apply this migration before deploying the dashboard action that calls
 --      public.get_admin_dashboard_aggregates().
 --   2. The function is replaceable and can be applied repeatedly.
---   3. Existing permissions, roles, and row-level security remain untouched.
---      SECURITY INVOKER keeps evaluation in the caller's existing context.
+--   3. Execution is revoked from PUBLIC/anon/authenticated and granted only to
+--      service_role. The server action performs the existing admin permission
+--      check before calling this SECURITY INVOKER function.
 --   4. Validate all totals and seven daily buckets against direct SQL in a
 --      staging Supabase project after applying.
 --   5. No performance structures are added: representative production data and
@@ -95,3 +96,8 @@ AS $$
   CROSS JOIN review_totals AS rt
   ORDER BY daily.bucket_date ASC;
 $$;
+
+REVOKE ALL ON FUNCTION public.get_admin_dashboard_aggregates()
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_admin_dashboard_aggregates()
+  TO service_role;

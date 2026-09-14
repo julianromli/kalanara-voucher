@@ -1,16 +1,20 @@
 import "server-only";
 
 import { getAdminClient } from "@/lib/supabase/admin";
-import type {
-  VoucherDeliveryChannel,
-  VoucherDeliveryOutboxUpdate,
-} from "@/lib/database.types";
+import type { VoucherDeliveryChannel } from "@/lib/database.types";
 
 export type { VoucherDeliveryChannel };
 
 export interface ClaimedVoucherDelivery {
   id: string;
   channel: VoucherDeliveryChannel;
+  claimToken: string;
+}
+
+interface ClaimedVoucherDeliveryRow {
+  id: string;
+  channel: VoucherDeliveryChannel;
+  claim_token: string;
 }
 
 interface ClaimVoucherDeliveriesInput {
@@ -21,7 +25,6 @@ interface ClaimVoucherDeliveriesInput {
 }
 
 const MAX_ERROR_LENGTH = 1_000;
-const MAX_RETRY_MINUTES = 60;
 
 function persistenceError(action: string, error?: { message?: string } | null) {
   return new Error(
@@ -31,7 +34,7 @@ function persistenceError(action: string, error?: { message?: string } | null) {
   );
 }
 
-function isClaimedDelivery(value: unknown): value is ClaimedVoucherDelivery {
+function isClaimedDelivery(value: unknown): value is ClaimedVoucherDeliveryRow {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -39,7 +42,8 @@ function isClaimedDelivery(value: unknown): value is ClaimedVoucherDelivery {
   const row = value as Record<string, unknown>;
   return (
     typeof row.id === "string" &&
-    (row.channel === "EMAIL" || row.channel === "WHATSAPP")
+    (row.channel === "EMAIL" || row.channel === "WHATSAPP") &&
+    typeof row.claim_token === "string"
   );
 }
 
@@ -85,73 +89,42 @@ export async function claimVoucherDeliveries(
     throw new Error("Invalid voucher delivery claim response");
   }
 
-  return data;
+  return data.map((row) => ({
+    id: row.id,
+    channel: row.channel,
+    claimToken: row.claim_token,
+  }));
 }
 
 export async function markVoucherDeliverySent(
-  deliveryId: string
+  deliveryId: string,
+  claimToken: string
 ): Promise<void> {
-  const now = new Date().toISOString();
-  const update: VoucherDeliveryOutboxUpdate = {
-    status: "SENT",
-    sent_at: now,
-    updated_at: now,
-    claimed_at: null,
-    last_error: null,
-  };
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from("voucher_delivery_outbox")
-    .update(update)
-    .eq("id", deliveryId)
-    .eq("status", "PROCESSING")
-    .select("id")
-    .maybeSingle();
+  const { data, error } = await getAdminClient().rpc(
+    "finalize_voucher_delivery_sent",
+    { p_delivery_id: deliveryId, p_claim_token: claimToken }
+  );
 
-  if (error || !data) {
+  if (error || data !== true) {
     throw persistenceError("SENT", error);
   }
 }
 
 export async function markVoucherDeliveryFailed(
   deliveryId: string,
+  claimToken: string,
   error: unknown
 ): Promise<void> {
-  const supabase = getAdminClient();
-  const { data: claimed, error: readError } = await supabase
-    .from("voucher_delivery_outbox")
-    .select("attempt_count")
-    .eq("id", deliveryId)
-    .eq("status", "PROCESSING")
-    .single();
-
-  if (readError || !claimed) {
-    throw persistenceError("FAILED retry read", readError);
-  }
-
-  const retryMinutes = Math.min(
-    2 ** Math.max(claimed.attempt_count - 1, 0),
-    MAX_RETRY_MINUTES
+  const { data, error: updateError } = await getAdminClient().rpc(
+    "finalize_voucher_delivery_failed",
+    {
+      p_delivery_id: deliveryId,
+      p_claim_token: claimToken,
+      p_error: boundedError(error),
+    }
   );
-  const now = new Date();
-  const update: VoucherDeliveryOutboxUpdate = {
-    status: "FAILED",
-    claimed_at: null,
-    last_error: boundedError(error),
-    next_attempt_at: new Date(
-      now.getTime() + retryMinutes * 60_000
-    ).toISOString(),
-    updated_at: now.toISOString(),
-  };
-  const { data, error: updateError } = await supabase
-    .from("voucher_delivery_outbox")
-    .update(update)
-    .eq("id", deliveryId)
-    .eq("status", "PROCESSING")
-    .select("id")
-    .maybeSingle();
 
-  if (updateError || !data) {
+  if (updateError || data !== true) {
     throw persistenceError("FAILED", updateError);
   }
 }

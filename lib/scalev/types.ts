@@ -166,12 +166,27 @@ export interface ScalevPaymentOption {
   subMethods?: ScalevVABankCode[];
 }
 
-export interface ScalevCheckoutConfig {
+interface ScalevCheckoutConfigBase {
   storeUniqueId: string;
-  paymentOptions: ScalevPaymentOption[];
   disabledPaymentMethods?: ScalevPaymentMethod[];
   paymentNotice?: string;
 }
+
+export interface ScalevAvailableCheckoutConfig
+  extends ScalevCheckoutConfigBase {
+  availability: "available";
+  paymentOptions: ScalevPaymentOption[];
+}
+
+export interface ScalevUnavailableCheckoutConfig
+  extends ScalevCheckoutConfigBase {
+  availability: "unavailable";
+  paymentOptions: [];
+}
+
+export type ScalevCheckoutConfig =
+  | ScalevAvailableCheckoutConfig
+  | ScalevUnavailableCheckoutConfig;
 
 export interface ScalevProductVariantInput {
   name: string;
@@ -288,6 +303,7 @@ export interface ScalevPaymentStatusResponse {
   payment_method?: string | null;
   sub_payment_method?: string | null;
   invoice_url?: string | null;
+  payment_link?: string | null;
   secret_slug?: string | null;
   paid_time?: string | null;
   settled_time?: string | null;

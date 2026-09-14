@@ -126,11 +126,16 @@ function getVariantFromProduct(
   return product.variants[0] || null;
 }
 
-export const resolveScalevStore = cache(async (): Promise<ScalevStoreRecord> => {
+async function fetchScalevStore(
+  signal?: AbortSignal
+): Promise<ScalevStoreRecord> {
   const config = getScalevConfig();
   const result = await scalevRequest<{
     results: ScalevStoreRecord[];
-  }>(`/stores?search=${encodeURIComponent(config.storeNameSearch)}&page_size=25`);
+  }>(
+    `/stores?search=${encodeURIComponent(config.storeNameSearch)}&page_size=25`,
+    { signal }
+  );
 
   const store =
     result.results.find((item) => item.unique_id === config.storeUniqueId) || null;
@@ -140,9 +145,13 @@ export const resolveScalevStore = cache(async (): Promise<ScalevStoreRecord> => 
   }
 
   return store;
-});
+}
 
-export async function getScalevCheckoutAvailability() {
+export const resolveScalevStore = cache(
+  async (): Promise<ScalevStoreRecord> => fetchScalevStore()
+);
+
+export async function getScalevCheckoutAvailability(signal?: AbortSignal) {
   const config = getScalevConfig();
   const filterDisabledMethods = (methods: string[]) =>
     methods.filter(
@@ -151,9 +160,12 @@ export async function getScalevCheckoutAvailability() {
     );
 
   try {
-    const store = await resolveScalevStore();
+    const store = signal
+      ? await fetchScalevStore(signal)
+      : await resolveScalevStore();
     const paymentMethods = await scalevRequest<string[]>(
-      `/stores/${store.id}/payment-methods`
+      `/stores/${store.id}/payment-methods`,
+      { signal }
     );
     const allowedRuntimeMethods = filterDisabledMethods(
       Array.isArray(paymentMethods) ? paymentMethods : []

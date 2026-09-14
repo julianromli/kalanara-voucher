@@ -142,6 +142,7 @@ export function buildCheckoutConfig(
   const hasDisabledMethods = disabledPaymentMethods.length > 0;
 
   return {
+    availability: "available",
     storeUniqueId: getScalevConfig().storeUniqueId,
     paymentOptions: options,
     disabledPaymentMethods,

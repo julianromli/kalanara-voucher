@@ -9,7 +9,6 @@ import {
 import {
   ADMIN_PAGE_SIZE,
   buildAdminPage,
-  escapePostgrestLike,
   normalizeAdminListParams,
   type AdminListParams,
   type AdminPage,
@@ -136,21 +135,18 @@ export async function getOrdersPage(
   );
   const from = (normalized.page - 1) * ADMIN_PAGE_SIZE;
   const supabase = getAdminClient();
-  let request = supabase
-    .from("orders")
+  const source = normalized.query
+    ? supabase.rpc("search_admin_orders", {
+        search_query: normalized.query,
+      })
+    : supabase.from("orders");
+  let request = source
     .select(ORDER_ADMIN_LIST_SELECT, { count: "exact" })
     .order("created_at", { ascending: false })
     .order("id", { ascending: false });
 
   if (normalized.filter !== "ALL") {
     request = request.eq("payment_status", normalized.filter as PaymentStatus);
-  }
-
-  if (normalized.query) {
-    const pattern = `"%${escapePostgrestLike(normalized.query)}%"`;
-    request = request.or(
-      `customer_name.ilike.${pattern},customer_email.ilike.${pattern},payment_order_id.ilike.${pattern},payment_transaction_id.ilike.${pattern}`,
-    );
   }
 
   const firstResult = await request.range(
@@ -187,6 +183,21 @@ export async function getOrdersPage(
     firstPage.page,
     correctedResult.count ?? firstPage.totalCount,
   );
+}
+
+export async function getOrdersTotalCount(): Promise<number> {
+  await requireAdminPermission(AdminPermission.ORDERS_VIEW);
+
+  const { count, error } = await getAdminClient()
+    .from("orders")
+    .select("id", { count: "exact", head: true });
+
+  if (error) {
+    console.error("Error counting orders:", error);
+    throw error;
+  }
+
+  return count ?? 0;
 }
 
 export async function getOrderById(id: string): Promise<OrderWithVoucher | null> {

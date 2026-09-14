@@ -13,6 +13,8 @@ interface PublicStatusRequest {
 const PRIVATE_NO_STORE_HEADERS = {
   "Cache-Control": "private, no-store",
 };
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as PublicStatusRequest | null;
@@ -22,7 +24,12 @@ export async function POST(request: NextRequest) {
     ? request.cookies.get(getOrderStatusCookieName(statusSessionId))?.value
     : undefined;
 
-  if (!orderId || !statusSessionId || !rawToken) {
+  if (
+    !orderId ||
+    !statusSessionId ||
+    !UUID_PATTERN.test(statusSessionId) ||
+    !rawToken
+  ) {
     return NextResponse.json(
       { error: "Sesi status pembayaran diperlukan." },
       { status: 401, headers: PRIVATE_NO_STORE_HEADERS }

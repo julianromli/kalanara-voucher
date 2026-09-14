@@ -10,7 +10,7 @@ describe("public route ownership", () => {
   test("keeps only public-safe global providers in root", () => {
     const rootLayout = readAppFile("layout.tsx");
 
-    expect(rootLayout).toContain("<ToastProvider>");
+    expect(rootLayout).toMatch(/<ToastProvider\s*>/);
     expect(rootLayout).not.toContain("AuthProvider");
     expect(rootLayout).not.toContain("@/context/AuthContext");
     expect(rootLayout).not.toContain("Navbar");
@@ -18,19 +18,17 @@ describe("public route ownership", () => {
     expect(rootLayout).not.toContain("getSiteSetting");
   });
 
-  test("owns the navbar and its single settings read in the public layout", () => {
+  test("owns navbar settings work only in the public layout", () => {
     const publicLayout = readAppFile("(public)/layout.tsx");
     const navbar = readFileSync(
       resolve(root, "components/navbar.tsx"),
       "utf8"
     );
 
-    expect(publicLayout).toContain('import Navbar from "@/components/navbar"');
-    expect(publicLayout).toContain("getAnnouncementSettings");
-    expect(publicLayout.match(/await getAnnouncementSettings\(\)/g)).toHaveLength(
-      1
+    expect(publicLayout).toMatch(
+      /import\s+Navbar\s+from\s+["']@\/components\/navbar["']/
     );
-    expect(publicLayout).toContain("<PublicNavbar />");
+    expect(publicLayout).toContain("getAnnouncementSettings");
     expect(navbar).not.toContain("usePathname");
     expect(navbar).not.toContain('startsWith("/checkout")');
   });

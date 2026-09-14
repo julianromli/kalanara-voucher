@@ -12,16 +12,19 @@
 --      first accepted provider observation establishes both values.
 --   3. The function is SECURITY INVOKER and executable only by service_role.
 --      Verify anon/authenticated calls are denied after applying the migration.
---   4. The application uses provider event time when supplied and documents a
---      receipt-time fallback when Scalev supplies no valid event timestamp.
+--   4. Genuine provider time is retained for stale-event comparison. Fallback
+--      receipt time is tracked only in scalev_last_checked_at.
 -- ============================================================================
 
 ALTER TABLE public.orders
   ADD COLUMN payment_provider_event_at timestamptz,
+  ADD COLUMN payment_provider_event_at_is_fallback boolean NOT NULL DEFAULT false,
   ADD COLUMN payment_state_version bigint NOT NULL DEFAULT 0;
 
 COMMENT ON COLUMN public.orders.payment_provider_event_at IS
-  'Timestamp supplied by the payment provider for the latest accepted observation; receipt time is used only as a documented fallback.';
+  'Latest genuine provider event timestamp used for stale-event comparison; fallback receipt time is tracked only in scalev_last_checked_at.';
+COMMENT ON COLUMN public.orders.payment_provider_event_at_is_fallback IS
+  'Timestamp provenance retained for compatibility; fallback observations preserve the existing provider timestamp and provenance.';
 COMMENT ON COLUMN public.orders.payment_state_version IS
   'Monotonic version incremented for every accepted provider payment observation, including idempotent metadata refreshes.';
 
@@ -30,6 +33,7 @@ CREATE OR REPLACE FUNCTION public.transition_order_payment_state(
   p_target_status public.payment_status,
   p_provider text,
   p_provider_event_at timestamptz,
+  p_provider_event_at_is_fallback boolean DEFAULT false,
   p_expected_version bigint DEFAULT NULL,
   p_transaction_id text DEFAULT NULL,
   p_payment_type text DEFAULT NULL,
@@ -60,14 +64,16 @@ AS $$
 DECLARE
   v_status public.payment_status;
   v_event_at timestamptz;
+  v_event_at_is_fallback boolean;
   v_version bigint;
   v_changed boolean;
 BEGIN
   SELECT
     o.payment_status,
     o.payment_provider_event_at,
+    o.payment_provider_event_at_is_fallback,
     o.payment_state_version
-  INTO v_status, v_event_at, v_version
+  INTO v_status, v_event_at, v_event_at_is_fallback, v_version
   FROM public.orders AS o
   WHERE o.id = p_order_id
   FOR UPDATE;
@@ -105,7 +111,11 @@ BEGIN
     RETURN;
   END IF;
 
-  IF v_event_at IS NOT NULL AND p_provider_event_at < v_event_at THEN
+  IF NOT p_provider_event_at_is_fallback
+    AND NOT v_event_at_is_fallback
+    AND v_event_at IS NOT NULL
+    AND p_provider_event_at < v_event_at
+  THEN
     RETURN QUERY SELECT
       false,
       false,
@@ -143,13 +153,25 @@ BEGIN
   SET
     payment_status = p_target_status,
     payment_provider = COALESCE(p_provider, o.payment_provider),
-    payment_provider_event_at = p_provider_event_at,
+    payment_provider_event_at = CASE
+      WHEN p_provider_event_at_is_fallback
+        THEN o.payment_provider_event_at
+      ELSE p_provider_event_at
+    END,
+    payment_provider_event_at_is_fallback = CASE
+      WHEN p_provider_event_at_is_fallback
+        THEN o.payment_provider_event_at_is_fallback
+      ELSE false
+    END,
     payment_state_version = o.payment_state_version + 1,
     payment_transaction_id =
       COALESCE(p_transaction_id, o.payment_transaction_id),
     payment_type = COALESCE(p_payment_type, o.payment_type),
-    payment_transaction_time =
-      COALESCE(p_transaction_time, o.payment_transaction_time),
+    payment_transaction_time = CASE
+      WHEN p_provider_event_at_is_fallback
+        THEN o.payment_transaction_time
+      ELSE COALESCE(p_transaction_time, o.payment_transaction_time)
+    END,
     payment_link = COALESCE(p_payment_link, o.payment_link),
     scalev_order_pk = COALESCE(p_scalev_order_pk, o.scalev_order_pk),
     scalev_order_id = COALESCE(p_scalev_order_id, o.scalev_order_id),
@@ -180,11 +202,16 @@ BEGIN
 END;
 $$;
 
+-- Migration 003 briefly allowed anonymous clients to mutate every order.
+-- All legitimate runtime writes use the service-role server client.
+DROP POLICY IF EXISTS "orders_anon_update" ON public.orders;
+
 REVOKE ALL ON FUNCTION public.transition_order_payment_state(
   uuid,
   public.payment_status,
   text,
   timestamptz,
+  boolean,
   bigint,
   text,
   text,
@@ -206,6 +233,7 @@ GRANT EXECUTE ON FUNCTION public.transition_order_payment_state(
   public.payment_status,
   text,
   timestamptz,
+  boolean,
   bigint,
   text,
   text,

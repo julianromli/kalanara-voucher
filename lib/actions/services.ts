@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath, revalidateTag } from "next/cache";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 import {
   logAdminAudit,
@@ -8,6 +7,7 @@ import {
 } from "@/lib/auth/admin-rbac-server";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { revalidateServiceCatalogData } from "@/lib/actions/revalidate-service-catalog";
 import type { Database, Service, ServiceInsert, ServiceUpdate } from "@/lib/database.types";
 import { hasServiceImage } from "@/lib/utils/serviceImages";
 
@@ -70,14 +70,6 @@ async function stitchCategoryRelations(
       ? categoriesById.get(service.category_id) || null
       : null,
   }));
-}
-
-function revalidateServiceCatalogData() {
-  revalidateTag("dashboard-stats", "max");
-  revalidatePath("/", "page");
-  revalidatePath("/admin/services", "page");
-  revalidatePath("/checkout/[id]", "page");
-  revalidatePath("/voucher/[id]", "page");
 }
 
 function assertServiceImageConfigured(imageUrl: string | null | undefined) {

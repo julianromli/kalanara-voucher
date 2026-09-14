@@ -243,10 +243,11 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
             event === 'SIGNED_IN' ||
             event === 'TOKEN_REFRESHED' ||
             event === 'USER_UPDATED';
+          const isInitialSession = event === 'INITIAL_SESSION';
           const operation = beginAuthOperation(
             event === 'SIGNED_OUT'
               ? 'signed-out'
-              : isUserBearingEvent && session?.user
+              : (isUserBearingEvent || isInitialSession) && session?.user
                 ? 'user-event'
                 : 'auth-event',
             session?.user?.id
@@ -257,9 +258,17 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
             return;
           }
 
-          if (isUserBearingEvent && session?.user) {
+          if ((isUserBearingEvent || isInitialSession) && session?.user) {
             operation.resolution = resolveUserForOperation(session.user, operation);
             void operation.resolution;
+            return;
+          }
+
+          if (isInitialSession && isCurrentAuthOperation(operation)) {
+            if (!hasBootstrapUser) {
+              setUser(null);
+            }
+            setIsLoading(false);
           }
         }
       );
@@ -308,27 +317,23 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
     const resultFromNewerOperation = async (
       userId: string
     ): Promise<LoginResult> => {
-      while (authActiveRef.current) {
-        const latestOperation = latestAuthOperationRef.current;
+      const latestOperation = latestAuthOperationRef.current;
 
-        if (
-          latestOperation?.kind !== 'user-event' ||
-          latestOperation.userId !== userId ||
-          !latestOperation.resolution
-        ) {
-          return canceledResult;
-        }
-
-        const resolvedUser = await latestOperation.resolution;
-
-        if (latestOperation.generation !== authGenerationRef.current) {
-          continue;
-        }
-
-        return resolvedUser ? { success: true } : rejectAdminLogin();
+      if (
+        latestOperation?.kind !== 'user-event' ||
+        latestOperation.userId !== userId ||
+        !latestOperation.resolution
+      ) {
+        return canceledResult;
       }
 
-      return canceledResult;
+      const resolvedUser = await latestOperation.resolution;
+
+      if (!isCurrentAuthOperation(latestOperation)) {
+        return canceledResult;
+      }
+
+      return resolvedUser ? { success: true } : rejectAdminLogin();
     };
 
     try {

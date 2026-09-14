@@ -60,6 +60,34 @@ function toDelivery(
   };
 }
 
+function toLegacyDelivery(
+  order: PublicOrderWithItems
+): AuthorizedVoucherDelivery | null {
+  const voucher = order.vouchers;
+  const service = voucher?.services ?? order.services;
+  if (!voucher || !service) {
+    return null;
+  }
+
+  return {
+    orderId: order.payment_order_id || order.id,
+    token: order.public_access_token,
+    voucherCode: voucher.code,
+    recipientEmail: voucher.recipient_email,
+    recipientPhone:
+      order.send_to === "RECIPIENT"
+        ? order.recipient_phone
+        : order.customer_phone,
+    recipientName: voucher.recipient_name,
+    senderName: voucher.sender_name,
+    senderMessage: voucher.sender_message,
+    serviceName: service.name,
+    serviceDuration: service.duration,
+    amount: voucher.amount,
+    expiryDate: voucher.expiry_date,
+  };
+}
+
 export async function getAuthorizedVoucherDeliveries(
   orderId: string,
   token: string
@@ -67,6 +95,11 @@ export async function getAuthorizedVoucherDeliveries(
   const order = await getPublicOrderDetailsWithItems(orderId, token);
   if (!order || order.payment_status !== "COMPLETED") {
     return [];
+  }
+
+  if (order.order_items.length === 0) {
+    const legacyDelivery = toLegacyDelivery(order);
+    return legacyDelivery ? [legacyDelivery] : [];
   }
 
   return order.order_items
@@ -82,6 +115,10 @@ export async function getAuthorizedVoucherDelivery(
   const order = await getPublicOrderDetailsWithItems(orderId, token);
   if (!order || order.payment_status !== "COMPLETED") {
     return null;
+  }
+
+  if (order.order_items.length === 0 && !orderItemId) {
+    return toLegacyDelivery(order);
   }
 
   const item = orderItemId

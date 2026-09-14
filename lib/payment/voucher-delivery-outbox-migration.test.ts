@@ -69,7 +69,7 @@ describe("voucher delivery outbox migration contract", () => {
     expect(sql).not.toMatch(/create policy/i);
   });
 
-  test("inserts channels conflict-safely before atomically claiming only retryable source rows", () => {
+  test("atomically inserts channels and claims only retryable source rows", () => {
     const sql = readMigration();
     const normalized = sql.toLowerCase();
     const insertPosition = normalized.indexOf(
@@ -100,7 +100,33 @@ describe("voucher delivery outbox migration contract", () => {
     expect(updatePosition).toBeGreaterThan(lockPosition);
     expect(sql).toMatch(/status = 'PROCESSING'/i);
     expect(sql).toMatch(/attempt_count = outbox\.attempt_count \+ 1/i);
-    expect(sql).toMatch(/returning outbox\.id,\s*outbox\.channel/i);
+    expect(sql).toMatch(
+      /claim_token = public\.uuid_generate_v4\(\)[\s\S]*returning outbox\.id,\s*outbox\.channel,\s*outbox\.claim_token/i
+    );
+  });
+
+  test("requires the current claim token for atomic SENT and FAILED finalization", () => {
+    const sql = readMigration();
+
+    expect(sql).toMatch(/claim_token uuid/i);
+    expect(sql).toMatch(
+      /function public\.finalize_voucher_delivery_sent\(\s*p_delivery_id uuid,\s*p_claim_token uuid/i
+    );
+    expect(sql).toMatch(
+      /function public\.finalize_voucher_delivery_failed\(\s*p_delivery_id uuid,\s*p_claim_token uuid,\s*p_error text/i
+    );
+    expect(sql).toMatch(
+      /where outbox\.id = p_delivery_id[\s\S]*outbox\.status = 'PROCESSING'[\s\S]*outbox\.claim_token = p_claim_token/i
+    );
+    expect(sql).toMatch(
+      /power\(\s*2,\s*(?:pg_catalog\.)?least\(\s*(?:pg_catalog\.)?greatest\(outbox\.attempt_count - 1,\s*0\),\s*6\s*\)\s*\)::integer/i
+    );
+    expect(sql).toMatch(
+      /least\([\s\S]*power\([\s\S]*\)::integer,\s*60\s*\)/i
+    );
+    expect(sql).toMatch(
+      /set status = 'SENT',[\s\S]*claim_token = null[\s\S]*where outbox\.id = p_delivery_id/i
+    );
   });
 
   test("uses the required narrow definer function and grants only service_role", () => {

@@ -15,9 +15,7 @@ import {
   type AdminPage,
 } from "@/lib/actions/admin-pagination";
 import { getAdminClient } from "@/lib/supabase/admin";
-import type {
-  VoucherWithService,
-} from "@/lib/database.types";
+import type { VoucherWithService } from "@/lib/database.types";
 import type { PublicVoucherLookup } from "@/lib/types";
 import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
 
@@ -34,6 +32,20 @@ export interface VoucherAdminSummary {
   active: number;
   redeemed: number;
   expired: number;
+}
+
+export interface VoucherAdminListRow {
+  id: string;
+  code: string;
+  recipient_name: string;
+  recipient_email: string;
+  expiry_date: string;
+  is_redeemed: boolean;
+  amount: number;
+  services: {
+    name: string;
+    duration: number;
+  } | null;
 }
 
 export interface DestructiveVoucherActionResult {
@@ -129,7 +141,7 @@ async function hardDeleteVoucherTransactional(
 
 export async function getVouchersPage(
   params: AdminListParams,
-): Promise<AdminPage<VoucherWithService>> {
+): Promise<AdminPage<VoucherAdminListRow>> {
   await requireAdminPermission(AdminPermission.VOUCHERS_MANAGE);
 
   const normalized = normalizeAdminListParams(
@@ -175,7 +187,7 @@ export async function getVouchersPage(
   }
 
   const firstPage = buildAdminPage(
-    (firstResult.data as VoucherWithService[]) ?? [],
+    (firstResult.data as VoucherAdminListRow[]) ?? [],
     normalized.page,
     firstResult.count ?? 0,
   );
@@ -197,7 +209,7 @@ export async function getVouchersPage(
   }
 
   return buildAdminPage(
-    (correctedResult.data as VoucherWithService[]) ?? [],
+    (correctedResult.data as VoucherAdminListRow[]) ?? [],
     firstPage.page,
     correctedResult.count ?? firstPage.totalCount,
   );

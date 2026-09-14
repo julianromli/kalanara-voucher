@@ -1,66 +1,63 @@
-/**
- * PurchasesClient Component Tests
- * 
- * NOTE: These tests are skipped because they require complex test infrastructure:
- * - SidebarProvider context wrapper
- * - Full Next.js App Router mocking
- * - Auth and Toast context providers
- * 
- * TODO: Set up proper test utilities with all required providers
- */
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, test, vi } from "vitest";
+import { PurchasesClient } from "@/components/admin/purchases-client";
+import { ToastProvider } from "@/context/ToastContext";
 
-import type { OrderWithVoucher } from '@/lib/database.types';
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+  }),
+  usePathname: () => "/admin/purchases",
+  useSearchParams: () =>
+    new URLSearchParams("query=tidak-ada&status=COMPLETED"),
+}));
 
-describe('PurchasesClient', () => {
-  test.skip('should render purchases table - requires SidebarProvider setup', () => {
-    const order: OrderWithVoucher = {
-      id: '1',
-      voucher_id: 'v1',
-      customer_name: 'John Doe',
-      customer_email: 'john@example.com',
-      customer_phone: '08123456789',
-      payment_method: 'BANK_TRANSFER',
-      subtotal_amount: 500000,
-      discount_code_id: null,
-      discount_code: null,
-      discount_type_snapshot: null,
-      discount_value_snapshot: null,
-      discount_amount: 0,
-      total_amount: 500000,
-      payment_status: 'PENDING',
-      payment_provider: 'scalev',
-      payment_provider_event_at: null,
-      payment_state_version: 0,
-      created_at: '2025-12-01',
-      payment_order_id: null,
-      public_access_token: 'test-public-access-token',
-      payment_transaction_id: null,
-      payment_type: null,
-      payment_transaction_time: null,
-      payment_link: null,
-      scalev_order_pk: null,
-      scalev_order_id: null,
-      scalev_pg_reference_id: null,
-      scalev_payment_method: null,
-      scalev_sub_payment_method: null,
-      scalev_store_unique_id: null,
-      scalev_last_checked_at: null,
-      scalev_raw_status: null,
-      scalev_raw_payment_status: null,
-      service_id: null,
-      recipient_name: null,
-      recipient_email: null,
-      recipient_phone: null,
-      sender_message: null,
-      delivery_method: null,
-      send_to: null,
-      services: null,
-      vouchers: null
-    };
+vi.mock("@/context/AuthContext", () => ({
+  useAuth: () => ({ isAuthenticated: true, isLoading: false }),
+}));
 
-    // Test requires SidebarProvider wrapper
-    // render(<PurchasesClient initialPage={mockPage} initialQuery="" initialFilter="ALL" />);
-    expect(order.payment_provider).toBe('scalev');
-    expect(true).toBe(true);
+vi.mock("@/components/admin/dashboard-header", () => ({
+  DashboardHeader: () => <div data-testid="dashboard-header" />,
+}));
+
+vi.mock("@/lib/actions/orders", () => ({
+  deleteOrderHard: vi.fn(),
+  clearAllOrdersHard: vi.fn(),
+}));
+
+describe("PurchasesClient", () => {
+  test("uses the unfiltered total for Clear All while the filtered page is empty", async () => {
+    const user = userEvent.setup();
+    render(
+      <ToastProvider>
+        <PurchasesClient
+          initialPage={{
+            rows: [],
+            page: 1,
+            pageSize: 25,
+            totalCount: 0,
+            totalPages: 1,
+          }}
+          initialTotalCount={41}
+          initialQuery="tidak-ada"
+          initialFilter="COMPLETED"
+          canUpdatePaymentStatus
+          canDeletePurchases
+        />
+      </ToastProvider>,
+    );
+
+    const clearAll = screen.getByRole("button", {
+      name: "Clear All Purchases",
+    });
+    expect(clearAll).toBeEnabled();
+
+    await user.click(clearAll);
+
+    expect(screen.getByText(/41 purchases will be removed/)).toBeInTheDocument();
+    expect(screen.getByText("0 pembelian")).toBeInTheDocument();
   });
 });

@@ -7,7 +7,7 @@ const {
   getAdminClientMock,
   requireAdminPermissionMock,
   revalidatePathMock,
-  revalidateTagMock,
+  updateTagMock,
 } = vi.hoisted(() => ({
   cacheLifeMock: vi.fn(),
   cacheTagMock: vi.fn(),
@@ -15,14 +15,14 @@ const {
   getAdminClientMock: vi.fn(),
   requireAdminPermissionMock: vi.fn(),
   revalidatePathMock: vi.fn(),
-  revalidateTagMock: vi.fn(),
+  updateTagMock: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({
   cacheLife: cacheLifeMock,
   cacheTag: cacheTagMock,
   revalidatePath: revalidatePathMock,
-  revalidateTag: revalidateTagMock,
+  updateTag: updateTagMock,
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -95,10 +95,11 @@ describe("crm actions", () => {
     );
   });
 
-  it("returns empty announcement settings when the narrow query fails", async () => {
+  it("throws when the cached announcement query fails", async () => {
+    const databaseError = { message: "database unavailable" };
     const inMock = vi.fn().mockResolvedValue({
       data: null,
-      error: { message: "database unavailable" },
+      error: databaseError,
     });
     getAdminClientMock.mockReturnValue({
       from: vi.fn(() => ({
@@ -106,7 +107,7 @@ describe("crm actions", () => {
       })),
     });
 
-    await expect(getAnnouncementSettings()).resolves.toEqual({});
+    await expect(getAnnouncementSettings()).rejects.toBe(databaseError);
   });
 
   it("upserts site settings and revalidates both layout and page surfaces", async () => {
@@ -144,9 +145,8 @@ describe("crm actions", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/", "layout");
     expect(revalidatePathMock).toHaveBeenCalledWith("/", "page");
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/crm", "page");
-    expect(revalidateTagMock).toHaveBeenCalledWith(
-      ANNOUNCEMENT_SETTINGS_CACHE_TAG,
-      "max"
+    expect(updateTagMock).toHaveBeenCalledWith(
+      ANNOUNCEMENT_SETTINGS_CACHE_TAG
     );
   });
 
@@ -213,9 +213,8 @@ describe("crm actions", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/", "layout");
     expect(revalidatePathMock).toHaveBeenCalledWith("/", "page");
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/crm", "page");
-    expect(revalidateTagMock).toHaveBeenCalledWith(
-      ANNOUNCEMENT_SETTINGS_CACHE_TAG,
-      "max"
+    expect(updateTagMock).toHaveBeenCalledWith(
+      ANNOUNCEMENT_SETTINGS_CACHE_TAG
     );
   });
 

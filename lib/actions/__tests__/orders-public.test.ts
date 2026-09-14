@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const ordersSingle = vi.fn();
-const ordersEqToken = vi.fn(() => ({ single: ordersSingle }));
+const ordersOrder = vi.fn();
+const ordersQuery = { single: ordersSingle, order: ordersOrder };
+ordersOrder.mockReturnValue(ordersQuery);
+const ordersEqToken = vi.fn(() => ordersQuery);
 const ordersEqOrderId = vi.fn(() => ({ eq: ordersEqToken }));
 const ordersSelect = vi.fn(() => ({ eq: ordersEqOrderId }));
 
@@ -52,6 +55,8 @@ describe("getPublicOrderDetails", () => {
     ordersEqOrderId.mockClear();
     ordersEqToken.mockClear();
     ordersSingle.mockReset();
+    ordersOrder.mockClear();
+    ordersOrder.mockReturnValue(ordersQuery);
     ordersSingle.mockResolvedValue({ data: null, error: null });
 
     orderItemsSelect.mockClear();
@@ -75,8 +80,18 @@ describe("getPublicOrderDetails", () => {
     await getPublicOrderDetailsWithItems("KSP-123", "public-token");
 
     expect(ordersSelect).toHaveBeenCalledWith(
-      "*, services(*), order_items(*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*))"
+      "*, services(*), vouchers:vouchers!orders_voucher_id_fkey(*, services(*)), order_items(*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*))"
     );
+    expect(ordersOrder.mock.calls).toEqual([
+      [
+        "sort_order",
+        { ascending: true, referencedTable: "order_items" },
+      ],
+      [
+        "created_at",
+        { ascending: true, referencedTable: "order_items" },
+      ],
+    ]);
   });
 
   it("disambiguates order item voucher lookup for fulfillment reads", async () => {

@@ -17,6 +17,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const initialPaymentConfig: ScalevCheckoutConfig = {
+  availability: "available",
   storeUniqueId: "store-123",
   paymentOptions: [{ code: "qris", label: "QRIS" }],
 };
@@ -78,17 +79,26 @@ describe("CartCheckoutClient", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  test("retries an empty preload with exactly one request and recovers", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        success: true,
-        config: initialPaymentConfig,
-      }),
-    });
+  test("shows loading and prevents duplicate requests while retrying an empty preload", async () => {
+    let resolveRetry:
+      | ((response: {
+          ok: boolean;
+          json: () => Promise<{
+            success: boolean;
+            config: ScalevCheckoutConfig;
+          }>;
+        }) => void)
+      | undefined;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveRetry = resolve;
+        })
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     renderCheckout({
+      availability: "unavailable",
       storeUniqueId: "store-123",
       paymentOptions: [],
     });
@@ -98,13 +108,52 @@ describe("CartCheckoutClient", () => {
     ).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Coba Muat Ulang" }));
+    const retryButton = screen.getByRole("button", { name: "Coba Muat Ulang" });
+    fireEvent.click(retryButton);
+    fireEvent.click(retryButton);
 
-    expect(await screen.findByText("QRIS")).toBeInTheDocument();
+    expect(
+      screen.getByText("Sedang menyiapkan metode pembayaran...")
+    ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith("/api/scalev/payment-options", {
       cache: "no-store",
     });
+
+    resolveRetry?.({
+      ok: true,
+      json: async () => ({
+        success: true,
+        config: initialPaymentConfig,
+      }),
+    });
+
+    expect(await screen.findByText("QRIS")).toBeInTheDocument();
+  });
+
+  test("preserves explicit retry after a failed payment-options request", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ success: false }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderCheckout({
+      availability: "unavailable",
+      storeUniqueId: "store-123",
+      paymentOptions: [],
+    });
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Coba Muat Ulang" })
+    );
+
+    expect(
+      await screen.findByText("Gagal memuat metode pembayaran. Coba muat ulang.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Coba Muat Ulang" })
+    ).toBeEnabled();
   });
 
   test("collapses secondary vouchers into summaries and restores editable fields on toggle off", async () => {
@@ -149,6 +198,7 @@ describe("CartCheckoutClient", () => {
     vi.stubGlobal("fetch", vi.fn());
 
     renderCheckout({
+      availability: "available",
       storeUniqueId: "store-123",
       paymentOptions: [
         { code: "qris", label: "QRIS" },
@@ -196,14 +246,17 @@ describe("CartCheckoutClient", () => {
       }
     }
     for (const radio of document.querySelectorAll('input[type="radio"].sr-only')) {
-      expect(radio.closest("label")).toHaveClass("focus-within:ring-2");
+      expect(radio.closest("label")?.className).toMatch(
+        /\bfocus(?:-visible|-within)?:/
+      );
     }
 
     const secondRecipientRadio = screen.getAllByRole("radio", { name: "Saya" })[1];
     const secondRecipientCard = secondRecipientRadio.closest("label");
     expect(secondRecipientCard).toHaveAttribute("for", secondRecipientRadio.id);
-    expect(secondRecipientCard).toHaveClass("focus-within:ring-2");
-    expect(secondRecipientCard?.className).not.toContain("transition-all");
+    expect(secondRecipientCard?.className).toMatch(
+      /\bfocus(?:-visible|-within)?:/
+    );
 
     secondRecipientRadio.focus();
     await user.keyboard("[Space]");

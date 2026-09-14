@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath, revalidateTag } from "next/cache";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 import {
   logAdminAudit,
@@ -8,6 +7,7 @@ import {
 } from "@/lib/auth/admin-rbac-server";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { revalidateServiceCatalogData } from "@/lib/actions/revalidate-service-catalog";
 import type { Database } from "@/lib/database.types";
 
 type ServiceCategoryRow = Database["public"]["Tables"]["service_categories"]["Row"];
@@ -23,14 +23,6 @@ export interface ServiceCategoryInput {
   readonly name: string;
   readonly isActive?: boolean;
   readonly sortOrder?: number;
-}
-
-function revalidateServiceCategoryData() {
-  revalidateTag("dashboard-stats", "max");
-  revalidatePath("/", "page");
-  revalidatePath("/admin/services", "page");
-  revalidatePath("/checkout/[id]", "page");
-  revalidatePath("/voucher/[id]", "page");
 }
 
 function normalizeCategoryName(name: string) {
@@ -168,7 +160,7 @@ export async function createServiceCategory(
     },
   });
 
-  revalidateServiceCategoryData();
+  revalidateServiceCatalogData();
   return data as ServiceCategoryRow;
 }
 
@@ -211,7 +203,7 @@ export async function updateServiceCategory(
     },
   });
 
-  revalidateServiceCategoryData();
+  revalidateServiceCatalogData();
   return data as ServiceCategoryRow;
 }
 
@@ -247,6 +239,6 @@ export async function deleteServiceCategory(id: string): Promise<boolean> {
     target: id,
   });
 
-  revalidateServiceCategoryData();
+  revalidateServiceCatalogData();
   return true;
 }

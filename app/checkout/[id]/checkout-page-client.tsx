@@ -216,6 +216,7 @@ export function CheckoutPageClient({
   const router = useRouter();
   const { showToast } = useToast();
   const announcementRef = useRef<HTMLDivElement>(null);
+  const paymentRetryInFlightRef = useRef(false);
   const initialPaymentMethod =
     initialPaymentConfig.paymentOptions[0]?.code ?? null;
   const [isProcessing, setIsProcessing] = useState(false);
@@ -226,6 +227,7 @@ export function CheckoutPageClient({
       ? null
       : "Metode pembayaran sedang tidak tersedia."
   );
+  const [isPaymentConfigRetrying, setIsPaymentConfigRetrying] = useState(false);
   const [paymentMethod, setPaymentMethod] =
     useState<ScalevPaymentMethod | null>(initialPaymentMethod);
   const [subPaymentMethod, setSubPaymentMethod] = useState<ScalevVABankCode | "">("");
@@ -272,7 +274,8 @@ export function CheckoutPageClient({
     () => paymentConfig?.paymentOptions ?? [],
     [paymentConfig]
   );
-  const isPaymentConfigLoading = !paymentConfig && !paymentError;
+  const isPaymentConfigLoading =
+    isPaymentConfigRetrying || (!paymentConfig && !paymentError);
 
   const selectedPaymentOption = useMemo(
     () => paymentOptions.find((option) => option.code === paymentMethod) ?? null,
@@ -290,6 +293,12 @@ export function CheckoutPageClient({
   }, []);
 
   const retryPaymentOptions = async () => {
+    if (paymentRetryInFlightRef.current) {
+      return;
+    }
+
+    paymentRetryInFlightRef.current = true;
+    setIsPaymentConfigRetrying(true);
     setPaymentError(null);
 
     try {
@@ -325,10 +334,10 @@ export function CheckoutPageClient({
       }
     } catch (error) {
       console.error("Failed to load Scalev payment options:", error);
-      setPaymentConfig(null);
-      setPaymentMethod(null);
-      setSubPaymentMethod("");
       setPaymentError("Gagal memuat metode pembayaran. Coba muat ulang.");
+    } finally {
+      paymentRetryInFlightRef.current = false;
+      setIsPaymentConfigRetrying(false);
     }
   };
 

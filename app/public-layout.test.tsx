@@ -1,3 +1,4 @@
+import { Children, isValidElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getAnnouncementSettingsMock } = vi.hoisted(() => ({
@@ -36,12 +37,32 @@ describe("PublicLayout", () => {
     });
   });
 
+  it("uses safe navbar defaults when announcement settings are unavailable", async () => {
+    getAnnouncementSettingsMock.mockRejectedValue(
+      new Error("database unavailable")
+    );
+
+    const navbar = await PublicNavbar();
+
+    expect(navbar.props).toMatchObject({
+      announcementText: "FLASH SALE 5.5 ...... BERAKHIR DALAM ",
+      announcementCountdownEndAt: undefined,
+      announcementCountdownEnabled: true,
+    });
+  });
+
   it("does no settings work while constructing the public layout shell", () => {
     const child = <div>Konten publik</div>;
 
     const layout = PublicLayout({ children: child });
 
     expect(getAnnouncementSettingsMock).not.toHaveBeenCalled();
-    expect(layout.props.children[1]).toBe(child);
+    expect(
+      Children.toArray(layout.props.children).some(
+        (layoutChild) =>
+          isValidElement<{ children: string }>(layoutChild) &&
+          layoutChild.props.children === "Konten publik"
+      )
+    ).toBe(true);
   });
 });

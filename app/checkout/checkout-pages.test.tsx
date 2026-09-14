@@ -25,6 +25,11 @@ vi.mock("@/lib/actions/services", () => ({
 
 vi.mock("@/lib/scalev/checkout-config", () => ({
   getScalevCheckoutConfig: getScalevCheckoutConfigMock,
+  getUnavailableScalevCheckoutConfig: () => ({
+    availability: "unavailable",
+    storeUniqueId: "",
+    paymentOptions: [],
+  }),
 }));
 
 vi.mock("@/lib/utils/serviceImages", () => ({
@@ -40,6 +45,7 @@ vi.mock("@/app/checkout/cart/cart-checkout-client", () => ({
 }));
 
 const initialPaymentConfig: ScalevCheckoutConfig = {
+  availability: "available",
   storeUniqueId: "store-123",
   paymentOptions: [{ code: "qris", label: "QRIS" }],
 };
@@ -50,7 +56,7 @@ describe("checkout payment option preloading", () => {
     getScalevCheckoutConfigMock.mockResolvedValue(initialPaymentConfig);
   });
 
-  test("starts single-service and payment config fetches concurrently", async () => {
+  test("loads payment config only after confirming the service exists", async () => {
     const { default: CheckoutPage } = await import(
       "@/app/checkout/[id]/page"
     );
@@ -80,8 +86,8 @@ describe("checkout payment option preloading", () => {
 
     await vi.waitFor(() => {
       expect(getServiceByIdMock).toHaveBeenCalledWith("service-1");
-      expect(getScalevCheckoutConfigMock).toHaveBeenCalledTimes(1);
     });
+    expect(getScalevCheckoutConfigMock).not.toHaveBeenCalled();
 
     resolveService?.({
       id: "service-1",
@@ -96,10 +102,52 @@ describe("checkout payment option preloading", () => {
     });
 
     const element = await pagePromise;
+    expect(getScalevCheckoutConfigMock).toHaveBeenCalledTimes(1);
     expect(element.props.initialPaymentConfig).toEqual(initialPaymentConfig);
     expect(element.props.service).toEqual(
       expect.objectContaining({ id: "service-1" })
     );
+  });
+
+  test("does not request provider config when the single service is missing", async () => {
+    const { default: CheckoutPage } = await import(
+      "@/app/checkout/[id]/page"
+    );
+    getServiceByIdMock.mockResolvedValue(null);
+
+    await expect(
+      CheckoutPage({ params: Promise.resolve({ id: "missing" }) })
+    ).rejects.toThrow("not found");
+
+    expect(getScalevCheckoutConfigMock).not.toHaveBeenCalled();
+  });
+
+  test("renders single-service checkout with unavailable config when preload fails", async () => {
+    const { default: CheckoutPage } = await import(
+      "@/app/checkout/[id]/page"
+    );
+    getServiceByIdMock.mockResolvedValue({
+      id: "service-1",
+      name: "Balinese Massage",
+      description: "Relaxing treatment",
+      duration: 90,
+      price: 450000,
+      is_active: true,
+      category_id: "massage",
+      category_relation: null,
+      image_url: null,
+    });
+    getScalevCheckoutConfigMock.mockRejectedValue(new Error("provider down"));
+
+    const element = await CheckoutPage({
+      params: Promise.resolve({ id: "service-1" }),
+    });
+
+    expect(element.props.initialPaymentConfig).toEqual({
+      availability: "unavailable",
+      storeUniqueId: "",
+      paymentOptions: [],
+    });
   });
 
   test("passes the preloaded config to cart checkout", async () => {
@@ -111,5 +159,20 @@ describe("checkout payment option preloading", () => {
 
     expect(getScalevCheckoutConfigMock).toHaveBeenCalledTimes(1);
     expect(element.props.initialPaymentConfig).toEqual(initialPaymentConfig);
+  });
+
+  test("renders cart checkout with unavailable config when preload fails", async () => {
+    const { default: CartCheckoutPage } = await import(
+      "@/app/checkout/cart/page"
+    );
+    getScalevCheckoutConfigMock.mockRejectedValue(new Error("provider down"));
+
+    const element = await CartCheckoutPage();
+
+    expect(element.props.initialPaymentConfig).toEqual({
+      availability: "unavailable",
+      storeUniqueId: "",
+      paymentOptions: [],
+    });
   });
 });

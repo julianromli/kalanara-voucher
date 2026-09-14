@@ -18,6 +18,7 @@ export function useAdminListUrl({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(initialQuery);
+  const [filter, setLocalFilter] = useState(initialFilter);
 
   const replaceParams = (update: (params: URLSearchParams) => void) => {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -49,12 +50,19 @@ export function useAdminListUrl({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuery, pathname, query, router, searchParams.toString()]);
 
-  const setFilter = (filter: string) => {
+  const setFilter = (nextFilter: string) => {
+    setLocalFilter(nextFilter);
     replaceParams((params) => {
-      if (filter === "ALL") {
+      const currentQuery = query.trim().slice(0, 100);
+      if (currentQuery) {
+        params.set("query", currentQuery);
+      } else {
+        params.delete("query");
+      }
+      if (nextFilter === "ALL") {
         params.delete(filterParam);
       } else {
-        params.set(filterParam, filter);
+        params.set(filterParam, nextFilter);
       }
       params.delete("page");
     });
@@ -73,7 +81,7 @@ export function useAdminListUrl({
   return {
     query,
     setQuery,
-    filter: initialFilter,
+    filter,
     setFilter,
     setPage,
   };

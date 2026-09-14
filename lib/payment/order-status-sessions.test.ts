@@ -11,6 +11,7 @@ const {
   resolveEqHash,
   resolveEqSession,
   from,
+  getAdminClient,
 } = vi.hoisted(() => {
   const deleteLte = vi.fn();
   const deleteQuery = vi.fn(() => ({ lte: deleteLte }));
@@ -28,6 +29,7 @@ const {
     insert: insertQuery,
     select: resolveSelect,
   }));
+  const getAdminClient = vi.fn(() => ({ from }));
 
   return {
     deleteLte,
@@ -39,24 +41,27 @@ const {
     resolveEqHash,
     resolveEqSession,
     from,
+    getAdminClient,
   };
 });
 
 vi.mock("@/lib/supabase/admin", () => ({
-  getAdminClient: () => ({ from }),
+  getAdminClient,
 }));
 
 describe("order status sessions", () => {
+  const sessionId = "123e4567-e89b-42d3-a456-426614174000";
+
   beforeEach(() => {
     vi.clearAllMocks();
     deleteLte.mockResolvedValue({ error: null });
     insertSingle.mockResolvedValue({
-      data: { id: "status-session-1" },
+      data: { id: sessionId },
       error: null,
     });
     resolveSingle.mockResolvedValue({
       data: {
-        id: "status-session-1",
+        id: sessionId,
         order_id: "order-1",
         expires_at: "2026-09-14T12:58:00.000Z",
       },
@@ -64,7 +69,7 @@ describe("order status sessions", () => {
     });
   });
 
-  test("stores only a SHA-256 hash and cleans expired sessions", async () => {
+  test("stores only a SHA-256 hash without coupling global cleanup to checkout", async () => {
     const { createOrderStatusSession } = await import(
       "@/lib/payment/order-status-sessions"
     );
@@ -75,10 +80,7 @@ describe("order status sessions", () => {
       now: new Date("2026-09-14T12:28:00.000Z"),
     });
 
-    expect(deleteLte).toHaveBeenCalledWith(
-      "expires_at",
-      "2026-09-14T12:28:00.000Z"
-    );
+    expect(deleteLte).not.toHaveBeenCalled();
     expect(insertQuery).toHaveBeenCalledWith({
       order_id: "order-1",
       token_hash: createHash("sha256")
@@ -90,7 +92,7 @@ describe("order status sessions", () => {
       "deterministic-test-secret"
     );
     expect(result).toEqual({
-      id: "status-session-1",
+      id: sessionId,
       rawToken: "deterministic-test-secret",
     });
   });
@@ -101,13 +103,13 @@ describe("order status sessions", () => {
     );
 
     const result = await resolveActiveOrderStatusSession({
-      sessionId: "status-session-1",
+      sessionId,
       paymentOrderId: "KSP-123",
       rawToken: "short-lived-secret",
       now: new Date("2026-09-14T12:28:00.000Z"),
     });
 
-    expect(resolveEqSession).toHaveBeenCalledWith("id", "status-session-1");
+    expect(resolveEqSession).toHaveBeenCalledWith("id", sessionId);
     expect(resolveEqHash).toHaveBeenCalledWith(
       "token_hash",
       createHash("sha256").update("short-lived-secret").digest("hex")
@@ -121,13 +123,13 @@ describe("order status sessions", () => {
       "2026-09-14T12:28:00.000Z"
     );
     expect(result).toEqual({
-      id: "status-session-1",
+      id: sessionId,
       orderId: "order-1",
       expiresAt: "2026-09-14T12:58:00.000Z",
     });
   });
 
-  test("returns null for an expired, modified, or cross-order session", async () => {
+  test("returns null when the resolver finds no row matching hash, expiry, and order", async () => {
     resolveSingle.mockResolvedValue({
       data: null,
       error: { code: "PGRST116", message: "No rows" },
@@ -138,10 +140,29 @@ describe("order status sessions", () => {
 
     await expect(
       resolveActiveOrderStatusSession({
-        sessionId: "status-session-1",
+        sessionId,
         paymentOrderId: "KSP-other",
         rawToken: "modified-secret",
       })
     ).resolves.toBeNull();
+  });
+
+  test("rejects a malformed UUID before creating an admin client or query", async () => {
+    const { resolveActiveOrderStatusSession } = await import(
+      "@/lib/payment/order-status-sessions"
+    );
+    getAdminClient.mockClear();
+    from.mockClear();
+
+    await expect(
+      resolveActiveOrderStatusSession({
+        sessionId: "not-a-uuid",
+        paymentOrderId: "KSP-123",
+        rawToken: "secret",
+      })
+    ).resolves.toBeNull();
+
+    expect(getAdminClient).not.toHaveBeenCalled();
+    expect(from).not.toHaveBeenCalled();
   });
 });

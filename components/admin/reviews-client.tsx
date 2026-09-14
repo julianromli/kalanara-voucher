@@ -13,11 +13,13 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useAdminListUrl } from "@/hooks/use-admin-list-url";
 import type { AdminPage } from "@/lib/actions/admin-pagination";
-import { deleteReview } from "@/lib/actions/reviews";
-import type { Review } from "@/lib/database.types";
+import {
+  deleteReview,
+  type ReviewAdminListRow,
+} from "@/lib/actions/reviews";
 
 interface ReviewsClientProps {
-  initialPage: AdminPage<Review>;
+  initialPage: AdminPage<ReviewAdminListRow>;
   initialQuery: string;
   initialFilter: string;
 }

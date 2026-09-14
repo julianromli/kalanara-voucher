@@ -19,6 +19,18 @@ Each linked file is a self-contained execution plan. Keep each change independen
 | 11 | [011 — Associate checkout controls](./011-associate-checkout-controls.md) | Connect labels, errors, and help text; make custom radio focus visible. Findings 17 and 18. | 009 | DONE |
 | 12 | [012 — Cancel stale voucher lookups](./012-cancel-stale-voucher-lookups.md) | Ensure only the newest manual, initial, or QR verification request can commit state. Finding 16. | None | DONE |
 
+## Review follow-up
+
+All valid Cubic P1 and P2 findings were re-verified against the completed
+implementation and fixed. The follow-up also includes low-risk P3 improvements
+to tests, pagination accessibility, cache invalidation, and shared
+revalidation. Apply migrations `020` through `025` in numeric order.
+
+`DONE` means the planned code and automated regression coverage are complete.
+Live Supabase concurrency/permission checks and manual browser, Network, and
+Profiler checks remain deployment verification steps and are tracked in the
+pull request.
+
 ## Execution checks
 
 For every plan:

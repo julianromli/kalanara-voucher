@@ -18,8 +18,11 @@ export function AdminListPagination({
   onPageChange,
 }: AdminListPaginationProps) {
   return (
-    <div className="flex flex-col gap-3 border-t border-border px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-muted-foreground">
+    <nav
+      aria-label={`Navigasi halaman ${itemLabel}`}
+      className="flex flex-col gap-3 border-t border-border px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between"
+    >
+      <p className="text-muted-foreground" aria-live="polite">
         {totalCount} {itemLabel}
       </p>
       <div className="flex items-center gap-3">
@@ -32,7 +35,10 @@ export function AdminListPagination({
         >
           Sebelumnya
         </Button>
-        <span className="min-w-24 text-center text-muted-foreground">
+        <span
+          aria-current="page"
+          className="min-w-24 text-center text-muted-foreground"
+        >
           Halaman {page} dari {totalPages}
         </span>
         <Button
@@ -45,6 +51,6 @@ export function AdminListPagination({
           Berikutnya
         </Button>
       </div>
-    </div>
+    </nav>
   );
 }

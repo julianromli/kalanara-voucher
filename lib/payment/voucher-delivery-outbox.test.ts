@@ -12,50 +12,24 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
-function createUpdateBuilder(result: {
-  data: { id: string } | null;
-  error: { message: string } | null;
-}) {
-  const builder = {
-    eq: vi.fn(),
-    select: vi.fn(),
-    maybeSingle: vi.fn().mockResolvedValue(result),
-    update: vi.fn(),
-  };
-  builder.eq.mockReturnValue(builder);
-  builder.select.mockReturnValue(builder);
-  builder.update.mockReturnValue(builder);
-  return builder;
-}
-
-function createAttemptBuilder(result: {
-  data: { attempt_count: number } | null;
-  error: { message: string } | null;
-}) {
-  const builder = {
-    eq: vi.fn(),
-    select: vi.fn(),
-    single: vi.fn().mockResolvedValue(result),
-  };
-  builder.eq.mockReturnValue(builder);
-  builder.select.mockReturnValue(builder);
-  return builder;
-}
-
 describe("voucher delivery outbox persistence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
   });
 
-  test("claims deliveries through the atomic RPC and maps only valid rows", async () => {
+  test("claims deliveries through the atomic RPC and returns claimed rows", async () => {
     const { claimVoucherDeliveries } = await import(
       "@/lib/payment/voucher-delivery-outbox"
     );
     rpcMock.mockResolvedValue({
       data: [
-        { id: "delivery-email", channel: "EMAIL" },
-        { id: "delivery-whatsapp", channel: "WHATSAPP" },
+        { id: "delivery-email", channel: "EMAIL", claim_token: "claim-email" },
+        {
+          id: "delivery-whatsapp",
+          channel: "WHATSAPP",
+          claim_token: "claim-whatsapp",
+        },
       ],
       error: null,
     });
@@ -68,8 +42,12 @@ describe("voucher delivery outbox persistence", () => {
         channels: ["EMAIL", "WHATSAPP"],
       })
     ).resolves.toEqual([
-      { id: "delivery-email", channel: "EMAIL" },
-      { id: "delivery-whatsapp", channel: "WHATSAPP" },
+      { id: "delivery-email", channel: "EMAIL", claimToken: "claim-email" },
+      {
+        id: "delivery-whatsapp",
+        channel: "WHATSAPP",
+        claimToken: "claim-whatsapp",
+      },
     ]);
     expect(rpcMock).toHaveBeenCalledWith("claim_voucher_deliveries", {
       p_order_id: "order-1",
@@ -110,77 +88,58 @@ describe("voucher delivery outbox persistence", () => {
     ).rejects.toThrow(/invalid/i);
   });
 
-  test("requires a PROCESSING row to persist SENT", async () => {
+  test("finalizes SENT atomically with the immutable claim token", async () => {
     const { markVoucherDeliverySent } = await import(
       "@/lib/payment/voucher-delivery-outbox"
     );
-    const missingBuilder = createUpdateBuilder({ data: null, error: null });
-    fromMock.mockReturnValue(missingBuilder);
+    rpcMock.mockResolvedValue({ data: false, error: null });
 
-    await expect(markVoucherDeliverySent("delivery-1")).rejects.toThrow(
+    await expect(
+      markVoucherDeliverySent("delivery-1", "claim-1")
+    ).rejects.toThrow(
       /persist.*SENT/i
     );
-    expect(missingBuilder.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: "SENT",
-        claimed_at: null,
-        last_error: null,
-      })
-    );
-    expect(missingBuilder.eq).toHaveBeenCalledWith("status", "PROCESSING");
+    expect(rpcMock).toHaveBeenCalledWith("finalize_voucher_delivery_sent", {
+      p_delivery_id: "delivery-1",
+      p_claim_token: "claim-1",
+    });
   });
 
-  test("bounds errors and caps exponential FAILED retry at 60 minutes", async () => {
+  test("bounds errors and finalizes FAILED atomically with the claim token", async () => {
     const { markVoucherDeliveryFailed } = await import(
       "@/lib/payment/voucher-delivery-outbox"
     );
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-09-14T12:00:00.000Z"));
-    const attemptBuilder = createAttemptBuilder({
-      data: { attempt_count: 8 },
-      error: null,
-    });
-    const updateBuilder = createUpdateBuilder({
-      data: { id: "delivery-1" },
-      error: null,
-    });
-    fromMock
-      .mockReturnValueOnce(attemptBuilder)
-      .mockReturnValueOnce(updateBuilder);
+    rpcMock.mockResolvedValue({ data: true, error: null });
 
     await markVoucherDeliveryFailed(
       "delivery-1",
+      "claim-1",
       new Error(`provider: ${"x".repeat(2_000)}`)
     );
 
-    const update = updateBuilder.update.mock.calls[0][0];
-    expect(update.status).toBe("FAILED");
-    expect(update.claimed_at).toBeNull();
-    expect(update.last_error).toHaveLength(1_000);
-    expect(update.next_attempt_at).toBe("2026-09-14T13:00:00.000Z");
-    expect(updateBuilder.eq).toHaveBeenCalledWith("status", "PROCESSING");
+    expect(rpcMock).toHaveBeenCalledWith("finalize_voucher_delivery_failed", {
+      p_delivery_id: "delivery-1",
+      p_claim_token: "claim-1",
+      p_error: expect.stringMatching(/^Error: provider: /),
+    });
+    expect(rpcMock.mock.calls[0][1].p_error).toHaveLength(1_000);
   });
 
   test("throws when FAILED persistence is not confirmed", async () => {
     const { markVoucherDeliveryFailed } = await import(
       "@/lib/payment/voucher-delivery-outbox"
     );
-    fromMock
-      .mockReturnValueOnce(
-        createAttemptBuilder({
-          data: { attempt_count: 1 },
-          error: null,
-        })
-      )
-      .mockReturnValueOnce(
-        createUpdateBuilder({
-          data: null,
-          error: { message: "write failed" },
-        })
-      );
+    rpcMock.mockResolvedValue({
+      data: false,
+      error: { message: "write failed" },
+    });
 
     await expect(
-      markVoucherDeliveryFailed("delivery-1", new Error("send failed"))
+      markVoucherDeliveryFailed(
+        "delivery-1",
+        "claim-1",
+        new Error("send failed")
+      )
     ).rejects.toThrow("write failed");
   });
 });

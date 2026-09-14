@@ -8,8 +8,8 @@
 -- Apply notes:
 --   1. Apply this migration before deploying voucher fulfillment code that
 --      calls public.claim_voucher_deliveries.
---   2. The claim RPC is intentionally the only SECURITY DEFINER function in
---      this change. It has an empty search_path and fully qualified objects.
+--   2. The narrow claim/finalization RPCs are SECURITY DEFINER functions with
+--      empty search_path values and fully qualified objects.
 --   3. Direct table access and RPC execution are revoked from public, anon,
 --      and authenticated. Only service_role receives the required privileges.
 --   4. After applying, verify anon/authenticated cannot read the table or call
@@ -34,6 +34,7 @@ CREATE TABLE public.voucher_delivery_outbox (
   attempt_count integer NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
   next_attempt_at timestamptz NOT NULL DEFAULT pg_catalog.now(),
   claimed_at timestamptz,
+  claim_token uuid,
   sent_at timestamptz,
   last_error text,
   created_at timestamptz NOT NULL DEFAULT pg_catalog.now(),
@@ -74,7 +75,8 @@ CREATE FUNCTION public.claim_voucher_deliveries(
 )
 RETURNS TABLE (
   id uuid,
-  channel public.voucher_delivery_channel
+  channel public.voucher_delivery_channel,
+  claim_token uuid
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -131,11 +133,12 @@ BEGIN
     status = 'PROCESSING',
     attempt_count = outbox.attempt_count + 1,
     claimed_at = pg_catalog.now(),
+    claim_token = public.uuid_generate_v4(),
     updated_at = pg_catalog.now(),
     last_error = NULL
   FROM claimable
   WHERE outbox.id = claimable.id
-  RETURNING outbox.id, outbox.channel;
+  RETURNING outbox.id, outbox.channel, outbox.claim_token;
 END;
 $$;
 
@@ -152,3 +155,75 @@ GRANT EXECUTE ON FUNCTION public.claim_voucher_deliveries(
   uuid,
   public.voucher_delivery_channel[]
 ) TO service_role;
+
+CREATE FUNCTION public.finalize_voucher_delivery_sent(
+  p_delivery_id uuid,
+  p_claim_token uuid
+)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  WITH finalized AS (
+    UPDATE public.voucher_delivery_outbox AS outbox
+    SET status = 'SENT',
+        sent_at = pg_catalog.now(),
+        claimed_at = NULL,
+        claim_token = NULL,
+        last_error = NULL,
+        updated_at = pg_catalog.now()
+    WHERE outbox.id = p_delivery_id
+      AND outbox.status = 'PROCESSING'
+      AND outbox.claim_token = p_claim_token
+    RETURNING 1
+  )
+  SELECT EXISTS (SELECT 1 FROM finalized);
+$$;
+
+CREATE FUNCTION public.finalize_voucher_delivery_failed(
+  p_delivery_id uuid,
+  p_claim_token uuid,
+  p_error text
+)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  WITH finalized AS (
+    UPDATE public.voucher_delivery_outbox AS outbox
+    SET status = 'FAILED',
+        claimed_at = NULL,
+        last_error = pg_catalog.left(p_error, 1000),
+        next_attempt_at = pg_catalog.now() +
+          pg_catalog.make_interval(mins =>
+            pg_catalog.least(
+              pg_catalog.power(
+                2,
+                pg_catalog.least(
+                  pg_catalog.greatest(outbox.attempt_count - 1, 0),
+                  6
+                )
+              )::integer,
+              60
+            )
+          ),
+        claim_token = NULL,
+        updated_at = pg_catalog.now()
+    WHERE outbox.id = p_delivery_id
+      AND outbox.status = 'PROCESSING'
+      AND outbox.claim_token = p_claim_token
+    RETURNING 1
+  )
+  SELECT EXISTS (SELECT 1 FROM finalized);
+$$;
+
+REVOKE ALL ON FUNCTION public.finalize_voucher_delivery_sent(uuid, uuid)
+  FROM public, anon, authenticated;
+REVOKE ALL ON FUNCTION public.finalize_voucher_delivery_failed(uuid, uuid, text)
+  FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.finalize_voucher_delivery_sent(uuid, uuid)
+  TO service_role;
+GRANT EXECUTE ON FUNCTION public.finalize_voucher_delivery_failed(uuid, uuid, text)
+  TO service_role;

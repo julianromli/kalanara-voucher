@@ -188,9 +188,9 @@ async function deliverVoucher(
             itemId
           );
         }
-        await markVoucherDeliverySent(delivery.id);
+        await markVoucherDeliverySent(delivery.id, delivery.claimToken);
       } catch (error) {
-        await markVoucherDeliveryFailed(delivery.id, error);
+        await markVoucherDeliveryFailed(delivery.id, delivery.claimToken, error);
         throw error;
       }
     })

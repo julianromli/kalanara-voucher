@@ -159,6 +159,69 @@ describe("AuthProvider", () => {
     expect(screen.getByTestId("authenticated")).toHaveTextContent("true");
   });
 
+  it("finishes initialization when INITIAL_SESSION reports no user", async () => {
+    const initialSession = deferred<{ data: { session: Session | null } }>();
+    mocks.getSession.mockReturnValue(initialSession.promise);
+
+    render(
+      <AuthProvider>
+        <AuthStateProbe />
+      </AuthProvider>
+    );
+
+    act(() => {
+      mocks.authCallback?.("INITIAL_SESSION", null);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading")).toHaveTextContent("false");
+    });
+    expect(screen.getByTestId("authenticated")).toHaveTextContent("false");
+
+    await act(async () => {
+      initialSession.resolve({
+        data: { session: sessionFor("stale-bootstrap-admin") },
+      });
+      await initialSession.promise;
+    });
+
+    expect(mocks.from).not.toHaveBeenCalled();
+    expect(screen.getByTestId("authenticated")).toHaveTextContent("false");
+  });
+
+  it("resolves the INITIAL_SESSION user and ignores the stale bootstrap result", async () => {
+    const initialSession = deferred<{ data: { session: Session | null } }>();
+    const initialLookup = deferred<AdminLookupResult>();
+    mocks.getSession.mockReturnValue(initialSession.promise);
+    mocks.adminLookups.push(initialLookup.promise);
+
+    render(
+      <AuthProvider>
+        <AuthStateProbe />
+      </AuthProvider>
+    );
+
+    act(() => {
+      mocks.authCallback?.(
+        "INITIAL_SESSION",
+        sessionFor("initial-session-admin")
+      );
+    });
+    await waitFor(() => expect(mocks.from).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      initialSession.resolve({ data: { session: null } });
+      initialLookup.resolve({ data: { name: "Admin Awal", role: "MANAGER" } });
+      await Promise.all([initialSession.promise, initialLookup.promise]);
+    });
+
+    expect(screen.getByTestId("loading")).toHaveTextContent("false");
+    expect(screen.getByTestId("user-id")).toHaveTextContent(
+      "initial-session-admin"
+    );
+    expect(screen.getByTestId("user-name")).toHaveTextContent("Admin Awal");
+  });
+
   it("does not let a late bootstrap admin lookup undo a newer sign-out", async () => {
     const lookup = deferred<AdminLookupResult>();
     mocks.adminLookups.push(lookup.promise);
@@ -337,5 +400,64 @@ describe("AuthProvider", () => {
     expect(result).toEqual({ success: true });
     expect(screen.getByTestId("user-id")).toHaveTextContent("event-admin");
     expect(screen.getByTestId("user-name")).toHaveTextContent("Admin Event");
+  });
+
+  it("does not chase another generation while awaiting a matching login event", async () => {
+    const signIn = deferred<{
+      data: { user: Session["user"] };
+      error: null;
+    }>();
+    const firstEventLookup = deferred<AdminLookupResult>();
+    const secondEventLookup = deferred<AdminLookupResult>();
+    const user = supabaseUser("event-admin");
+    mocks.signInWithPassword.mockReturnValue(signIn.promise);
+
+    render(
+      <AuthProvider>
+        <AuthStateProbe />
+      </AuthProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("loading")).toHaveTextContent("false")
+    );
+
+    let loginPromise!: Promise<LoginResult>;
+    act(() => {
+      loginPromise = latestAuth!.login("admin@kalanara.com", "secret");
+    });
+
+    mocks.adminLookups.push(firstEventLookup.promise, secondEventLookup.promise);
+    act(() => {
+      mocks.authCallback?.("SIGNED_IN", sessionFor(user.id, user.email));
+    });
+    await waitFor(() => expect(mocks.from).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      signIn.resolve({ data: { user }, error: null });
+      await signIn.promise;
+    });
+
+    act(() => {
+      mocks.authCallback?.("USER_UPDATED", sessionFor(user.id, user.email));
+    });
+    await waitFor(() => expect(mocks.from).toHaveBeenCalledTimes(2));
+
+    let result!: LoginResult;
+    await act(async () => {
+      firstEventLookup.resolve({ data: { name: "Admin Lama", role: "MANAGER" } });
+      result = await loginPromise;
+    });
+
+    expect(result.success).toBe(false);
+
+    await act(async () => {
+      secondEventLookup.resolve({
+        data: { name: "Admin Terbaru", role: "SUPER_ADMIN" },
+      });
+      await secondEventLookup.promise;
+    });
+
+    expect(screen.getByTestId("user-name")).toHaveTextContent("Admin Terbaru");
   });
 });
