@@ -12,7 +12,7 @@ Each linked file is a self-contained execution plan. Keep each change independen
 | 4 | [004 — Enforce an atomic payment state machine](./004-enforce-payment-state-machine.md) | Make provider transitions monotonic and stop downstream work after rejected writes. Findings 2 and 4. | 001 | DONE |
 | 5 | [005 — Make voucher delivery idempotent](./005-make-voucher-delivery-idempotent.md) | Add durable per-item/per-channel claims and retry state. Finding 3. | 004 | DONE |
 | 6 | [006 — Remove the unused global store](./006-remove-unused-global-store.md) | Remove global client fetch, storage, and provider work with no production consumer. Finding 13. | 001 | DONE |
-| 7 | [007 — Scope navbar data work](./007-scope-navbar-data-work.md) | Route-scope the public shell and replace three reads with one narrow cached query. Finding 11. | 006 | OPEN |
+| 7 | [007 — Scope navbar data work](./007-scope-navbar-data-work.md) | Route-scope the public shell and replace three reads with one narrow cached query. Finding 11. | 006 | DONE |
 | 8 | [008 — Scope and stabilize admin authentication](./008-scope-and-stabilize-auth.md) | Mount one admin-owned provider and reject stale async auth completions. Finding 12. | 006 | OPEN |
 | 9 | [009 — Preload checkout payment options](./009-preload-checkout-payment-options.md) | Remove the post-hydration provider-request waterfall while retaining submit-time validation. Finding 10. | 004 | OPEN |
 | 10 | [010 — Paginate admin data](./010-paginate-admin-data.md) | Bound list payloads and move filtering, counts, and dashboard aggregation to the database. Findings 14 and 15. | 001 | OPEN |

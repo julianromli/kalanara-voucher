@@ -1,4 +1,4 @@
-import { ReviewPageClient } from "@/app/review/[id]/review-page-client";
+import { ReviewPageClient } from "@/app/(public)/review/[id]/review-page-client";
 import {
   createPublicReview,
   getPublicReviewVoucherByCode,

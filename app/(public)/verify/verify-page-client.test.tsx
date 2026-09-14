@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { VerifyPageClient } from "@/app/verify/verify-page-client";
+import { VerifyPageClient } from "@/app/(public)/verify/verify-page-client";
 
 vi.mock("@/components/qr-scanner", () => ({
   default: () => <div>QR Scanner Mock</div>,

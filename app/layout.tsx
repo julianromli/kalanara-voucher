@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { Outfit, Playfair_Display, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/navbar";
 import { ToastProvider } from "@/context/ToastContext";
 import { AuthProvider } from "@/context/AuthContext";
-import { getSiteSetting } from "@/lib/actions/crm";
-import { isAnnouncementCountdownEnabled } from "@/lib/site-settings";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -80,27 +76,6 @@ export const metadata: Metadata = {
   },
 };
 
-async function NavbarWithAnnouncement() {
-  const [announcementSetting, countdownEndAtSetting, countdownEnabledSetting] =
-    await Promise.all([
-      getSiteSetting("announcement_text"),
-      getSiteSetting("announcement_countdown_end_at"),
-      getSiteSetting("announcement_countdown_enabled"),
-    ]);
-  const announcementText =
-    announcementSetting?.value || "FLASH SALE 5.5 ...... BERAKHIR DALAM ";
-
-  return (
-    <Navbar
-      announcementText={announcementText}
-      announcementCountdownEndAt={countdownEndAtSetting?.value || undefined}
-      announcementCountdownEnabled={isAnnouncementCountdownEnabled(
-        countdownEnabledSetting?.value
-      )}
-    />
-  );
-}
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -114,9 +89,6 @@ export default function RootLayout({
       >
         <AuthProvider>
           <ToastProvider>
-            <Suspense fallback={null}>
-              <NavbarWithAnnouncement />
-            </Suspense>
             <main>{children}</main>
           </ToastProvider>
         </AuthProvider>

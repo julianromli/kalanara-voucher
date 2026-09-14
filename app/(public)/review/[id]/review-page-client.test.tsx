@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 import { ToastProvider } from "@/context/ToastContext";
-import { ReviewPageClient } from "@/app/review/[id]/review-page-client";
+import { ReviewPageClient } from "@/app/(public)/review/[id]/review-page-client";
 
 const push = vi.fn();
 

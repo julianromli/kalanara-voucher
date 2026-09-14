@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import {
   Menu01Icon,
@@ -35,7 +34,6 @@ export default function Navbar({
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const pathname = usePathname();
 
   useEffect(() => {
     // Trigger mount animation after a small delay for smooth reveal
@@ -54,15 +52,6 @@ export default function Navbar({
       clearTimeout(mountTimer);
     };
   }, []);
-
-  // Hide navbar on checkout, voucher detail, and admin pages
-  if (
-    pathname.startsWith("/checkout") ||
-    pathname.startsWith("/voucher") ||
-    pathname.startsWith("/admin")
-  ) {
-    return null;
-  }
 
   // Nav items for staggered animation
   const navItems: NavItem[] = [

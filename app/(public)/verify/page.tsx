@@ -1,4 +1,4 @@
-import { VerifyPageClient } from "@/app/verify/verify-page-client";
+import { VerifyPageClient } from "@/app/(public)/verify/verify-page-client";
 
 interface VerifyPageProps {
   searchParams?: Promise<{
