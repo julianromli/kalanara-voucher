@@ -715,4 +715,160 @@ describe("POST /api/scalev/create-payment", () => {
     expect(markDiscountRedemptionVoidMock).toHaveBeenCalledWith("order-1");
     expect(createScalevOrderMock).not.toHaveBeenCalled();
   });
+
+  test("stops before creating a local order when catalog synchronization fails", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+    ensureScalevServiceMappingMock.mockRejectedValue(
+      new Error("Scalev catalog unavailable")
+    );
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: "service-1",
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          recipientName: "Penerima",
+          recipientPhone: "081234567890",
+          deliveryMethod: DeliveryMethod.WHATSAPP,
+          sendTo: SendTo.RECIPIENT,
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: "Gagal menyiapkan layanan untuk pembayaran. Silakan coba lagi.",
+      errorCode: "SCALEV_PAYMENT_FAILED",
+    });
+    expect(createPendingOrderMock).not.toHaveBeenCalled();
+    expect(markOrderFailedFromGatewayMock).not.toHaveBeenCalled();
+  });
+
+  test("resolves catalog mappings before creating the local order", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: "service-1",
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          recipientName: "Penerima",
+          recipientPhone: "081234567890",
+          deliveryMethod: DeliveryMethod.WHATSAPP,
+          sendTo: SendTo.RECIPIENT,
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(200);
+    expect(
+      ensureScalevServiceMappingMock.mock.invocationCallOrder[0]
+    ).toBeLessThan(createPendingOrderMock.mock.invocationCallOrder[0]);
+    expect(createScalevOrderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ordervariants: [
+          {
+            variant_unique_id: "variant-1",
+            quantity: 1,
+          },
+        ],
+      })
+    );
+  });
+
+  test("marks the local order failed when Scalev returns no payment link", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+    createScalevOrderMock.mockResolvedValue({
+      id: 99,
+      order_id: "scalev-1",
+      payment_method: "qris",
+      sub_payment_method: null,
+      payment_status: "pending",
+      status: "pending",
+      pg_reference_id: "pg-1",
+      secret_slug: null,
+      invoice_url: null,
+      payment_link: null,
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: "service-1",
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          recipientName: "Penerima",
+          recipientPhone: "081234567890",
+          deliveryMethod: DeliveryMethod.WHATSAPP,
+          sendTo: SendTo.RECIPIENT,
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: "Payment link dari Scalev belum tersedia. Silakan coba beberapa saat lagi.",
+      errorCode: "PAYMENT_LINK_MISSING",
+    });
+    expect(markOrderFailedFromGatewayMock).toHaveBeenCalledWith(
+      "order-1",
+      expect.objectContaining({
+        paymentProvider: "scalev",
+        scalevOrderPk: 99,
+      })
+    );
+  });
+
+  test("keeps the gateway error response when local failure cleanup rejects", async () => {
+    const { POST } = await import("@/app/api/scalev/create-payment/route");
+    createScalevOrderMock.mockRejectedValue(new Error("Scalev rejected order"));
+    markOrderFailedFromGatewayMock.mockRejectedValue(
+      new Error("Database temporarily unavailable")
+    );
+
+    const response = await POST(
+      new Request("http://localhost/api/scalev/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: "service-1",
+          customerName: "Faiz",
+          customerEmail: "faiz@example.com",
+          customerPhone: "081234567890",
+          recipientName: "Penerima",
+          recipientPhone: "081234567890",
+          deliveryMethod: DeliveryMethod.WHATSAPP,
+          sendTo: SendTo.RECIPIENT,
+          paymentMethod: "qris",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: "Gagal membuat pembayaran Scalev. Silakan coba lagi.",
+      errorCode: "SCALEV_PAYMENT_FAILED",
+    });
+    expect(markOrderFailedFromGatewayMock).toHaveBeenCalledWith(
+      "order-1",
+      expect.objectContaining({ paymentProvider: "scalev" })
+    );
+  });
 });

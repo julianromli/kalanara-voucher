@@ -257,6 +257,29 @@ function errorResponse(
   return NextResponse.json({ success: false, error, errorCode }, { status });
 }
 
+type OrderFailureDetails = NonNullable<
+  Parameters<typeof markOrderFailedFromGateway>[1]
+>;
+
+async function markFailedOrder(
+  orderId: string,
+  details: OrderFailureDetails
+): Promise<void> {
+  try {
+    const markedFailed = await markOrderFailedFromGateway(orderId, details);
+    if (!markedFailed) {
+      console.error("[Scalev] Local order could not be marked as failed", {
+        orderId,
+      });
+    }
+  } catch (error) {
+    console.error("[Scalev] Failed to clean up local order", {
+      orderId,
+      error,
+    });
+  }
+}
+
 export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ScalevCreatePaymentResponse>> {
@@ -325,6 +348,20 @@ export async function POST(
     const firstLine = validatedData.lineItems[0];
     const isSingleLine = validatedData.lineItems.length === 1;
 
+    let mappings: Awaited<ReturnType<typeof ensureScalevServiceMapping>>[];
+    try {
+      mappings = await Promise.all(
+        services.map((service) => ensureScalevServiceMapping(service))
+      );
+    } catch (error) {
+      console.error("[Scalev] Catalog synchronization failed before checkout:", error);
+      return errorResponse(
+        "Gagal menyiapkan layanan untuk pembayaran. Silakan coba lagi.",
+        "SCALEV_PAYMENT_FAILED",
+        502
+      );
+    }
+
     const order = await createPendingOrderForCheckout({
       service_id: isSingleLine ? services[0].id : null,
       customer_email: validatedData.customerEmail,
@@ -349,6 +386,14 @@ export async function POST(
 
     if (!order?.payment_order_id) {
       console.error("[Scalev] Local order insert returned no order");
+      if (order?.id) {
+        await markFailedOrder(order.id, {
+          paymentProvider: "scalev",
+          scalevPaymentMethod: validatedData.paymentMethod,
+          scalevSubPaymentMethod: validatedData.subPaymentMethod || null,
+          scalevStoreUniqueId: getScalevConfig().storeUniqueId,
+        });
+      }
       return errorResponse(
         "Pesanan belum bisa dibuat. Silakan coba lagi.",
         "LOCAL_ORDER_FAILED",
@@ -372,7 +417,7 @@ export async function POST(
         });
       } catch (error) {
         console.error("[Scalev] Failed to reserve discount redemption:", error);
-        await markOrderFailedFromGateway(order.id, {
+        await markFailedOrder(order.id, {
           paymentProvider: "scalev",
           scalevPaymentMethod: validatedData.paymentMethod,
           scalevSubPaymentMethod: validatedData.subPaymentMethod || null,
@@ -386,7 +431,7 @@ export async function POST(
       }
 
       if (!discountRedemption.success) {
-        await markOrderFailedFromGateway(order.id, {
+        await markFailedOrder(order.id, {
           paymentProvider: "scalev",
           scalevPaymentMethod: validatedData.paymentMethod,
           scalevSubPaymentMethod: validatedData.subPaymentMethod || null,
@@ -405,10 +450,6 @@ export async function POST(
     );
 
     try {
-      const mappings = await Promise.all(
-        services.map((service) => ensureScalevServiceMapping(service))
-      );
-
       const orderItems = await createPendingOrderItemsForOrder(
         order.id,
         validatedData.lineItems.map((item, index) => ({
@@ -424,7 +465,7 @@ export async function POST(
       );
 
       if (!orderItems || orderItems.length !== validatedData.lineItems.length) {
-        await markOrderFailedFromGateway(order.id, {
+        await markFailedOrder(order.id, {
           paymentProvider: "scalev",
           scalevPaymentMethod: validatedData.paymentMethod,
           scalevSubPaymentMethod: validatedData.subPaymentMethod || null,
@@ -511,7 +552,7 @@ export async function POST(
             scalevOrderPk: scalevOrder.id,
             scalevPgReferenceId: pgReferenceId,
           });
-          await markOrderFailedFromGateway(order.id, {
+          await markFailedOrder(order.id, {
             paymentProvider: "scalev",
             transactionId: pgReferenceId,
             paymentType: scalevOrder.payment_method || validatedData.paymentMethod,
@@ -534,6 +575,22 @@ export async function POST(
         }
 
         if (!paymentLink) {
+          await markFailedOrder(order.id, {
+            paymentProvider: "scalev",
+            transactionId: pgReferenceId,
+            paymentType: scalevOrder.payment_method || validatedData.paymentMethod,
+            transactionTime: gatewayReceiptTime,
+            scalevOrderPk: scalevOrder.id,
+            scalevOrderId: scalevOrder.order_id || null,
+            scalevPgReferenceId: pgReferenceId,
+            scalevPaymentMethod:
+              scalevOrder.payment_method || validatedData.paymentMethod,
+            scalevSubPaymentMethod:
+              scalevOrder.sub_payment_method || validatedData.subPaymentMethod || null,
+            scalevStoreUniqueId: getScalevConfig().storeUniqueId,
+            scalevRawStatus: scalevOrder.status || null,
+            scalevRawPaymentStatus: scalevOrder.payment_status || null,
+          });
           return errorResponse(
             "Payment link dari Scalev belum tersedia. Silakan coba beberapa saat lagi.",
             "PAYMENT_LINK_MISSING",
@@ -574,7 +631,7 @@ export async function POST(
         shouldVoidDiscountRedemption = false;
         return response;
       } catch (error) {
-        await markOrderFailedFromGateway(order.id, {
+        await markFailedOrder(order.id, {
           paymentProvider: "scalev",
           scalevPaymentMethod: validatedData.paymentMethod,
           scalevSubPaymentMethod: validatedData.subPaymentMethod || null,
@@ -592,11 +649,19 @@ export async function POST(
       }
     } finally {
       if (shouldVoidDiscountRedemption) {
-        const redemptionVoided = await markDiscountRedemptionVoid(order.id);
-        if (!redemptionVoided) {
-          console.error("[Scalev] Failed to void pending discount redemption during cleanup", {
+        try {
+          const redemptionVoided = await markDiscountRedemptionVoid(order.id);
+          if (!redemptionVoided) {
+            console.error("[Scalev] Failed to void pending discount redemption during cleanup", {
+              orderId: order.id,
+              paymentOrderId: order.payment_order_id,
+            });
+          }
+        } catch (error) {
+          console.error("[Scalev] Discount cleanup failed", {
             orderId: order.id,
             paymentOrderId: order.payment_order_id,
+            error,
           });
         }
       }
