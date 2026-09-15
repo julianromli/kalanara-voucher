@@ -61,8 +61,6 @@ describe("PurchasesClient", () => {
             totalPages: 1,
           }}
           initialTotalCount={41}
-          initialQuery="tidak-ada"
-          initialFilter="COMPLETED"
           canUpdatePaymentStatus
           canDeletePurchases
         />
@@ -120,8 +118,6 @@ describe("PurchasesClient", () => {
             totalPages: 2,
           }}
           initialTotalCount={26}
-          initialQuery=""
-          initialFilter="PENDING"
           canUpdatePaymentStatus
           canDeletePurchases
         />

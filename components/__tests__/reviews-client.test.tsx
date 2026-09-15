@@ -49,7 +49,7 @@ const initialPage: AdminPage<ReviewAdminListRow> = {
 function renderComponent() {
   return render(
     <ToastProvider>
-      <ReviewsClient initialPage={initialPage} initialQuery="awal" initialFilter="5" />
+      <ReviewsClient initialPage={initialPage} />
     </ToastProvider>,
   );
 }
@@ -93,7 +93,7 @@ describe("ReviewsClient pagination", () => {
     const ratingFilter = screen.getByRole("combobox");
     fireEvent.change(ratingFilter, { target: { value: "4" } });
 
-    expect(ratingFilter).toHaveValue("4");
+    expect(ratingFilter).toHaveValue("5");
     expect(replace).toHaveBeenCalledWith(
       "/admin/reviews?query=query+terbaru&rating=4",
       { scroll: false },
@@ -106,11 +106,7 @@ describe("ReviewsClient pagination", () => {
     currentSearchParams = "page=2&query=hasil+navigasi&rating=5";
     view.rerender(
       <ToastProvider>
-        <ReviewsClient
-          initialPage={initialPage}
-          initialQuery="awal"
-          initialFilter="5"
-        />
+        <ReviewsClient initialPage={initialPage} />
       </ToastProvider>,
     );
     fireEvent.change(screen.getByRole("combobox"), {

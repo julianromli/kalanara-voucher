@@ -110,8 +110,6 @@ const STATUS_CONFIG: Record<
 interface VouchersClientProps {
   initialPage: AdminPage<VoucherAdminListRow>;
   initialSummary: VoucherAdminSummary;
-  initialQuery: string;
-  initialFilter: string;
 }
 
 const EXTEND_DAYS_SELECT_ID = "voucher-extend-days";
@@ -119,8 +117,6 @@ const EXTEND_DAYS_SELECT_ID = "voucher-extend-days";
 export function VouchersClient({
   initialPage,
   initialSummary,
-  initialQuery,
-  initialFilter,
 }: VouchersClientProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -135,8 +131,6 @@ export function VouchersClient({
     setFilter: setStatusFilter,
     setPage,
   } = useAdminListUrl({
-    initialQuery,
-    initialFilter,
     filterParam: "status",
   });
 

@@ -21,14 +21,10 @@ import { cn } from "@/lib/utils";
 
 interface ReviewsClientProps {
   initialPage: AdminPage<ReviewAdminListRow>;
-  initialQuery: string;
-  initialFilter: string;
 }
 
 export function ReviewsClient({
   initialPage,
-  initialQuery,
-  initialFilter,
 }: ReviewsClientProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -41,8 +37,6 @@ export function ReviewsClient({
     setFilter: setRatingFilter,
     setPage,
   } = useAdminListUrl({
-    initialQuery,
-    initialFilter,
     filterParam: "rating",
   });
 

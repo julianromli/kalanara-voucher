@@ -148,6 +148,7 @@ describe("Scalev v3 catalog requests", () => {
       })
       .mockResolvedValueOnce({
         ok: true,
+        status: 204,
         text: async () => "",
       })
       .mockResolvedValueOnce({
@@ -197,6 +198,22 @@ describe("Scalev v3 catalog requests", () => {
     });
     expect(fetchMock.mock.calls[2]?.[0]).toBe(
       "https://catalog.example/v3/products/123"
+    );
+  });
+
+  test("rejects an empty body from an endpoint that promises JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 204,
+        text: async () => "",
+      })
+    );
+    const { createScalevPaymentIntent } = await import("@/lib/scalev/client");
+
+    await expect(createScalevPaymentIntent("order-123")).rejects.toThrow(
+      "Scalev request failed: 204 /order/order-123/payment"
     );
   });
 

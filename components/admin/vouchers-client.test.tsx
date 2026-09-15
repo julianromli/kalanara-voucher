@@ -123,8 +123,6 @@ function renderComponent() {
       <VouchersClient
         initialPage={initialPage}
         initialSummary={{ active: 123, redeemed: 89, expired: 52 }}
-        initialQuery=""
-        initialFilter="ALL"
       />
     </ToastProvider>,
   );

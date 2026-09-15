@@ -48,8 +48,6 @@ import type { OrderWithVoucherItems } from "@/lib/database.types";
 interface PurchasesClientProps {
   initialPage: AdminPage<OrderWithVoucherItems>;
   initialTotalCount: number;
-  initialQuery: string;
-  initialFilter: string;
   canUpdatePaymentStatus: boolean;
   canDeletePurchases: boolean;
 }
@@ -120,8 +118,6 @@ function getOrderVoucherSummary(order: OrderWithVoucherItems) {
 export function PurchasesClient({
   initialPage,
   initialTotalCount,
-  initialQuery,
-  initialFilter,
   canUpdatePaymentStatus,
   canDeletePurchases,
 }: PurchasesClientProps) {
@@ -137,8 +133,6 @@ export function PurchasesClient({
     setFilter: setStatusFilter,
     setPage,
   } = useAdminListUrl({
-    initialQuery,
-    initialFilter,
     filterParam: "status",
   });
   const [selectedOrder, setSelectedOrder] = useState<OrderWithVoucherItems | null>(

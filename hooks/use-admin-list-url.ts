@@ -1,66 +1,42 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 interface UseAdminListUrlOptions {
-  initialQuery: string;
-  initialFilter: string;
   filterParam: "status" | "rating";
 }
 
 export function useAdminListUrl({
-  initialQuery,
-  initialFilter,
   filterParam,
 }: UseAdminListUrlOptions) {
-  const router = useRouter();
+  const { replace } = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [query, setQuery] = useState(initialQuery);
-  const [filter, setLocalFilter] = useState(initialFilter);
-  const queryRef = useRef(initialQuery);
-  const filterRef = useRef(initialFilter);
-  const hasLocalQueryEditRef = useRef(false);
-  const hasLocalFilterEditRef = useRef(false);
   const debounceTimerRef = useRef<number | null>(null);
   const serializedSearchParams = searchParams.toString();
-  const urlParamsStringRef = useRef(serializedSearchParams);
+  const committedQuery = searchParams.get("query") ?? "";
+  const filter = searchParams.get(filterParam) ?? "ALL";
+  const [query, setQuery] = useState(committedQuery);
 
   useEffect(() => {
-    const settledParams = new URLSearchParams(serializedSearchParams);
-    const settledQuery = settledParams.get("query") ?? "";
-    const settledFilter = settledParams.get(filterParam) ?? "ALL";
-    urlParamsStringRef.current = serializedSearchParams;
-    if (hasLocalQueryEditRef.current) {
-      const canonicalLocalQuery = queryRef.current.trim().slice(0, 100);
-      if (settledQuery === canonicalLocalQuery) {
-        hasLocalQueryEditRef.current = false;
-      }
-    } else {
-      queryRef.current = settledQuery;
-    }
-    if (hasLocalFilterEditRef.current) {
-      if (settledFilter === filterRef.current) {
-        hasLocalFilterEditRef.current = false;
-      }
-    } else {
-      filterRef.current = settledFilter;
-    }
-  }, [filterParam, serializedSearchParams]);
+    setQuery(committedQuery);
+  }, [committedQuery]);
 
-  const replaceParams = (update: (params: URLSearchParams) => void) => {
-    const nextParams = new URLSearchParams(urlParamsStringRef.current);
-    update(nextParams);
-    const serialized = nextParams.toString();
-    urlParamsStringRef.current = serialized;
-    router.replace(serialized ? `${pathname}?${serialized}` : pathname, {
-      scroll: false,
-    });
-  };
+  const replaceParams = useCallback(
+    (update: (params: URLSearchParams) => void) => {
+      const nextParams = new URLSearchParams(serializedSearchParams);
+      update(nextParams);
+      const serialized = nextParams.toString();
+      replace(serialized ? `${pathname}?${serialized}` : pathname, {
+        scroll: false,
+      });
+    },
+    [pathname, replace, serializedSearchParams],
+  );
 
   useEffect(() => {
-    if (query === initialQuery) {
+    if (query === committedQuery) {
       return;
     }
 
@@ -82,27 +58,15 @@ export function useAdminListUrl({
         debounceTimerRef.current = null;
       }
     };
-    // searchParams is intentionally represented by its serialized value.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialQuery, pathname, query, router, serializedSearchParams]);
-
-  const setQueryValue = (nextQuery: string) => {
-    hasLocalQueryEditRef.current = true;
-    queryRef.current = nextQuery;
-    setQuery(nextQuery);
-  };
+  }, [committedQuery, query, replaceParams]);
 
   const setFilter = (nextFilter: string) => {
     if (debounceTimerRef.current !== null) {
       window.clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
     }
-    hasLocalFilterEditRef.current = true;
-    filterRef.current = nextFilter;
-    setLocalFilter(nextFilter);
     replaceParams((params) => {
-      const queryToPreserve = queryRef.current;
-      const currentQuery = queryToPreserve.trim().slice(0, 100);
+      const currentQuery = query.trim().slice(0, 100);
       if (currentQuery) {
         params.set("query", currentQuery);
       } else {
@@ -123,16 +87,11 @@ export function useAdminListUrl({
       debounceTimerRef.current = null;
     }
     replaceParams((params) => {
-      const currentQuery = queryRef.current.trim().slice(0, 100);
+      const currentQuery = query.trim().slice(0, 100);
       if (currentQuery) {
         params.set("query", currentQuery);
       } else {
         params.delete("query");
-      }
-      if (filterRef.current === "ALL") {
-        params.delete(filterParam);
-      } else {
-        params.set(filterParam, filterRef.current);
       }
       if (page <= 1) {
         params.delete("page");
@@ -144,7 +103,7 @@ export function useAdminListUrl({
 
   return {
     query,
-    setQuery: setQueryValue,
+    setQuery,
     filter,
     setFilter,
     setPage,

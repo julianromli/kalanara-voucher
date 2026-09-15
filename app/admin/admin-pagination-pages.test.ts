@@ -86,9 +86,9 @@ describe("paginated admin page wiring", () => {
     expect(result.props).toMatchObject({
       initialPage: emptyPage,
       initialTotalCount: 41,
-      initialQuery: "ayu",
-      initialFilter: "COMPLETED",
     });
+    expect(result.props).not.toHaveProperty("initialQuery");
+    expect(result.props).not.toHaveProperty("initialFilter");
   });
 
   test("passes voucher page and global summary action results to the client", async () => {
@@ -113,8 +113,8 @@ describe("paginated admin page wiring", () => {
     expect(result.props).toMatchObject({
       initialPage: emptyPage,
       initialSummary: { active: 3, redeemed: 2, expired: 1 },
-      initialFilter: "ACTIVE",
     });
+    expect(result.props).not.toHaveProperty("initialFilter");
   });
 
   test("passes the review action result to the client", async () => {
@@ -136,9 +136,7 @@ describe("paginated admin page wiring", () => {
       query: "ramah",
       filter: "5",
     });
-    expect(result.props).toMatchObject({
-      initialPage: emptyPage,
-      initialFilter: "5",
-    });
+    expect(result.props).toMatchObject({ initialPage: emptyPage });
+    expect(result.props).not.toHaveProperty("initialFilter");
   });
 });

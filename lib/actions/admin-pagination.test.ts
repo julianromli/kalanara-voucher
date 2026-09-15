@@ -4,6 +4,7 @@ import {
   ADMIN_PAGE_SIZE,
   buildAdminPage,
   escapePostgrestLike,
+  fetchBoundedAdminPage,
   normalizeAdminListParams,
 } from "@/lib/actions/admin-pagination";
 
@@ -78,5 +79,42 @@ describe("admin pagination contracts", () => {
     expect(
       buildAdminPage([], ADMIN_MAX_PAGE, Number.MAX_SAFE_INTEGER).totalPages,
     ).toBe(ADMIN_MAX_PAGE);
+  });
+
+  test("executes a corrected bounded range when the requested page is stale", async () => {
+    const fetchRange = vi
+      .fn()
+      .mockResolvedValueOnce({ data: [], count: 26, error: null })
+      .mockResolvedValueOnce({
+        data: ["last-row"],
+        count: 26,
+        error: null,
+      });
+
+    await expect(
+      fetchBoundedAdminPage({ requestedPage: 3, fetchRange }),
+    ).resolves.toEqual({
+      rows: ["last-row"],
+      page: 2,
+      pageSize: 25,
+      totalCount: 26,
+      totalPages: 2,
+    });
+    expect(fetchRange).toHaveBeenNthCalledWith(1, 50, 74);
+    expect(fetchRange).toHaveBeenNthCalledWith(2, 25, 49);
+  });
+
+  test("throws range errors without issuing a corrected request", async () => {
+    const error = new Error("query failed");
+    const fetchRange = vi.fn().mockResolvedValue({
+      data: null,
+      count: null,
+      error,
+    });
+
+    await expect(
+      fetchBoundedAdminPage({ requestedPage: 2, fetchRange }),
+    ).rejects.toBe(error);
+    expect(fetchRange).toHaveBeenCalledOnce();
   });
 });

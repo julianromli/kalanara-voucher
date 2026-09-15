@@ -16,6 +16,20 @@ export interface AdminPage<T> {
   totalPages: number;
 }
 
+export interface AdminPageRangeResult<T> {
+  data: T[] | null;
+  count: number | null;
+  error: unknown | null;
+}
+
+interface FetchBoundedAdminPageOptions<T> {
+  requestedPage: number;
+  fetchRange: (
+    from: number,
+    to: number,
+  ) => PromiseLike<AdminPageRangeResult<T>>;
+}
+
 interface RawAdminListParams {
   page?: string | string[];
   query?: string | string[];
@@ -69,4 +83,39 @@ export function buildAdminPage<T>(
     totalCount,
     totalPages,
   };
+}
+
+export async function fetchBoundedAdminPage<T>({
+  requestedPage,
+  fetchRange,
+}: FetchBoundedAdminPageOptions<T>): Promise<AdminPage<T>> {
+  const fetchPage = (page: number) => {
+    const from = (page - 1) * ADMIN_PAGE_SIZE;
+    return fetchRange(from, from + ADMIN_PAGE_SIZE - 1);
+  };
+
+  const firstResult = await fetchPage(requestedPage);
+  if (firstResult.error) {
+    throw firstResult.error;
+  }
+
+  const firstPage = buildAdminPage(
+    firstResult.data ?? [],
+    requestedPage,
+    firstResult.count ?? 0,
+  );
+  if (firstPage.page === requestedPage || firstPage.totalCount === 0) {
+    return firstPage;
+  }
+
+  const correctedResult = await fetchPage(firstPage.page);
+  if (correctedResult.error) {
+    throw correctedResult.error;
+  }
+
+  return buildAdminPage(
+    correctedResult.data ?? [],
+    firstPage.page,
+    correctedResult.count ?? firstPage.totalCount,
+  );
 }

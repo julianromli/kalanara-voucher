@@ -14,8 +14,6 @@ vi.mock("next/navigation", () => ({
 
 function HookProbe() {
   const { query, setQuery, filter, setFilter, setPage } = useAdminListUrl({
-    initialQuery: "",
-    initialFilter: "ALL",
     filterParam: "status",
   });
 
@@ -52,21 +50,18 @@ describe("useAdminListUrl", () => {
     vi.useRealTimers();
   });
 
-  it("preserves a local filter change when pagination happens before navigation settles", () => {
+  it("uses committed URL values for the query and filter", () => {
+    mocks.search = "query=pelanggan+lama&status=PENDING&page=2";
     const { rerender } = render(<HookProbe />);
 
-    fireEvent.change(screen.getByLabelText("Status"), {
-      target: { value: "PENDING" },
-    });
+    expect(screen.getByLabelText("Query")).toHaveValue("pelanggan lama");
+    expect(screen.getByLabelText("Status")).toHaveValue("PENDING");
 
-    expect(mocks.search).toBe("");
+    mocks.search = "query=pelanggan+baru";
     rerender(<HookProbe />);
-    fireEvent.click(screen.getByRole("button", { name: "Page 2" }));
 
-    expect(mocks.replace).toHaveBeenLastCalledWith(
-      "/admin/purchases?status=PENDING&page=2",
-      { scroll: false }
-    );
+    expect(screen.getByLabelText("Query")).toHaveValue("pelanggan baru");
+    expect(screen.getByLabelText("Status")).toHaveValue("ALL");
   });
 
   it("flushes a pending query into pagination and cancels its page-reset debounce", () => {
@@ -90,53 +85,42 @@ describe("useAdminListUrl", () => {
     expect(screen.getByLabelText("Query")).toHaveValue("  pelanggan baru  ");
   });
 
-  it("accepts later URL filter changes after the local filter settles", () => {
+  it("commits a filter with the pending query but renders the URL-owned filter", () => {
     const { rerender } = render(<HookProbe />);
 
+    fireEvent.change(screen.getByLabelText("Query"), {
+      target: { value: " pelanggan baru " },
+    });
     fireEvent.change(screen.getByLabelText("Status"), {
       target: { value: "PENDING" },
     });
 
-    mocks.search = "status=PENDING";
-    rerender(<HookProbe />);
-    mocks.search = "";
-    rerender(<HookProbe />);
-    fireEvent.click(screen.getByRole("button", { name: "Page 2" }));
-
     expect(mocks.replace).toHaveBeenLastCalledWith(
-      "/admin/purchases?page=2",
+      "/admin/purchases?query=pelanggan+baru&status=PENDING",
       { scroll: false }
     );
+    expect(screen.getByLabelText("Status")).toHaveValue("ALL");
+
+    mocks.search = "query=pelanggan+baru&status=PENDING";
+    rerender(<HookProbe />);
+    expect(screen.getByLabelText("Status")).toHaveValue("PENDING");
   });
 
-  it("accepts later URL query changes after the canonical local query settles", () => {
+  it("cancels a stale query debounce when the committed URL changes", () => {
     const { rerender } = render(<HookProbe />);
 
     fireEvent.change(screen.getByLabelText("Query"), {
-      target: { value: "  pelanggan baru  " },
-    });
-    act(() => {
-      vi.advanceTimersByTime(300);
+      target: { value: "akan dibatalkan" },
     });
 
-    mocks.search = "query=pelanggan+baru";
-    rerender(<HookProbe />);
     mocks.search = "query=pelanggan+lama";
     rerender(<HookProbe />);
-    fireEvent.click(screen.getByRole("button", { name: "Page 2" }));
 
-    expect(mocks.replace).toHaveBeenLastCalledWith(
-      "/admin/purchases?query=pelanggan+lama&page=2",
-      { scroll: false }
-    );
-    const replaceCallCount = mocks.replace.mock.calls.length;
     act(() => {
       vi.advanceTimersByTime(300);
     });
-    expect(mocks.replace).toHaveBeenCalledTimes(replaceCallCount);
-    expect(mocks.replace).toHaveBeenLastCalledWith(
-      "/admin/purchases?query=pelanggan+lama&page=2",
-      { scroll: false }
-    );
+
+    expect(mocks.replace).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Query")).toHaveValue("pelanggan lama");
   });
 });

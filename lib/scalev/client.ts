@@ -75,14 +75,15 @@ function normalizeScalevMetaThumbnail(metaThumbnail?: string) {
   return metaThumbnail;
 }
 
-async function scalevRequest<T>(
+interface ScalevRequestOptions {
+  baseUrl?: string;
+}
+
+async function executeScalevRequest(
   path: string,
   init?: RequestInit,
-  options: {
-    baseUrl?: string;
-    allowEmptyResponse?: boolean;
-  } = {}
-): Promise<T> {
+  options: ScalevRequestOptions = {}
+) {
   ensureScalevIpv4First();
   const config = getScalevConfig();
   const response = await fetch(`${options.baseUrl || config.apiBaseUrl}${path}`, {
@@ -105,28 +106,49 @@ async function scalevRequest<T>(
         }
       })()
     : null;
-  const json = parsedJson as
-    | ScalevApiEnvelope<T>
-    | T
-    | null;
-
-  if (!response.ok || (!json && !options.allowEmptyResponse)) {
+  if (!response.ok) {
     throw new ScalevApiError(
       path,
       response.status,
-      json || rawText || null
+      parsedJson || rawText || null
     );
   }
 
-  if (!json) {
-    return undefined as T;
+  return {
+    json: parsedJson as unknown,
+    rawText,
+    status: response.status,
+  };
+}
+
+async function scalevJsonRequest<T>(
+  path: string,
+  init?: RequestInit,
+  options: ScalevRequestOptions = {}
+): Promise<T> {
+  const response = await executeScalevRequest(path, init, options);
+  if (response.json === null) {
+    throw new ScalevApiError(
+      path,
+      response.status,
+      response.rawText || null
+    );
   }
 
+  const json = response.json as ScalevApiEnvelope<T> | T;
   if (typeof json === "object" && json !== null && "data" in json) {
     return json.data;
   }
 
   return json;
+}
+
+async function scalevNoContentRequest(
+  path: string,
+  init?: RequestInit,
+  options: ScalevRequestOptions = {}
+): Promise<void> {
+  await executeScalevRequest(path, init, options);
 }
 
 function getVariantFromProduct(
@@ -144,7 +166,7 @@ async function fetchScalevStore(
   signal?: AbortSignal
 ): Promise<ScalevStoreRecord> {
   const config = getScalevConfig();
-  const result = await scalevRequest<{
+  const result = await scalevJsonRequest<{
     results: ScalevStoreRecord[];
   }>(
     `/stores?search=${encodeURIComponent(config.storeNameSearch)}&page_size=25`,
@@ -191,7 +213,7 @@ export async function getScalevCheckoutAvailability(
     const store = signal
       ? await fetchScalevStore(signal)
       : await resolveScalevStore();
-    const paymentMethods = await scalevRequest<string[]>(
+    const paymentMethods = await scalevJsonRequest<string[]>(
       `/stores/${store.id}/payment-methods`,
       { signal }
     );
@@ -242,7 +264,7 @@ export async function getScalevCheckoutAvailability(
 export async function listScalevProducts(search?: string) {
   const config = getScalevConfig();
   const suffix = search ? `?search=${encodeURIComponent(search)}&page_size=25` : "?page_size=25";
-  return scalevRequest<ScalevProductRecord[]>(
+  return scalevJsonRequest<ScalevProductRecord[]>(
     `/products${suffix}`,
     undefined,
     { baseUrl: config.catalogApiBaseUrl }
@@ -251,7 +273,7 @@ export async function listScalevProducts(search?: string) {
 
 export async function getScalevProduct(id: number) {
   const config = getScalevConfig();
-  return scalevRequest<ScalevProductRecord>(
+  return scalevJsonRequest<ScalevProductRecord>(
     `/products/${id}`,
     undefined,
     { baseUrl: config.catalogApiBaseUrl }
@@ -263,7 +285,7 @@ export async function createScalevProduct(input: ScalevCatalogProductInput) {
   const metaThumbnail = normalizeScalevMetaThumbnail(input.metaThumbnail);
   const normalizedInput = { ...input, metaThumbnail };
 
-  const product = await scalevRequest<ScalevProductRecord>("/products", {
+  const product = await scalevJsonRequest<ScalevProductRecord>("/products", {
     method: "POST",
     body: JSON.stringify({
       name: normalizedInput.name,
@@ -297,7 +319,7 @@ export async function updateScalevProduct(
   const metaThumbnail = normalizeScalevMetaThumbnail(input.metaThumbnail);
   const normalizedInput = { ...input, metaThumbnail };
 
-  await scalevRequest<ScalevProductRecord>(`/products/${id}`, {
+  await scalevJsonRequest<ScalevProductRecord>(`/products/${id}`, {
     method: "PATCH",
     body: JSON.stringify({
       name: normalizedInput.name,
@@ -314,7 +336,7 @@ export async function updateScalevProduct(
     throw new Error("Scalev product update requires a primary variant");
   }
 
-  await scalevRequest<void>(
+  await scalevNoContentRequest(
     `/products/${id}/variants/bulk`,
     {
       method: "PATCH",
@@ -323,10 +345,7 @@ export async function updateScalevProduct(
         value: targetVariant.price,
       }),
     },
-    {
-      baseUrl: config.catalogApiBaseUrl,
-      allowEmptyResponse: true,
-    }
+    { baseUrl: config.catalogApiBaseUrl }
   );
 
   const product = await getScalevProduct(id);
@@ -342,7 +361,7 @@ export async function updateScalevProduct(
 export async function attachProductToScalevStore(productId: number) {
   const store = await resolveScalevStore();
 
-  await scalevRequest<unknown>(`/stores/${store.id}/products`, {
+  await scalevJsonRequest<unknown>(`/stores/${store.id}/products`, {
     method: "POST",
     body: JSON.stringify({
       product_ids: [productId],
@@ -351,7 +370,7 @@ export async function attachProductToScalevStore(productId: number) {
 }
 
 export async function createScalevOrder(input: ScalevOrderCreateInput) {
-  return scalevRequest<ScalevOrderRecord>("/order", {
+  return scalevJsonRequest<ScalevOrderRecord>("/order", {
     method: "POST",
     body: JSON.stringify({
       customer_name: input.customer_name,
@@ -369,17 +388,17 @@ export async function createScalevOrder(input: ScalevOrderCreateInput) {
 }
 
 export async function createScalevPaymentIntent(orderPk: string) {
-  return scalevRequest<ScalevPaymentIntentResponse>(`/order/${orderPk}/payment`, {
+  return scalevJsonRequest<ScalevPaymentIntentResponse>(`/order/${orderPk}/payment`, {
     method: "POST",
   });
 }
 
 export async function retrieveScalevOrder(orderPk: string) {
-  return scalevRequest<ScalevOrderRecord>(`/order/${orderPk}`);
+  return scalevJsonRequest<ScalevOrderRecord>(`/order/${orderPk}`);
 }
 
 export async function getScalevOrderByPgReference(pgReferenceId: string) {
-  const data = await scalevRequest<{ id: string }>(
+  const data = await scalevJsonRequest<{ id: string }>(
     `/order/retrieve-by-pg-reference-id?pg_reference_id=${encodeURIComponent(pgReferenceId)}`
   );
 
@@ -391,11 +410,11 @@ export async function getScalevOrderByPgReference(pgReferenceId: string) {
 }
 
 export async function checkScalevPaymentStatus(orderPk: string) {
-  return scalevRequest<ScalevPaymentStatusResponse>(`/order/${orderPk}/check-payment`);
+  return scalevJsonRequest<ScalevPaymentStatusResponse>(`/order/${orderPk}/check-payment`);
 }
 
 export async function checkScalevSettlementStatus(orderPk: string) {
-  return scalevRequest<ScalevSettlementStatusResponse>(
+  return scalevJsonRequest<ScalevSettlementStatusResponse>(
     `/order/${orderPk}/check-settlement`
   );
 }

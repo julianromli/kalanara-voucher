@@ -30,10 +30,7 @@ export default async function AdminReviewsPage({
 
   return (
     <ReviewsClient
-      key={`${params.query}:${params.filter}`}
       initialPage={reviewsPage}
-      initialQuery={params.query}
-      initialFilter={params.filter}
     />
   );
 }

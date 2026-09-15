@@ -7,8 +7,7 @@ import {
   requireAdminPermission,
 } from "@/lib/auth/admin-rbac-server";
 import {
-  ADMIN_PAGE_SIZE,
-  buildAdminPage,
+  fetchBoundedAdminPage,
   normalizeAdminListParams,
   type AdminListParams,
   type AdminPage,
@@ -133,7 +132,6 @@ export async function getOrdersPage(
     },
     ORDER_ADMIN_FILTERS,
   );
-  const from = (normalized.page - 1) * ADMIN_PAGE_SIZE;
   const supabase = getAdminClient();
   const source = normalized.query
     ? supabase.rpc("search_admin_orders", {
@@ -149,40 +147,22 @@ export async function getOrdersPage(
     request = request.eq("payment_status", normalized.filter as PaymentStatus);
   }
 
-  const firstResult = await request.range(
-    from,
-    from + ADMIN_PAGE_SIZE - 1,
-  );
-
-  if (firstResult.error) {
-    console.error("Error fetching orders:", firstResult.error);
-    throw firstResult.error;
+  try {
+    return await fetchBoundedAdminPage({
+      requestedPage: normalized.page,
+      fetchRange: async (from, to) => {
+        const result = await request.range(from, to);
+        return {
+          data: (result.data as OrderWithVoucherItems[] | null) ?? null,
+          count: result.count,
+          error: result.error,
+        };
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    throw error;
   }
-
-  const firstPage = buildAdminPage(
-    (firstResult.data as OrderWithVoucherItems[]) ?? [],
-    normalized.page,
-    firstResult.count ?? 0,
-  );
-  if (firstPage.page === normalized.page || firstPage.totalCount === 0) {
-    return firstPage;
-  }
-
-  const correctedFrom = (firstPage.page - 1) * ADMIN_PAGE_SIZE;
-  const correctedResult = await request.range(
-    correctedFrom,
-    correctedFrom + ADMIN_PAGE_SIZE - 1,
-  );
-  if (correctedResult.error) {
-    console.error("Error fetching corrected orders page:", correctedResult.error);
-    throw correctedResult.error;
-  }
-
-  return buildAdminPage(
-    (correctedResult.data as OrderWithVoucherItems[]) ?? [],
-    firstPage.page,
-    correctedResult.count ?? firstPage.totalCount,
-  );
 }
 
 export async function getOrdersTotalCount(): Promise<number> {

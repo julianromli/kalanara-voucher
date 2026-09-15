@@ -36,11 +36,8 @@ export default async function AdminVouchersPage({
 
   return (
     <VouchersClient
-      key={`${params.query}:${params.filter}`}
       initialPage={vouchersPage}
       initialSummary={voucherSummary}
-      initialQuery={params.query}
-      initialFilter={params.filter}
     />
   );
 }

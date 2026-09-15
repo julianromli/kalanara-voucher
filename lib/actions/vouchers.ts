@@ -7,9 +7,8 @@ import {
   requireAdminPermission,
 } from "@/lib/auth/admin-rbac-server";
 import {
-  ADMIN_PAGE_SIZE,
-  buildAdminPage,
   escapePostgrestLike,
+  fetchBoundedAdminPage,
   normalizeAdminListParams,
   type AdminListParams,
   type AdminPage,
@@ -152,7 +151,6 @@ export async function getVouchersPage(
     },
     VOUCHER_ADMIN_FILTERS,
   );
-  const from = (normalized.page - 1) * ADMIN_PAGE_SIZE;
   const now = new Date().toISOString();
   const supabase = getAdminClient();
   let request = supabase
@@ -176,43 +174,22 @@ export async function getVouchersPage(
     );
   }
 
-  const firstResult = await request.range(
-    from,
-    from + ADMIN_PAGE_SIZE - 1,
-  );
-
-  if (firstResult.error) {
-    console.error("Error fetching vouchers:", firstResult.error);
-    throw firstResult.error;
+  try {
+    return await fetchBoundedAdminPage({
+      requestedPage: normalized.page,
+      fetchRange: async (from, to) => {
+        const result = await request.range(from, to);
+        return {
+          data: (result.data as VoucherAdminListRow[] | null) ?? null,
+          count: result.count,
+          error: result.error,
+        };
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching vouchers:", error);
+    throw error;
   }
-
-  const firstPage = buildAdminPage(
-    (firstResult.data as VoucherAdminListRow[]) ?? [],
-    normalized.page,
-    firstResult.count ?? 0,
-  );
-  if (firstPage.page === normalized.page || firstPage.totalCount === 0) {
-    return firstPage;
-  }
-
-  const correctedFrom = (firstPage.page - 1) * ADMIN_PAGE_SIZE;
-  const correctedResult = await request.range(
-    correctedFrom,
-    correctedFrom + ADMIN_PAGE_SIZE - 1,
-  );
-  if (correctedResult.error) {
-    console.error(
-      "Error fetching corrected vouchers page:",
-      correctedResult.error,
-    );
-    throw correctedResult.error;
-  }
-
-  return buildAdminPage(
-    (correctedResult.data as VoucherAdminListRow[]) ?? [],
-    firstPage.page,
-    correctedResult.count ?? firstPage.totalCount,
-  );
 }
 
 export async function getVoucherAdminSummary(): Promise<VoucherAdminSummary> {

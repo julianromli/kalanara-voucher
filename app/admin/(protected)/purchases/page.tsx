@@ -45,11 +45,8 @@ export default async function AdminPurchasesPage({
 
   return (
       <PurchasesClient
-        key={`${params.query}:${params.filter}`}
         initialPage={ordersPage}
         initialTotalCount={ordersTotalCount}
-        initialQuery={params.query}
-        initialFilter={params.filter}
         canUpdatePaymentStatus={hasPermissionForRole(
           access.role,
           AdminPermission.ORDERS_UPDATE_PAYMENT_STATUS
