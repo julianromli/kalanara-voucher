@@ -23,19 +23,28 @@ describe("voucher delivery handoff migration contract", () => {
     expect(sql).toMatch(
       /alter type public\.voucher_delivery_status\s+add value(?: if not exists)? 'HANDOFF_REQUIRED'/i
     );
+    expect(sql).toMatch(
+      /alter table public\.voucher_delivery_outbox\s+add column handoff_url text/i
+    );
+    expect(sql).toMatch(
+      /check\s*\([\s\S]*handoff_url is null[\s\S]*btrim\(handoff_url\)[\s\S]*char_length\(handoff_url\)\s*<=\s*8192/i
+    );
   });
 
-  test("finalizes HANDOFF_REQUIRED only from the matching active claim", () => {
+  test("stores the bounded handoff URL only from the matching active claim", () => {
     const sql = readMigration();
 
     expect(sql).toMatch(
-      /create function public\.finalize_voucher_delivery_handoff_required\(\s*p_delivery_id uuid,\s*p_claim_token uuid/i
+      /create function public\.finalize_voucher_delivery_handoff_required\(\s*p_delivery_id uuid,\s*p_claim_token uuid,\s*p_handoff_url text/i
     );
     expect(sql).toMatch(
-      /set status = 'HANDOFF_REQUIRED'[\s\S]*claimed_at = null[\s\S]*claim_token = null/i
+      /if p_handoff_url is null[\s\S]*btrim\(p_handoff_url\) = ''[\s\S]*char_length\(p_handoff_url\) > 8192[\s\S]*raise exception/i
     );
     expect(sql).toMatch(
-      /where outbox\.id = \$1[\s\S]*outbox\.status = 'PROCESSING'[\s\S]*outbox\.claim_token = \$2[\s\S]*using p_delivery_id,\s*p_claim_token/i
+      /set status = 'HANDOFF_REQUIRED'[\s\S]*handoff_url = \$3[\s\S]*claimed_at = null[\s\S]*claim_token = null/i
+    );
+    expect(sql).toMatch(
+      /where outbox\.id = \$1[\s\S]*outbox\.status = 'PROCESSING'[\s\S]*outbox\.claim_token = \$2[\s\S]*using p_delivery_id,\s*p_claim_token,\s*p_handoff_url/i
     );
   });
 
@@ -44,10 +53,10 @@ describe("voucher delivery handoff migration contract", () => {
 
     expect(sql).toMatch(/security definer\s+set search_path = ''/i);
     expect(sql).toMatch(
-      /revoke all on function public\.finalize_voucher_delivery_handoff_required\(\s*uuid,\s*uuid\s*\)\s+from public,\s*anon,\s*authenticated;/i
+      /revoke all on function public\.finalize_voucher_delivery_handoff_required\(\s*uuid,\s*uuid,\s*text\s*\)\s+from public,\s*anon,\s*authenticated;/i
     );
     expect(sql).toMatch(
-      /grant execute on function public\.finalize_voucher_delivery_handoff_required\(\s*uuid,\s*uuid\s*\)\s+to service_role;/i
+      /grant execute on function public\.finalize_voucher_delivery_handoff_required\(\s*uuid,\s*uuid,\s*text\s*\)\s+to service_role;/i
     );
     expect(sql).not.toMatch(/\bgrant\b[\s\S]*\bto (anon|authenticated)\b/i);
   });

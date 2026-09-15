@@ -152,6 +152,8 @@ async function postVoucherDelivery(
       `${path} failed with status ${response.status}${errorText ? `: ${errorText}` : ""}`
     );
   }
+
+  return response;
 }
 
 export async function sendVoucherEmail(
@@ -166,6 +168,47 @@ export async function sendVoucherWhatsApp(
   orderId: string,
   token: string,
   orderItemId?: string
-) {
-  await postVoucherDelivery("/api/whatsapp/send-voucher", orderId, token, orderItemId);
+): Promise<string> {
+  const response = await postVoucherDelivery(
+    "/api/whatsapp/send-voucher",
+    orderId,
+    token,
+    orderItemId
+  );
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Invalid WhatsApp delivery response");
+  }
+
+  const { success, whatsappUrl } = payload as Record<string, unknown>;
+  if (
+    success !== true ||
+    typeof whatsappUrl !== "string" ||
+    whatsappUrl.length === 0 ||
+    whatsappUrl.length > 8_192 ||
+    whatsappUrl !== whatsappUrl.trim()
+  ) {
+    throw new Error("Invalid WhatsApp delivery response");
+  }
+
+  try {
+    const parsedUrl = new URL(whatsappUrl);
+    if (
+      parsedUrl.protocol !== "https:" ||
+      parsedUrl.hostname !== "wa.me" ||
+      parsedUrl.port !== "" ||
+      parsedUrl.username !== "" ||
+      parsedUrl.password !== "" ||
+      !/^\/\d+$/.test(parsedUrl.pathname) ||
+      !parsedUrl.searchParams.has("text") ||
+      parsedUrl.hash !== ""
+    ) {
+      throw new Error("Unexpected WhatsApp URL");
+    }
+  } catch {
+    throw new Error("Invalid WhatsApp delivery response");
+  }
+
+  return whatsappUrl;
 }

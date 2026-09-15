@@ -192,6 +192,7 @@ export type Database = {
           next_attempt_at: string;
           claimed_at: string | null;
           claim_token: string | null;
+          handoff_url: string | null;
           sent_at: string | null;
           last_error: string | null;
           created_at: string;
@@ -208,6 +209,7 @@ export type Database = {
           next_attempt_at?: string;
           claimed_at?: string | null;
           claim_token?: string | null;
+          handoff_url?: string | null;
           sent_at?: string | null;
           last_error?: string | null;
           created_at?: string;
@@ -224,6 +226,7 @@ export type Database = {
           next_attempt_at?: string;
           claimed_at?: string | null;
           claim_token?: string | null;
+          handoff_url?: string | null;
           sent_at?: string | null;
           last_error?: string | null;
           created_at?: string;
@@ -857,7 +860,11 @@ export type Database = {
         Returns: boolean;
       };
       finalize_voucher_delivery_handoff_required: {
-        Args: { p_delivery_id: string; p_claim_token: string };
+        Args: {
+          p_delivery_id: string;
+          p_claim_token: string;
+          p_handoff_url: string;
+        };
         Returns: boolean;
       };
       get_admin_dashboard_aggregates: {

@@ -104,7 +104,9 @@ describe("createVoucherOnPaymentSuccess", () => {
     markVoucherDeliveryHandoffRequiredMock.mockResolvedValue(undefined);
     markVoucherDeliverySentMock.mockResolvedValue(undefined);
     sendVoucherEmailMock.mockResolvedValue(undefined);
-    sendVoucherWhatsAppMock.mockResolvedValue(undefined);
+    sendVoucherWhatsAppMock.mockResolvedValue(
+      "https://wa.me/628123456789?text=Voucher"
+    );
     updateOrderVoucherIdMock.mockResolvedValue(true);
     getOrderItemsByOrderIdMock.mockResolvedValue([]);
   });
@@ -136,7 +138,8 @@ describe("createVoucherOnPaymentSuccess", () => {
     );
     expect(markVoucherDeliveryHandoffRequiredMock).toHaveBeenCalledWith(
       "delivery-whatsapp",
-      "claim-1"
+      "claim-1",
+      "https://wa.me/628123456789?text=Voucher"
     );
     expect(markVoucherDeliverySentMock).not.toHaveBeenCalled();
   });
@@ -202,7 +205,8 @@ describe("createVoucherOnPaymentSuccess", () => {
     );
     expect(markVoucherDeliveryHandoffRequiredMock).toHaveBeenCalledWith(
       "delivery-whatsapp",
-      "claim-whatsapp"
+      "claim-whatsapp",
+      "https://wa.me/628123456789?text=Voucher"
     );
   });
 

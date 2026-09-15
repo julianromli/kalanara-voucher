@@ -205,14 +205,15 @@ async function deliverVoucher(
           );
           await markVoucherDeliverySent(delivery.id, delivery.claimToken);
         } else {
-          await sendVoucherWhatsApp(
+          const handoffUrl = await sendVoucherWhatsApp(
             order.payment_order_id!,
             order.public_access_token!,
             itemId
           );
           await markVoucherDeliveryHandoffRequired(
             delivery.id,
-            delivery.claimToken
+            delivery.claimToken,
+            handoffUrl
           );
         }
       } catch (error) {

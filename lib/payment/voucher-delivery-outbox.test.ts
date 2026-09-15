@@ -116,20 +116,22 @@ describe("voucher delivery outbox persistence", () => {
     ).resolves.toBeUndefined();
   });
 
-  test("finalizes a durable handoff with the immutable claim token", async () => {
+  test("finalizes a durable handoff with its URL and immutable claim token", async () => {
     const { markVoucherDeliveryHandoffRequired } = await import(
       "@/lib/payment/voucherDeliveryOutbox"
     );
     rpcMock.mockResolvedValue({ data: true, error: null });
+    const handoffUrl = "https://wa.me/628123456789?text=Voucher";
 
     await expect(
-      markVoucherDeliveryHandoffRequired("delivery-1", "claim-1")
+      markVoucherDeliveryHandoffRequired("delivery-1", "claim-1", handoffUrl)
     ).resolves.toBeUndefined();
     expect(rpcMock).toHaveBeenCalledWith(
       "finalize_voucher_delivery_handoff_required",
       {
         p_delivery_id: "delivery-1",
         p_claim_token: "claim-1",
+        p_handoff_url: handoffUrl,
       }
     );
   });

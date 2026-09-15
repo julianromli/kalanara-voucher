@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const { getPublicOrderDetailsWithItemsMock } = vi.hoisted(() => ({
   getPublicOrderDetailsWithItemsMock: vi.fn(),
@@ -9,7 +9,11 @@ vi.mock("@/lib/payment/order-capability-reads", () => ({
 }));
 
 describe("authorized voucher delivery", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.NEXT_PUBLIC_APP_URL = "https://kalanara.example";
+  });
+  afterEach(() => vi.unstubAllGlobals());
 
   test("returns the root voucher for a legacy order without order_items", async () => {
     getPublicOrderDetailsWithItemsMock.mockResolvedValue({
@@ -103,5 +107,78 @@ describe("authorized voucher delivery", () => {
         expiryDate: "2027-09-15",
       },
     ]);
+  });
+
+  test("returns the validated WhatsApp handoff URL from a successful response", async () => {
+    const whatsappUrl =
+      "https://wa.me/628123456789?text=Voucher%20Kalanara";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ success: true, whatsappUrl }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { sendVoucherWhatsApp } = await import(
+      "@/lib/payment/public-voucher-delivery"
+    );
+
+    await expect(
+      sendVoucherWhatsApp("KSP-1", "token", "item-1")
+    ).resolves.toBe(whatsappUrl);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://kalanara.example/api/whatsapp/send-voucher",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          orderId: "KSP-1",
+          token: "token",
+          orderItemId: "item-1",
+        }),
+      })
+    );
+  });
+
+  test.each([
+    ["missing URL", { success: true }],
+    ["unsuccessful payload", { success: false, whatsappUrl: "https://wa.me/62812" }],
+    ["untrusted host", { success: true, whatsappUrl: "https://example.com/send" }],
+    ["non-HTTPS URL", { success: true, whatsappUrl: "http://wa.me/62812" }],
+  ])("rejects a successful HTTP response with %s", async (_label, body) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+    );
+    const { sendVoucherWhatsApp } = await import(
+      "@/lib/payment/public-voucher-delivery"
+    );
+
+    await expect(sendVoucherWhatsApp("KSP-1", "token")).rejects.toThrow(
+      /WhatsApp delivery response/i
+    );
+  });
+
+  test("rejects malformed JSON from the WhatsApp endpoint", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("not-json", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+    );
+    const { sendVoucherWhatsApp } = await import(
+      "@/lib/payment/public-voucher-delivery"
+    );
+
+    await expect(sendVoucherWhatsApp("KSP-1", "token")).rejects.toThrow(
+      /WhatsApp delivery response/i
+    );
   });
 });
