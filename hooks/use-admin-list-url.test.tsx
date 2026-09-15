@@ -129,5 +129,14 @@ describe("useAdminListUrl", () => {
       "/admin/purchases?query=pelanggan+lama&page=2",
       { scroll: false }
     );
+    const replaceCallCount = mocks.replace.mock.calls.length;
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(mocks.replace).toHaveBeenCalledTimes(replaceCallCount);
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      "/admin/purchases?query=pelanggan+lama&page=2",
+      { scroll: false }
+    );
   });
 });

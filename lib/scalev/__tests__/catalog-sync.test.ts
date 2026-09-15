@@ -1,5 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Database } from "@/lib/database.types";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const scalevMocks = vi.hoisted(() => ({
   attachProductToScalevStoreMock: vi.fn(),

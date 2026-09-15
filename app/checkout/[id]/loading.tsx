@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function CheckoutLoadingSkeleton() {
   return (
-    <main
+    <div
       aria-label="Menyiapkan checkout"
       className="min-h-screen bg-background px-4 pb-28 pt-8 md:pb-8"
     >
@@ -33,7 +33,7 @@ export function CheckoutLoadingSkeleton() {
         </div>
         <p className="sr-only">Sedang menyiapkan metode pembayaran.</p>
       </div>
-    </main>
+    </div>
   );
 }
 
