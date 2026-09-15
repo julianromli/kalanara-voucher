@@ -8,15 +8,15 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { revalidateServiceCatalogData } from "@/lib/actions/revalidateServiceCatalog";
-import type { Database, Service, ServiceInsert, ServiceUpdate } from "@/lib/database.types";
+import type { Service, ServiceInsert, ServiceUpdate } from "@/lib/database.types";
+import {
+  loadActivePublicServices,
+  type ServiceCategoryRelation,
+  type ServiceWithCategory,
+} from "@/lib/publicServices";
 import { hasServiceImage } from "@/lib/utils/serviceImages";
 
-export type ServiceCategoryRelation =
-  Database["public"]["Tables"]["service_categories"]["Row"];
-
-export type ServiceWithCategory = Service & {
-  category_relation: ServiceCategoryRelation | null;
-};
+export type { ServiceCategoryRelation, ServiceWithCategory };
 
 const SERVICE_WITH_CATEGORY_SELECT =
   "*, category_relation:service_categories!category_id(*)";
@@ -117,34 +117,13 @@ async function getExistingServiceImageUrl(
 }
 
 export async function getServices(): Promise<ServiceWithCategory[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("services")
-    .select(SERVICE_WITH_CATEGORY_SELECT)
-    .eq("is_active", true)
-    .order("created_at", { ascending: true });
-
-  if (!error) {
-    return (data as ServiceWithCategory[]) || [];
-  }
-
-  if (!isPgrstEmbedRelationMissing(error)) {
+  try {
+    const supabase = await createClient();
+    return await loadActivePublicServices(supabase);
+  } catch (error) {
     console.error("Error fetching services:", error);
     return [];
   }
-
-  const { data: fallbackData, error: fallbackError } = await supabase
-    .from("services")
-    .select(SERVICE_BASE_SELECT)
-    .eq("is_active", true)
-    .order("created_at", { ascending: true });
-
-  if (fallbackError) {
-    console.error("Error fetching services:", fallbackError);
-    return [];
-  }
-
-  return stitchCategoryRelations(supabase, fallbackData || []);
 }
 
 export async function getAllServices(): Promise<ServiceWithCategory[]> {

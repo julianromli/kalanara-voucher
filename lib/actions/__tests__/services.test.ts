@@ -238,6 +238,23 @@ describe("service actions", () => {
     expect(result[0]?.category_relation).toEqual(categoryRow);
   });
 
+  it("preserves the empty public action fallback when service reads fail", async () => {
+    const databaseError = { message: "database unavailable" };
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    servicesOrderMock.mockResolvedValueOnce({
+      data: null,
+      error: databaseError,
+    });
+
+    await expect(getServices()).resolves.toEqual([]);
+    expect(consoleError).toHaveBeenCalledWith(
+      "Error fetching services:",
+      databaseError
+    );
+  });
+
   it("requires services manage permission for admin service reads", async () => {
     await getAllServices();
 
