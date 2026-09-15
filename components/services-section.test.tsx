@@ -7,16 +7,16 @@ import { ToastProvider } from "@/context/ToastContext";
 
 import type { ImgHTMLAttributes } from "react";
 
-function NextImageMock({
-  fill: _fill,
-  priority: _priority,
-  ...props
-}: ImgHTMLAttributes<HTMLImageElement> & {
+function NextImageMock(props: ImgHTMLAttributes<HTMLImageElement> & {
   fill?: boolean;
   priority?: boolean;
 }) {
+  const imageProps = { ...props };
+  delete imageProps.fill;
+  delete imageProps.priority;
+
   // eslint-disable-next-line @next/next/no-img-element
-  return <img alt={props.alt ?? ""} {...props} />;
+  return <img alt={imageProps.alt ?? ""} {...imageProps} />;
 }
 
 vi.mock("next/image", () => ({
