@@ -28,6 +28,7 @@ type AdminLookupResult = {
 };
 
 const mocks = vi.hoisted(() => ({
+  stateSetterCalls: [] as unknown[],
   adminLookups: [] as Array<Promise<AdminLookupResult>>,
   authCallback: null as
     | ((event: AuthChangeEvent, session: Session | null) => void)
@@ -39,6 +40,27 @@ const mocks = vi.hoisted(() => ({
   unsubscribe: vi.fn(),
   from: vi.fn(),
 }));
+
+vi.mock("react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react")>();
+
+  return {
+    ...actual,
+    useState: <State,>(
+      initialState: State | (() => State)
+    ): [State, React.Dispatch<React.SetStateAction<State>>] => {
+      const [state, setState] = actual.useState(initialState);
+      const trackedSetState: React.Dispatch<React.SetStateAction<State>> = (
+        value
+      ) => {
+        mocks.stateSetterCalls.push(value);
+        setState(value);
+      };
+
+      return [state, trackedSetState];
+    },
+  };
+});
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
@@ -353,11 +375,14 @@ describe("AuthProvider", () => {
     await waitFor(() => expect(mocks.from).toHaveBeenCalledTimes(1));
     unmount();
     expect(mocks.unsubscribe).toHaveBeenCalledTimes(1);
+    mocks.stateSetterCalls.length = 0;
 
     await act(async () => {
       lookup.resolve({ data: { name: "Terlambat", role: "STAFF" } });
       await lookup.promise;
     });
+
+    expect(mocks.stateSetterCalls).toEqual([]);
   });
 
   it("does not let a late login resolution restore state after logout", async () => {

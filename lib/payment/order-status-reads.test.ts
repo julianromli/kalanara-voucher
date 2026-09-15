@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-const { select, order, maybeSingle, from } = vi.hoisted(() => {
+const { select, eq, order, maybeSingle, from } = vi.hoisted(() => {
   const maybeSingle = vi.fn();
   const order = vi.fn();
   const eq = vi.fn();
@@ -9,7 +9,7 @@ const { select, order, maybeSingle, from } = vi.hoisted(() => {
   order.mockReturnValue(query);
   const select = vi.fn(() => query);
   const from = vi.fn(() => ({ select }));
-  return { select, order, maybeSingle, from };
+  return { select, eq, order, maybeSingle, from };
 });
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -22,13 +22,40 @@ describe("order status reads", () => {
     maybeSingle.mockResolvedValue({ data: null, error: null });
   });
 
-  test("orders nested items by sort order then creation time", async () => {
+  test("queries the exact order and returns nested items in deterministic order", async () => {
+    maybeSingle.mockResolvedValue({
+      data: {
+        id: "order-1",
+        order_items: [
+          {
+            id: "item-3",
+            sort_order: 2,
+            created_at: "2026-01-01T00:00:00.000Z",
+          },
+          {
+            id: "item-2",
+            sort_order: 1,
+            created_at: "2026-01-02T00:00:00.000Z",
+          },
+          {
+            id: "item-1",
+            sort_order: 1,
+            created_at: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+      error: null,
+    });
     const { getOrderStatusDetailsWithItemsById } = await import(
       "@/lib/payment/order-status-reads"
     );
 
-    await getOrderStatusDetailsWithItemsById("order-1");
+    const result = await getOrderStatusDetailsWithItemsById("order-1");
 
+    expect(select).toHaveBeenCalledWith(
+      "*, services(*), vouchers:vouchers!orders_voucher_id_fkey(*, services(*)), order_items(*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*))"
+    );
+    expect(eq).toHaveBeenCalledWith("id", "order-1");
     expect(order.mock.calls).toEqual([
       [
         "sort_order",
@@ -38,6 +65,11 @@ describe("order status reads", () => {
         "created_at",
         { ascending: true, referencedTable: "order_items" },
       ],
+    ]);
+    expect(result?.order_items.map((item) => item.id)).toEqual([
+      "item-1",
+      "item-2",
+      "item-3",
     ]);
   });
 

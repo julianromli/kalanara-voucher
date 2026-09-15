@@ -63,5 +63,18 @@ export async function getOrderStatusDetailsWithItemsById(
     throwOrderStatusReadError(error);
   }
 
-  return data as OrderWithItems | null;
+  if (!data) {
+    return null;
+  }
+
+  const order = data as OrderWithItems;
+  return {
+    ...order,
+    order_items: [...order.order_items].sort(
+      (left, right) =>
+        left.sort_order - right.sort_order ||
+        left.created_at.localeCompare(right.created_at) ||
+        left.id.localeCompare(right.id)
+    ),
+  };
 }
