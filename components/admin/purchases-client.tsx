@@ -22,6 +22,7 @@ import { useAdminListUrl } from "@/hooks/use-admin-list-url";
 import type { AdminPage } from "@/lib/actions/admin-pagination";
 import { formatCurrency } from "@/lib/constants";
 import { deleteOrderHard, clearAllOrdersHard } from "@/lib/actions/orders";
+import { sortOrderItems } from "@/lib/orderItems";
 import {
   Table,
   TableBody,
@@ -42,7 +43,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import type { OrderItemWithService, OrderWithVoucherItems } from "@/lib/database.types";
+import type { OrderWithVoucherItems } from "@/lib/database.types";
 
 interface PurchasesClientProps {
   initialPage: AdminPage<OrderWithVoucherItems>;
@@ -77,16 +78,6 @@ function getStatusBadgeClassName(status: OrderWithVoucherItems["payment_status"]
   }
 
   return "border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/10";
-}
-
-function sortOrderItems(orderItems: OrderItemWithService[]) {
-  return [...orderItems].sort((left, right) => {
-    if (left.sort_order !== right.sort_order) {
-      return left.sort_order - right.sort_order;
-    }
-
-    return left.created_at.localeCompare(right.created_at);
-  });
 }
 
 function getOrderServiceSummary(order: OrderWithVoucherItems) {

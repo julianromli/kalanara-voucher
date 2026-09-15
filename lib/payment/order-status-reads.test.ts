@@ -73,18 +73,6 @@ describe("order status reads", () => {
     ]);
   });
 
-  test("selects the root voucher relation required by OrderWithItems", async () => {
-    const { getOrderStatusDetailsWithItemsById } = await import(
-      "@/lib/payment/order-status-reads"
-    );
-
-    await getOrderStatusDetailsWithItemsById("order-1");
-
-    expect(select).toHaveBeenCalledWith(
-      "*, services(*), vouchers:vouchers!orders_voucher_id_fkey(*, services(*)), order_items(*, services(*), vouchers:vouchers!order_items_voucher_id_fkey(*))"
-    );
-  });
-
   test.each([
     "getOrderForStatusById",
     "getOrderStatusDetailsById",

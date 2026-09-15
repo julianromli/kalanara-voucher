@@ -112,6 +112,7 @@ describe("AuthProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     latestAuth = null;
+    mocks.stateSetterCalls.length = 0;
     mocks.adminLookups.length = 0;
     mocks.authCallback = null;
     mocks.getSession.mockResolvedValue({ data: { session: null } });

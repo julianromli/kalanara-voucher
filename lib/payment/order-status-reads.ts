@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getAdminClient } from "@/lib/supabase/admin";
+import { sortOrderItems } from "@/lib/orderItems";
 import type {
   OrderWithItems,
   OrderWithService,
@@ -70,11 +71,6 @@ export async function getOrderStatusDetailsWithItemsById(
   const order = data as OrderWithItems;
   return {
     ...order,
-    order_items: [...order.order_items].sort(
-      (left, right) =>
-        left.sort_order - right.sort_order ||
-        left.created_at.localeCompare(right.created_at) ||
-        left.id.localeCompare(right.id)
-    ),
+    order_items: sortOrderItems(order.order_items),
   };
 }
