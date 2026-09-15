@@ -15,8 +15,15 @@ const SERVICE_WITH_CATEGORY_SELECT =
 const SERVICE_BASE_SELECT = "*";
 const PGRST_EMBED_RELATION_MISSING = "PGRST200";
 
+interface LoadActivePublicServicesOptions {
+  categoryErrorPolicy?: "throw" | "null-relations";
+}
+
 export async function loadActivePublicServices(
-  supabase: SupabaseClient<Database>
+  supabase: SupabaseClient<Database>,
+  {
+    categoryErrorPolicy = "throw",
+  }: LoadActivePublicServicesOptions = {}
 ): Promise<ServiceWithCategory[]> {
   const { data, error } = await supabase
     .from("services")
@@ -63,6 +70,14 @@ export async function loadActivePublicServices(
     .in("id", categoryIds);
 
   if (categoriesError) {
+    if (categoryErrorPolicy === "null-relations") {
+      console.error("Error fetching service categories:", categoriesError);
+      return (services || []).map((service) => ({
+        ...service,
+        category_relation: null,
+      }));
+    }
+
     throw categoriesError;
   }
 

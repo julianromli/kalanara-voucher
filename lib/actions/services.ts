@@ -119,7 +119,9 @@ async function getExistingServiceImageUrl(
 export async function getServices(): Promise<ServiceWithCategory[]> {
   try {
     const supabase = await createClient();
-    return await loadActivePublicServices(supabase);
+    return await loadActivePublicServices(supabase, {
+      categoryErrorPolicy: "null-relations",
+    });
   } catch (error) {
     console.error("Error fetching services:", error);
     return [];
