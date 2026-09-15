@@ -90,6 +90,7 @@ export default function Navbar({
                   src="/logo-kalanara-light.png"
                   alt="Kalanara Spa"
                   fill
+                  sizes="128px"
                   className={`object-contain transition-opacity duration-500 ${
                     isScrolled ? "opacity-0" : "opacity-100"
                   }`}
@@ -99,6 +100,7 @@ export default function Navbar({
                   src="/logo-kalanara-dark.png"
                   alt="Kalanara Spa"
                   fill
+                  sizes="128px"
                   className={`object-contain transition-opacity duration-500 ${
                     isScrolled ? "opacity-100" : "opacity-0"
                   }`}

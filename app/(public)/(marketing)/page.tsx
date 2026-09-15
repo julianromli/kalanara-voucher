@@ -7,13 +7,14 @@ import { ServicesSection } from "@/components/services-section";
 import { MeTimeSection } from "@/components/me-time-section";
 import { FlashSaleTestimonials } from "@/components/flash-sale-testimonials";
 import { SiteContainer } from "@/components/site-container";
-import { getServices } from "@/lib/actions/services";
-import { getActiveTestimonials, getSiteSetting } from "@/lib/actions/crm";
-import type { ServiceWithCategory } from "@/lib/actions/services";
+import {
+  getPublicLandingData,
+  type PublicServiceWithCategory,
+} from "@/lib/publicLandingData";
 import type { Service } from "@/lib/types";
 import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
 
-function adaptDBServiceToFrontend(dbService: ServiceWithCategory): Service {
+function adaptDBServiceToFrontend(dbService: PublicServiceWithCategory): Service {
   return {
     id: dbService.id,
     name: dbService.name,
@@ -38,15 +39,15 @@ function adaptDBServiceToFrontend(dbService: ServiceWithCategory): Service {
 }
 
 export default async function LandingPage() {
-  const [dbServices, heroImageSetting, activeTestimonials] = await Promise.all([
-    getServices(),
-    getSiteSetting("hero_image_url"),
-    getActiveTestimonials(),
-  ]);
+  const {
+    services: dbServices,
+    heroImageUrl: configuredHeroImageUrl,
+    testimonials: activeTestimonials,
+  } = await getPublicLandingData();
 
   const services = dbServices.map(adaptDBServiceToFrontend);
   const heroImageUrl =
-    heroImageSetting?.value ||
+    configuredHeroImageUrl ||
     "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&q=80";
 
   return (

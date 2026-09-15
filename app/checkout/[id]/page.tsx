@@ -43,7 +43,15 @@ function toServiceModel(service: ServiceWithCategory | null): Service | null {
   };
 }
 
-export default async function CheckoutPage({ params }: PageProps) {
+export default function CheckoutPage({ params }: PageProps) {
+  return (
+    <Suspense fallback={<CheckoutLoadingSkeleton />}>
+      <ProviderCheckout params={params} />
+    </Suspense>
+  );
+}
+
+async function ProviderCheckout({ params }: PageProps) {
   const { id } = await params;
   const serviceResult = await getServiceById(id);
   const service = toServiceModel(serviceResult);
@@ -52,14 +60,6 @@ export default async function CheckoutPage({ params }: PageProps) {
     notFound();
   }
 
-  return (
-    <Suspense fallback={<CheckoutLoadingSkeleton />}>
-      <ProviderCheckout service={service} />
-    </Suspense>
-  );
-}
-
-async function ProviderCheckout({ service }: { service: Service }) {
   const initialPaymentConfig = await getScalevCheckoutConfig().catch((error) => {
     console.error("[Scalev] Failed to preload single checkout config:", error);
     return getUnavailableScalevCheckoutConfig();

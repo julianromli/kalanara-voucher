@@ -85,10 +85,22 @@ describe("checkout payment option preloading", () => {
         })
     );
 
-    const pagePromise = CheckoutPage({
+    const element = CheckoutPage({
       params: Promise.resolve({ id: "service-1" }),
     });
 
+    expect(getServiceByIdMock).not.toHaveBeenCalled();
+    expect(getScalevCheckoutConfigMock).not.toHaveBeenCalled();
+    const fallback = element.props.fallback.type(
+      element.props.fallback.props
+    );
+    render(fallback);
+    expect(
+      screen.getByText("Sedang menyiapkan metode pembayaran.")
+    ).toHaveClass("sr-only");
+
+    const providerChild = element.props.children;
+    const providerPromise = providerChild.type(providerChild.props);
     await vi.waitFor(() => {
       expect(getServiceByIdMock).toHaveBeenCalledWith("service-1");
     });
@@ -106,18 +118,7 @@ describe("checkout payment option preloading", () => {
       image_url: null,
     });
 
-    const element = await pagePromise;
-    expect(getScalevCheckoutConfigMock).not.toHaveBeenCalled();
-    const fallback = element.props.fallback.type(
-      element.props.fallback.props
-    );
-    render(fallback);
-    expect(
-      screen.getByText("Sedang menyiapkan metode pembayaran.")
-    ).toHaveClass("sr-only");
-
-    const providerChild = element.props.children;
-    const checkoutElement = await providerChild.type(providerChild.props);
+    const checkoutElement = await providerPromise;
 
     expect(getScalevCheckoutConfigMock).toHaveBeenCalledTimes(1);
     expect(checkoutElement.props.initialPaymentConfig).toEqual(initialPaymentConfig);
@@ -132,8 +133,12 @@ describe("checkout payment option preloading", () => {
     );
     getServiceByIdMock.mockResolvedValue(null);
 
+    const element = CheckoutPage({
+      params: Promise.resolve({ id: "missing" }),
+    });
+    const providerChild = element.props.children;
     await expect(
-      CheckoutPage({ params: Promise.resolve({ id: "missing" }) })
+      providerChild.type(providerChild.props)
     ).rejects.toThrow("not found");
 
     expect(getScalevCheckoutConfigMock).not.toHaveBeenCalled();
@@ -160,7 +165,7 @@ describe("checkout payment option preloading", () => {
       .mockImplementation(() => undefined);
     getScalevCheckoutConfigMock.mockRejectedValue(failure);
 
-    const element = await CheckoutPage({
+    const element = CheckoutPage({
       params: Promise.resolve({ id: "service-1" }),
     });
     const providerChild = element.props.children;

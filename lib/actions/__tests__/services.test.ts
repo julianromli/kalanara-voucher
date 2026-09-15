@@ -68,6 +68,7 @@ import {
 } from "@/lib/actions/services";
 import { updateServiceScalevMapping } from "@/lib/scalev/serviceWrites";
 import { AdminPermission, hasPermissionForRole } from "@/lib/auth/admin-rbac";
+import { PUBLIC_SERVICES_CACHE_TAG } from "@/lib/cache-tags";
 
 const joinedSelect = "*, category_relation:service_categories!category_id(*)";
 const baseSelect = "*";
@@ -304,6 +305,10 @@ describe("service actions", () => {
       expect.objectContaining({ action: "service.create" })
     );
     expect(revalidateTagMock).toHaveBeenCalledWith("dashboard-stats", "max");
+    expect(revalidateTagMock).toHaveBeenCalledWith(
+      PUBLIC_SERVICES_CACHE_TAG,
+      "max"
+    );
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/services", "page");
     expect(revalidatePathMock).toHaveBeenCalledWith("/", "page");
     expect(revalidatePathMock).toHaveBeenCalledWith("/checkout/[id]", "page");

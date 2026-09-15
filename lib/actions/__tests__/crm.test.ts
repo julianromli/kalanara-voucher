@@ -33,7 +33,10 @@ import {
   updateTestimonial,
 } from "@/lib/actions/crm";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
-import { ANNOUNCEMENT_SETTINGS_CACHE_TAG } from "@/lib/cache-tags";
+import {
+  ANNOUNCEMENT_SETTINGS_CACHE_TAG,
+  LANDING_CMS_CACHE_TAG,
+} from "@/lib/cache-tags";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -83,6 +86,7 @@ describe("crm actions", () => {
     expect(updateTagMock).toHaveBeenCalledWith(
       ANNOUNCEMENT_SETTINGS_CACHE_TAG
     );
+    expect(updateTagMock).toHaveBeenCalledWith(LANDING_CMS_CACHE_TAG);
   });
 
   it("upserts the announcement countdown enabled flag", async () => {
@@ -119,7 +123,7 @@ describe("crm actions", () => {
     expect(result.value).toBe("false");
   });
 
-  it("does not invalidate announcement cache for hero setting updates", async () => {
+  it("invalidates only landing CMS data for hero setting updates", async () => {
     const singleMock = vi.fn().mockResolvedValue({
       data: {
         key: "hero_image_url",
@@ -138,10 +142,13 @@ describe("crm actions", () => {
       "https://example.com/hero.jpg"
     );
 
-    expect(updateTagMock).not.toHaveBeenCalled();
+    expect(updateTagMock).toHaveBeenCalledWith(LANDING_CMS_CACHE_TAG);
+    expect(updateTagMock).not.toHaveBeenCalledWith(
+      ANNOUNCEMENT_SETTINGS_CACHE_TAG
+    );
   });
 
-  it("does not invalidate announcement cache for hero setting deletion", async () => {
+  it("invalidates only landing CMS data for hero setting deletion", async () => {
     const eqMock = vi.fn().mockResolvedValue({ error: null });
     const deleteMock = vi.fn(() => ({ eq: eqMock }));
     createClientMock.mockResolvedValue({
@@ -151,7 +158,10 @@ describe("crm actions", () => {
     await expect(deleteSiteSetting("hero_image_url")).resolves.toBe(true);
 
     expect(eqMock).toHaveBeenCalledWith("key", "hero_image_url");
-    expect(updateTagMock).not.toHaveBeenCalled();
+    expect(updateTagMock).toHaveBeenCalledWith(LANDING_CMS_CACHE_TAG);
+    expect(updateTagMock).not.toHaveBeenCalledWith(
+      ANNOUNCEMENT_SETTINGS_CACHE_TAG
+    );
   });
 
   it("rejects blank site setting values instead of upserting an empty string", async () => {
@@ -186,6 +196,7 @@ describe("crm actions", () => {
     expect(updateTagMock).toHaveBeenCalledWith(
       ANNOUNCEMENT_SETTINGS_CACHE_TAG
     );
+    expect(updateTagMock).toHaveBeenCalledWith(LANDING_CMS_CACHE_TAG);
   });
 
   it("rejects inherited property names as unsupported site setting keys", async () => {
@@ -251,7 +262,7 @@ describe("crm actions", () => {
       is_active: false,
     });
     expect(result).toEqual(createdRow);
-    expect(updateTagMock).not.toHaveBeenCalled();
+    expect(updateTagMock).toHaveBeenCalledWith(LANDING_CMS_CACHE_TAG);
   });
 
   it("updates testimonials with normalized fields and filters by id", async () => {
@@ -290,7 +301,7 @@ describe("crm actions", () => {
     });
     expect(eqMock).toHaveBeenCalledWith("id", "testimonial-2");
     expect(result).toEqual(updatedRow);
-    expect(updateTagMock).not.toHaveBeenCalled();
+    expect(updateTagMock).toHaveBeenCalledWith(LANDING_CMS_CACHE_TAG);
   });
 
   it("deletes testimonials and revalidates cms paths", async () => {
@@ -303,7 +314,7 @@ describe("crm actions", () => {
 
     await expect(deleteTestimonial("testimonial-3")).resolves.toBe(true);
     expect(eqMock).toHaveBeenCalledWith("id", "testimonial-3");
-    expect(updateTagMock).not.toHaveBeenCalled();
+    expect(updateTagMock).toHaveBeenCalledWith(LANDING_CMS_CACHE_TAG);
     expect(revalidatePathMock).toHaveBeenCalledWith("/", "layout");
     expect(revalidatePathMock).toHaveBeenCalledWith("/", "page");
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/crm", "page");

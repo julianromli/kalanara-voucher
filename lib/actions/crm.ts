@@ -3,7 +3,10 @@
 import { revalidatePath, updateTag } from "next/cache";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 import { requireAdminPermission } from "@/lib/auth/admin-rbac-server";
-import { ANNOUNCEMENT_SETTINGS_CACHE_TAG } from "@/lib/cache-tags";
+import {
+  ANNOUNCEMENT_SETTINGS_CACHE_TAG,
+  LANDING_CMS_CACHE_TAG,
+} from "@/lib/cache-tags";
 import { createClient } from "@/lib/supabase/server";
 import type {
   SiteSetting,
@@ -34,6 +37,7 @@ function revalidateCmsPaths({
 }: {
   announcementChanged?: boolean;
 } = {}) {
+  updateTag(LANDING_CMS_CACHE_TAG);
   if (announcementChanged) {
     updateTag(ANNOUNCEMENT_SETTINGS_CACHE_TAG);
   }
