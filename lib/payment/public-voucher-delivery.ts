@@ -19,6 +19,8 @@ export interface AuthorizedVoucherDelivery {
 
 type PublicOrderWithItems = NonNullable<Awaited<ReturnType<typeof getPublicOrderDetailsWithItems>>>;
 type PublicOrderItem = PublicOrderWithItems["order_items"][number];
+type DeliveryVoucher = NonNullable<PublicOrderItem["vouchers"]>;
+type DeliveryService = NonNullable<PublicOrderItem["services"]>;
 
 function getRecipientPhone(order: PublicOrderWithItems, item: PublicOrderItem) {
   return item.send_to === "RECIPIENT"
@@ -36,6 +38,28 @@ function getServerAppUrl(): string {
   return appUrl.replace(/\/+$/, "");
 }
 
+function mapAuthorizedVoucherDelivery(
+  order: PublicOrderWithItems,
+  voucher: DeliveryVoucher,
+  service: DeliveryService,
+  recipientPhone: string | null
+): AuthorizedVoucherDelivery {
+  return {
+    orderId: order.payment_order_id || order.id,
+    token: order.public_access_token,
+    voucherCode: voucher.code,
+    recipientEmail: voucher.recipient_email,
+    recipientPhone,
+    recipientName: voucher.recipient_name,
+    senderName: voucher.sender_name,
+    senderMessage: voucher.sender_message,
+    serviceName: service.name,
+    serviceDuration: service.duration,
+    amount: voucher.amount,
+    expiryDate: voucher.expiry_date,
+  };
+}
+
 function toDelivery(
   order: PublicOrderWithItems,
   item: PublicOrderItem
@@ -44,20 +68,12 @@ function toDelivery(
     return null;
   }
 
-  return {
-    orderId: order.payment_order_id || order.id,
-    token: order.public_access_token,
-    voucherCode: item.vouchers.code,
-    recipientEmail: item.vouchers.recipient_email,
-    recipientPhone: getRecipientPhone(order, item),
-    recipientName: item.vouchers.recipient_name,
-    senderName: item.vouchers.sender_name,
-    senderMessage: item.vouchers.sender_message,
-    serviceName: item.services.name,
-    serviceDuration: item.services.duration,
-    amount: item.vouchers.amount,
-    expiryDate: item.vouchers.expiry_date,
-  };
+  return mapAuthorizedVoucherDelivery(
+    order,
+    item.vouchers,
+    item.services,
+    getRecipientPhone(order, item)
+  );
 }
 
 function toLegacyDelivery(
@@ -69,23 +85,14 @@ function toLegacyDelivery(
     return null;
   }
 
-  return {
-    orderId: order.payment_order_id || order.id,
-    token: order.public_access_token,
-    voucherCode: voucher.code,
-    recipientEmail: voucher.recipient_email,
-    recipientPhone:
-      order.send_to === "RECIPIENT"
-        ? order.recipient_phone
-        : order.customer_phone,
-    recipientName: voucher.recipient_name,
-    senderName: voucher.sender_name,
-    senderMessage: voucher.sender_message,
-    serviceName: service.name,
-    serviceDuration: service.duration,
-    amount: voucher.amount,
-    expiryDate: voucher.expiry_date,
-  };
+  return mapAuthorizedVoucherDelivery(
+    order,
+    voucher,
+    service,
+    order.send_to === "RECIPIENT"
+      ? order.recipient_phone
+      : order.customer_phone
+  );
 }
 
 export async function getAuthorizedVoucherDeliveries(
@@ -145,6 +152,8 @@ async function postVoucherDelivery(
       `${path} failed with status ${response.status}${errorText ? `: ${errorText}` : ""}`
     );
   }
+
+  return response;
 }
 
 export async function sendVoucherEmail(
@@ -159,6 +168,47 @@ export async function sendVoucherWhatsApp(
   orderId: string,
   token: string,
   orderItemId?: string
-) {
-  await postVoucherDelivery("/api/whatsapp/send-voucher", orderId, token, orderItemId);
+): Promise<string> {
+  const response = await postVoucherDelivery(
+    "/api/whatsapp/send-voucher",
+    orderId,
+    token,
+    orderItemId
+  );
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Invalid WhatsApp delivery response");
+  }
+
+  const { success, whatsappUrl } = payload as Record<string, unknown>;
+  if (
+    success !== true ||
+    typeof whatsappUrl !== "string" ||
+    whatsappUrl.length === 0 ||
+    whatsappUrl.length > 8_192 ||
+    whatsappUrl !== whatsappUrl.trim()
+  ) {
+    throw new Error("Invalid WhatsApp delivery response");
+  }
+
+  try {
+    const parsedUrl = new URL(whatsappUrl);
+    if (
+      parsedUrl.protocol !== "https:" ||
+      parsedUrl.hostname !== "wa.me" ||
+      parsedUrl.port !== "" ||
+      parsedUrl.username !== "" ||
+      parsedUrl.password !== "" ||
+      !/^\/\d+$/.test(parsedUrl.pathname) ||
+      !parsedUrl.searchParams.has("text") ||
+      parsedUrl.hash !== ""
+    ) {
+      throw new Error("Unexpected WhatsApp URL");
+    }
+  } catch {
+    throw new Error("Invalid WhatsApp delivery response");
+  }
+
+  return whatsappUrl;
 }

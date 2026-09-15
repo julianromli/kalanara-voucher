@@ -1,5 +1,7 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { DeliveryMethod, SendTo } from "@/lib/types";
+
+const originalScalevPublicBaseUrl = process.env.SCALEV_PUBLIC_BASE_URL;
 
 const {
   createPendingOrderMock,
@@ -90,6 +92,7 @@ vi.mock("@/lib/payment/order-status-sessions", () => ({
 describe("POST /api/scalev/create-payment", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.SCALEV_PUBLIC_BASE_URL;
 
     getServiceByIdMock.mockResolvedValue({
       id: "service-1",
@@ -147,6 +150,14 @@ describe("POST /api/scalev/create-payment", () => {
       redemptionId: "redemption-1",
     });
     markDiscountRedemptionVoidMock.mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    if (originalScalevPublicBaseUrl === undefined) {
+      delete process.env.SCALEV_PUBLIC_BASE_URL;
+    } else {
+      process.env.SCALEV_PUBLIC_BASE_URL = originalScalevPublicBaseUrl;
+    }
   });
 
   test("allows purchaser WhatsApp checkout without recipient phone and stores null", async () => {

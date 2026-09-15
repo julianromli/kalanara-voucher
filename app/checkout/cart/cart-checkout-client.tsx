@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/context/ToastContext";
+import { usePaymentOptions } from "@/hooks/usePaymentOptions";
 import { formatCurrency } from "@/lib/constants";
 import {
   type CheckoutDiscountSummary,
@@ -114,25 +115,23 @@ export function CartCheckoutClient({
   const router = useRouter();
   const { showToast } = useToast();
   const announcementRef = useRef<HTMLDivElement>(null);
-  const paymentRetryInFlightRef = useRef(false);
-  const initialPaymentMethod =
-    initialPaymentConfig.paymentOptions[0]?.code ?? null;
   const items = useCartStore((state) => state.items);
   const removeItem = useCartStore((state) => state.removeItem);
   const startPendingCheckout = useCartStore((state) => state.startPendingCheckout);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentConfig, setPaymentConfig] =
-    useState<ScalevCheckoutConfig | null>(initialPaymentConfig);
-  const [paymentError, setPaymentError] = useState<string | null>(
-    initialPaymentMethod
-      ? null
-      : "Metode pembayaran sedang tidak tersedia."
-  );
-  const [isPaymentConfigRetrying, setIsPaymentConfigRetrying] = useState(false);
-  const [paymentMethod, setPaymentMethod] =
-    useState<ScalevPaymentMethod | null>(initialPaymentMethod);
-  const [subPaymentMethod, setSubPaymentMethod] = useState<ScalevVABankCode | "">("");
+  const {
+    paymentConfig,
+    paymentError,
+    paymentMethod,
+    setPaymentMethod,
+    subPaymentMethod,
+    setSubPaymentMethod,
+    paymentOptions,
+    selectedPaymentOption,
+    isPaymentConfigLoading,
+    retryPaymentOptions,
+  } = usePaymentOptions(initialPaymentConfig);
   const [discountCodeInput, setDiscountCodeInput] = useState("");
   const [appliedDiscount, setAppliedDiscount] =
     useState<CheckoutDiscountSummary | null>(null);
@@ -203,80 +202,10 @@ export function CartCheckoutClient({
     );
   }, [getValues, items, replace]);
 
-  const paymentOptions = useMemo(() => paymentConfig?.paymentOptions ?? [], [paymentConfig]);
-  const selectedPaymentOption = useMemo(
-    () => paymentOptions.find((option) => option.code === paymentMethod) ?? null,
-    [paymentMethod, paymentOptions]
-  );
-  const isPaymentConfigLoading =
-    isPaymentConfigRetrying || (!paymentConfig && !paymentError);
   const totalAmount = useMemo(
     () => items.reduce((sum, item) => sum + item.service.price, 0),
     [items]
   );
-
-  const retryPaymentOptions = async () => {
-    if (paymentRetryInFlightRef.current) {
-      return;
-    }
-
-    paymentRetryInFlightRef.current = true;
-    setIsPaymentConfigRetrying(true);
-    setPaymentError(null);
-
-    try {
-      const response = await fetch("/api/scalev/payment-options", {
-        cache: "no-store",
-      });
-      if (!response.ok) {
-        throw new Error("Gagal memuat metode pembayaran.");
-      }
-
-      const result = (await response.json()) as {
-        success: boolean;
-        config?: ScalevCheckoutConfig;
-      };
-
-      if (!result.success || !result.config) {
-        throw new Error("Gagal memuat metode pembayaran.");
-      }
-
-      const nextMethod = result.config.paymentOptions[0]?.code ?? null;
-      setPaymentConfig(result.config);
-      setPaymentMethod((current) =>
-        current &&
-        result.config?.paymentOptions.some(
-          (option) => option.code === current
-        )
-          ? current
-          : nextMethod
-      );
-
-      if (!nextMethod) {
-        setPaymentError("Metode pembayaran sedang tidak tersedia.");
-      }
-    } catch (error) {
-      console.error("Failed to load Scalev payment options:", error);
-      setPaymentError("Gagal memuat metode pembayaran. Coba muat ulang.");
-    } finally {
-      paymentRetryInFlightRef.current = false;
-      setIsPaymentConfigRetrying(false);
-    }
-  };
-
-  useEffect(() => {
-    if (paymentMethod !== "va") {
-      setSubPaymentMethod("");
-      return;
-    }
-
-    if (
-      selectedPaymentOption?.subMethods?.length &&
-      !selectedPaymentOption.subMethods.includes(subPaymentMethod as ScalevVABankCode)
-    ) {
-      setSubPaymentMethod(selectedPaymentOption.subMethods[0]);
-    }
-  }, [paymentMethod, selectedPaymentOption, subPaymentMethod]);
 
   useEffect(() => {
     setAppliedDiscount((current) => current ? null : current);

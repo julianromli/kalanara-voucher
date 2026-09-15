@@ -3,6 +3,8 @@ import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { useEffect } from "react";
 import {
   AuthProvider,
+  INITIAL_SESSION_FALLBACK_DELAY_MS,
+  SESSION_LOOKUP_TIMEOUT_MS,
   type LoginResult,
   useAuth,
 } from "@/context/AuthContext";
@@ -119,6 +121,10 @@ describe("AuthProvider", () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("keeps unauthenticated visitors signed out after auth initialization", async () => {
     render(
       <AuthProvider>
@@ -185,6 +191,51 @@ describe("AuthProvider", () => {
 
     expect(mocks.from).not.toHaveBeenCalled();
     expect(screen.getByTestId("authenticated")).toHaveTextContent("false");
+  });
+
+  it("uses INITIAL_SESSION as primary without a duplicate getSession lookup", async () => {
+    mocks.adminLookups.push(
+      Promise.resolve({ data: { name: "Admin Awal", role: "MANAGER" } })
+    );
+
+    render(
+      <AuthProvider>
+        <AuthStateProbe />
+      </AuthProvider>
+    );
+
+    act(() => {
+      mocks.authCallback?.("INITIAL_SESSION", sessionFor("initial-admin"));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("user-id")).toHaveTextContent("initial-admin");
+    });
+
+    expect(mocks.getSession).not.toHaveBeenCalled();
+    expect(mocks.from).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops the spinner when the bounded getSession fallback hangs", async () => {
+    vi.useFakeTimers();
+    mocks.getSession.mockReturnValue(new Promise(() => {}));
+
+    render(
+      <AuthProvider>
+        <AuthStateProbe />
+      </AuthProvider>
+    );
+
+    expect(screen.getByTestId("loading")).toHaveTextContent("true");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
+        INITIAL_SESSION_FALLBACK_DELAY_MS + SESSION_LOOKUP_TIMEOUT_MS
+      );
+    });
+
+    expect(mocks.getSession).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("loading")).toHaveTextContent("false");
   });
 
   it("resolves the INITIAL_SESSION user and ignores the stale bootstrap result", async () => {
@@ -394,7 +445,7 @@ describe("AuthProvider", () => {
     expect(screen.getByTestId("user-name")).toHaveTextContent("Admin Event");
   });
 
-  it("does not chase another generation while awaiting a matching login event", async () => {
+  it("uses the latest same-user event when multiple events supersede login", async () => {
     const signIn = deferred<{
       data: { user: Session["user"] };
       error: null;
@@ -435,21 +486,69 @@ describe("AuthProvider", () => {
     });
     await waitFor(() => expect(mocks.from).toHaveBeenCalledTimes(2));
 
-    let result!: LoginResult;
     await act(async () => {
       firstEventLookup.resolve({ data: { name: "Admin Lama", role: "MANAGER" } });
-      result = await loginPromise;
+      await firstEventLookup.promise;
     });
 
-    expect(result.success).toBe(false);
-
+    let result!: LoginResult;
     await act(async () => {
       secondEventLookup.resolve({
         data: { name: "Admin Terbaru", role: "SUPER_ADMIN" },
       });
-      await secondEventLookup.promise;
+      result = await loginPromise;
     });
 
+    expect(result).toEqual({ success: true });
     expect(screen.getByTestId("user-name")).toHaveTextContent("Admin Terbaru");
+  });
+
+  it("does not report login failure when a different authenticated user wins", async () => {
+    const signIn = deferred<{
+      data: { user: Session["user"] };
+      error: null;
+    }>();
+    const otherUserLookup = deferred<AdminLookupResult>();
+    const requestedUser = supabaseUser("requested-admin");
+    mocks.signInWithPassword.mockReturnValue(signIn.promise);
+
+    render(
+      <AuthProvider>
+        <AuthStateProbe />
+      </AuthProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("loading")).toHaveTextContent("false")
+    );
+
+    let loginPromise!: Promise<LoginResult>;
+    act(() => {
+      loginPromise = latestAuth!.login("requested@kalanara.com", "secret");
+    });
+
+    mocks.adminLookups.push(otherUserLookup.promise);
+    act(() => {
+      mocks.authCallback?.("SIGNED_IN", sessionFor("other-admin"));
+    });
+    await waitFor(() => expect(mocks.from).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      signIn.resolve({ data: { user: requestedUser }, error: null });
+      await signIn.promise;
+    });
+
+    let result!: LoginResult;
+    await act(async () => {
+      otherUserLookup.resolve({
+        data: { name: "Admin Lain", role: "MANAGER" },
+      });
+      result = await loginPromise;
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(screen.getByTestId("user-id")).toHaveTextContent("other-admin");
+    expect(screen.getByTestId("user-name")).toHaveTextContent("Admin Lain");
+    expect(mocks.signOut).not.toHaveBeenCalled();
   });
 });

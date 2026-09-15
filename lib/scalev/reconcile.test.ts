@@ -477,12 +477,12 @@ describe("reconcilePublicOrderStatusByInternalOrderId", () => {
     });
     getScalevOrderByPgReferenceMock.mockResolvedValue({
       id: 99,
-      payment_link: "https://app.scalev.id/discovered",
+      payment_link: "https://app.scalev.id/pay/discovered",
     });
     buildPaymentSnapshotMock
       .mockReturnValueOnce({
         normalizedStatus: "PENDING",
-        paymentLink: "https://app.scalev.id/discovered",
+        paymentLink: "https://app.scalev.id/pay/discovered",
       })
       .mockReturnValueOnce({
         normalizedStatus: "PENDING",
@@ -495,7 +495,7 @@ describe("reconcilePublicOrderStatusByInternalOrderId", () => {
     expect(transitionOrderPaymentStateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         gatewayUpdate: expect.objectContaining({
-          paymentLink: "https://app.scalev.id/discovered",
+          paymentLink: "https://app.scalev.id/pay/discovered",
         }),
       })
     );

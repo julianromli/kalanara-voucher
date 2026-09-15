@@ -209,6 +209,14 @@ export function PurchasesClient({
       }
 
       showToast("Payment status updated successfully.", "success");
+      if (
+        statusFilter === "PENDING" &&
+        orders.length === 1 &&
+        initialPage.page > 1 &&
+        initialPage.page === initialPage.totalPages
+      ) {
+        setPage(initialPage.page - 1);
+      }
       router.refresh();
     } catch (error) {
       setOrders(previousOrders);
@@ -503,6 +511,11 @@ export function PurchasesClient({
               totalCount={initialPage.totalCount}
               totalPages={initialPage.totalPages}
               onPageChange={setPage}
+              disabled={
+                Boolean(isUpdatingStatus) ||
+                Boolean(isDeletingOrder) ||
+                isClearingAll
+              }
             />
           </div>
         </div>

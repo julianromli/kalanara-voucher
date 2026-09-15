@@ -18,6 +18,7 @@ import {
 import {
   claimVoucherDeliveries,
   markVoucherDeliveryFailed,
+  markVoucherDeliveryHandoffRequired,
   markVoucherDeliverySent,
   type VoucherDeliveryChannel,
 } from "@/lib/payment/voucherDeliveryOutbox";
@@ -202,14 +203,19 @@ async function deliverVoucher(
             order.public_access_token!,
             itemId
           );
+          await markVoucherDeliverySent(delivery.id, delivery.claimToken);
         } else {
-          await sendVoucherWhatsApp(
+          const handoffUrl = await sendVoucherWhatsApp(
             order.payment_order_id!,
             order.public_access_token!,
             itemId
           );
+          await markVoucherDeliveryHandoffRequired(
+            delivery.id,
+            delivery.claimToken,
+            handoffUrl
+          );
         }
-        await markVoucherDeliverySent(delivery.id, delivery.claimToken);
       } catch (error) {
         await markVoucherDeliveryFailed(delivery.id, delivery.claimToken, error);
         throw error;

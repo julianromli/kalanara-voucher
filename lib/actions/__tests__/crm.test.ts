@@ -119,6 +119,41 @@ describe("crm actions", () => {
     expect(result.value).toBe("false");
   });
 
+  it("does not invalidate announcement cache for hero setting updates", async () => {
+    const singleMock = vi.fn().mockResolvedValue({
+      data: {
+        key: "hero_image_url",
+        value: "https://example.com/hero.jpg",
+      },
+      error: null,
+    });
+    const selectMock = vi.fn(() => ({ single: singleMock }));
+    const upsertMock = vi.fn(() => ({ select: selectMock }));
+    createClientMock.mockResolvedValue({
+      from: vi.fn(() => ({ upsert: upsertMock })),
+    });
+
+    await updateSiteSetting(
+      "hero_image_url",
+      "https://example.com/hero.jpg"
+    );
+
+    expect(updateTagMock).not.toHaveBeenCalled();
+  });
+
+  it("does not invalidate announcement cache for hero setting deletion", async () => {
+    const eqMock = vi.fn().mockResolvedValue({ error: null });
+    const deleteMock = vi.fn(() => ({ eq: eqMock }));
+    createClientMock.mockResolvedValue({
+      from: vi.fn(() => ({ delete: deleteMock })),
+    });
+
+    await expect(deleteSiteSetting("hero_image_url")).resolves.toBe(true);
+
+    expect(eqMock).toHaveBeenCalledWith("key", "hero_image_url");
+    expect(updateTagMock).not.toHaveBeenCalled();
+  });
+
   it("rejects blank site setting values instead of upserting an empty string", async () => {
     await expect(updateSiteSetting("announcement_countdown_end_at", "   ")).rejects.toThrow(
       "Site setting value cannot be blank."
@@ -216,6 +251,7 @@ describe("crm actions", () => {
       is_active: false,
     });
     expect(result).toEqual(createdRow);
+    expect(updateTagMock).not.toHaveBeenCalled();
   });
 
   it("updates testimonials with normalized fields and filters by id", async () => {
@@ -254,6 +290,7 @@ describe("crm actions", () => {
     });
     expect(eqMock).toHaveBeenCalledWith("id", "testimonial-2");
     expect(result).toEqual(updatedRow);
+    expect(updateTagMock).not.toHaveBeenCalled();
   });
 
   it("deletes testimonials and revalidates cms paths", async () => {
@@ -266,6 +303,7 @@ describe("crm actions", () => {
 
     await expect(deleteTestimonial("testimonial-3")).resolves.toBe(true);
     expect(eqMock).toHaveBeenCalledWith("id", "testimonial-3");
+    expect(updateTagMock).not.toHaveBeenCalled();
     expect(revalidatePathMock).toHaveBeenCalledWith("/", "layout");
     expect(revalidatePathMock).toHaveBeenCalledWith("/", "page");
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/crm", "page");

@@ -25,6 +25,7 @@ interface ClaimVoucherDeliveriesInput {
 }
 
 const MAX_ERROR_LENGTH = 1_000;
+const MAX_HANDOFF_URL_LENGTH = 8_192;
 
 function persistenceError(action: string, error?: { message?: string } | null) {
   return new Error(
@@ -107,6 +108,33 @@ export async function markVoucherDeliverySent(
 
   if (error || data !== true) {
     throw persistenceError("SENT", error);
+  }
+}
+
+export async function markVoucherDeliveryHandoffRequired(
+  deliveryId: string,
+  claimToken: string,
+  handoffUrl: string
+): Promise<void> {
+  if (
+    !handoffUrl ||
+    handoffUrl !== handoffUrl.trim() ||
+    handoffUrl.length > MAX_HANDOFF_URL_LENGTH
+  ) {
+    throw new Error("Invalid voucher delivery handoff URL");
+  }
+
+  const { data, error } = await getAdminClient().rpc(
+    "finalize_voucher_delivery_handoff_required",
+    {
+      p_delivery_id: deliveryId,
+      p_claim_token: claimToken,
+      p_handoff_url: handoffUrl,
+    }
+  );
+
+  if (error || data !== true) {
+    throw persistenceError("HANDOFF_REQUIRED", error);
   }
 }
 

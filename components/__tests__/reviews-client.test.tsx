@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { ReviewsClient } from "@/components/admin/reviews-client";
 import { ToastProvider } from "@/context/ToastContext";
@@ -124,6 +124,7 @@ describe("ReviewsClient pagination", () => {
   });
 
   test("renders only supplied rows, shows count/page controls, and refreshes after mutation", async () => {
+    vi.useFakeTimers();
     vi.mocked(deleteReview).mockResolvedValue(true);
     renderComponent();
 
@@ -146,9 +147,14 @@ describe("ReviewsClient pagination", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
-    await waitFor(() => {
-      expect(deleteReview).toHaveBeenCalledWith("review-1");
-      expect(refresh).toHaveBeenCalled();
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    expect(deleteReview).toHaveBeenCalledWith("review-1");
+    expect(refresh).toHaveBeenCalled();
+    act(() => {
+      vi.clearAllTimers();
     });
   });
 });

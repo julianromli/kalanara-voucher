@@ -17,6 +17,7 @@ import {
   deleteReview,
   type ReviewAdminListRow,
 } from "@/lib/actions/reviews";
+import { cn } from "@/lib/utils";
 
 interface ReviewsClientProps {
   initialPage: AdminPage<ReviewAdminListRow>;
@@ -126,11 +127,12 @@ export function ReviewsClient({
                         <HugeiconsIcon
                           key={`${review.id}-${ratingValue}`}
                           icon={StarIcon}
-                          className={`size-4 ${
+                          className={cn(
+                            "size-4",
                             ratingValue <= review.rating
                               ? "fill-yellow-400 text-yellow-400"
-                              : "text-gray-300"
-                          }`}
+                              : "text-gray-300",
+                          )}
                         />
                       ))}
                     </div>

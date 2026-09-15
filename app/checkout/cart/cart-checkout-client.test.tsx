@@ -79,6 +79,28 @@ describe("CartCheckoutClient", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  test("labels configured fallback payment options for the customer", async () => {
+    const user = userEvent.setup();
+
+    renderCheckout({
+      ...initialPaymentConfig,
+      availability: "fallback",
+      paymentNotice:
+        "Metode pembayaran dari provider belum dapat dimuat. Pilihan konfigurasi cadangan ditampilkan dan akan diperiksa kembali saat kamu melanjutkan pembayaran.",
+    });
+
+    expect(
+      await screen.findByText(/Pilihan konfigurasi cadangan ditampilkan/)
+    ).toBeInTheDocument();
+    const fallbackQris = screen.getByRole("radio", { name: /^QRIS/ });
+    expect(fallbackQris).toBeEnabled();
+    await user.click(fallbackQris);
+    expect(fallbackQris).toBeChecked();
+    screen
+      .getAllByRole("button", { name: "Lanjut ke Pembayaran" })
+      .forEach((button) => expect(button).toBeEnabled());
+  });
+
   test("shows loading and requests payment options when retrying an empty preload", async () => {
     let resolveRetry:
       | ((response: {

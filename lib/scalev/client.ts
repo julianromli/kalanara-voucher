@@ -13,6 +13,12 @@ import type {
   ScalevProductRecord,
   ScalevSettlementStatusResponse,
   ScalevStoreRecord,
+  ScalevPaymentMethod,
+  ScalevVABankCode,
+} from "@/lib/scalev/types";
+import {
+  isScalevPaymentMethod,
+  isScalevVABankCode,
 } from "@/lib/scalev/types";
 
 class ScalevApiError extends Error {
@@ -159,13 +165,27 @@ export const resolveScalevStore = cache(
   async (): Promise<ScalevStoreRecord> => fetchScalevStore()
 );
 
-export async function getScalevCheckoutAvailability(signal?: AbortSignal) {
+export interface ScalevCheckoutAvailability {
+  source: "provider" | "fallback";
+  store: ScalevStoreRecord;
+  paymentMethods: ScalevPaymentMethod[];
+  subPaymentMethods: ScalevVABankCode[];
+}
+
+function uniqueKnownPaymentMethods(methods: string[]) {
+  return [...new Set(methods.filter(isScalevPaymentMethod))];
+}
+
+function uniqueKnownVABanks(bankCodes: string[]) {
+  return [...new Set(bankCodes.filter(isScalevVABankCode))];
+}
+
+export async function getScalevCheckoutAvailability(
+  signal?: AbortSignal
+): Promise<ScalevCheckoutAvailability> {
   const config = getScalevConfig();
-  const filterDisabledMethods = (methods: string[]) =>
-    methods.filter(
-      (method): method is (typeof config.fallbackPaymentMethods)[number] =>
-        !config.disabledPaymentMethods.includes(method as (typeof config.fallbackPaymentMethods)[number])
-    );
+  const filterDisabledMethods = (methods: ScalevPaymentMethod[]) =>
+    methods.filter((method) => !config.disabledPaymentMethods.includes(method));
 
   try {
     const store = signal
@@ -175,25 +195,37 @@ export async function getScalevCheckoutAvailability(signal?: AbortSignal) {
       `/stores/${store.id}/payment-methods`,
       { signal }
     );
-    const allowedRuntimeMethods = filterDisabledMethods(
+    const allowedRuntimeMethods = filterDisabledMethods(uniqueKnownPaymentMethods(
       Array.isArray(paymentMethods) ? paymentMethods : []
-    );
+    ));
     const fallbackEnabledMethods = config.fallbackPaymentMethods.filter(
       (method) => !config.disabledPaymentMethods.includes(method)
     );
+    const effectivePaymentMethods =
+      allowedRuntimeMethods.length > 0
+        ? allowedRuntimeMethods
+        : fallbackEnabledMethods;
+    const runtimeVABanks = uniqueKnownVABanks(
+      Array.isArray(store.sub_payment_methods) ? store.sub_payment_methods : []
+    );
+    const requiresVABankFallback =
+      effectivePaymentMethods.includes("va") && runtimeVABanks.length === 0;
+    const usedFallback =
+      allowedRuntimeMethods.length === 0 || requiresVABankFallback;
 
     return {
+      source: usedFallback ? "fallback" : "provider",
       store,
-      paymentMethods:
-        allowedRuntimeMethods.length > 0
-          ? allowedRuntimeMethods
-          : fallbackEnabledMethods,
-      subPaymentMethods: store.sub_payment_methods || config.fallbackVABanks,
+      paymentMethods: effectivePaymentMethods,
+      subPaymentMethods: requiresVABankFallback
+        ? config.fallbackVABanks
+        : runtimeVABanks,
     };
   } catch (error) {
     console.warn("[Scalev] Falling back to configured payment methods:", error);
 
     return {
+      source: "fallback",
       store: {
         id: 0,
         name: config.storeNameSearch,

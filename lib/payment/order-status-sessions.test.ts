@@ -111,6 +111,24 @@ describe("order status sessions", () => {
     });
   });
 
+  test("throws when the status-session insert fails", async () => {
+    const insertError = { code: "23505", message: "insert failed" };
+    insertSingle.mockResolvedValue({ data: null, error: insertError });
+    const { createOrderStatusSession } = await import(
+      "@/lib/payment/order-status-sessions"
+    );
+
+    await expect(
+      createOrderStatusSession({
+        orderId: "order-1",
+        rawToken: "deterministic-test-secret",
+      })
+    ).rejects.toMatchObject({
+      message: "Failed to create order status session.",
+      cause: insertError,
+    });
+  });
+
   test("schedules expired-session cleanup after the response lifecycle", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-14T12:28:00.000Z"));
@@ -207,6 +225,25 @@ describe("order status sessions", () => {
         rawToken: "modified-secret",
       })
     ).resolves.toBeNull();
+  });
+
+  test("throws when the resolver receives a non-not-found database error", async () => {
+    const resolverError = { code: "42501", message: "permission denied" };
+    resolveSingle.mockResolvedValue({ data: null, error: resolverError });
+    const { resolveActiveOrderStatusSession } = await import(
+      "@/lib/payment/order-status-sessions"
+    );
+
+    await expect(
+      resolveActiveOrderStatusSession({
+        sessionId,
+        paymentOrderId: "KSP-123",
+        rawToken: "secret",
+      })
+    ).rejects.toMatchObject({
+      message: "Failed to resolve order status session.",
+      cause: resolverError,
+    });
   });
 
   test("rejects a malformed UUID before creating an admin client or query", async () => {

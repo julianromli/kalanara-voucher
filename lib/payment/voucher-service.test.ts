@@ -9,6 +9,7 @@ const {
   createVoucherForPaidOrderMock,
   createVoucherForPaidOrderItemMock,
   markVoucherDeliveryFailedMock,
+  markVoucherDeliveryHandoffRequiredMock,
   markVoucherDeliverySentMock,
   sendVoucherEmailMock,
   sendVoucherWhatsAppMock,
@@ -19,6 +20,7 @@ const {
   createVoucherForPaidOrderMock: vi.fn(),
   createVoucherForPaidOrderItemMock: vi.fn(),
   markVoucherDeliveryFailedMock: vi.fn(),
+  markVoucherDeliveryHandoffRequiredMock: vi.fn(),
   markVoucherDeliverySentMock: vi.fn(),
   sendVoucherEmailMock: vi.fn(),
   sendVoucherWhatsAppMock: vi.fn(),
@@ -42,6 +44,7 @@ vi.mock("@/lib/payment/order-writes", () => ({
 vi.mock("@/lib/payment/voucherDeliveryOutbox", () => ({
   claimVoucherDeliveries: claimVoucherDeliveriesMock,
   markVoucherDeliveryFailed: markVoucherDeliveryFailedMock,
+  markVoucherDeliveryHandoffRequired: markVoucherDeliveryHandoffRequiredMock,
   markVoucherDeliverySent: markVoucherDeliverySentMock,
 }));
 
@@ -98,9 +101,12 @@ describe("createVoucherOnPaymentSuccess", () => {
       { id: "delivery-whatsapp", channel: "WHATSAPP", claimToken: "claim-1" },
     ]);
     markVoucherDeliveryFailedMock.mockResolvedValue(undefined);
+    markVoucherDeliveryHandoffRequiredMock.mockResolvedValue(undefined);
     markVoucherDeliverySentMock.mockResolvedValue(undefined);
     sendVoucherEmailMock.mockResolvedValue(undefined);
-    sendVoucherWhatsAppMock.mockResolvedValue(undefined);
+    sendVoucherWhatsAppMock.mockResolvedValue(
+      "https://wa.me/628123456789?text=Voucher"
+    );
     updateOrderVoucherIdMock.mockResolvedValue(true);
     getOrderItemsByOrderIdMock.mockResolvedValue([]);
   });
@@ -130,10 +136,12 @@ describe("createVoucherOnPaymentSuccess", () => {
       "public-token",
       undefined
     );
-    expect(markVoucherDeliverySentMock).toHaveBeenCalledWith(
+    expect(markVoucherDeliveryHandoffRequiredMock).toHaveBeenCalledWith(
       "delivery-whatsapp",
-      "claim-1"
+      "claim-1",
+      "https://wa.me/628123456789?text=Voucher"
     );
+    expect(markVoucherDeliverySentMock).not.toHaveBeenCalled();
   });
 
   test("concurrent duplicate fulfillment calls send one claimed channel once", async () => {
@@ -154,7 +162,8 @@ describe("createVoucherOnPaymentSuccess", () => {
     expect(results.every((result) => result.success)).toBe(true);
     expect(claimVoucherDeliveriesMock).toHaveBeenCalledTimes(2);
     expect(sendVoucherWhatsAppMock).toHaveBeenCalledTimes(1);
-    expect(markVoucherDeliverySentMock).toHaveBeenCalledTimes(1);
+    expect(markVoucherDeliveryHandoffRequiredMock).toHaveBeenCalledTimes(1);
+    expect(markVoucherDeliverySentMock).not.toHaveBeenCalled();
   });
 
   test("claims and persists both item delivery channels", async () => {
@@ -190,7 +199,15 @@ describe("createVoucherOnPaymentSuccess", () => {
       "public-token",
       "item-1"
     );
-    expect(markVoucherDeliverySentMock).toHaveBeenCalledTimes(2);
+    expect(markVoucherDeliverySentMock).toHaveBeenCalledWith(
+      "delivery-email",
+      "claim-email"
+    );
+    expect(markVoucherDeliveryHandoffRequiredMock).toHaveBeenCalledWith(
+      "delivery-whatsapp",
+      "claim-whatsapp",
+      "https://wa.me/628123456789?text=Voucher"
+    );
   });
 
   test("reuses an item voucher and does not send when its delivery is already claimed or sent", async () => {
@@ -259,6 +276,7 @@ describe("createVoucherOnPaymentSuccess", () => {
       sendError
     );
     expect(markVoucherDeliverySentMock).not.toHaveBeenCalled();
+    expect(markVoucherDeliveryHandoffRequiredMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       success: false,
       error: "provider unavailable",
@@ -309,6 +327,7 @@ describe("createVoucherOnPaymentSuccess", () => {
     expect(sendVoucherEmailMock).not.toHaveBeenCalled();
     expect(sendVoucherWhatsAppMock).not.toHaveBeenCalled();
     expect(markVoucherDeliverySentMock).not.toHaveBeenCalled();
+    expect(markVoucherDeliveryHandoffRequiredMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       success: false,
       error: "Missing public access credentials for voucher delivery",

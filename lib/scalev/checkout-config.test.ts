@@ -15,6 +15,7 @@ describe("getScalevCheckoutConfig", () => {
     vi.stubEnv("SCALEV_STORE_UNIQUE_ID", "store-123");
     vi.stubEnv("SCALEV_DISABLED_PAYMENT_METHODS", "invoice");
     getScalevCheckoutAvailabilityMock.mockResolvedValue({
+      source: "provider",
       paymentMethods: ["qris", "va"],
       subPaymentMethods: ["BCA"],
     });
@@ -65,6 +66,49 @@ describe("getScalevCheckoutConfig", () => {
 
     expect(getScalevCheckoutAvailabilityMock).toHaveBeenCalledWith(
       expect.any(AbortSignal)
+    );
+  });
+
+  test("filters unknown provider methods and VA banks without widening their types", async () => {
+    getScalevCheckoutAvailabilityMock.mockResolvedValue({
+      source: "provider",
+      paymentMethods: ["qris", "crypto", "va", "qris"],
+      subPaymentMethods: ["BCA", "UNKNOWN_BANK", "BNI", "BCA"],
+    });
+    const { getScalevCheckoutConfig } = await import(
+      "@/lib/scalev/checkout-config"
+    );
+
+    const config = await getScalevCheckoutConfig();
+
+    expect(config.paymentOptions).toEqual([
+      { code: "qris", label: "QRIS" },
+      {
+        code: "va",
+        label: "Virtual Account",
+        subMethods: ["BCA", "BNI"],
+      },
+    ]);
+  });
+
+  test("surfaces configured fallback options distinctly", async () => {
+    getScalevCheckoutAvailabilityMock.mockResolvedValue({
+      source: "fallback",
+      paymentMethods: ["qris", "va"],
+      subPaymentMethods: ["BCA"],
+    });
+    const { getScalevCheckoutConfig } = await import(
+      "@/lib/scalev/checkout-config"
+    );
+
+    const config = await getScalevCheckoutConfig();
+
+    expect(config).toEqual(
+      expect.objectContaining({
+        availability: "fallback",
+        paymentNotice:
+          "Metode pembayaran dari provider belum dapat dimuat. Pilihan konfigurasi cadangan ditampilkan dan akan diperiksa kembali saat kamu melanjutkan pembayaran.",
+      })
     );
   });
 });

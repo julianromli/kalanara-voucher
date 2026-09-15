@@ -29,11 +29,21 @@ const SITE_SETTING_DEFAULTS = {
 
 type SiteSettingKey = keyof typeof SITE_SETTING_DEFAULTS;
 
-function revalidateCmsPaths() {
-  updateTag(ANNOUNCEMENT_SETTINGS_CACHE_TAG);
+function revalidateCmsPaths({
+  announcementChanged = false,
+}: {
+  announcementChanged?: boolean;
+} = {}) {
+  if (announcementChanged) {
+    updateTag(ANNOUNCEMENT_SETTINGS_CACHE_TAG);
+  }
   revalidatePath("/", "layout");
   revalidatePath("/", "page");
   revalidatePath("/admin/crm", "page");
+}
+
+function isAnnouncementSettingKey(key: SiteSettingKey): boolean {
+  return key.startsWith("announcement_");
 }
 
 function normalizeSiteSettingKey(key: string): SiteSettingKey | null {
@@ -142,7 +152,9 @@ export async function updateSiteSetting(
     throw error;
   }
 
-  revalidateCmsPaths();
+  revalidateCmsPaths({
+    announcementChanged: isAnnouncementSettingKey(normalizedKey),
+  });
   return data;
 }
 
@@ -164,7 +176,9 @@ export async function deleteSiteSetting(key: string): Promise<boolean> {
     throw error;
   }
 
-  revalidateCmsPaths();
+  revalidateCmsPaths({
+    announcementChanged: isAnnouncementSettingKey(normalizedKey),
+  });
   return true;
 }
 

@@ -18,13 +18,10 @@
 
 ALTER TABLE public.orders
   ADD COLUMN payment_provider_event_at timestamptz,
-  ADD COLUMN payment_provider_event_at_is_fallback boolean NOT NULL DEFAULT false,
   ADD COLUMN payment_state_version bigint NOT NULL DEFAULT 0;
 
 COMMENT ON COLUMN public.orders.payment_provider_event_at IS
   'Latest genuine provider event timestamp used for stale-event comparison; fallback receipt time is tracked only in scalev_last_checked_at.';
-COMMENT ON COLUMN public.orders.payment_provider_event_at_is_fallback IS
-  'Timestamp provenance retained for compatibility; fallback observations preserve the existing provider timestamp and provenance.';
 COMMENT ON COLUMN public.orders.payment_state_version IS
   'Monotonic version incremented for every accepted provider payment observation, including idempotent metadata refreshes.';
 
@@ -64,16 +61,14 @@ AS $$
 DECLARE
   v_status public.payment_status;
   v_event_at timestamptz;
-  v_event_at_is_fallback boolean;
   v_version bigint;
   v_changed boolean;
 BEGIN
   SELECT
     o.payment_status,
     o.payment_provider_event_at,
-    o.payment_provider_event_at_is_fallback,
     o.payment_state_version
-  INTO v_status, v_event_at, v_event_at_is_fallback, v_version
+  INTO v_status, v_event_at, v_version
   FROM public.orders AS o
   WHERE o.id = p_order_id
   FOR UPDATE;
@@ -112,7 +107,6 @@ BEGIN
   END IF;
 
   IF NOT p_provider_event_at_is_fallback
-    AND NOT v_event_at_is_fallback
     AND v_event_at IS NOT NULL
     AND p_provider_event_at < v_event_at
   THEN
@@ -157,11 +151,6 @@ BEGIN
       WHEN p_provider_event_at_is_fallback
         THEN o.payment_provider_event_at
       ELSE p_provider_event_at
-    END,
-    payment_provider_event_at_is_fallback = CASE
-      WHEN p_provider_event_at_is_fallback
-        THEN o.payment_provider_event_at_is_fallback
-      ELSE false
     END,
     payment_state_version = o.payment_state_version + 1,
     payment_transaction_id =

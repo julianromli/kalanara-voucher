@@ -6,6 +6,7 @@ const migrationPath = join(
   process.cwd(),
   "lib/supabase/migrations/021_enforce_payment_state_machine.sql"
 );
+const databaseTypesPath = join(process.cwd(), "lib/database.types.ts");
 
 type Status = "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
 
@@ -39,12 +40,13 @@ describe("payment state migration contract", () => {
 
   test("serializes row transitions and rejects stale or conflicting observations", () => {
     const sql = readFileSync(migrationPath, "utf8");
+    const normalizedSql = sql.toLowerCase();
 
     expect(sql).toMatch(/from public\.orders as o[\s\S]*for update;/i);
     expect(sql).toMatch(/p_expected_version <> v_version/i);
     expect(sql).toContain("'version_conflict'");
     expect(sql).toMatch(
-      /not p_provider_event_at_is_fallback[\s\S]*not v_event_at_is_fallback[\s\S]*p_provider_event_at < v_event_at/i
+      /not p_provider_event_at_is_fallback[\s\S]*v_event_at is not null[\s\S]*p_provider_event_at < v_event_at/i
     );
     expect(sql).toContain("'stale_provider_event'");
     expect(sql).toMatch(
@@ -54,8 +56,8 @@ describe("payment state migration contract", () => {
       /v_status = 'COMPLETED'[\s\S]*p_target_status = 'REFUNDED'/i
     );
     expect(sql).toMatch(/payment_state_version = o\.payment_state_version \+ 1/i);
-    expect(sql.indexOf("for update;")).toBeLessThan(
-      sql.indexOf("p_expected_version <> v_version")
+    expect(normalizedSql.indexOf("for update;")).toBeLessThan(
+      normalizedSql.indexOf("p_expected_version <> v_version")
     );
   });
 
@@ -109,16 +111,20 @@ describe("payment state migration contract", () => {
     expect(sql).not.toMatch(/\bgrant\b[\s\S]*\bto (anon|authenticated)\b/i);
   });
 
-  test("tracks receipt fallback provenance separately and removes the legacy anon update policy", () => {
+  test("uses input provenance without storing fallback state and preserves genuine timestamps", () => {
     const sql = readFileSync(migrationPath, "utf8");
+    const databaseTypes = readFileSync(databaseTypesPath, "utf8");
 
-    expect(sql).toMatch(/payment_provider_event_at_is_fallback boolean not null default false/i);
     expect(sql).toMatch(/p_provider_event_at_is_fallback boolean/i);
-    expect(sql).toMatch(
-      /payment_provider_event_at = case[\s\S]*when p_provider_event_at_is_fallback[\s\S]*then o\.payment_provider_event_at[\s\S]*else p_provider_event_at[\s\S]*end/i
+    expect(databaseTypes).toMatch(/p_provider_event_at_is_fallback\?: boolean/);
+    expect(databaseTypes).not.toMatch(
+      /^\s+payment_provider_event_at_is_fallback[?:]/m
+    );
+    expect(sql).not.toMatch(
+      /(?:column|o\.|v_)payment_provider_event_at_is_fallback/i
     );
     expect(sql).toMatch(
-      /payment_provider_event_at_is_fallback = case[\s\S]*when p_provider_event_at_is_fallback[\s\S]*then o\.payment_provider_event_at_is_fallback[\s\S]*else false[\s\S]*end/i
+      /payment_provider_event_at = case[\s\S]*when p_provider_event_at_is_fallback[\s\S]*then o\.payment_provider_event_at[\s\S]*else p_provider_event_at[\s\S]*end/i
     );
     expect(sql).toMatch(
       /payment_transaction_time = case[\s\S]*when p_provider_event_at_is_fallback[\s\S]*then o\.payment_transaction_time[\s\S]*else coalesce\(p_transaction_time, o\.payment_transaction_time\)[\s\S]*end/i

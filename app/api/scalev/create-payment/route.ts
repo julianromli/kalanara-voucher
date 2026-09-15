@@ -24,8 +24,8 @@ import {
   sanitizeScalevPublicUrl,
 } from "@/lib/scalev/urls";
 import {
-  SCALEV_PAYMENT_METHODS,
-  SCALEV_VA_BANK_CODES,
+  isScalevPaymentMethod,
+  isScalevVABankCode,
   type ScalevCheckoutLineItem,
   type ScalevCreatePaymentErrorCode,
   type ScalevCreatePaymentResponse,
@@ -54,14 +54,6 @@ interface ValidatedCheckoutRequest {
   paymentMethod: ScalevPaymentMethod;
   subPaymentMethod?: ScalevVABankCode;
   lineItems: ValidatedCheckoutLineItem[];
-}
-
-function isPaymentMethod(value: string): value is ScalevPaymentMethod {
-  return SCALEV_PAYMENT_METHODS.includes(value as ScalevPaymentMethod);
-}
-
-function isVABank(value: string): value is ScalevVABankCode {
-  return SCALEV_VA_BANK_CODES.includes(value as ScalevVABankCode);
 }
 
 function getOptionalString(value: unknown) {
@@ -178,7 +170,12 @@ function validateRequest(body: unknown): ValidatedCheckoutRequest | null {
   const paymentMethod =
     typeof data.paymentMethod === "string" ? data.paymentMethod : "";
 
-  if (!customerName || !customerEmail || !customerPhone || !isPaymentMethod(paymentMethod)) {
+  if (
+    !customerName ||
+    !customerEmail ||
+    !customerPhone ||
+    !isScalevPaymentMethod(paymentMethod)
+  ) {
     return null;
   }
 
@@ -209,7 +206,7 @@ function validateRequest(body: unknown): ValidatedCheckoutRequest | null {
 
   if (
     paymentMethod === "va" &&
-    (!subPaymentMethodRaw || !isVABank(subPaymentMethodRaw))
+    (!subPaymentMethodRaw || !isScalevVABankCode(subPaymentMethodRaw))
   ) {
     return null;
   }

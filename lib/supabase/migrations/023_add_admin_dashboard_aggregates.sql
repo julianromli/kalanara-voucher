@@ -37,7 +37,7 @@ AS $$
   WITH days AS (
     SELECT
       (CURRENT_DATE - (6 - day_offset)::integer)::date AS bucket_date
-    FROM generate_series(0, 6) AS day_offset
+    FROM generate_series(0, 6) AS series(day_offset)
   ),
   order_totals AS (
     SELECT
