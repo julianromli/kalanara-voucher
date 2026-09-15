@@ -2,10 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function CheckoutLoadingSkeleton() {
   return (
-    <div
-      aria-label="Menyiapkan checkout"
-      className="min-h-screen bg-background px-4 pb-28 pt-8 md:pb-8"
-    >
+    <div className="min-h-screen bg-background px-4 pb-28 pt-8 md:pb-8">
       <div className="mx-auto max-w-6xl">
         <Skeleton className="mb-8 h-6 w-24" />
         <div className="mx-auto max-w-2xl space-y-3 text-center">
