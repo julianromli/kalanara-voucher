@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
 import type { ScalevCheckoutConfig } from "@/lib/scalev/types";
 
 const {
@@ -110,9 +111,10 @@ describe("checkout payment option preloading", () => {
     const fallback = element.props.fallback.type(
       element.props.fallback.props
     );
-    expect(fallback.props["aria-label"]).toBe(
-      "Menyiapkan checkout"
-    );
+    render(fallback);
+    expect(
+      screen.getByText("Sedang menyiapkan metode pembayaran.")
+    ).toHaveClass("sr-only");
 
     const providerChild = element.props.children;
     const checkoutElement = await providerChild.type(providerChild.props);
@@ -185,9 +187,10 @@ describe("checkout payment option preloading", () => {
     const fallback = element.props.fallback.type(
       element.props.fallback.props
     );
-    expect(fallback.props["aria-label"]).toBe(
-      "Menyiapkan checkout"
-    );
+    render(fallback);
+    expect(
+      screen.getByText("Sedang menyiapkan metode pembayaran.")
+    ).toHaveClass("sr-only");
 
     const providerChild = element.props.children;
     const checkoutElement = await providerChild.type(providerChild.props);
