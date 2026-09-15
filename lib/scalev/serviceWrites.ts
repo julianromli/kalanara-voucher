@@ -14,7 +14,7 @@ export async function updateServiceScalevMapping(
     | "scalev_sync_status"
     | "scalev_last_synced_at"
   >
-): Promise<Service | null> {
+): Promise<Service> {
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("services")
@@ -25,9 +25,17 @@ export async function updateServiceScalevMapping(
 
   if (error) {
     console.error("Error updating service Scalev mapping:", error);
-    return null;
+    throw error;
   }
 
-  revalidateServiceCatalogData();
+  try {
+    revalidateServiceCatalogData();
+  } catch (revalidationError) {
+    console.error(
+      "Error revalidating service catalog after Scalev mapping update:",
+      revalidationError
+    );
+  }
+
   return data;
 }

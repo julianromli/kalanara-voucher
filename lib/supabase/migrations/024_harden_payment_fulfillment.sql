@@ -33,7 +33,7 @@ DECLARE
   related_voucher_ids uuid[];
   conflicting_reference_count integer := 0;
 BEGIN
-  SELECT COALESCE(array_agg(orders.id), '{}'::uuid[])
+  SELECT COALESCE(array_agg(orders.id ORDER BY orders.id), '{}'::uuid[])
   INTO target_order_ids
   FROM public.orders
   WHERE order_ids IS NULL OR orders.id = ANY(order_ids);
@@ -44,7 +44,22 @@ BEGIN
     RETURN;
   END IF;
 
-  SELECT COALESCE(array_agg(order_items.id), '{}'::uuid[])
+  PERFORM 1
+  FROM public.orders
+  WHERE orders.id = ANY(target_order_ids)
+  ORDER BY orders.id
+  FOR UPDATE;
+
+  PERFORM 1
+  FROM public.order_items
+  WHERE order_items.order_id = ANY(target_order_ids)
+  ORDER BY order_items.id
+  FOR UPDATE;
+
+  SELECT COALESCE(
+    array_agg(order_items.id ORDER BY order_items.id),
+    '{}'::uuid[]
+  )
   INTO target_order_item_ids
   FROM public.order_items
   WHERE order_items.order_id = ANY(target_order_ids);

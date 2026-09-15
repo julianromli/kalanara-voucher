@@ -8,6 +8,27 @@ const sql = readFileSync(
 );
 
 describe("payment fulfillment corrective migration", () => {
+  test("locks target orders and items deterministically before scanning voucher relationships", () => {
+    const normalizedSql = sql.toLowerCase();
+    const orderLock = sql.match(
+      /perform 1\s+from public\.orders\s+where orders\.id = any\(target_order_ids\)\s+order by orders\.id\s+for update;/i
+    );
+    const orderItemLock = sql.match(
+      /perform 1\s+from public\.order_items\s+where order_items\.order_id = any\(target_order_ids\)\s+order by order_items\.id\s+for update;/i
+    );
+    const orderLockPosition = orderLock?.index ?? -1;
+    const orderItemLockPosition = orderItemLock?.index ?? -1;
+    const relationshipScanPosition = normalizedSql.indexOf(
+      "select coalesce(array_agg(distinct vouchers.id)"
+    );
+
+    expect(orderLockPosition).toBeGreaterThan(-1);
+    expect(orderItemLockPosition).toBeGreaterThan(-1);
+    expect(relationshipScanPosition).toBeGreaterThan(-1);
+    expect(orderLockPosition).toBeLessThan(orderItemLockPosition);
+    expect(orderItemLockPosition).toBeLessThan(relationshipScanPosition);
+  });
+
   test("collects linked and source item vouchers before order-item cascade", () => {
     expect(sql).toMatch(
       /select order_items\.voucher_id[\s\S]*order_items\.order_id = any\(target_order_ids\)/i

@@ -22,7 +22,12 @@ describe("admin dashboard aggregate migration contract", () => {
   test("returns exactly seven typed daily buckets and preserves metric definitions", () => {
     const sql = readFileSync(migrationPath, "utf8");
 
-    expect(sql).toMatch(/generate_series\(0,\s*6\)/i);
+    expect(sql).toMatch(
+      /from generate_series\(0,\s*6\)\s+as series\s*\(\s*day_offset\s*\)/i,
+    );
+    expect(sql).toMatch(
+      /current_date\s*-\s*\(\s*6\s*-\s*day_offset\s*\)::integer/i,
+    );
     expect(sql).toMatch(/payment_status = 'COMPLETED'/i);
     expect(sql).toMatch(/not v\.is_redeemed[\s\S]*v\.expiry_date > now\(\)/i);
     expect(sql).toMatch(/not v\.is_redeemed[\s\S]*v\.expiry_date <= now\(\)/i);
