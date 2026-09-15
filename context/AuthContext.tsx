@@ -49,25 +49,13 @@ interface AuthProviderProps {
 }
 
 type BrowserSupabaseClient = ReturnType<typeof createClient>;
-type AuthOperationKind =
-  | 'auth-event'
-  | 'bootstrap'
-  | 'login'
-  | 'logout'
-  | 'signed-out'
-  | 'user-event'
-  | 'cleanup';
-
-interface AuthOperation {
-  generation: number;
-  kind: AuthOperationKind;
-  userId?: string;
-  resolution?: Promise<User | null>;
+interface ActiveUserResolution {
+  epoch: number;
+  promise: Promise<User | null>;
 }
 
 export const INITIAL_SESSION_FALLBACK_DELAY_MS = 50;
 export const SESSION_LOOKUP_TIMEOUT_MS = 3_000;
-const MAX_SUPERSEDED_LOGIN_EVENTS = 8;
 
 // ============================================================================
 // Helpers
@@ -140,9 +128,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children, bootstrapUser = null }: AuthProviderProps) {
   const bootstrapUserRef = useRef<User | null>(bootstrapUser);
   const hasBootstrapUser = bootstrapUserRef.current?.role != null;
-  const authGenerationRef = useRef(0);
-  const authActiveRef = useRef(false);
-  const latestAuthOperationRef = useRef<AuthOperation | null>(null);
+  const authEpochRef = useRef(0);
+  const mountedRef = useRef(false);
+  const activeUserResolutionRef = useRef<ActiveUserResolution | null>(null);
   const pendingUserResolutionsRef = useRef(
     new Map<string, Promise<User | null>>()
   );
@@ -152,35 +140,28 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
   const [isLoading, setIsLoading] = useState(() => !hasBootstrapUser);
   const isAuthenticated = user?.role != null;
 
-  const beginAuthOperation = useCallback((
-    kind: AuthOperationKind,
-    userId?: string
-  ): AuthOperation => {
-    const operation = {
-      generation: ++authGenerationRef.current,
-      kind,
-      userId,
-    };
-    latestAuthOperationRef.current = operation;
-    return operation;
+  const advanceAuthEpoch = useCallback(() => {
+    activeUserResolutionRef.current = null;
+    authEpochRef.current += 1;
+    return authEpochRef.current;
   }, []);
 
-  const isCurrentAuthOperation = useCallback(
-    (operation: AuthOperation) =>
-      authActiveRef.current &&
-      operation.generation === authGenerationRef.current,
-    []
-  );
-
-  const commitSignedOut = useCallback((operation: AuthOperation) => {
-    if (!isCurrentAuthOperation(operation)) {
-      return;
+  const commitAuthState = useCallback((
+    epoch: number,
+    nextUser: User | null,
+    finishLoading = true
+  ) => {
+    if (!mountedRef.current || epoch !== authEpochRef.current) {
+      return false;
     }
 
-    userRef.current = null;
-    setUser(null);
-    setIsLoading(false);
-  }, [isCurrentAuthOperation]);
+    userRef.current = nextUser;
+    setUser(nextUser);
+    if (finishLoading) {
+      setIsLoading(false);
+    }
+    return true;
+  }, []);
 
   const resolveSupabaseUser = useCallback((
     supabaseUser: SupabaseUser,
@@ -207,26 +188,61 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
     return resolution;
   }, [supabase]);
 
-  const resolveUserForOperation = useCallback(async (
+  const resolveUserAtEpoch = useCallback((
     supabaseUser: SupabaseUser,
-    operation: AuthOperation,
+    epoch: number,
     reusePending = false
   ): Promise<User | null> => {
-    const resolvedUser = await resolveSupabaseUser(supabaseUser, reusePending);
-    const bootstrapUserForIdentity =
-      bootstrapUserRef.current?.id === supabaseUser.id
-        ? bootstrapUserRef.current
-        : null;
-    const nextUser = resolvedUser ?? bootstrapUserForIdentity;
+    const promise = (async () => {
+      const resolvedUser = await resolveSupabaseUser(supabaseUser, reusePending);
+      const bootstrapUserForIdentity =
+        bootstrapUserRef.current?.id === supabaseUser.id
+          ? bootstrapUserRef.current
+          : null;
+      const nextUser = resolvedUser ?? bootstrapUserForIdentity;
 
-    if (isCurrentAuthOperation(operation)) {
-      userRef.current = nextUser;
-      setUser(nextUser);
-      setIsLoading(false);
+      commitAuthState(epoch, nextUser);
+      return nextUser;
+    })();
+
+    activeUserResolutionRef.current = { epoch, promise };
+    return promise;
+  }, [commitAuthState, resolveSupabaseUser]);
+
+  const awaitSupersedingResolution = useCallback(async (
+    supersededEpoch: number
+  ): Promise<{ user: User | null; resolutionObserved: boolean }> => {
+    let observedEpoch = supersededEpoch;
+
+    while (mountedRef.current && observedEpoch !== authEpochRef.current) {
+      observedEpoch = authEpochRef.current;
+      const activeResolution = activeUserResolutionRef.current;
+
+      if (!activeResolution || activeResolution.epoch !== observedEpoch) {
+        return {
+          user: userRef.current,
+          resolutionObserved: false,
+        };
+      }
+
+      const resolvedUser = await activeResolution.promise;
+      if (!mountedRef.current) {
+        return { user: null, resolutionObserved: false };
+      }
+
+      if (activeResolution.epoch === authEpochRef.current) {
+        return {
+          user: resolvedUser,
+          resolutionObserved: true,
+        };
+      }
     }
 
-    return nextUser;
-  }, [isCurrentAuthOperation, resolveSupabaseUser]);
+    return {
+      user: userRef.current,
+      resolutionObserved: false,
+    };
+  }, []);
 
   // Initialize auth state on mount
   useEffect(() => {
@@ -236,7 +252,7 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       return;
     }
 
-    authActiveRef.current = true;
+    mountedRef.current = true;
 
     // Listen for auth state changes
     let subscription: { unsubscribe: () => void } | null = null;
@@ -259,35 +275,24 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
               fallbackTimer = null;
             }
           }
-          const operation = beginAuthOperation(
-            event === 'SIGNED_OUT'
-              ? 'signed-out'
-              : (isUserBearingEvent || isInitialSession) && session?.user
-                ? 'user-event'
-                : 'auth-event',
-            session?.user?.id
-          );
+          const epoch = advanceAuthEpoch();
 
           if (event === 'SIGNED_OUT') {
-            commitSignedOut(operation);
+            commitAuthState(epoch, null);
             return;
           }
 
           if ((isUserBearingEvent || isInitialSession) && session?.user) {
-            operation.resolution = resolveUserForOperation(
+            void resolveUserAtEpoch(
               session.user,
-              operation,
+              epoch,
               isInitialSession
             );
-            void operation.resolution;
             return;
           }
 
-          if (isInitialSession && isCurrentAuthOperation(operation)) {
-            if (!hasBootstrapUser) {
-              setUser(null);
-            }
-            setIsLoading(false);
+          if (isInitialSession) {
+            commitAuthState(epoch, hasBootstrapUser ? userRef.current : null);
           }
         }
       );
@@ -301,44 +306,36 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
         return;
       }
 
-      const operation = beginAuthOperation('bootstrap');
+      const epoch = advanceAuthEpoch();
       fallbackTimeout = window.setTimeout(() => {
-        if (isCurrentAuthOperation(operation)) {
-          setIsLoading(false);
-        }
+        commitAuthState(epoch, userRef.current);
       }, SESSION_LOOKUP_TIMEOUT_MS);
 
       try {
         const { data: { session } } = await supabase.auth.getSession();
 
-        if (!isCurrentAuthOperation(operation)) {
+        if (!mountedRef.current || epoch !== authEpochRef.current) {
           return;
         }
 
         if (session?.user) {
-          await resolveUserForOperation(session.user, operation, true);
-        } else if (!hasBootstrapUser) {
-          userRef.current = null;
-          setUser(null);
+          await resolveUserAtEpoch(session.user, epoch, true);
+        } else {
+          commitAuthState(epoch, hasBootstrapUser ? userRef.current : null);
         }
       } catch (error) {
-        if (!isCurrentAuthOperation(operation)) {
+        if (!mountedRef.current || epoch !== authEpochRef.current) {
           return;
         }
 
         console.error('Error initializing auth:', error);
-        if (!hasBootstrapUser) {
-          userRef.current = null;
-          setUser(null);
-        }
+        commitAuthState(epoch, hasBootstrapUser ? userRef.current : null);
       } finally {
         if (fallbackTimeout !== null) {
           window.clearTimeout(fallbackTimeout);
           fallbackTimeout = null;
         }
-        if (isCurrentAuthOperation(operation)) {
-          setIsLoading(false);
-        }
+        commitAuthState(epoch, userRef.current);
       }
     };
 
@@ -349,8 +346,8 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
 
     // Cleanup subscription on unmount
     return () => {
-      authActiveRef.current = false;
-      beginAuthOperation('cleanup');
+      mountedRef.current = false;
+      advanceAuthEpoch();
       if (fallbackTimer !== null) {
         window.clearTimeout(fallbackTimer);
       }
@@ -360,28 +357,27 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       subscription?.unsubscribe();
     };
   }, [
-    beginAuthOperation,
-    commitSignedOut,
+    advanceAuthEpoch,
+    commitAuthState,
     hasBootstrapUser,
-    isCurrentAuthOperation,
-    resolveUserForOperation,
+    resolveUserAtEpoch,
     supabase,
   ]);
 
   const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
-    const operation = beginAuthOperation('login');
+    const loginEpoch = advanceAuthEpoch();
     const canceledResult: LoginResult = {
       success: false,
       error: 'Unable to sign in. Please try again.',
     };
 
     const rejectAdminLogin = async (): Promise<LoginResult> => {
-      const signOutOperation = beginAuthOperation('logout');
+      const signOutEpoch = advanceAuthEpoch();
 
       try {
         await supabase.auth.signOut();
       } finally {
-        commitSignedOut(signOutOperation);
+        commitAuthState(signOutEpoch, null);
       }
 
       return {
@@ -390,28 +386,15 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       };
     };
 
-    const resultFromNewerOperation = async (): Promise<LoginResult> => {
-      for (
-        let attempt = 0;
-        attempt < MAX_SUPERSEDED_LOGIN_EVENTS;
-        attempt += 1
-      ) {
-        const latestOperation = latestAuthOperationRef.current;
+    const resultFromSupersedingAuth = async (): Promise<LoginResult> => {
+      const { user: supersedingUser, resolutionObserved } =
+        await awaitSupersedingResolution(loginEpoch);
 
-        if (
-          latestOperation?.kind !== 'user-event' ||
-          !latestOperation.resolution
-        ) {
-          return userRef.current?.role ? { success: true } : canceledResult;
-        }
-
-        const resolvedUser = await latestOperation.resolution;
-        if (isCurrentAuthOperation(latestOperation)) {
-          return resolvedUser ? { success: true } : rejectAdminLogin();
-        }
+      if (supersedingUser?.role) {
+        return { success: true };
       }
 
-      return userRef.current?.role ? { success: true } : canceledResult;
+      return resolutionObserved ? rejectAdminLogin() : canceledResult;
     };
 
     try {
@@ -420,8 +403,8 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
         password,
       });
 
-      if (!isCurrentAuthOperation(operation)) {
-        return resultFromNewerOperation();
+      if (!mountedRef.current || loginEpoch !== authEpochRef.current) {
+        return resultFromSupersedingAuth();
       }
 
       if (error) {
@@ -434,16 +417,15 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       if (data.user) {
         const resolvedUser = await resolveSupabaseUser(data.user);
 
-        if (!isCurrentAuthOperation(operation)) {
-          return resultFromNewerOperation();
+        if (!mountedRef.current || loginEpoch !== authEpochRef.current) {
+          return resultFromSupersedingAuth();
         }
 
         if (!resolvedUser) {
           return rejectAdminLogin();
         }
 
-        userRef.current = resolvedUser;
-        setUser(resolvedUser);
+        commitAuthState(loginEpoch, resolvedUser, false);
         return { success: true }; 
       }
 
@@ -459,25 +441,25 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       };
     }
   }, [
-    beginAuthOperation,
-    commitSignedOut,
-    isCurrentAuthOperation,
+    advanceAuthEpoch,
+    awaitSupersedingResolution,
+    commitAuthState,
     resolveSupabaseUser,
     supabase,
   ]);
 
   const logout = useCallback(async (): Promise<void> => {
-    const operation = beginAuthOperation('logout');
+    const epoch = advanceAuthEpoch();
 
     try {
       await supabase.auth.signOut();
-      commitSignedOut(operation);
+      commitAuthState(epoch, null);
     } catch (error) {
       console.error('Logout error:', error);
       // Still clear local state even if the API call fails
-      commitSignedOut(operation);
+      commitAuthState(epoch, null);
     }
-  }, [beginAuthOperation, commitSignedOut, supabase]);
+  }, [advanceAuthEpoch, commitAuthState, supabase]);
 
   const value: AuthContextType = {
     user,

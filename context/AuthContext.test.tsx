@@ -529,6 +529,74 @@ describe("AuthProvider", () => {
     expect(screen.getByTestId("user-name")).toHaveTextContent("Admin Terbaru");
   });
 
+  it("follows chained superseding events without a fixed iteration cap", async () => {
+    const signIn = deferred<{
+      data: { user: Session["user"] };
+      error: null;
+    }>();
+    const user = supabaseUser("event-admin");
+    const eventLookups = Array.from({ length: 12 }, () =>
+      deferred<AdminLookupResult>()
+    );
+    mocks.signInWithPassword.mockReturnValue(signIn.promise);
+
+    render(
+      <AuthProvider>
+        <AuthStateProbe />
+      </AuthProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("loading")).toHaveTextContent("false")
+    );
+
+    let loginPromise!: Promise<LoginResult>;
+    act(() => {
+      loginPromise = latestAuth!.login("admin@kalanara.com", "secret");
+    });
+
+    mocks.adminLookups.push(...eventLookups.map(({ promise }) => promise));
+    act(() => {
+      mocks.authCallback?.("SIGNED_IN", sessionFor(user.id, user.email));
+    });
+    await waitFor(() => expect(mocks.from).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      signIn.resolve({ data: { user }, error: null });
+      await signIn.promise;
+    });
+
+    for (let index = 1; index < eventLookups.length; index += 1) {
+      act(() => {
+        mocks.authCallback?.("USER_UPDATED", sessionFor(user.id, user.email));
+      });
+      await waitFor(() =>
+        expect(mocks.from).toHaveBeenCalledTimes(index + 1)
+      );
+
+      await act(async () => {
+        eventLookups[index - 1].resolve({
+          data: { name: `Admin ${index}`, role: "MANAGER" },
+        });
+        await eventLookups[index - 1].promise;
+      });
+    }
+
+    let result!: LoginResult;
+    await act(async () => {
+      eventLookups[eventLookups.length - 1].resolve({
+        data: { name: "Admin Tanpa Batas", role: "SUPER_ADMIN" },
+      });
+      result = await loginPromise;
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(screen.getByTestId("user-name")).toHaveTextContent(
+      "Admin Tanpa Batas"
+    );
+    expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+
   it("does not report login failure when a different authenticated user wins", async () => {
     const signIn = deferred<{
       data: { user: Session["user"] };
