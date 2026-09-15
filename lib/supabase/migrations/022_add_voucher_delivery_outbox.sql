@@ -25,7 +25,7 @@ CREATE TYPE public.voucher_delivery_status AS ENUM
   ('PENDING', 'PROCESSING', 'SENT', 'FAILED');
 
 CREATE TABLE public.voucher_delivery_outbox (
-  id uuid PRIMARY KEY DEFAULT public.uuid_generate_v4(),
+  id uuid PRIMARY KEY DEFAULT pg_catalog.gen_random_uuid(),
   order_id uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
   order_item_id uuid REFERENCES public.order_items(id) ON DELETE CASCADE,
   voucher_id uuid NOT NULL REFERENCES public.vouchers(id) ON DELETE CASCADE,
@@ -133,7 +133,7 @@ BEGIN
     status = 'PROCESSING',
     attempt_count = outbox.attempt_count + 1,
     claimed_at = pg_catalog.now(),
-    claim_token = public.uuid_generate_v4(),
+    claim_token = pg_catalog.gen_random_uuid(),
     updated_at = pg_catalog.now(),
     last_error = NULL
   FROM claimable
