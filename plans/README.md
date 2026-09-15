@@ -24,7 +24,7 @@ Each linked file is a self-contained execution plan. Keep each change independen
 All valid Cubic P1 and P2 findings were re-verified against the completed
 implementation and fixed. The follow-up also includes low-risk P3 improvements
 to tests, pagination accessibility, cache invalidation, and shared
-revalidation. Apply migrations `020` through `025` in numeric order.
+revalidation. Apply migrations `020` through `026` in numeric order.
 
 `DONE` means the planned code and automated regression coverage are complete.
 Live Supabase concurrency/permission checks and manual browser, Network, and
