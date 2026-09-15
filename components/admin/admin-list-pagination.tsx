@@ -8,6 +8,7 @@ interface AdminListPaginationProps {
   totalCount: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  disabled?: boolean;
 }
 
 export function AdminListPagination({
@@ -16,6 +17,7 @@ export function AdminListPagination({
   totalCount,
   totalPages,
   onPageChange,
+  disabled = false,
 }: AdminListPaginationProps) {
   return (
     <nav
@@ -30,7 +32,7 @@ export function AdminListPagination({
           type="button"
           variant="outline"
           size="sm"
-          disabled={page <= 1}
+          disabled={disabled || page <= 1}
           onClick={() => onPageChange(page - 1)}
         >
           Sebelumnya
@@ -45,7 +47,7 @@ export function AdminListPagination({
           type="button"
           variant="outline"
           size="sm"
-          disabled={page >= totalPages}
+          disabled={disabled || page >= totalPages}
           onClick={() => onPageChange(page + 1)}
         >
           Berikutnya

@@ -110,6 +110,20 @@ export async function markVoucherDeliverySent(
   }
 }
 
+export async function markVoucherDeliveryHandoffRequired(
+  deliveryId: string,
+  claimToken: string
+): Promise<void> {
+  const { data, error } = await getAdminClient().rpc(
+    "finalize_voucher_delivery_handoff_required",
+    { p_delivery_id: deliveryId, p_claim_token: claimToken }
+  );
+
+  if (error || data !== true) {
+    throw persistenceError("HANDOFF_REQUIRED", error);
+  }
+}
+
 export async function markVoucherDeliveryFailed(
   deliveryId: string,
   claimToken: string,

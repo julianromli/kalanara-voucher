@@ -84,7 +84,7 @@ describe("buildPaymentSnapshot", () => {
     );
   });
 
-  it("preserves a direct Scalev payment_link before using secret_slug", () => {
+  it("rejects a Scalev payment_link outside checkout paths and uses secret_slug", () => {
     const snapshot = buildPaymentSnapshot(
       {
         payment_status: "pending",
@@ -94,7 +94,9 @@ describe("buildPaymentSnapshot", () => {
       null
     );
 
-    expect(snapshot.paymentLink).toBe("https://app.scalev.id/direct");
+    expect(snapshot.paymentLink).toBe(
+      "https://app.scalev.id/order/public/fallback-secret"
+    );
   });
 
   it("rejects external links and falls back to a safe secret slug", () => {
@@ -124,6 +126,34 @@ describe("buildPaymentSnapshot", () => {
     );
 
     expect(snapshot.paymentLink).toBeNull();
+  });
+
+  it("preserves safe historical non-Scalev payment links in public status", () => {
+    const payload = buildPublicOrderStatusWithItems({
+      id: "order-1",
+      payment_status: "PENDING",
+      payment_order_id: "KSP-1",
+      order_items: [],
+      payment_provider: "mayar",
+      payment_link: "https://checkout.mayar.id/pay/historical-order",
+    } as never);
+
+    expect(payload.paymentLink).toBe(
+      "https://checkout.mayar.id/pay/historical-order"
+    );
+  });
+
+  it("rejects unsafe historical external payment links in public status", () => {
+    const payload = buildPublicOrderStatusWithItems({
+      id: "order-1",
+      payment_status: "PENDING",
+      payment_order_id: "KSP-1",
+      order_items: [],
+      payment_provider: "mayar",
+      payment_link: "https://user:pass@checkout.mayar.id/pay/order",
+    } as never);
+
+    expect(payload.paymentLink).toBeNull();
   });
 
   it("extracts QRIS instructions from pg_payment_info when no hosted link is available", () => {

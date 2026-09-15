@@ -123,11 +123,20 @@ describe("VerifyPageClient", () => {
         await requestA.promise;
       });
       expect(screen.queryByText("Perawatan A")).not.toBeInTheDocument();
-      requestB.resolve(voucherResponse("VOUCHER-B", "Perawatan B"));
+      await act(async () => {
+        requestB.resolve(voucherResponse("VOUCHER-B", "Perawatan B"));
+        await requestB.promise;
+      });
     } else {
-      requestB.resolve(voucherResponse("VOUCHER-B", "Perawatan B"));
+      await act(async () => {
+        requestB.resolve(voucherResponse("VOUCHER-B", "Perawatan B"));
+        await requestB.promise;
+      });
       expect(await screen.findByText("Perawatan B")).toBeInTheDocument();
-      requestA.resolve(voucherResponse("VOUCHER-A", "Perawatan A"));
+      await act(async () => {
+        requestA.resolve(voucherResponse("VOUCHER-A", "Perawatan A"));
+        await requestA.promise;
+      });
     }
 
     expect(await screen.findByText("Perawatan B")).toBeInTheDocument();
@@ -156,14 +165,19 @@ describe("VerifyPageClient", () => {
     await user.click(screen.getByRole("button", { name: "Scan B" }));
     expect(firstSignal.aborted).toBe(true);
 
-    requestA.reject(new DOMException("Aborted", "AbortError"));
-    await Promise.resolve();
+    await act(async () => {
+      requestA.reject(new DOMException("Aborted", "AbortError"));
+      await requestA.promise.catch(() => undefined);
+    });
     await user.click(screen.getByRole("button", { name: "Ketik Kode" }));
     expect(screen.getByRole("button", { name: "..." })).toBeDisabled();
     expect(screen.queryByText("Voucher Tidak Ditemukan")).not.toBeInTheDocument();
     expect(consoleError).not.toHaveBeenCalled();
 
-    requestB.resolve(voucherResponse("VOUCHER-B", "Perawatan B"));
+    await act(async () => {
+      requestB.resolve(voucherResponse("VOUCHER-B", "Perawatan B"));
+      await requestB.promise;
+    });
     expect(await screen.findByText("Perawatan B")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cek" })).toBeEnabled();
   });
@@ -173,7 +187,10 @@ describe("VerifyPageClient", () => {
     vi.stubGlobal("fetch", vi.fn().mockReturnValue(request.promise));
 
     render(<VerifyPageClient initialCode="missing-code" />);
-    request.resolve({ ok: false, status: 404 } as Response);
+    await act(async () => {
+      request.resolve({ ok: false, status: 404 } as Response);
+      await request.promise;
+    });
 
     expect(await screen.findByText("Voucher Tidak Ditemukan")).toBeInTheDocument();
     expect(screen.getByText("MISSING-CODE")).toBeInTheDocument();
@@ -192,7 +209,10 @@ describe("VerifyPageClient", () => {
     );
     await user.click(screen.getByRole("button", { name: "Cek" }));
     const failure = new Error("Network unavailable");
-    request.reject(failure);
+    await act(async () => {
+      request.reject(failure);
+      await request.promise.catch(() => undefined);
+    });
 
     expect(await screen.findByText("Voucher Tidak Ditemukan")).toBeInTheDocument();
     expect(consoleError).toHaveBeenCalledWith("Voucher verification failed:", failure);
@@ -211,8 +231,10 @@ describe("VerifyPageClient", () => {
     unmount();
 
     expect(signal.aborted).toBe(true);
-    request.reject(new DOMException("Aborted", "AbortError"));
-    await Promise.resolve();
+    await act(async () => {
+      request.reject(new DOMException("Aborted", "AbortError"));
+      await request.promise.catch(() => undefined);
+    });
     expect(consoleError).not.toHaveBeenCalled();
   });
 });

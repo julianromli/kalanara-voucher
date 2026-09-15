@@ -96,11 +96,20 @@ describe("paginated admin page wiring", () => {
       "@/app/admin/(protected)/vouchers/page"
     );
     const result = (await AdminVouchersPage({
-      searchParams: Promise.resolve({ status: "ACTIVE" }),
+      searchParams: Promise.resolve({
+        page: "3",
+        query: "ayu",
+        status: "ACTIVE",
+      }),
     })) as ReactElement<Record<string, unknown>>;
 
     expect(requireAdminRouteAccessMock).toHaveBeenCalledOnce();
     expect(requireAdminRouteAccessMock).toHaveBeenCalledWith("/admin/vouchers");
+    expect(getVouchersPageMock).toHaveBeenCalledWith({
+      page: 3,
+      query: "ayu",
+      filter: "ACTIVE",
+    });
     expect(result.props).toMatchObject({
       initialPage: emptyPage,
       initialSummary: { active: 3, redeemed: 2, expired: 1 },
@@ -113,11 +122,20 @@ describe("paginated admin page wiring", () => {
       "@/app/admin/(protected)/reviews/page"
     );
     const result = (await AdminReviewsPage({
-      searchParams: Promise.resolve({ rating: "5" }),
+      searchParams: Promise.resolve({
+        page: "2",
+        query: "ramah",
+        rating: "5",
+      }),
     })) as ReactElement<Record<string, unknown>>;
 
     expect(requireAdminRouteAccessMock).toHaveBeenCalledOnce();
     expect(requireAdminRouteAccessMock).toHaveBeenCalledWith("/admin/reviews");
+    expect(getAdminReviewsPageMock).toHaveBeenCalledWith({
+      page: 2,
+      query: "ramah",
+      filter: "5",
+    });
     expect(result.props).toMatchObject({
       initialPage: emptyPage,
       initialFilter: "5",

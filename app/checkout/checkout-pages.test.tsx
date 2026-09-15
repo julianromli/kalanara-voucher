@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { ScalevCheckoutConfig } from "@/lib/scalev/types";
 
 const {
@@ -56,6 +56,10 @@ describe("checkout payment option preloading", () => {
     getScalevCheckoutConfigMock.mockResolvedValue(initialPaymentConfig);
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   test("loads payment config only after confirming the service exists", async () => {
     const { default: CheckoutPage } = await import(
       "@/app/checkout/[id]/page"
@@ -102,9 +106,20 @@ describe("checkout payment option preloading", () => {
     });
 
     const element = await pagePromise;
+    expect(getScalevCheckoutConfigMock).not.toHaveBeenCalled();
+    const fallback = element.props.fallback.type(
+      element.props.fallback.props
+    );
+    expect(fallback.props["aria-label"]).toBe(
+      "Menyiapkan checkout"
+    );
+
+    const providerChild = element.props.children;
+    const checkoutElement = await providerChild.type(providerChild.props);
+
     expect(getScalevCheckoutConfigMock).toHaveBeenCalledTimes(1);
-    expect(element.props.initialPaymentConfig).toEqual(initialPaymentConfig);
-    expect(element.props.service).toEqual(
+    expect(checkoutElement.props.initialPaymentConfig).toEqual(initialPaymentConfig);
+    expect(checkoutElement.props.service).toEqual(
       expect.objectContaining({ id: "service-1" })
     );
   });
@@ -137,17 +152,27 @@ describe("checkout payment option preloading", () => {
       category_relation: null,
       image_url: null,
     });
-    getScalevCheckoutConfigMock.mockRejectedValue(new Error("provider down"));
+    const failure = new Error("provider down");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    getScalevCheckoutConfigMock.mockRejectedValue(failure);
 
     const element = await CheckoutPage({
       params: Promise.resolve({ id: "service-1" }),
     });
+    const providerChild = element.props.children;
+    const checkoutElement = await providerChild.type(providerChild.props);
 
-    expect(element.props.initialPaymentConfig).toEqual({
+    expect(checkoutElement.props.initialPaymentConfig).toEqual({
       availability: "unavailable",
       storeUniqueId: "",
       paymentOptions: [],
     });
+    expect(consoleError).toHaveBeenCalledWith(
+      "[Scalev] Failed to preload single checkout config:",
+      failure
+    );
   });
 
   test("passes the preloaded config to cart checkout", async () => {
@@ -156,23 +181,42 @@ describe("checkout payment option preloading", () => {
     );
 
     const element = await CartCheckoutPage();
+    expect(getScalevCheckoutConfigMock).not.toHaveBeenCalled();
+    const fallback = element.props.fallback.type(
+      element.props.fallback.props
+    );
+    expect(fallback.props["aria-label"]).toBe(
+      "Menyiapkan checkout"
+    );
 
+    const providerChild = element.props.children;
+    const checkoutElement = await providerChild.type(providerChild.props);
     expect(getScalevCheckoutConfigMock).toHaveBeenCalledTimes(1);
-    expect(element.props.initialPaymentConfig).toEqual(initialPaymentConfig);
+    expect(checkoutElement.props.initialPaymentConfig).toEqual(initialPaymentConfig);
   });
 
   test("renders cart checkout with unavailable config when preload fails", async () => {
     const { default: CartCheckoutPage } = await import(
       "@/app/checkout/cart/page"
     );
-    getScalevCheckoutConfigMock.mockRejectedValue(new Error("provider down"));
+    const failure = new Error("provider down");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    getScalevCheckoutConfigMock.mockRejectedValue(failure);
 
     const element = await CartCheckoutPage();
+    const providerChild = element.props.children;
+    const checkoutElement = await providerChild.type(providerChild.props);
 
-    expect(element.props.initialPaymentConfig).toEqual({
+    expect(checkoutElement.props.initialPaymentConfig).toEqual({
       availability: "unavailable",
       storeUniqueId: "",
       paymentOptions: [],
     });
+    expect(consoleError).toHaveBeenCalledWith(
+      "[Scalev] Failed to preload cart checkout config:",
+      failure
+    );
   });
 });

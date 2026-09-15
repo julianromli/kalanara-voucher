@@ -1,5 +1,5 @@
 import { Children, isValidElement } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getAnnouncementSettingsMock } = vi.hoisted(() => ({
   getAnnouncementSettingsMock: vi.fn(),
@@ -17,6 +17,10 @@ import PublicLayout, { PublicNavbar } from "@/app/(public)/layout";
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("PublicLayout", () => {
@@ -38,9 +42,11 @@ describe("PublicLayout", () => {
   });
 
   it("uses safe navbar defaults when announcement settings are unavailable", async () => {
-    getAnnouncementSettingsMock.mockRejectedValue(
-      new Error("database unavailable")
-    );
+    const failure = new Error("database unavailable");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    getAnnouncementSettingsMock.mockRejectedValue(failure);
 
     const navbar = await PublicNavbar();
 
@@ -49,6 +55,10 @@ describe("PublicLayout", () => {
       announcementCountdownEndAt: undefined,
       announcementCountdownEnabled: true,
     });
+    expect(consoleError).toHaveBeenCalledWith(
+      "Error loading announcement settings:",
+      failure
+    );
   });
 
   it("does no settings work while constructing the public layout shell", () => {

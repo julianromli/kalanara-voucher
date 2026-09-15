@@ -18,6 +18,7 @@ import type {
 import { DeliveryMethod, SendTo } from "@/lib/types";
 import {
   buildScalevPublicOrderUrl,
+  sanitizeOrderPaymentUrl,
   sanitizeScalevPublicUrl,
 } from "@/lib/scalev/urls";
 
@@ -221,7 +222,10 @@ export function buildPublicOrderStatus(
     paymentStatus: order.payment_status,
     paymentMethod: order.scalev_payment_method || order.payment_type,
     provider: order.payment_provider,
-    paymentLink: sanitizeScalevPublicUrl(order.payment_link),
+    paymentLink: sanitizeOrderPaymentUrl(
+      order.payment_link,
+      order.payment_provider
+    ),
     paymentInstructions,
     message:
       status === "pending"
@@ -282,7 +286,10 @@ export function buildPublicOrderStatusWithItems(
     paymentStatus: order.payment_status,
     paymentMethod: order.scalev_payment_method || order.payment_type,
     provider: order.payment_provider,
-    paymentLink: sanitizeScalevPublicUrl(order.payment_link),
+    paymentLink: sanitizeOrderPaymentUrl(
+      order.payment_link,
+      order.payment_provider
+    ),
     paymentInstructions,
     message:
       status === "pending"

@@ -407,7 +407,6 @@ export type Database = {
           payment_status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           payment_provider: string;
           payment_provider_event_at: string | null;
-          payment_provider_event_at_is_fallback: boolean;
           payment_state_version: number;
           subtotal_amount: number;
           discount_code_id: string | null;
@@ -452,7 +451,6 @@ export type Database = {
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           payment_provider?: string;
           payment_provider_event_at?: string | null;
-          payment_provider_event_at_is_fallback?: boolean;
           payment_state_version?: number;
           subtotal_amount?: number;
           discount_code_id?: string | null;
@@ -497,7 +495,6 @@ export type Database = {
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           payment_provider?: string;
           payment_provider_event_at?: string | null;
-          payment_provider_event_at_is_fallback?: boolean;
           payment_state_version?: number;
           subtotal_amount?: number;
           discount_code_id?: string | null;
@@ -859,6 +856,10 @@ export type Database = {
         };
         Returns: boolean;
       };
+      finalize_voucher_delivery_handoff_required: {
+        Args: { p_delivery_id: string; p_claim_token: string };
+        Returns: boolean;
+      };
       get_admin_dashboard_aggregates: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -952,7 +953,12 @@ export type Database = {
       payment_status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
       admin_role: "SUPER_ADMIN" | "MANAGER" | "STAFF";
       voucher_delivery_channel: "EMAIL" | "WHATSAPP";
-      voucher_delivery_status: "PENDING" | "PROCESSING" | "SENT" | "FAILED";
+      voucher_delivery_status:
+        | "PENDING"
+        | "PROCESSING"
+        | "SENT"
+        | "FAILED"
+        | "HANDOFF_REQUIRED";
     };
     CompositeTypes: {
       [_ in never]: never;

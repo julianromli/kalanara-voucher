@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { reconcilePublicOrderStatusByInternalOrderId } from "@/lib/scalev/reconcile";
 import {
   getOrderStatusCookieName,
+  isValidOrderStatusSessionId,
   resolveActiveOrderStatusSession,
 } from "@/lib/payment/order-status-sessions";
 
@@ -13,9 +14,6 @@ interface PublicStatusRequest {
 const PRIVATE_NO_STORE_HEADERS = {
   "Cache-Control": "private, no-store",
 };
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as PublicStatusRequest | null;
   const orderId = body?.orderId;
@@ -27,7 +25,7 @@ export async function POST(request: NextRequest) {
   if (
     !orderId ||
     !statusSessionId ||
-    !UUID_PATTERN.test(statusSessionId) ||
+    !isValidOrderStatusSessionId(statusSessionId) ||
     !rawToken
   ) {
     return NextResponse.json(

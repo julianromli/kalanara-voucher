@@ -4,9 +4,12 @@ import {
   SCALEV_PAYMENT_METHODS,
   SCALEV_VA_BANK_CODES,
   type ScalevCheckoutConfig,
+  type ScalevCheckoutAvailabilitySource,
   type ScalevPaymentMethod,
   type ScalevPaymentOption,
   type ScalevVABankCode,
+  isScalevPaymentMethod,
+  isScalevVABankCode,
 } from "@/lib/scalev/types";
 
 const DEFAULT_STORE_UNIQUE_ID = "store_uFfyn8rkIwuwWbHAKVYeRjOi";
@@ -45,11 +48,10 @@ function parsePaymentMethods(value: string | undefined): ScalevPaymentMethod[] {
     return [...SCALEV_PAYMENT_METHODS];
   }
 
-  const allowed = new Set<ScalevPaymentMethod>(SCALEV_PAYMENT_METHODS);
   const parsed = value
     .split(",")
     .map((item) => item.trim().toLowerCase())
-    .filter((item): item is ScalevPaymentMethod => allowed.has(item as ScalevPaymentMethod));
+    .filter(isScalevPaymentMethod);
 
   return parsed.length > 0 ? parsed : [...SCALEV_PAYMENT_METHODS];
 }
@@ -59,11 +61,10 @@ function parseVABanks(value: string | undefined): ScalevVABankCode[] {
     return [...SCALEV_VA_BANK_CODES];
   }
 
-  const allowed = new Set<ScalevVABankCode>(SCALEV_VA_BANK_CODES);
   const parsed = value
     .split(",")
     .map((item) => item.trim().toUpperCase())
-    .filter((item): item is ScalevVABankCode => allowed.has(item as ScalevVABankCode));
+    .filter(isScalevVABankCode);
 
   return parsed.length > 0 ? parsed : [...SCALEV_VA_BANK_CODES];
 }
@@ -72,13 +73,10 @@ function parseDisabledPaymentMethods(
   value: string | undefined
 ): ScalevPaymentMethod[] {
   const source = value ?? "invoice";
-  const allowed = new Set<ScalevPaymentMethod>(SCALEV_PAYMENT_METHODS);
   const parsed = source
     .split(",")
     .map((item) => item.trim().toLowerCase())
-    .filter((item): item is ScalevPaymentMethod =>
-      allowed.has(item as ScalevPaymentMethod)
-    );
+    .filter(isScalevPaymentMethod);
 
   return [...new Set(parsed)];
 }
@@ -132,7 +130,8 @@ function labelForMethod(method: ScalevPaymentMethod): string {
 export function buildCheckoutConfig(
   paymentMethods: ScalevPaymentMethod[],
   subPaymentMethods: ScalevVABankCode[],
-  disabledPaymentMethods: ScalevPaymentMethod[] = []
+  disabledPaymentMethods: ScalevPaymentMethod[] = [],
+  source: ScalevCheckoutAvailabilitySource = "provider"
 ): ScalevCheckoutConfig {
   const options: ScalevPaymentOption[] = paymentMethods.map((method) => ({
     code: method,
@@ -142,12 +141,15 @@ export function buildCheckoutConfig(
   const hasDisabledMethods = disabledPaymentMethods.length > 0;
 
   return {
-    availability: "available",
+    availability: source === "fallback" ? "fallback" : "available",
     storeUniqueId: getScalevConfig().storeUniqueId,
     paymentOptions: options,
     disabledPaymentMethods,
-    paymentNotice: hasDisabledMethods
-      ? "Beberapa metode pembayaran sementara disembunyikan karena kendala provider. Gunakan metode yang tersedia."
-      : undefined,
+    paymentNotice:
+      source === "fallback"
+        ? "Metode pembayaran dari provider belum dapat dimuat. Pilihan konfigurasi cadangan ditampilkan dan akan diperiksa kembali saat kamu melanjutkan pembayaran."
+        : hasDisabledMethods
+          ? "Beberapa metode pembayaran sementara disembunyikan karena kendala provider. Gunakan metode yang tersedia."
+          : undefined,
   };
 }

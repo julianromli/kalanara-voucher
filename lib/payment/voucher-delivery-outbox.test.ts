@@ -105,6 +105,35 @@ describe("voucher delivery outbox persistence", () => {
     });
   });
 
+  test("confirms successful SENT finalization", async () => {
+    const { markVoucherDeliverySent } = await import(
+      "@/lib/payment/voucherDeliveryOutbox"
+    );
+    rpcMock.mockResolvedValue({ data: true, error: null });
+
+    await expect(
+      markVoucherDeliverySent("delivery-1", "claim-1")
+    ).resolves.toBeUndefined();
+  });
+
+  test("finalizes a durable handoff with the immutable claim token", async () => {
+    const { markVoucherDeliveryHandoffRequired } = await import(
+      "@/lib/payment/voucherDeliveryOutbox"
+    );
+    rpcMock.mockResolvedValue({ data: true, error: null });
+
+    await expect(
+      markVoucherDeliveryHandoffRequired("delivery-1", "claim-1")
+    ).resolves.toBeUndefined();
+    expect(rpcMock).toHaveBeenCalledWith(
+      "finalize_voucher_delivery_handoff_required",
+      {
+        p_delivery_id: "delivery-1",
+        p_claim_token: "claim-1",
+      }
+    );
+  });
+
   test("bounds errors and finalizes FAILED atomically with the claim token", async () => {
     const { markVoucherDeliveryFailed } = await import(
       "@/lib/payment/voucherDeliveryOutbox"

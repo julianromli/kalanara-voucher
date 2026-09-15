@@ -26,7 +26,18 @@ export const SCALEV_VA_BANK_CODES = [
 
 export type ScalevPaymentMethod = (typeof SCALEV_PAYMENT_METHODS)[number];
 export type ScalevVABankCode = (typeof SCALEV_VA_BANK_CODES)[number];
+export type ScalevCheckoutAvailabilitySource = "provider" | "fallback";
 export type CheckoutDiscountType = "FIXED_AMOUNT" | "PERCENTAGE";
+
+export function isScalevPaymentMethod(
+  value: string
+): value is ScalevPaymentMethod {
+  return SCALEV_PAYMENT_METHODS.some((method) => method === value);
+}
+
+export function isScalevVABankCode(value: string): value is ScalevVABankCode {
+  return SCALEV_VA_BANK_CODES.some((bankCode) => bankCode === value);
+}
 
 export type ScalevNormalizedPaymentStatus =
   | "PENDING"
@@ -178,6 +189,12 @@ export interface ScalevAvailableCheckoutConfig
   paymentOptions: ScalevPaymentOption[];
 }
 
+export interface ScalevFallbackCheckoutConfig
+  extends ScalevCheckoutConfigBase {
+  availability: "fallback";
+  paymentOptions: ScalevPaymentOption[];
+}
+
 export interface ScalevUnavailableCheckoutConfig
   extends ScalevCheckoutConfigBase {
   availability: "unavailable";
@@ -186,6 +203,7 @@ export interface ScalevUnavailableCheckoutConfig
 
 export type ScalevCheckoutConfig =
   | ScalevAvailableCheckoutConfig
+  | ScalevFallbackCheckoutConfig
   | ScalevUnavailableCheckoutConfig;
 
 export interface ScalevProductVariantInput {

@@ -65,6 +65,10 @@ interface AuthOperation {
   resolution?: Promise<User | null>;
 }
 
+const INITIAL_SESSION_FALLBACK_DELAY_MS = 50;
+const SESSION_LOOKUP_TIMEOUT_MS = 3_000;
+const MAX_SUPERSEDED_LOGIN_EVENTS = 8;
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -139,8 +143,12 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
   const authGenerationRef = useRef(0);
   const authActiveRef = useRef(false);
   const latestAuthOperationRef = useRef<AuthOperation | null>(null);
+  const pendingUserResolutionsRef = useRef(
+    new Map<string, Promise<User | null>>()
+  );
   const [supabase] = useState(createClient);
   const [user, setUser] = useState<User | null>(() => bootstrapUserRef.current);
+  const userRef = useRef<User | null>(bootstrapUserRef.current);
   const [isLoading, setIsLoading] = useState(() => !hasBootstrapUser);
   const isAuthenticated = user?.role != null;
 
@@ -169,24 +177,56 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       return;
     }
 
+    userRef.current = null;
     setUser(null);
     setIsLoading(false);
   }, [isCurrentAuthOperation]);
 
+  const resolveSupabaseUser = useCallback((
+    supabaseUser: SupabaseUser,
+    reusePending = false
+  ) => {
+    if (reusePending) {
+      const pendingResolution = pendingUserResolutionsRef.current.get(
+        supabaseUser.id
+      );
+      if (pendingResolution) {
+        return pendingResolution;
+      }
+    }
+
+    const resolution = extractUserFromSupabaseUser(supabase, supabaseUser);
+    pendingUserResolutionsRef.current.set(supabaseUser.id, resolution);
+    void resolution.finally(() => {
+      if (
+        pendingUserResolutionsRef.current.get(supabaseUser.id) === resolution
+      ) {
+        pendingUserResolutionsRef.current.delete(supabaseUser.id);
+      }
+    });
+    return resolution;
+  }, [supabase]);
+
   const resolveUserForOperation = useCallback(async (
     supabaseUser: SupabaseUser,
-    operation: AuthOperation
+    operation: AuthOperation,
+    reusePending = false
   ): Promise<User | null> => {
-    const resolvedUser = await extractUserFromSupabaseUser(supabase, supabaseUser);
-    const nextUser = resolvedUser ?? bootstrapUserRef.current;
+    const resolvedUser = await resolveSupabaseUser(supabaseUser, reusePending);
+    const bootstrapUserForIdentity =
+      bootstrapUserRef.current?.id === supabaseUser.id
+        ? bootstrapUserRef.current
+        : null;
+    const nextUser = resolvedUser ?? bootstrapUserForIdentity;
 
     if (isCurrentAuthOperation(operation)) {
+      userRef.current = nextUser;
       setUser(nextUser);
       setIsLoading(false);
     }
 
     return nextUser;
-  }, [isCurrentAuthOperation, supabase]);
+  }, [isCurrentAuthOperation, resolveSupabaseUser]);
 
   // Initialize auth state on mount
   useEffect(() => {
@@ -198,43 +238,11 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
 
     authActiveRef.current = true;
 
-    // Get initial session
-    const initializeAuth = async () => {
-      const operation = beginAuthOperation('bootstrap');
-
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (!isCurrentAuthOperation(operation)) {
-          return;
-        }
-
-        if (session?.user) {
-          await resolveUserForOperation(session.user, operation);
-        } else if (!hasBootstrapUser) {
-          setUser(null);
-        }
-      } catch (error) {
-        if (!isCurrentAuthOperation(operation)) {
-          return;
-        }
-
-        // Handle storage access errors gracefully
-        console.error('Error initializing auth:', error);
-        if (!hasBootstrapUser) {
-          setUser(null);
-        }
-      } finally {
-        if (isCurrentAuthOperation(operation)) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void initializeAuth();
-
     // Listen for auth state changes
     let subscription: { unsubscribe: () => void } | null = null;
+    let initialSessionReceived = false;
+    let fallbackTimer: number | null = null;
+    let fallbackTimeout: number | null = null;
     
     try {
       const { data } = supabase.auth.onAuthStateChange(
@@ -244,6 +252,13 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
             event === 'TOKEN_REFRESHED' ||
             event === 'USER_UPDATED';
           const isInitialSession = event === 'INITIAL_SESSION';
+          if (isInitialSession) {
+            initialSessionReceived = true;
+            if (fallbackTimer !== null) {
+              window.clearTimeout(fallbackTimer);
+              fallbackTimer = null;
+            }
+          }
           const operation = beginAuthOperation(
             event === 'SIGNED_OUT'
               ? 'signed-out'
@@ -259,7 +274,11 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
           }
 
           if ((isUserBearingEvent || isInitialSession) && session?.user) {
-            operation.resolution = resolveUserForOperation(session.user, operation);
+            operation.resolution = resolveUserForOperation(
+              session.user,
+              operation,
+              isInitialSession
+            );
             void operation.resolution;
             return;
           }
@@ -277,10 +296,67 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       console.error('Error setting up auth listener:', error);
     }
 
+    const initializeFromSessionFallback = async () => {
+      if (initialSessionReceived) {
+        return;
+      }
+
+      const operation = beginAuthOperation('bootstrap');
+      fallbackTimeout = window.setTimeout(() => {
+        if (isCurrentAuthOperation(operation)) {
+          setIsLoading(false);
+        }
+      }, SESSION_LOOKUP_TIMEOUT_MS);
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!isCurrentAuthOperation(operation)) {
+          return;
+        }
+
+        if (session?.user) {
+          await resolveUserForOperation(session.user, operation, true);
+        } else if (!hasBootstrapUser) {
+          userRef.current = null;
+          setUser(null);
+        }
+      } catch (error) {
+        if (!isCurrentAuthOperation(operation)) {
+          return;
+        }
+
+        console.error('Error initializing auth:', error);
+        if (!hasBootstrapUser) {
+          userRef.current = null;
+          setUser(null);
+        }
+      } finally {
+        if (fallbackTimeout !== null) {
+          window.clearTimeout(fallbackTimeout);
+          fallbackTimeout = null;
+        }
+        if (isCurrentAuthOperation(operation)) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fallbackTimer = window.setTimeout(() => {
+      fallbackTimer = null;
+      void initializeFromSessionFallback();
+    }, INITIAL_SESSION_FALLBACK_DELAY_MS);
+
     // Cleanup subscription on unmount
     return () => {
       authActiveRef.current = false;
       beginAuthOperation('cleanup');
+      if (fallbackTimer !== null) {
+        window.clearTimeout(fallbackTimer);
+      }
+      if (fallbackTimeout !== null) {
+        window.clearTimeout(fallbackTimeout);
+      }
       subscription?.unsubscribe();
     };
   }, [
@@ -314,26 +390,28 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       };
     };
 
-    const resultFromNewerOperation = async (
-      userId: string
-    ): Promise<LoginResult> => {
-      const latestOperation = latestAuthOperationRef.current;
-
-      if (
-        latestOperation?.kind !== 'user-event' ||
-        latestOperation.userId !== userId ||
-        !latestOperation.resolution
+    const resultFromNewerOperation = async (): Promise<LoginResult> => {
+      for (
+        let attempt = 0;
+        attempt < MAX_SUPERSEDED_LOGIN_EVENTS;
+        attempt += 1
       ) {
-        return canceledResult;
+        const latestOperation = latestAuthOperationRef.current;
+
+        if (
+          latestOperation?.kind !== 'user-event' ||
+          !latestOperation.resolution
+        ) {
+          return userRef.current?.role ? { success: true } : canceledResult;
+        }
+
+        const resolvedUser = await latestOperation.resolution;
+        if (isCurrentAuthOperation(latestOperation)) {
+          return resolvedUser ? { success: true } : rejectAdminLogin();
+        }
       }
 
-      const resolvedUser = await latestOperation.resolution;
-
-      if (!isCurrentAuthOperation(latestOperation)) {
-        return canceledResult;
-      }
-
-      return resolvedUser ? { success: true } : rejectAdminLogin();
+      return userRef.current?.role ? { success: true } : canceledResult;
     };
 
     try {
@@ -343,9 +421,7 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       });
 
       if (!isCurrentAuthOperation(operation)) {
-        return data.user
-          ? resultFromNewerOperation(data.user.id)
-          : canceledResult;
+        return resultFromNewerOperation();
       }
 
       if (error) {
@@ -356,16 +432,17 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       }
 
       if (data.user) {
-        const resolvedUser = await extractUserFromSupabaseUser(supabase, data.user);
+        const resolvedUser = await resolveSupabaseUser(data.user);
 
         if (!isCurrentAuthOperation(operation)) {
-          return resultFromNewerOperation(data.user.id);
+          return resultFromNewerOperation();
         }
 
         if (!resolvedUser) {
           return rejectAdminLogin();
         }
 
+        userRef.current = resolvedUser;
         setUser(resolvedUser);
         return { success: true }; 
       }
@@ -385,6 +462,7 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
     beginAuthOperation,
     commitSignedOut,
     isCurrentAuthOperation,
+    resolveSupabaseUser,
     supabase,
   ]);
 

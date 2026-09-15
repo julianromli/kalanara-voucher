@@ -41,6 +41,10 @@ export function getOrderStatusCookieName(sessionId: string): string {
   return `__Host-kalanara-status-${sessionId}`;
 }
 
+export function isValidOrderStatusSessionId(sessionId: string): boolean {
+  return UUID_PATTERN.test(sessionId);
+}
+
 export async function deleteExpiredOrderStatusSessions(
   now = new Date()
 ): Promise<void> {
@@ -100,7 +104,7 @@ export async function resolveActiveOrderStatusSession({
   rawToken,
   now = new Date(),
 }: ResolveActiveOrderStatusSessionInput): Promise<ActiveOrderStatusSession | null> {
-  if (!UUID_PATTERN.test(sessionId)) {
+  if (!isValidOrderStatusSessionId(sessionId)) {
     return null;
   }
 
