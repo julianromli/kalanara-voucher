@@ -15,6 +15,7 @@ import type {
   OrderWithItems,
   OrderWithVoucher,
 } from "@/lib/database.types";
+import { sortOrderItems } from "@/lib/orderItems";
 import { DeliveryMethod, SendTo } from "@/lib/types";
 import {
   buildScalevPublicOrderUrl,
@@ -260,12 +261,7 @@ export function buildPublicOrderStatusWithItems(
   order: OrderWithItems,
   paymentInstructions?: PublicOrderPaymentInstructions
 ): PublicOrderStatusPayload {
-  const orderedItems = [...order.order_items].sort(
-    (left, right) =>
-      left.sort_order - right.sort_order ||
-      left.created_at.localeCompare(right.created_at) ||
-      left.id.localeCompare(right.id)
-  );
+  const orderedItems = sortOrderItems(order.order_items);
   const vouchers = orderedItems
     .map((item) => buildVoucherPayloadFromOrderItem(order, item))
     .filter((item): item is PublicOrderVoucherPayload => Boolean(item));

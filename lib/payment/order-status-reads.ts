@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getAdminClient } from "@/lib/supabase/admin";
+import { sortOrderItems } from "@/lib/orderItems";
 import type {
   OrderWithItems,
   OrderWithService,
@@ -63,5 +64,13 @@ export async function getOrderStatusDetailsWithItemsById(
     throwOrderStatusReadError(error);
   }
 
-  return data as OrderWithItems | null;
+  if (!data) {
+    return null;
+  }
+
+  const order = data as OrderWithItems;
+  return {
+    ...order,
+    order_items: sortOrderItems(order.order_items),
+  };
 }
