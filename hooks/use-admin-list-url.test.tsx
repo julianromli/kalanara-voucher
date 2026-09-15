@@ -46,9 +46,6 @@ describe("useAdminListUrl", () => {
     vi.useFakeTimers();
     mocks.replace.mockReset();
     mocks.search = "";
-    mocks.replace.mockImplementation((url: string) => {
-      mocks.search = url.split("?")[1] ?? "";
-    });
   });
 
   afterEach(() => {
@@ -56,11 +53,14 @@ describe("useAdminListUrl", () => {
   });
 
   it("preserves a local filter change when pagination happens before navigation settles", () => {
-    render(<HookProbe />);
+    const { rerender } = render(<HookProbe />);
 
     fireEvent.change(screen.getByLabelText("Status"), {
       target: { value: "PENDING" },
     });
+
+    expect(mocks.search).toBe("");
+    rerender(<HookProbe />);
     fireEvent.click(screen.getByRole("button", { name: "Page 2" }));
 
     expect(mocks.replace).toHaveBeenLastCalledWith(
@@ -88,5 +88,46 @@ describe("useAdminListUrl", () => {
     });
     expect(mocks.replace).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText("Query")).toHaveValue("  pelanggan baru  ");
+  });
+
+  it("accepts later URL filter changes after the local filter settles", () => {
+    const { rerender } = render(<HookProbe />);
+
+    fireEvent.change(screen.getByLabelText("Status"), {
+      target: { value: "PENDING" },
+    });
+
+    mocks.search = "status=PENDING";
+    rerender(<HookProbe />);
+    mocks.search = "";
+    rerender(<HookProbe />);
+    fireEvent.click(screen.getByRole("button", { name: "Page 2" }));
+
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      "/admin/purchases?page=2",
+      { scroll: false }
+    );
+  });
+
+  it("accepts later URL query changes after the canonical local query settles", () => {
+    const { rerender } = render(<HookProbe />);
+
+    fireEvent.change(screen.getByLabelText("Query"), {
+      target: { value: "  pelanggan baru  " },
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    mocks.search = "query=pelanggan+baru";
+    rerender(<HookProbe />);
+    mocks.search = "query=pelanggan+lama";
+    rerender(<HookProbe />);
+    fireEvent.click(screen.getByRole("button", { name: "Page 2" }));
+
+    expect(mocks.replace).toHaveBeenLastCalledWith(
+      "/admin/purchases?query=pelanggan+lama&page=2",
+      { scroll: false }
+    );
   });
 });

@@ -3,6 +3,8 @@ import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { useEffect } from "react";
 import {
   AuthProvider,
+  INITIAL_SESSION_FALLBACK_DELAY_MS,
+  SESSION_LOOKUP_TIMEOUT_MS,
   type LoginResult,
   useAuth,
 } from "@/context/AuthContext";
@@ -227,7 +229,9 @@ describe("AuthProvider", () => {
     expect(screen.getByTestId("loading")).toHaveTextContent("true");
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(3_050);
+      await vi.advanceTimersByTimeAsync(
+        INITIAL_SESSION_FALLBACK_DELAY_MS + SESSION_LOOKUP_TIMEOUT_MS
+      );
     });
 
     expect(mocks.getSession).toHaveBeenCalledTimes(1);

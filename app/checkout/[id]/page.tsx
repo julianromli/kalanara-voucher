@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { CheckoutPageClient } from "@/app/checkout/[id]/checkout-page-client";
-import { CheckoutLoadingSkeleton } from "@/app/checkout/checkout-loading-skeleton";
+import { CheckoutLoadingSkeleton } from "@/app/checkout/[id]/loading";
 import { getServiceById } from "@/lib/actions/services";
 import {
   getScalevCheckoutConfig,

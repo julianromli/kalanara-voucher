@@ -136,9 +136,16 @@ export async function syncActiveServicesToScalev() {
         await ensureScalevServiceMapping(service);
         return { serviceId: service.id, success: true as const };
       } catch (error) {
-        await updateServiceScalevMapping(service.id, {
-          scalev_sync_status: "failed",
-        });
+        try {
+          await updateServiceScalevMapping(service.id, {
+            scalev_sync_status: "failed",
+          });
+        } catch (mappingError) {
+          console.error(
+            `[Scalev] Failed to mark service ${service.id} sync as failed:`,
+            mappingError
+          );
+        }
 
         return {
           serviceId: service.id,

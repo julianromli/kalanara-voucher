@@ -30,7 +30,10 @@ vi.mock("@/lib/scalev/serviceWrites", () => ({
   updateServiceScalevMapping: serviceActionMocks.updateServiceScalevMappingMock,
 }));
 
-import { ensureScalevServiceMapping } from "@/lib/scalev/catalog-sync";
+import {
+  ensureScalevServiceMapping,
+  syncActiveServicesToScalev,
+} from "@/lib/scalev/catalog-sync";
 
 type Service = Database["public"]["Tables"]["services"]["Row"];
 
@@ -123,6 +126,45 @@ describe("ensureScalevServiceMapping", () => {
         description: longDescription.slice(0, SCALEV_PRODUCT_DESCRIPTION_MAX_LENGTH),
         richDescription: longDescription.slice(0, SCALEV_PRODUCT_DESCRIPTION_MAX_LENGTH),
       })
+    );
+  });
+});
+
+describe("syncActiveServicesToScalev", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns a per-service failure when persisting the failure marker also fails", async () => {
+    const service = createService();
+    const syncError = new Error("Scalev unavailable");
+    const markerError = new Error("Database unavailable");
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    serviceActionMocks.getActiveServicesForScalevSyncMock.mockResolvedValue([
+      service,
+    ]);
+    scalevMocks.listScalevProductsMock.mockRejectedValue(syncError);
+    serviceActionMocks.updateServiceScalevMappingMock.mockRejectedValue(
+      markerError
+    );
+
+    await expect(syncActiveServicesToScalev()).resolves.toEqual([
+      {
+        serviceId: service.id,
+        success: false,
+        error: syncError.message,
+      },
+    ]);
+    expect(serviceActionMocks.updateServiceScalevMappingMock).toHaveBeenCalledWith(
+      service.id,
+      { scalev_sync_status: "failed" }
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      `[Scalev] Failed to mark service ${service.id} sync as failed:`,
+      markerError
     );
   });
 });

@@ -65,8 +65,8 @@ interface AuthOperation {
   resolution?: Promise<User | null>;
 }
 
-const INITIAL_SESSION_FALLBACK_DELAY_MS = 50;
-const SESSION_LOOKUP_TIMEOUT_MS = 3_000;
+export const INITIAL_SESSION_FALLBACK_DELAY_MS = 50;
+export const SESSION_LOOKUP_TIMEOUT_MS = 3_000;
 const MAX_SUPERSEDED_LOGIN_EVENTS = 8;
 
 // ============================================================================

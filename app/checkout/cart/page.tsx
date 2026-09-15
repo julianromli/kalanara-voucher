@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { CartCheckoutClient } from "@/app/checkout/cart/cart-checkout-client";
-import { CheckoutLoadingSkeleton } from "@/app/checkout/checkout-loading-skeleton";
+import { CheckoutLoadingSkeleton } from "@/app/checkout/[id]/loading";
 import {
   getScalevCheckoutConfig,
   getUnavailableScalevCheckoutConfig,

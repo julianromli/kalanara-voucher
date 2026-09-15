@@ -29,12 +29,23 @@ export function useAdminListUrl({
 
   useEffect(() => {
     const settledParams = new URLSearchParams(serializedSearchParams);
+    const settledQuery = settledParams.get("query") ?? "";
+    const settledFilter = settledParams.get(filterParam) ?? "ALL";
     urlParamsStringRef.current = serializedSearchParams;
-    if (!hasLocalQueryEditRef.current) {
-      queryRef.current = settledParams.get("query") ?? "";
+    if (hasLocalQueryEditRef.current) {
+      const canonicalLocalQuery = queryRef.current.trim().slice(0, 100);
+      if (settledQuery === canonicalLocalQuery) {
+        hasLocalQueryEditRef.current = false;
+      }
+    } else {
+      queryRef.current = settledQuery;
     }
-    if (!hasLocalFilterEditRef.current) {
-      filterRef.current = settledParams.get(filterParam) ?? "ALL";
+    if (hasLocalFilterEditRef.current) {
+      if (settledFilter === filterRef.current) {
+        hasLocalFilterEditRef.current = false;
+      }
+    } else {
+      filterRef.current = settledFilter;
     }
   }, [filterParam, serializedSearchParams]);
 

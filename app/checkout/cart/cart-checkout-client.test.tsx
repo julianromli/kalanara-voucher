@@ -80,6 +80,8 @@ describe("CartCheckoutClient", () => {
   });
 
   test("labels configured fallback payment options for the customer", async () => {
+    const user = userEvent.setup();
+
     renderCheckout({
       ...initialPaymentConfig,
       availability: "fallback",
@@ -90,6 +92,10 @@ describe("CartCheckoutClient", () => {
     expect(
       await screen.findByText(/Pilihan konfigurasi cadangan ditampilkan/)
     ).toBeInTheDocument();
+    const fallbackQris = screen.getByRole("radio", { name: /^QRIS/ });
+    expect(fallbackQris).toBeEnabled();
+    await user.click(fallbackQris);
+    expect(fallbackQris).toBeChecked();
     screen
       .getAllByRole("button", { name: "Lanjut ke Pembayaran" })
       .forEach((button) => expect(button).toBeEnabled());

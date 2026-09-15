@@ -84,6 +84,21 @@ describe("buildPaymentSnapshot", () => {
     );
   });
 
+  it("prefers an allowed direct payment_link over secret_slug", () => {
+    const snapshot = buildPaymentSnapshot(
+      {
+        payment_status: "pending",
+        payment_link: "https://app.scalev.id/pay/direct-checkout",
+        secret_slug: "fallback-secret",
+      },
+      null
+    );
+
+    expect(snapshot.paymentLink).toBe(
+      "https://app.scalev.id/pay/direct-checkout"
+    );
+  });
+
   it("rejects a Scalev payment_link outside checkout paths and uses secret_slug", () => {
     const snapshot = buildPaymentSnapshot(
       {
