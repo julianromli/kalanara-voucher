@@ -1,7 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { CartCheckoutClient } from "@/app/checkout/cart/cart-checkout-client";
 import { ToastProvider } from "@/context/ToastContext";
+import type { ScalevCheckoutConfig } from "@/lib/scalev/types";
 import { useCartStore } from "@/store/cart-store";
 
 const push = vi.fn();
@@ -14,10 +16,18 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-function renderCheckout() {
+const initialPaymentConfig: ScalevCheckoutConfig = {
+  availability: "available",
+  storeUniqueId: "store-123",
+  paymentOptions: [{ code: "qris", label: "QRIS" }],
+};
+
+function renderCheckout(
+  paymentConfig: ScalevCheckoutConfig = initialPaymentConfig
+) {
   render(
     <ToastProvider>
-      <CartCheckoutClient />
+      <CartCheckoutClient initialPaymentConfig={paymentConfig} />
     </ToastProvider>
   );
 }
@@ -56,20 +66,122 @@ describe("CartCheckoutClient", () => {
     });
   });
 
-  test("collapses secondary vouchers into summaries and restores editable fields on toggle off", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          success: true,
-          config: {
-            paymentNotice: null,
-            paymentOptions: [{ code: "qris", label: "QRIS" }],
-          },
-        }),
-      })
+  test("renders preloaded payment options without a mount-time request", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderCheckout();
+
+    expect(await screen.findByText("QRIS")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Sedang menyiapkan metode pembayaran...")
+    ).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("labels configured fallback payment options for the customer", async () => {
+    const user = userEvent.setup();
+
+    renderCheckout({
+      ...initialPaymentConfig,
+      availability: "fallback",
+      paymentNotice:
+        "Metode pembayaran dari provider belum dapat dimuat. Pilihan konfigurasi cadangan ditampilkan dan akan diperiksa kembali saat kamu melanjutkan pembayaran.",
+    });
+
+    expect(
+      await screen.findByText(/Pilihan konfigurasi cadangan ditampilkan/)
+    ).toBeInTheDocument();
+    const fallbackQris = screen.getByRole("radio", { name: /^QRIS/ });
+    expect(fallbackQris).toBeEnabled();
+    await user.click(fallbackQris);
+    expect(fallbackQris).toBeChecked();
+    screen
+      .getAllByRole("button", { name: "Lanjut ke Pembayaran" })
+      .forEach((button) => expect(button).toBeEnabled());
+  });
+
+  test("shows loading and requests payment options when retrying an empty preload", async () => {
+    let resolveRetry:
+      | ((response: {
+          ok: boolean;
+          json: () => Promise<{
+            success: boolean;
+            config: ScalevCheckoutConfig;
+          }>;
+        }) => void)
+      | undefined;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveRetry = resolve;
+        })
     );
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderCheckout({
+      availability: "unavailable",
+      storeUniqueId: "store-123",
+      paymentOptions: [],
+    });
+
+    expect(
+      await screen.findByText("Metode pembayaran sedang tidak tersedia.")
+    ).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Coba Muat Ulang" }));
+
+    expect(
+      screen.getByText("Sedang menyiapkan metode pembayaran...")
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Coba Muat Ulang" })
+    ).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/scalev/payment-options", {
+      cache: "no-store",
+    });
+
+    resolveRetry?.({
+      ok: true,
+      json: async () => ({
+        success: true,
+        config: initialPaymentConfig,
+      }),
+    });
+
+    expect(await screen.findByText("QRIS")).toBeInTheDocument();
+  });
+
+  test("preserves explicit retry after a failed payment-options request", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ success: false }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderCheckout({
+      availability: "unavailable",
+      storeUniqueId: "store-123",
+      paymentOptions: [],
+    });
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Coba Muat Ulang" })
+    );
+
+    expect(
+      await screen.findByText("Gagal memuat metode pembayaran. Coba muat ulang.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Coba Muat Ulang" })
+    ).toBeEnabled();
+  });
+
+  test("collapses secondary vouchers into summaries and restores editable fields on toggle off", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
 
     renderCheckout();
 
@@ -104,6 +216,105 @@ describe("CartCheckoutClient", () => {
     expect(screen.getAllByDisplayValue("0812 9999 0000")).toHaveLength(2);
   });
 
+  test("associates cart labels with unique stable item controls and supports keyboard radios", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", vi.fn());
+
+    renderCheckout({
+      availability: "available",
+      storeUniqueId: "store-123",
+      paymentOptions: [
+        { code: "qris", label: "QRIS" },
+        { code: "va", label: "Virtual Account", subMethods: ["BCA", "BNI"] },
+      ],
+    });
+
+    expect(await screen.findByText("QRIS")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nama Lengkap")).toHaveAttribute(
+      "id",
+      "cart-customer-name"
+    );
+    expect(screen.getByLabelText("Email", { selector: "#cart-customer-email" })).toHaveAttribute(
+      "id",
+      "cart-customer-email"
+    );
+    expect(screen.getByLabelText("WhatsApp", { selector: "#cart-customer-phone" })).toHaveAttribute(
+      "id",
+      "cart-customer-phone"
+    );
+
+    const recipientNames = screen.getAllByLabelText("Nama Penerima");
+    const senderMessages = screen.getAllByLabelText("Pesan untuk Penerima");
+    const recipientPhones = screen.getAllByLabelText("WhatsApp Penerima");
+    expect(recipientNames).toHaveLength(2);
+    expect(senderMessages).toHaveLength(2);
+    expect(recipientPhones).toHaveLength(2);
+
+    const repeatedIds = [
+      ...recipientNames,
+      ...senderMessages,
+      ...recipientPhones,
+    ].map((control) => control.id);
+    expect(new Set(repeatedIds).size).toBe(repeatedIds.length);
+    expect(repeatedIds.every((id) => id.startsWith("cart-voucher-"))).toBe(true);
+    const ids = Array.from(document.querySelectorAll("[id]"), (element) => element.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const label of document.querySelectorAll("label")) {
+      expect(label.htmlFor).not.toBe("");
+      expect(document.getElementById(label.htmlFor)).not.toBeNull();
+    }
+    for (const control of document.querySelectorAll("[aria-describedby]")) {
+      for (const descriptionId of control.getAttribute("aria-describedby")!.split(" ")) {
+        expect(document.getElementById(descriptionId)).not.toBeNull();
+      }
+    }
+    for (const radio of document.querySelectorAll('input[type="radio"].sr-only')) {
+      expect(radio.closest("label")?.className).toMatch(
+        /\bfocus(?:-visible|-within)?:/
+      );
+    }
+
+    const secondRecipientRadio = screen.getAllByRole("radio", { name: "Saya" })[1];
+    const secondRecipientCard = secondRecipientRadio.closest("label");
+    expect(secondRecipientCard).toHaveAttribute("for", secondRecipientRadio.id);
+    expect(secondRecipientCard?.className).toMatch(
+      /\bfocus(?:-visible|-within)?:/
+    );
+
+    secondRecipientRadio.focus();
+    await user.keyboard("[Space]");
+    expect(secondRecipientRadio).toBeChecked();
+
+    const firstEmailDelivery = screen.getAllByRole("radio", { name: "Email" })[0];
+    firstEmailDelivery.focus();
+    await user.keyboard("[Space]");
+    expect(firstEmailDelivery).toBeChecked();
+    expect(await screen.findAllByLabelText("Email Penerima")).toHaveLength(1);
+
+    const vaPayment = screen.getByRole("radio", { name: /^Virtual Account/ });
+    expect(vaPayment).toHaveAttribute("id", "cart-payment-va");
+    await user.click(vaPayment);
+    expect(screen.getByLabelText("Bank Virtual Account")).toHaveAttribute(
+      "id",
+      "cart-va-bank"
+    );
+
+    await user.click(screen.getAllByRole("button", { name: "Lanjut ke Pembayaran" })[0]);
+
+    const firstRecipientName = recipientNames[0];
+    await waitFor(() =>
+      expect(firstRecipientName).toHaveAttribute("aria-invalid", "true")
+    );
+    expect(firstRecipientName).toHaveAttribute(
+      "aria-describedby",
+      `${firstRecipientName.id}-error`
+    );
+    expect(document.getElementById(`${firstRecipientName.id}-error`)).toHaveTextContent(
+      "Nama penerima wajib diisi"
+    );
+    expect(screen.getByLabelText("Nama Lengkap")).toHaveFocus();
+  });
+
   test("keeps cart items and starts a recoverable pending checkout", async () => {
     const popup = {
       close: vi.fn(),
@@ -121,19 +332,9 @@ describe("CartCheckoutClient", () => {
         ok: true,
         json: async () => ({
           success: true,
-          config: {
-            paymentNotice: null,
-            paymentOptions: [{ code: "qris", label: "QRIS" }],
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
           paymentLink: "https://app.scalev.id/order/public/secret-token",
           paymentOrderId: "KSP-123",
-          publicAccessToken: "public-token",
+          statusSessionId: "status-session-1",
         }),
       });
 
@@ -174,10 +375,10 @@ describe("CartCheckoutClient", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Lanjut ke Pembayaran" })[0]);
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    const createPaymentCall = fetchMock.mock.calls[1];
+    const createPaymentCall = fetchMock.mock.calls[0];
     const requestBody = JSON.parse(createPaymentCall?.[1]?.body as string) as {
       lineItems: Array<{ recipientName: string; recipientPhone?: string }>;
     };
@@ -195,7 +396,7 @@ describe("CartCheckoutClient", () => {
 
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith(
-        "/checkout/success?order_id=KSP-123&token=public-token"
+        "/checkout/success?order_id=KSP-123&status_session_id=status-session-1"
       );
     });
 

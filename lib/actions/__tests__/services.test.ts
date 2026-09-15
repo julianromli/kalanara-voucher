@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   createClientMock,
@@ -65,9 +65,10 @@ import {
   getServices,
   setServiceActiveState,
   updateService,
-  updateServiceScalevMapping,
 } from "@/lib/actions/services";
+import { updateServiceScalevMapping } from "@/lib/scalev/serviceWrites";
 import { AdminPermission, hasPermissionForRole } from "@/lib/auth/admin-rbac";
+import { PUBLIC_SERVICES_CACHE_TAG } from "@/lib/cache-tags";
 
 const joinedSelect = "*, category_relation:service_categories!category_id(*)";
 const baseSelect = "*";
@@ -216,6 +217,16 @@ beforeEach(() => {
 });
 
 describe("service actions", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("does not expose Scalev mapping writes as Server Actions", async () => {
+    const serviceActions = await import("@/lib/actions/services");
+
+    expect(serviceActions).not.toHaveProperty("updateServiceScalevMapping");
+  });
+
   it("grants service creation and image permissions only to super admins", () => {
     expect(hasPermissionForRole("SUPER_ADMIN", AdminPermission.SERVICES_CREATE)).toBe(true);
     expect(hasPermissionForRole("SUPER_ADMIN", AdminPermission.SERVICE_IMAGES_MANAGE)).toBe(true);
@@ -229,6 +240,23 @@ describe("service actions", () => {
     expect(servicesSelectMock).toHaveBeenCalledWith(joinedSelect);
     expect(servicesEqMock).toHaveBeenCalledWith("is_active", true);
     expect(result[0]?.category_relation).toEqual(categoryRow);
+  });
+
+  it("preserves the empty public action fallback when service reads fail", async () => {
+    const databaseError = { message: "database unavailable" };
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    servicesOrderMock.mockResolvedValueOnce({
+      data: null,
+      error: databaseError,
+    });
+
+    await expect(getServices()).resolves.toEqual([]);
+    expect(consoleError).toHaveBeenCalledWith(
+      "Error fetching services:",
+      databaseError
+    );
   });
 
   it("requires services manage permission for admin service reads", async () => {
@@ -298,6 +326,10 @@ describe("service actions", () => {
       expect.objectContaining({ action: "service.create" })
     );
     expect(revalidateTagMock).toHaveBeenCalledWith("dashboard-stats", "max");
+    expect(revalidateTagMock).toHaveBeenCalledWith(
+      PUBLIC_SERVICES_CACHE_TAG,
+      "max"
+    );
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/services", "page");
     expect(revalidatePathMock).toHaveBeenCalledWith("/", "page");
     expect(revalidatePathMock).toHaveBeenCalledWith("/checkout/[id]", "page");
@@ -376,6 +408,34 @@ describe("service actions", () => {
         category_relation: categoryRow,
       }),
     ]);
+  });
+
+  it("preserves services with null categories when fallback category reads fail", async () => {
+    const categoryError = { message: "category database unavailable" };
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    servicesOrderMock
+      .mockResolvedValueOnce({ data: null, error: pgrst200Error })
+      .mockResolvedValueOnce({
+        data: [serviceRow],
+        error: null,
+      });
+    serviceCategoriesInMock.mockResolvedValueOnce({
+      data: null,
+      error: categoryError,
+    });
+
+    await expect(getServices()).resolves.toEqual([
+      expect.objectContaining({
+        id: "service-1",
+        category_relation: null,
+      }),
+    ]);
+    expect(consoleError).toHaveBeenCalledWith(
+      "Error fetching service categories:",
+      categoryError
+    );
   });
 
   it("falls back to stitched category data for service detail reads on PGRST200", async () => {

@@ -54,10 +54,10 @@ function SuccessContent() {
   const router = useRouter();
   const { showToast } = useToast();
   const orderId = searchParams.get("order_id");
-  const token = searchParams.get("token");
+  const statusSessionId = searchParams.get("status_session_id");
   const completePendingCheckout = useCartStore((state) => state.completePendingCheckout);
   const clearPendingCheckout = useCartStore((state) => state.clearPendingCheckout);
-  const hasValidAccessLink = Boolean(orderId && token);
+  const hasValidAccessLink = Boolean(orderId && statusSessionId);
 
   const [payload, setPayload] = useState<PublicOrderStatusPayload | null>(null);
   const [isLoading, setIsLoading] = useState(hasValidAccessLink);
@@ -78,15 +78,16 @@ function SuccessContent() {
   const isMultiVoucher = vouchers.length > 1;
 
   const fetchStatus = useCallback(async () => {
-    if (!orderId || !token) {
+    if (!orderId || !statusSessionId) {
       throw new Error(INVALID_LINK_MESSAGE);
     }
 
     const response = await fetch("/api/orders/public-status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
       cache: "no-store",
-      body: JSON.stringify({ orderId, token }),
+      body: JSON.stringify({ orderId, statusSessionId }),
     });
 
     if (!response.ok) {
@@ -94,7 +95,7 @@ function SuccessContent() {
     }
 
     return (await response.json()) as PublicOrderStatusPayload;
-  }, [orderId, token]);
+  }, [orderId, statusSessionId]);
 
   useEffect(() => {
     if (!hasValidAccessLink) {

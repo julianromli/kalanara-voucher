@@ -1,29 +1,44 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DashboardHeader } from "@/components/admin/dashboard-header";
-import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/context/ToastContext";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { StarIcon } from "@hugeicons/core-free-icons";
-import { deleteReview } from "@/lib/actions/reviews";
-import type { Review } from "@/lib/database.types";
+import { AdminListPagination } from "@/components/admin/admin-list-pagination";
+import { DashboardHeader } from "@/components/admin/dashboard-header";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
+import { useAdminListUrl } from "@/hooks/use-admin-list-url";
+import type { AdminPage } from "@/lib/actions/admin-pagination";
+import {
+  deleteReview,
+  type ReviewAdminListRow,
+} from "@/lib/actions/reviews";
+import { cn } from "@/lib/utils";
 
 interface ReviewsClientProps {
-  initialReviews: Review[];
+  initialPage: AdminPage<ReviewAdminListRow>;
 }
 
-export function ReviewsClient({ initialReviews }: ReviewsClientProps) {
+export function ReviewsClient({
+  initialPage,
+}: ReviewsClientProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
-  const [reviews, setReviews] = useState(initialReviews);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [ratingFilter, setRatingFilter] = useState("ALL");
+  const [reviews, setReviews] = useState(initialPage.rows);
+  const {
+    query: searchQuery,
+    setQuery: setSearchQuery,
+    filter: ratingFilter,
+    setFilter: setRatingFilter,
+    setPage,
+  } = useAdminListUrl({
+    filterParam: "rating",
+  });
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -31,24 +46,26 @@ export function ReviewsClient({ initialReviews }: ReviewsClientProps) {
     }
   }, [authLoading, isAuthenticated, router]);
 
-  const filteredReviews = reviews.filter((review) => {
-    const matchesSearch = 
-      review.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (review.comment && review.comment.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesRating = ratingFilter === "ALL" || review.rating.toString() === ratingFilter;
-    return matchesSearch && matchesRating;
-  });
+  useEffect(() => {
+    setReviews(initialPage.rows);
+  }, [initialPage.rows]);
 
   const handleDeleteReview = async (reviewId: string) => {
-    const previousReviews = [...reviews];
-    setReviews(reviews.filter(r => r.id !== reviewId));
+    const previousReviews = reviews;
+    setReviews((currentReviews) =>
+      currentReviews.filter((review) => review.id !== reviewId),
+    );
 
     try {
       const success = await deleteReview(reviewId);
-      if (success) {
-        showToast("Review deleted successfully", "success");
-      } else {
+      if (!success) {
         throw new Error("Failed to delete");
+      }
+
+      showToast("Review deleted successfully", "success");
+      router.refresh();
+      if (reviews.length === 1 && initialPage.page > 1) {
+        setPage(initialPage.page - 1);
       }
     } catch {
       setReviews(previousReviews);
@@ -63,26 +80,24 @@ export function ReviewsClient({ initialReviews }: ReviewsClientProps) {
   return (
     <>
       <DashboardHeader title="Reviews Management" showActions={false} />
-      <div className="w-full overflow-y-auto overflow-x-hidden p-4 md:p-6 h-full">
+      <div className="h-full w-full overflow-x-hidden overflow-y-auto p-4 md:p-6">
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <p className="text-muted-foreground text-sm">
-              Moderate customer reviews and feedback
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Moderate customer reviews and feedback
+          </p>
 
-          <div className="bg-card rounded-2xl shadow-spa border border-border p-4">
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-spa">
+            <div className="mb-6 flex flex-col gap-4 md:flex-row">
               <Input
                 placeholder="Search reviews..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(event) => setSearchQuery(event.target.value)}
                 className="flex-1"
               />
               <select
                 value={ratingFilter}
-                onChange={(e) => setRatingFilter(e.target.value)}
-                className="px-3 py-2 border border-border rounded-lg"
+                onChange={(event) => setRatingFilter(event.target.value)}
+                className="rounded-lg border border-border px-3 py-2"
               >
                 <option value="ALL">All Ratings</option>
                 <option value="5">5 Stars</option>
@@ -93,55 +108,64 @@ export function ReviewsClient({ initialReviews }: ReviewsClientProps) {
               </select>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredReviews.map((review) => (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {reviews.map((review) => (
                 <div
                   key={review.id}
-                  className="bg-card rounded-2xl shadow-spa border border-border p-5 hover:shadow-spa-lg transition-shadow"
+                  className="rounded-2xl border border-border bg-card p-5 shadow-spa transition-shadow hover:shadow-spa-lg"
                 >
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="mb-3 flex items-center justify-between">
                     <h3 className="font-semibold">{review.customer_name}</h3>
                     <div className="flex items-center gap-1">
                       {[1, 2, 3, 4, 5].map((ratingValue) => (
                         <HugeiconsIcon
                           key={`${review.id}-${ratingValue}`}
                           icon={StarIcon}
-                          className={`w-4 h-4 ${
-                            ratingValue <= review.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
-                          }`}
+                          className={cn(
+                            "size-4",
+                            ratingValue <= review.rating
+                              ? "fill-yellow-400 text-yellow-400"
+                              : "text-gray-300",
+                          )}
                         />
                       ))}
                     </div>
                   </div>
 
-                  {review.comment && (
-                    <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
+                  {review.comment ? (
+                    <p className="mb-4 line-clamp-3 text-sm text-muted-foreground">
                       &ldquo;{review.comment}&rdquo;
                     </p>
-                  )}
+                  ) : null}
 
-                  <div className="flex items-center justify-between pt-3 border-t border-border">
+                  <div className="flex items-center justify-between border-t border-border pt-3">
                     <Badge variant="outline">{review.rating}/5</Badge>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDeleteReview(review.id)}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        Delete
-                      </Button>
-                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDeleteReview(review.id)}
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      Delete
+                    </Button>
                   </div>
                 </div>
               ))}
             </div>
 
-            {filteredReviews.length === 0 && (
-              <div className="text-center py-12">
+            {reviews.length === 0 ? (
+              <div className="py-12 text-center">
                 <p className="text-muted-foreground">No reviews found</p>
               </div>
-            )}
+            ) : null}
+
+            <AdminListPagination
+              itemLabel="ulasan"
+              page={initialPage.page}
+              totalCount={initialPage.totalCount}
+              totalPages={initialPage.totalPages}
+              onPageChange={setPage}
+            />
           </div>
         </div>
       </div>

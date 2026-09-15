@@ -1,6 +1,6 @@
 # 008 — Scope and stabilize admin authentication
 
-- **Status**: OPEN
+- **Status**: DONE
 - **Commit**: b94c4ae
 - **Severity**: HIGH
 - **Category**: Bugs & correctness

@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath, revalidateTag } from "next/cache";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 import {
   logAdminAudit,
@@ -8,15 +7,16 @@ import {
 } from "@/lib/auth/admin-rbac-server";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
-import type { Database, Service, ServiceInsert, ServiceUpdate } from "@/lib/database.types";
+import { revalidateServiceCatalogData } from "@/lib/actions/revalidateServiceCatalog";
+import type { Service, ServiceInsert, ServiceUpdate } from "@/lib/database.types";
+import {
+  loadActivePublicServices,
+  type ServiceCategoryRelation,
+  type ServiceWithCategory,
+} from "@/lib/publicServices";
 import { hasServiceImage } from "@/lib/utils/serviceImages";
 
-export type ServiceCategoryRelation =
-  Database["public"]["Tables"]["service_categories"]["Row"];
-
-export type ServiceWithCategory = Service & {
-  category_relation: ServiceCategoryRelation | null;
-};
+export type { ServiceCategoryRelation, ServiceWithCategory };
 
 const SERVICE_WITH_CATEGORY_SELECT =
   "*, category_relation:service_categories!category_id(*)";
@@ -72,14 +72,6 @@ async function stitchCategoryRelations(
   }));
 }
 
-function revalidateServiceCatalogData() {
-  revalidateTag("dashboard-stats", "max");
-  revalidatePath("/", "page");
-  revalidatePath("/admin/services", "page");
-  revalidatePath("/checkout/[id]", "page");
-  revalidatePath("/voucher/[id]", "page");
-}
-
 function assertServiceImageConfigured(imageUrl: string | null | undefined) {
   if (!hasServiceImage(imageUrl)) {
     throw new Error("Gambar layanan wajib diunggah sebelum layanan disimpan.");
@@ -125,34 +117,15 @@ async function getExistingServiceImageUrl(
 }
 
 export async function getServices(): Promise<ServiceWithCategory[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("services")
-    .select(SERVICE_WITH_CATEGORY_SELECT)
-    .eq("is_active", true)
-    .order("created_at", { ascending: true });
-
-  if (!error) {
-    return (data as ServiceWithCategory[]) || [];
-  }
-
-  if (!isPgrstEmbedRelationMissing(error)) {
+  try {
+    const supabase = await createClient();
+    return await loadActivePublicServices(supabase, {
+      categoryErrorPolicy: "null-relations",
+    });
+  } catch (error) {
     console.error("Error fetching services:", error);
     return [];
   }
-
-  const { data: fallbackData, error: fallbackError } = await supabase
-    .from("services")
-    .select(SERVICE_BASE_SELECT)
-    .eq("is_active", true)
-    .order("created_at", { ascending: true });
-
-  if (fallbackError) {
-    console.error("Error fetching services:", fallbackError);
-    return [];
-  }
-
-  return stitchCategoryRelations(supabase, fallbackData || []);
 }
 
 export async function getAllServices(): Promise<ServiceWithCategory[]> {
@@ -396,36 +369,6 @@ export async function setServiceActiveState(
 
   revalidateServiceCatalogData();
   return data as ServiceWithCategory;
-}
-
-export async function updateServiceScalevMapping(
-  id: string,
-  updates: Pick<
-    ServiceUpdate,
-    | "scalev_product_id"
-    | "scalev_variant_id"
-    | "scalev_variant_unique_id"
-    | "scalev_sync_status"
-    | "scalev_last_synced_at"
-  >
-): Promise<Service | null> {
-  // This path is used by checkout-driven Scalev sync, so it cannot depend on
-  // an interactive admin session even though it still writes via the service role.
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from("services")
-    .update(updates)
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error updating service Scalev mapping:", error);
-    return null;
-  }
-
-  revalidateServiceCatalogData();
-  return data;
 }
 
 export async function deleteService(id: string): Promise<boolean> {

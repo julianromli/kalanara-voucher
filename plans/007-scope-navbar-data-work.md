@@ -1,6 +1,6 @@
 # 007 — Scope navbar data work to public pages
 
-- **Status**: OPEN
+- **Status**: DONE
 - **Commit**: b94c4ae
 - **Severity**: HIGH
 - **Category**: Performance

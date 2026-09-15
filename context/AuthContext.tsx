@@ -49,6 +49,13 @@ interface AuthProviderProps {
 }
 
 type BrowserSupabaseClient = ReturnType<typeof createClient>;
+interface ActiveUserResolution {
+  epoch: number;
+  promise: Promise<User | null>;
+}
+
+export const INITIAL_SESSION_FALLBACK_DELAY_MS = 50;
+export const SESSION_LOOKUP_TIMEOUT_MS = 3_000;
 
 // ============================================================================
 // Helpers
@@ -121,10 +128,121 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children, bootstrapUser = null }: AuthProviderProps) {
   const bootstrapUserRef = useRef<User | null>(bootstrapUser);
   const hasBootstrapUser = bootstrapUserRef.current?.role != null;
+  const authEpochRef = useRef(0);
+  const mountedRef = useRef(false);
+  const activeUserResolutionRef = useRef<ActiveUserResolution | null>(null);
+  const pendingUserResolutionsRef = useRef(
+    new Map<string, Promise<User | null>>()
+  );
   const [supabase] = useState(createClient);
   const [user, setUser] = useState<User | null>(() => bootstrapUserRef.current);
+  const userRef = useRef<User | null>(bootstrapUserRef.current);
   const [isLoading, setIsLoading] = useState(() => !hasBootstrapUser);
   const isAuthenticated = user?.role != null;
+
+  const advanceAuthEpoch = useCallback(() => {
+    activeUserResolutionRef.current = null;
+    authEpochRef.current += 1;
+    return authEpochRef.current;
+  }, []);
+
+  const commitAuthState = useCallback((
+    epoch: number,
+    nextUser: User | null,
+    finishLoading = true
+  ) => {
+    if (!mountedRef.current || epoch !== authEpochRef.current) {
+      return false;
+    }
+
+    userRef.current = nextUser;
+    setUser(nextUser);
+    if (finishLoading) {
+      setIsLoading(false);
+    }
+    return true;
+  }, []);
+
+  const resolveSupabaseUser = useCallback((
+    supabaseUser: SupabaseUser,
+    reusePending = false
+  ) => {
+    if (reusePending) {
+      const pendingResolution = pendingUserResolutionsRef.current.get(
+        supabaseUser.id
+      );
+      if (pendingResolution) {
+        return pendingResolution;
+      }
+    }
+
+    const resolution = extractUserFromSupabaseUser(supabase, supabaseUser);
+    pendingUserResolutionsRef.current.set(supabaseUser.id, resolution);
+    void resolution.finally(() => {
+      if (
+        pendingUserResolutionsRef.current.get(supabaseUser.id) === resolution
+      ) {
+        pendingUserResolutionsRef.current.delete(supabaseUser.id);
+      }
+    });
+    return resolution;
+  }, [supabase]);
+
+  const resolveUserAtEpoch = useCallback((
+    supabaseUser: SupabaseUser,
+    epoch: number,
+    reusePending = false
+  ): Promise<User | null> => {
+    const promise = (async () => {
+      const resolvedUser = await resolveSupabaseUser(supabaseUser, reusePending);
+      const bootstrapUserForIdentity =
+        bootstrapUserRef.current?.id === supabaseUser.id
+          ? bootstrapUserRef.current
+          : null;
+      const nextUser = resolvedUser ?? bootstrapUserForIdentity;
+
+      commitAuthState(epoch, nextUser);
+      return nextUser;
+    })();
+
+    activeUserResolutionRef.current = { epoch, promise };
+    return promise;
+  }, [commitAuthState, resolveSupabaseUser]);
+
+  const awaitSupersedingResolution = useCallback(async (
+    supersededEpoch: number
+  ): Promise<{ user: User | null; resolutionObserved: boolean }> => {
+    let observedEpoch = supersededEpoch;
+
+    while (mountedRef.current && observedEpoch !== authEpochRef.current) {
+      observedEpoch = authEpochRef.current;
+      const activeResolution = activeUserResolutionRef.current;
+
+      if (!activeResolution || activeResolution.epoch !== observedEpoch) {
+        return {
+          user: userRef.current,
+          resolutionObserved: false,
+        };
+      }
+
+      const resolvedUser = await activeResolution.promise;
+      if (!mountedRef.current) {
+        return { user: null, resolutionObserved: false };
+      }
+
+      if (activeResolution.epoch === authEpochRef.current) {
+        return {
+          user: resolvedUser,
+          resolutionObserved: true,
+        };
+      }
+    }
+
+    return {
+      user: userRef.current,
+      resolutionObserved: false,
+    };
+  }, []);
 
   // Initialize auth state on mount
   useEffect(() => {
@@ -134,44 +252,47 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       return;
     }
 
-    // Get initial session
-    const initializeAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user) {
-          const resolvedUser = await extractUserFromSupabaseUser(supabase, session.user);
-          setUser(resolvedUser ?? bootstrapUserRef.current);
-        } else if (!hasBootstrapUser) {
-          setUser(null);
-        }
-      } catch (error) {
-        // Handle storage access errors gracefully
-        console.error('Error initializing auth:', error);
-        if (!hasBootstrapUser) {
-          setUser(null);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    initializeAuth();
+    mountedRef.current = true;
 
     // Listen for auth state changes
     let subscription: { unsubscribe: () => void } | null = null;
+    let initialSessionReceived = false;
+    let fallbackTimer: number | null = null;
+    let fallbackTimeout: number | null = null;
     
     try {
       const { data } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          if (event === 'SIGNED_IN' && session?.user) {
-            setUser((await extractUserFromSupabaseUser(supabase, session.user)) ?? bootstrapUserRef.current);
-          } else if (event === 'SIGNED_OUT') {
-            setUser(null);
-          } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-            setUser((await extractUserFromSupabaseUser(supabase, session.user)) ?? bootstrapUserRef.current);
-          } else if (event === 'USER_UPDATED' && session?.user) {
-            setUser((await extractUserFromSupabaseUser(supabase, session.user)) ?? bootstrapUserRef.current);
+        (event, session) => {
+          const isUserBearingEvent =
+            event === 'SIGNED_IN' ||
+            event === 'TOKEN_REFRESHED' ||
+            event === 'USER_UPDATED';
+          const isInitialSession = event === 'INITIAL_SESSION';
+          if (isInitialSession) {
+            initialSessionReceived = true;
+            if (fallbackTimer !== null) {
+              window.clearTimeout(fallbackTimer);
+              fallbackTimer = null;
+            }
+          }
+          const epoch = advanceAuthEpoch();
+
+          if (event === 'SIGNED_OUT') {
+            commitAuthState(epoch, null);
+            return;
+          }
+
+          if ((isUserBearingEvent || isInitialSession) && session?.user) {
+            void resolveUserAtEpoch(
+              session.user,
+              epoch,
+              isInitialSession
+            );
+            return;
+          }
+
+          if (isInitialSession) {
+            commitAuthState(epoch, hasBootstrapUser ? userRef.current : null);
           }
         }
       );
@@ -180,18 +301,111 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       console.error('Error setting up auth listener:', error);
     }
 
+    const initializeFromSessionFallback = async () => {
+      if (initialSessionReceived) {
+        return;
+      }
+
+      const epoch = advanceAuthEpoch();
+      fallbackTimeout = window.setTimeout(() => {
+        commitAuthState(epoch, userRef.current);
+      }, SESSION_LOOKUP_TIMEOUT_MS);
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!mountedRef.current || epoch !== authEpochRef.current) {
+          return;
+        }
+
+        if (session?.user) {
+          await resolveUserAtEpoch(session.user, epoch, true);
+        } else {
+          commitAuthState(epoch, hasBootstrapUser ? userRef.current : null);
+        }
+      } catch (error) {
+        if (!mountedRef.current || epoch !== authEpochRef.current) {
+          return;
+        }
+
+        console.error('Error initializing auth:', error);
+        commitAuthState(epoch, hasBootstrapUser ? userRef.current : null);
+      } finally {
+        if (fallbackTimeout !== null) {
+          window.clearTimeout(fallbackTimeout);
+          fallbackTimeout = null;
+        }
+        commitAuthState(epoch, userRef.current);
+      }
+    };
+
+    fallbackTimer = window.setTimeout(() => {
+      fallbackTimer = null;
+      void initializeFromSessionFallback();
+    }, INITIAL_SESSION_FALLBACK_DELAY_MS);
+
     // Cleanup subscription on unmount
     return () => {
+      mountedRef.current = false;
+      advanceAuthEpoch();
+      if (fallbackTimer !== null) {
+        window.clearTimeout(fallbackTimer);
+      }
+      if (fallbackTimeout !== null) {
+        window.clearTimeout(fallbackTimeout);
+      }
       subscription?.unsubscribe();
     };
-  }, [hasBootstrapUser, supabase]);
+  }, [
+    advanceAuthEpoch,
+    commitAuthState,
+    hasBootstrapUser,
+    resolveUserAtEpoch,
+    supabase,
+  ]);
 
   const login = useCallback(async (email: string, password: string): Promise<LoginResult> => {
+    const loginEpoch = advanceAuthEpoch();
+    const canceledResult: LoginResult = {
+      success: false,
+      error: 'Unable to sign in. Please try again.',
+    };
+
+    const rejectAdminLogin = async (): Promise<LoginResult> => {
+      const signOutEpoch = advanceAuthEpoch();
+
+      try {
+        await supabase.auth.signOut();
+      } finally {
+        commitAuthState(signOutEpoch, null);
+      }
+
+      return {
+        success: false,
+        error: 'Akun ini tidak memiliki akses admin.',
+      };
+    };
+
+    const resultFromSupersedingAuth = async (): Promise<LoginResult> => {
+      const { user: supersedingUser, resolutionObserved } =
+        await awaitSupersedingResolution(loginEpoch);
+
+      if (supersedingUser?.role) {
+        return { success: true };
+      }
+
+      return resolutionObserved ? rejectAdminLogin() : canceledResult;
+    };
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+
+      if (!mountedRef.current || loginEpoch !== authEpochRef.current) {
+        return resultFromSupersedingAuth();
+      }
 
       if (error) {
         return {
@@ -201,18 +415,17 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
       }
 
       if (data.user) {
-        const resolvedUser = await extractUserFromSupabaseUser(supabase, data.user);
+        const resolvedUser = await resolveSupabaseUser(data.user);
 
-        if (!resolvedUser) {
-          await supabase.auth.signOut();
-          setUser(null);
-          return {
-            success: false,
-            error: 'Akun ini tidak memiliki akses admin.',
-          };
+        if (!mountedRef.current || loginEpoch !== authEpochRef.current) {
+          return resultFromSupersedingAuth();
         }
 
-        setUser(resolvedUser);
+        if (!resolvedUser) {
+          return rejectAdminLogin();
+        }
+
+        commitAuthState(loginEpoch, resolvedUser, false);
         return { success: true }; 
       }
 
@@ -227,18 +440,26 @@ export function AuthProvider({ children, bootstrapUser = null }: AuthProviderPro
         error: 'A network error occurred. Please check your connection.',
       };
     }
-  }, [supabase]);
+  }, [
+    advanceAuthEpoch,
+    awaitSupersedingResolution,
+    commitAuthState,
+    resolveSupabaseUser,
+    supabase,
+  ]);
 
   const logout = useCallback(async (): Promise<void> => {
+    const epoch = advanceAuthEpoch();
+
     try {
       await supabase.auth.signOut();
-      setUser(null);
+      commitAuthState(epoch, null);
     } catch (error) {
       console.error('Logout error:', error);
       // Still clear local state even if the API call fails
-      setUser(null);
+      commitAuthState(epoch, null);
     }
-  }, [supabase]);
+  }, [advanceAuthEpoch, commitAuthState, supabase]);
 
   const value: AuthContextType = {
     user,

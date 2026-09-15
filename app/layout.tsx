@@ -1,14 +1,7 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { Outfit, Playfair_Display, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/navbar";
-import { MetaPixel } from "@/components/meta-pixel";
 import { ToastProvider } from "@/context/ToastContext";
-import { AuthProvider } from "@/context/AuthContext";
-import { StoreProvider } from "@/context/StoreContext";
-import { getSiteSetting } from "@/lib/actions/crm";
-import { isAnnouncementCountdownEnabled } from "@/lib/site-settings";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -82,27 +75,6 @@ export const metadata: Metadata = {
   },
 };
 
-async function NavbarWithAnnouncement() {
-  const [announcementSetting, countdownEndAtSetting, countdownEnabledSetting] =
-    await Promise.all([
-      getSiteSetting("announcement_text"),
-      getSiteSetting("announcement_countdown_end_at"),
-      getSiteSetting("announcement_countdown_enabled"),
-    ]);
-  const announcementText =
-    announcementSetting?.value || "FLASH SALE 5.5 ...... BERAKHIR DALAM ";
-
-  return (
-    <Navbar
-      announcementText={announcementText}
-      announcementCountdownEndAt={countdownEndAtSetting?.value || undefined}
-      announcementCountdownEnabled={isAnnouncementCountdownEnabled(
-        countdownEnabledSetting?.value
-      )}
-    />
-  );
-}
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -114,17 +86,9 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${outfit.variable} ${playfair.variable} ${geistMono.variable} font-sans antialiased`}
       >
-        <MetaPixel />
-        <AuthProvider>
-          <StoreProvider>
-            <ToastProvider>
-              <Suspense fallback={null}>
-                <NavbarWithAnnouncement />
-              </Suspense>
-              <main>{children}</main>
-            </ToastProvider>
-          </StoreProvider>
-        </AuthProvider>
+        <ToastProvider>
+          <main>{children}</main>
+        </ToastProvider>
       </body>
     </html>
   );

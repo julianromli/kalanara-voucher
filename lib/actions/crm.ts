@@ -1,8 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 import { requireAdminPermission } from "@/lib/auth/admin-rbac-server";
+import {
+  ANNOUNCEMENT_SETTINGS_CACHE_TAG,
+  LANDING_CMS_CACHE_TAG,
+} from "@/lib/cache-tags";
 import { createClient } from "@/lib/supabase/server";
 import type {
   SiteSetting,
@@ -28,10 +32,22 @@ const SITE_SETTING_DEFAULTS = {
 
 type SiteSettingKey = keyof typeof SITE_SETTING_DEFAULTS;
 
-function revalidateCmsPaths() {
+function revalidateCmsPaths({
+  announcementChanged = false,
+}: {
+  announcementChanged?: boolean;
+} = {}) {
+  updateTag(LANDING_CMS_CACHE_TAG);
+  if (announcementChanged) {
+    updateTag(ANNOUNCEMENT_SETTINGS_CACHE_TAG);
+  }
   revalidatePath("/", "layout");
   revalidatePath("/", "page");
   revalidatePath("/admin/crm", "page");
+}
+
+function isAnnouncementSettingKey(key: SiteSettingKey): boolean {
+  return key.startsWith("announcement_");
 }
 
 function normalizeSiteSettingKey(key: string): SiteSettingKey | null {
@@ -140,7 +156,9 @@ export async function updateSiteSetting(
     throw error;
   }
 
-  revalidateCmsPaths();
+  revalidateCmsPaths({
+    announcementChanged: isAnnouncementSettingKey(normalizedKey),
+  });
   return data;
 }
 
@@ -162,7 +180,9 @@ export async function deleteSiteSetting(key: string): Promise<boolean> {
     throw error;
   }
 
-  revalidateCmsPaths();
+  revalidateCmsPaths({
+    announcementChanged: isAnnouncementSettingKey(normalizedKey),
+  });
   return true;
 }
 

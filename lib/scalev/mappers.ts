@@ -15,8 +15,13 @@ import type {
   OrderWithItems,
   OrderWithVoucher,
 } from "@/lib/database.types";
+import { sortOrderItems } from "@/lib/orderItems";
 import { DeliveryMethod, SendTo } from "@/lib/types";
-import { buildScalevPublicOrderUrl } from "@/lib/scalev/urls";
+import {
+  buildScalevPublicOrderUrl,
+  sanitizeOrderPaymentUrl,
+  sanitizeScalevPublicUrl,
+} from "@/lib/scalev/urls";
 
 const PENDING_STATUSES = new Set([
   "unpaid",
@@ -32,6 +37,17 @@ const PENDING_STATUSES = new Set([
 const COMPLETED_STATUSES = new Set(["paid", "settled", "completed", "shipped"]);
 const FAILED_STATUSES = new Set(["canceled", "cancelled", "expired", "closed", "failed"]);
 const REFUNDED_STATUSES = new Set(["refund", "refunded"]);
+
+function firstValidTimestamp(
+  ...values: Array<string | null | undefined>
+): string | null {
+  return values.find(
+    (value): value is string =>
+      typeof value === "string" &&
+      value.trim().length > 0 &&
+      Number.isFinite(Date.parse(value))
+  ) ?? null;
+}
 
 export function normalizeScalevStatus(
   paymentStatus?: string | null,
@@ -98,6 +114,19 @@ export function buildPaymentSnapshot(
 ): ScalevPaymentSnapshot {
   const paymentStatus = payment?.payment_status ?? settlement?.payment_status ?? null;
   const orderStatus = payment?.status ?? settlement?.status ?? null;
+  const providerEventAt = firstValidTimestamp(
+    payment?.settled_time ??
+    undefined,
+    settlement?.settled_time,
+    payment?.paid_time,
+    settlement?.paid_time,
+    payment?.conflict_time,
+    settlement?.conflict_time,
+    payment?.unpaid_time,
+    settlement?.unpaid_time,
+    payment?.last_updated_at,
+    settlement?.last_updated_at
+  );
 
   return {
     orderPk: payment?.id ?? settlement?.id ?? null,
@@ -105,7 +134,8 @@ export function buildPaymentSnapshot(
     pgReferenceId:
       payment?.pg_reference_id ?? settlement?.pg_reference_id ?? null,
     paymentLink:
-      payment?.invoice_url ??
+      sanitizeScalevPublicUrl(payment?.invoice_url) ??
+      sanitizeScalevPublicUrl(payment?.payment_link) ??
       buildScalevPublicOrderUrl(payment?.secret_slug) ??
       null,
     paymentInstructions: extractScalevPaymentInstructions(payment),
@@ -113,6 +143,7 @@ export function buildPaymentSnapshot(
     subPaymentMethod: payment?.sub_payment_method ?? null,
     rawPaymentStatus: paymentStatus,
     rawStatus: orderStatus,
+    providerEventAt,
     normalizedStatus: normalizeScalevStatus(paymentStatus, orderStatus),
   };
 }
@@ -192,7 +223,10 @@ export function buildPublicOrderStatus(
     paymentStatus: order.payment_status,
     paymentMethod: order.scalev_payment_method || order.payment_type,
     provider: order.payment_provider,
-    paymentLink: order.payment_link,
+    paymentLink: sanitizeOrderPaymentUrl(
+      order.payment_link,
+      order.payment_provider
+    ),
     paymentInstructions,
     message:
       status === "pending"
@@ -227,10 +261,11 @@ export function buildPublicOrderStatusWithItems(
   order: OrderWithItems,
   paymentInstructions?: PublicOrderPaymentInstructions
 ): PublicOrderStatusPayload {
-  const vouchers = order.order_items
+  const orderedItems = sortOrderItems(order.order_items);
+  const vouchers = orderedItems
     .map((item) => buildVoucherPayloadFromOrderItem(order, item))
     .filter((item): item is PublicOrderVoucherPayload => Boolean(item));
-  const expectedVoucherCount = order.order_items.length;
+  const expectedVoucherCount = orderedItems.length;
   const isComplete =
     order.payment_status === "COMPLETED" &&
     expectedVoucherCount > 0 &&
@@ -247,7 +282,10 @@ export function buildPublicOrderStatusWithItems(
     paymentStatus: order.payment_status,
     paymentMethod: order.scalev_payment_method || order.payment_type,
     provider: order.payment_provider,
-    paymentLink: order.payment_link,
+    paymentLink: sanitizeOrderPaymentUrl(
+      order.payment_link,
+      order.payment_provider
+    ),
     paymentInstructions,
     message:
       status === "pending"
@@ -266,7 +304,7 @@ export function buildPublicOrderStatusWithItems(
       discountCode: order.discount_code,
       totalAmount: order.total_amount,
       createdAt: order.created_at,
-      items: order.order_items.map(item => ({
+      items: orderedItems.map(item => ({
         serviceName: item.services?.name || "Layanan Spa",
         quantity: 1,
         originalPrice: item.original_unit_price,

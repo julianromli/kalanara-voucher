@@ -15,10 +15,14 @@ import {
   Wallet,
 } from "lucide-react";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
+import { AdminListPagination } from "@/components/admin/admin-list-pagination";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
+import { useAdminListUrl } from "@/hooks/use-admin-list-url";
+import type { AdminPage } from "@/lib/actions/admin-pagination";
 import { formatCurrency } from "@/lib/constants";
 import { deleteOrderHard, clearAllOrdersHard } from "@/lib/actions/orders";
+import { sortOrderItems } from "@/lib/orderItems";
 import {
   Table,
   TableBody,
@@ -39,10 +43,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import type { OrderItemWithService, OrderWithVoucherItems } from "@/lib/database.types";
+import type { OrderWithVoucherItems } from "@/lib/database.types";
 
 interface PurchasesClientProps {
-  initialOrders: OrderWithVoucherItems[];
+  initialPage: AdminPage<OrderWithVoucherItems>;
+  initialTotalCount: number;
   canUpdatePaymentStatus: boolean;
   canDeletePurchases: boolean;
 }
@@ -71,16 +76,6 @@ function getStatusBadgeClassName(status: OrderWithVoucherItems["payment_status"]
   }
 
   return "border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/10";
-}
-
-function sortOrderItems(orderItems: OrderItemWithService[]) {
-  return [...orderItems].sort((left, right) => {
-    if (left.sort_order !== right.sort_order) {
-      return left.sort_order - right.sort_order;
-    }
-
-    return left.created_at.localeCompare(right.created_at);
-  });
 }
 
 function getOrderServiceSummary(order: OrderWithVoucherItems) {
@@ -121,7 +116,8 @@ function getOrderVoucherSummary(order: OrderWithVoucherItems) {
 }
 
 export function PurchasesClient({
-  initialOrders,
+  initialPage,
+  initialTotalCount,
   canUpdatePaymentStatus,
   canDeletePurchases,
 }: PurchasesClientProps) {
@@ -129,9 +125,16 @@ export function PurchasesClient({
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
 
-  const [orders, setOrders] = useState(initialOrders);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [orders, setOrders] = useState(initialPage.rows);
+  const {
+    query: searchQuery,
+    setQuery: setSearchQuery,
+    filter: statusFilter,
+    setFilter: setStatusFilter,
+    setPage,
+  } = useAdminListUrl({
+    filterParam: "status",
+  });
   const [selectedOrder, setSelectedOrder] = useState<OrderWithVoucherItems | null>(
     null,
   );
@@ -148,18 +151,9 @@ export function PurchasesClient({
     }
   }, [authLoading, isAuthenticated, router]);
 
-  const filteredOrders = orders.filter((order) => {
-    const searchLower = searchQuery.toLowerCase();
-    const matchesSearch =
-      order.customer_name.toLowerCase().includes(searchLower) ||
-      order.customer_email.toLowerCase().includes(searchLower) ||
-      order.payment_order_id?.toLowerCase().includes(searchLower) ||
-      getOrderServiceSummary(order).toLowerCase().includes(searchLower) ||
-      order.payment_transaction_id?.toLowerCase().includes(searchLower);
-    const matchesStatus =
-      statusFilter === "ALL" || order.payment_status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  useEffect(() => {
+    setOrders(initialPage.rows);
+  }, [initialPage.rows]);
 
   const closeDeleteDialog = () => {
     if (isDeletingOrder || isClearingAll) {
@@ -200,6 +194,15 @@ export function PurchasesClient({
       }
 
       showToast("Payment status updated successfully.", "success");
+      if (
+        statusFilter === "PENDING" &&
+        orders.length === 1 &&
+        initialPage.page > 1 &&
+        initialPage.page === initialPage.totalPages
+      ) {
+        setPage(initialPage.page - 1);
+      }
+      router.refresh();
     } catch (error) {
       setOrders(previousOrders);
       console.error("Failed to update order status:", error);
@@ -235,6 +238,10 @@ export function PurchasesClient({
       showToast(result.message, "success");
       setDeleteMode(null);
       setPendingDeleteOrder(null);
+      router.refresh();
+      if (orders.length === 1 && initialPage.page > 1) {
+        setPage(initialPage.page - 1);
+      }
     } catch (error) {
       console.error("Failed to hard delete purchase:", error);
       showToast("Failed to delete purchase permanently.", "error");
@@ -263,6 +270,8 @@ export function PurchasesClient({
       showToast(result.message, "success");
       setDeleteMode(null);
       setPendingDeleteOrder(null);
+      router.refresh();
+      setPage(1);
     } catch (error) {
       console.error("Failed to clear purchases:", error);
       showToast("Failed to clear purchases permanently.", "error");
@@ -297,7 +306,7 @@ export function PurchasesClient({
                   setDeleteMode("all");
                 }}
                 disabled={
-                  orders.length === 0 ||
+                  initialTotalCount === 0 ||
                   isDeleteBusy ||
                   Boolean(isUpdatingStatus)
                 }
@@ -352,7 +361,7 @@ export function PurchasesClient({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredOrders.length === 0 ? (
+                  {orders.length === 0 ? (
                     <TableRow>
                       <TableCell
                         colSpan={9}
@@ -362,7 +371,7 @@ export function PurchasesClient({
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredOrders.map((order) => {
+                    orders.map((order) => {
                       const isStatusBusy = isUpdatingStatus === order.id;
                       const isRowDeleteBusy = isDeletingOrder === order.id;
 
@@ -481,6 +490,18 @@ export function PurchasesClient({
                 </TableBody>
               </Table>
             </div>
+            <AdminListPagination
+              itemLabel="pembelian"
+              page={initialPage.page}
+              totalCount={initialPage.totalCount}
+              totalPages={initialPage.totalPages}
+              onPageChange={setPage}
+              disabled={
+                Boolean(isUpdatingStatus) ||
+                Boolean(isDeletingOrder) ||
+                isClearingAll
+              }
+            />
           </div>
         </div>
       </div>
@@ -736,7 +757,8 @@ export function PurchasesClient({
 
           {deleteMode === "all" ? (
             <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-muted-foreground">
-              {orders.length} purchase{orders.length === 1 ? "" : "s"} will be
+              {initialTotalCount} purchase
+              {initialTotalCount === 1 ? "" : "s"} will be
               removed from the admin view after the server confirms the hard
               delete.
             </div>

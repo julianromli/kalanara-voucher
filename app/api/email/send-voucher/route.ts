@@ -1,6 +1,10 @@
+import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
-import { getAuthorizedVoucherDelivery } from "@/lib/payment/public-voucher-delivery";
+import {
+  getAuthorizedVoucherDelivery,
+  type AuthorizedVoucherDelivery,
+} from "@/lib/payment/public-voucher-delivery";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -38,6 +42,26 @@ function escapeHtml(value: string): string {
 
 function sanitizeHeaderValue(value: string): string {
   return value.replace(/[\r\n]+/g, " ").trim();
+}
+
+function getEmailIdempotencyKey(
+  delivery: AuthorizedVoucherDelivery
+): string {
+  const deliveryIdentity = JSON.stringify({
+    channel: "EMAIL",
+    orderId: delivery.orderId,
+    voucherCode: delivery.voucherCode,
+    recipientEmail: delivery.recipientEmail?.trim().toLowerCase() ?? "",
+    recipientName: delivery.recipientName,
+    senderName: delivery.senderName,
+    senderMessage: delivery.senderMessage,
+    serviceName: delivery.serviceName,
+    serviceDuration: delivery.serviceDuration,
+    amount: delivery.amount,
+    expiryDate: delivery.expiryDate,
+  });
+  const digest = createHash("sha256").update(deliveryIdentity).digest("hex");
+  return `voucher-email-${digest}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -194,12 +218,15 @@ export async function POST(request: NextRequest) {
 </html>
     `;
 
-    const { data, error } = await resend.emails.send({
-      from: "Kalanara Spa <noreply@voucher.kalanaraspa.com>",
-      to: [delivery.recipientEmail],
-      subject: `🎁 ${sanitizeHeaderValue(delivery.senderName)} sent you a gift from Kalanara Spa!`,
-      html: emailHtml,
-    });
+    const { data, error } = await resend.emails.send(
+      {
+        from: "Kalanara Spa <noreply@voucher.kalanaraspa.com>",
+        to: [delivery.recipientEmail],
+        subject: `🎁 ${sanitizeHeaderValue(delivery.senderName)} sent you a gift from Kalanara Spa!`,
+        html: emailHtml,
+      },
+      { idempotencyKey: getEmailIdempotencyKey(delivery) }
+    );
 
     if (error) {
       console.error("Failed to send email:", error);

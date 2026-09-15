@@ -1,6 +1,12 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { CheckoutPageClient } from "@/app/checkout/[id]/checkout-page-client";
+import { CheckoutLoadingSkeleton } from "@/app/checkout/[id]/loading";
 import { getServiceById } from "@/lib/actions/services";
+import {
+  getScalevCheckoutConfig,
+  getUnavailableScalevCheckoutConfig,
+} from "@/lib/scalev/checkout-config";
 import type { Service } from "@/lib/types";
 import type { ServiceWithCategory } from "@/lib/actions/services";
 import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
@@ -39,11 +45,30 @@ function toServiceModel(service: ServiceWithCategory | null): Service | null {
 
 export default async function CheckoutPage({ params }: PageProps) {
   const { id } = await params;
-  const service = toServiceModel(await getServiceById(id));
+  const serviceResult = await getServiceById(id);
+  const service = toServiceModel(serviceResult);
 
   if (!service || !service.id) {
     notFound();
   }
 
-  return <CheckoutPageClient service={service} />;
+  return (
+    <Suspense fallback={<CheckoutLoadingSkeleton />}>
+      <ProviderCheckout service={service} />
+    </Suspense>
+  );
+}
+
+async function ProviderCheckout({ service }: { service: Service }) {
+  const initialPaymentConfig = await getScalevCheckoutConfig().catch((error) => {
+    console.error("[Scalev] Failed to preload single checkout config:", error);
+    return getUnavailableScalevCheckoutConfig();
+  });
+
+  return (
+    <CheckoutPageClient
+      service={service}
+      initialPaymentConfig={initialPaymentConfig}
+    />
+  );
 }

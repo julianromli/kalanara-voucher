@@ -13,6 +13,12 @@ import type {
   ScalevProductRecord,
   ScalevSettlementStatusResponse,
   ScalevStoreRecord,
+  ScalevPaymentMethod,
+  ScalevVABankCode,
+} from "@/lib/scalev/types";
+import {
+  isScalevPaymentMethod,
+  isScalevVABankCode,
 } from "@/lib/scalev/types";
 
 class ScalevApiError extends Error {
@@ -69,13 +75,18 @@ function normalizeScalevMetaThumbnail(metaThumbnail?: string) {
   return metaThumbnail;
 }
 
-async function scalevRequest<T>(
+interface ScalevRequestOptions {
+  baseUrl?: string;
+}
+
+async function executeScalevRequest(
   path: string,
-  init?: RequestInit
-): Promise<T> {
+  init?: RequestInit,
+  options: ScalevRequestOptions = {}
+) {
   ensureScalevIpv4First();
   const config = getScalevConfig();
-  const response = await fetch(`${config.apiBaseUrl}${path}`, {
+  const response = await fetch(`${options.baseUrl || config.apiBaseUrl}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${config.apiKey}`,
@@ -95,24 +106,49 @@ async function scalevRequest<T>(
         }
       })()
     : null;
-  const json = parsedJson as
-    | ScalevApiEnvelope<T>
-    | T
-    | null;
-
-  if (!response.ok || !json) {
+  if (!response.ok) {
     throw new ScalevApiError(
       path,
       response.status,
-      json || rawText || null
+      parsedJson || rawText || null
     );
   }
 
+  return {
+    json: parsedJson as unknown,
+    rawText,
+    status: response.status,
+  };
+}
+
+async function scalevJsonRequest<T>(
+  path: string,
+  init?: RequestInit,
+  options: ScalevRequestOptions = {}
+): Promise<T> {
+  const response = await executeScalevRequest(path, init, options);
+  if (response.json === null) {
+    throw new ScalevApiError(
+      path,
+      response.status,
+      response.rawText || null
+    );
+  }
+
+  const json = response.json as ScalevApiEnvelope<T> | T;
   if (typeof json === "object" && json !== null && "data" in json) {
     return json.data;
   }
 
   return json;
+}
+
+async function scalevNoContentRequest(
+  path: string,
+  init?: RequestInit,
+  options: ScalevRequestOptions = {}
+): Promise<void> {
+  await executeScalevRequest(path, init, options);
 }
 
 function getVariantFromProduct(
@@ -126,11 +162,16 @@ function getVariantFromProduct(
   return product.variants[0] || null;
 }
 
-export const resolveScalevStore = cache(async (): Promise<ScalevStoreRecord> => {
+async function fetchScalevStore(
+  signal?: AbortSignal
+): Promise<ScalevStoreRecord> {
   const config = getScalevConfig();
-  const result = await scalevRequest<{
+  const result = await scalevJsonRequest<{
     results: ScalevStoreRecord[];
-  }>(`/stores?search=${encodeURIComponent(config.storeNameSearch)}&page_size=25`);
+  }>(
+    `/stores?search=${encodeURIComponent(config.storeNameSearch)}&page_size=25`,
+    { signal }
+  );
 
   const store =
     result.results.find((item) => item.unique_id === config.storeUniqueId) || null;
@@ -140,40 +181,73 @@ export const resolveScalevStore = cache(async (): Promise<ScalevStoreRecord> => 
   }
 
   return store;
-});
+}
 
-export async function getScalevCheckoutAvailability() {
+export const resolveScalevStore = cache(
+  async (): Promise<ScalevStoreRecord> => fetchScalevStore()
+);
+
+export interface ScalevCheckoutAvailability {
+  source: "provider" | "fallback";
+  store: ScalevStoreRecord;
+  paymentMethods: ScalevPaymentMethod[];
+  subPaymentMethods: ScalevVABankCode[];
+}
+
+function uniqueKnownPaymentMethods(methods: string[]) {
+  return [...new Set(methods.filter(isScalevPaymentMethod))];
+}
+
+function uniqueKnownVABanks(bankCodes: string[]) {
+  return [...new Set(bankCodes.filter(isScalevVABankCode))];
+}
+
+export async function getScalevCheckoutAvailability(
+  signal?: AbortSignal
+): Promise<ScalevCheckoutAvailability> {
   const config = getScalevConfig();
-  const filterDisabledMethods = (methods: string[]) =>
-    methods.filter(
-      (method): method is (typeof config.fallbackPaymentMethods)[number] =>
-        !config.disabledPaymentMethods.includes(method as (typeof config.fallbackPaymentMethods)[number])
-    );
+  const filterDisabledMethods = (methods: ScalevPaymentMethod[]) =>
+    methods.filter((method) => !config.disabledPaymentMethods.includes(method));
 
   try {
-    const store = await resolveScalevStore();
-    const paymentMethods = await scalevRequest<string[]>(
-      `/stores/${store.id}/payment-methods`
+    const store = signal
+      ? await fetchScalevStore(signal)
+      : await resolveScalevStore();
+    const paymentMethods = await scalevJsonRequest<string[]>(
+      `/stores/${store.id}/payment-methods`,
+      { signal }
     );
-    const allowedRuntimeMethods = filterDisabledMethods(
+    const allowedRuntimeMethods = filterDisabledMethods(uniqueKnownPaymentMethods(
       Array.isArray(paymentMethods) ? paymentMethods : []
-    );
+    ));
     const fallbackEnabledMethods = config.fallbackPaymentMethods.filter(
       (method) => !config.disabledPaymentMethods.includes(method)
     );
+    const effectivePaymentMethods =
+      allowedRuntimeMethods.length > 0
+        ? allowedRuntimeMethods
+        : fallbackEnabledMethods;
+    const runtimeVABanks = uniqueKnownVABanks(
+      Array.isArray(store.sub_payment_methods) ? store.sub_payment_methods : []
+    );
+    const requiresVABankFallback =
+      effectivePaymentMethods.includes("va") && runtimeVABanks.length === 0;
+    const usedFallback =
+      allowedRuntimeMethods.length === 0 || requiresVABankFallback;
 
     return {
+      source: usedFallback ? "fallback" : "provider",
       store,
-      paymentMethods:
-        allowedRuntimeMethods.length > 0
-          ? allowedRuntimeMethods
-          : fallbackEnabledMethods,
-      subPaymentMethods: store.sub_payment_methods || config.fallbackVABanks,
+      paymentMethods: effectivePaymentMethods,
+      subPaymentMethods: requiresVABankFallback
+        ? config.fallbackVABanks
+        : runtimeVABanks,
     };
   } catch (error) {
     console.warn("[Scalev] Falling back to configured payment methods:", error);
 
     return {
+      source: "fallback",
       store: {
         id: 0,
         name: config.storeNameSearch,
@@ -188,23 +262,30 @@ export async function getScalevCheckoutAvailability() {
 }
 
 export async function listScalevProducts(search?: string) {
+  const config = getScalevConfig();
   const suffix = search ? `?search=${encodeURIComponent(search)}&page_size=25` : "?page_size=25";
-  const data = await scalevRequest<{ results: ScalevProductRecord[] }>(
-    `/products${suffix}`
+  return scalevJsonRequest<ScalevProductRecord[]>(
+    `/products${suffix}`,
+    undefined,
+    { baseUrl: config.catalogApiBaseUrl }
   );
-
-  return data.results;
 }
 
 export async function getScalevProduct(id: number) {
-  return scalevRequest<ScalevProductRecord>(`/products/${id}`);
+  const config = getScalevConfig();
+  return scalevJsonRequest<ScalevProductRecord>(
+    `/products/${id}`,
+    undefined,
+    { baseUrl: config.catalogApiBaseUrl }
+  );
 }
 
 export async function createScalevProduct(input: ScalevCatalogProductInput) {
+  const config = getScalevConfig();
   const metaThumbnail = normalizeScalevMetaThumbnail(input.metaThumbnail);
   const normalizedInput = { ...input, metaThumbnail };
 
-  const product = await scalevRequest<ScalevProductRecord>("/products", {
+  const product = await scalevJsonRequest<ScalevProductRecord>("/products", {
     method: "POST",
     body: JSON.stringify({
       name: normalizedInput.name,
@@ -220,7 +301,7 @@ export async function createScalevProduct(input: ScalevCatalogProductInput) {
         is_checked: true,
       })),
     }),
-  });
+  }, { baseUrl: config.catalogApiBaseUrl });
 
   const primaryVariant = getVariantFromProduct(product);
   if (!primaryVariant) {
@@ -234,10 +315,11 @@ export async function updateScalevProduct(
   id: number,
   input: ScalevCatalogProductInput
 ) {
+  const config = getScalevConfig();
   const metaThumbnail = normalizeScalevMetaThumbnail(input.metaThumbnail);
   const normalizedInput = { ...input, metaThumbnail };
 
-  const product = await scalevRequest<ScalevProductRecord>(`/products/${id}`, {
+  await scalevJsonRequest<ScalevProductRecord>(`/products/${id}`, {
     method: "PATCH",
     body: JSON.stringify({
       name: normalizedInput.name,
@@ -246,15 +328,27 @@ export async function updateScalevProduct(
       rich_description: normalizedInput.richDescription,
       item_type: normalizedInput.itemType,
       meta_thumbnail: normalizedInput.metaThumbnail,
-      variants: normalizedInput.variants.map((variant) => ({
-        variant_id: variant.variantId,
-        price: variant.price,
-        weight: variant.weight,
-        metadata: variant.metadata,
-        is_checked: true,
-      })),
     }),
-  });
+  }, { baseUrl: config.catalogApiBaseUrl });
+
+  const targetVariant = normalizedInput.variants[0];
+  if (!targetVariant) {
+    throw new Error("Scalev product update requires a primary variant");
+  }
+
+  await scalevNoContentRequest(
+    `/products/${id}/variants/bulk`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        field: "price",
+        value: targetVariant.price,
+      }),
+    },
+    { baseUrl: config.catalogApiBaseUrl }
+  );
+
+  const product = await getScalevProduct(id);
 
   const primaryVariant = getVariantFromProduct(product, input.variants[0]?.variantId);
   if (!primaryVariant) {
@@ -267,7 +361,7 @@ export async function updateScalevProduct(
 export async function attachProductToScalevStore(productId: number) {
   const store = await resolveScalevStore();
 
-  await scalevRequest<unknown>(`/stores/${store.id}/products`, {
+  await scalevJsonRequest<unknown>(`/stores/${store.id}/products`, {
     method: "POST",
     body: JSON.stringify({
       product_ids: [productId],
@@ -276,7 +370,7 @@ export async function attachProductToScalevStore(productId: number) {
 }
 
 export async function createScalevOrder(input: ScalevOrderCreateInput) {
-  return scalevRequest<ScalevOrderRecord>("/order", {
+  return scalevJsonRequest<ScalevOrderRecord>("/order", {
     method: "POST",
     body: JSON.stringify({
       customer_name: input.customer_name,
@@ -293,18 +387,18 @@ export async function createScalevOrder(input: ScalevOrderCreateInput) {
   });
 }
 
-export async function createScalevPaymentIntent(orderPk: number) {
-  return scalevRequest<ScalevPaymentIntentResponse>(`/order/${orderPk}/payment`, {
+export async function createScalevPaymentIntent(orderPk: string) {
+  return scalevJsonRequest<ScalevPaymentIntentResponse>(`/order/${orderPk}/payment`, {
     method: "POST",
   });
 }
 
-export async function retrieveScalevOrder(orderPk: number) {
-  return scalevRequest<ScalevOrderRecord>(`/order/${orderPk}`);
+export async function retrieveScalevOrder(orderPk: string) {
+  return scalevJsonRequest<ScalevOrderRecord>(`/order/${orderPk}`);
 }
 
 export async function getScalevOrderByPgReference(pgReferenceId: string) {
-  const data = await scalevRequest<{ id: number }>(
+  const data = await scalevJsonRequest<{ id: string }>(
     `/order/retrieve-by-pg-reference-id?pg_reference_id=${encodeURIComponent(pgReferenceId)}`
   );
 
@@ -315,12 +409,12 @@ export async function getScalevOrderByPgReference(pgReferenceId: string) {
   return retrieveScalevOrder(data.id);
 }
 
-export async function checkScalevPaymentStatus(orderPk: number) {
-  return scalevRequest<ScalevPaymentStatusResponse>(`/order/${orderPk}/check-payment`);
+export async function checkScalevPaymentStatus(orderPk: string) {
+  return scalevJsonRequest<ScalevPaymentStatusResponse>(`/order/${orderPk}/check-payment`);
 }
 
-export async function checkScalevSettlementStatus(orderPk: number) {
-  return scalevRequest<ScalevSettlementStatusResponse>(
+export async function checkScalevSettlementStatus(orderPk: string) {
+  return scalevJsonRequest<ScalevSettlementStatusResponse>(
     `/order/${orderPk}/check-settlement`
   );
 }

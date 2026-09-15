@@ -1,6 +1,6 @@
 # 003 — Protect the order capability token
 
-- **Status**: OPEN
+- **Status**: DONE
 - **Commit**: b94c4ae
 - **Title**: Protect the order capability token
 - **Severity**: HIGH

@@ -1,57 +1,37 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function CheckoutLoading() {
+export function CheckoutLoadingSkeleton() {
   return (
-    <div className="min-h-screen bg-background py-8">
-      <div className="max-w-4xl mx-auto px-4 space-y-8">
-        <Skeleton className="h-5 w-24" />
-        <Skeleton className="h-10 w-3/5 mx-auto" />
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
-            {Array.from({ length: 4 }).map((_, sectionIndex) => (
-              <div key={sectionIndex} className="rounded-2xl border border-border bg-card p-6 space-y-4">
-                <Skeleton className="h-5 w-36" />
-                <div className="space-y-4">
-                  {Array.from({ length: 3 }).map((__, rowIndex) => (
-                    <div key={rowIndex} className="space-y-2">
-                      <Skeleton className="h-4 w-28" />
-                      <Skeleton className="h-10 w-full" />
-                    </div>
-                  ))}
-                </div>
-              </div>
+    <div className="min-h-screen bg-background px-4 pb-28 pt-8 md:pb-8">
+      <div className="mx-auto max-w-6xl">
+        <Skeleton className="mb-8 h-6 w-24" />
+        <div className="mx-auto max-w-2xl space-y-3 text-center">
+          <Skeleton className="mx-auto h-9 w-64" />
+          <Skeleton className="mx-auto h-5 w-full max-w-md" />
+        </div>
+        <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-6">
+            {[0, 1, 2].map((item) => (
+              <section
+                key={item}
+                className="space-y-4 rounded-2xl border border-border bg-card p-6"
+              >
+                <Skeleton className="h-6 w-48" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </section>
             ))}
           </div>
-
-          <div className="space-y-4 lg:col-span-1">
-            <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-              <Skeleton className="h-5 w-32" />
-              <div className="flex gap-4">
-                <Skeleton className="h-20 w-20 rounded-lg" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-24" />
-                </div>
-              </div>
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex justify-between">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-4 w-16" />
-                  </div>
-                ))}
-                <div className="flex justify-between border-t border-border pt-3">
-                  <Skeleton className="h-5 w-16" />
-                  <Skeleton className="h-6 w-20" />
-                </div>
-              </div>
-              <Skeleton className="h-12 w-full rounded-lg" />
-              <Skeleton className="h-4 w-3/4 mx-auto" />
-            </div>
-          </div>
+          <aside className="h-fit space-y-5 rounded-2xl border border-border bg-card p-6">
+            <Skeleton className="h-6 w-44" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-14 w-full" />
+          </aside>
         </div>
+        <p className="sr-only">Sedang menyiapkan metode pembayaran.</p>
       </div>
     </div>
   );
 }
+
+export default CheckoutLoadingSkeleton;

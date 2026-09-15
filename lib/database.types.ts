@@ -180,6 +180,82 @@ export type Database = {
           }
         ];
       };
+      voucher_delivery_outbox: {
+        Row: {
+          id: string;
+          order_id: string;
+          order_item_id: string | null;
+          voucher_id: string;
+          channel: Database["public"]["Enums"]["voucher_delivery_channel"];
+          status: Database["public"]["Enums"]["voucher_delivery_status"];
+          attempt_count: number;
+          next_attempt_at: string;
+          claimed_at: string | null;
+          claim_token: string | null;
+          handoff_url: string | null;
+          sent_at: string | null;
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          order_item_id?: string | null;
+          voucher_id: string;
+          channel: Database["public"]["Enums"]["voucher_delivery_channel"];
+          status?: Database["public"]["Enums"]["voucher_delivery_status"];
+          attempt_count?: number;
+          next_attempt_at?: string;
+          claimed_at?: string | null;
+          claim_token?: string | null;
+          handoff_url?: string | null;
+          sent_at?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          order_item_id?: string | null;
+          voucher_id?: string;
+          channel?: Database["public"]["Enums"]["voucher_delivery_channel"];
+          status?: Database["public"]["Enums"]["voucher_delivery_status"];
+          attempt_count?: number;
+          next_attempt_at?: string;
+          claimed_at?: string | null;
+          claim_token?: string | null;
+          handoff_url?: string | null;
+          sent_at?: string | null;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "voucher_delivery_outbox_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "voucher_delivery_outbox_order_item_id_fkey";
+            columns: ["order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "order_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "voucher_delivery_outbox_voucher_id_fkey";
+            columns: ["voucher_id"];
+            isOneToOne: false;
+            referencedRelation: "vouchers";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       discount_codes: {
         Row: {
           id: string;
@@ -291,6 +367,38 @@ export type Database = {
           }
         ];
       };
+      order_status_sessions: {
+        Row: {
+          id: string;
+          order_id: string;
+          token_hash: string;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          token_hash: string;
+          expires_at: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          token_hash?: string;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_status_sessions_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       orders: {
         Row: {
           id: string;
@@ -301,6 +409,8 @@ export type Database = {
           payment_method: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
           payment_status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           payment_provider: string;
+          payment_provider_event_at: string | null;
+          payment_state_version: number;
           subtotal_amount: number;
           discount_code_id: string | null;
           discount_code: string | null;
@@ -316,7 +426,7 @@ export type Database = {
           payment_type: string | null;
           payment_transaction_time: string | null;
           payment_link: string | null;
-          scalev_order_pk: number | null;
+          scalev_order_pk: string | null;
           scalev_order_id: string | null;
           scalev_pg_reference_id: string | null;
           scalev_payment_method: string | null;
@@ -343,6 +453,8 @@ export type Database = {
           payment_method: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           payment_provider?: string;
+          payment_provider_event_at?: string | null;
+          payment_state_version?: number;
           subtotal_amount?: number;
           discount_code_id?: string | null;
           discount_code?: string | null;
@@ -358,7 +470,7 @@ export type Database = {
           payment_type?: string | null;
           payment_transaction_time?: string | null;
           payment_link?: string | null;
-          scalev_order_pk?: number | null;
+          scalev_order_pk?: string | null;
           scalev_order_id?: string | null;
           scalev_pg_reference_id?: string | null;
           scalev_payment_method?: string | null;
@@ -385,6 +497,8 @@ export type Database = {
           payment_method?: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
           payment_status?: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
           payment_provider?: string;
+          payment_provider_event_at?: string | null;
+          payment_state_version?: number;
           subtotal_amount?: number;
           discount_code_id?: string | null;
           discount_code?: string | null;
@@ -400,7 +514,7 @@ export type Database = {
           payment_type?: string | null;
           payment_transaction_time?: string | null;
           payment_link?: string | null;
-          scalev_order_pk?: number | null;
+          scalev_order_pk?: string | null;
           scalev_order_id?: string | null;
           scalev_pg_reference_id?: string | null;
           scalev_payment_method?: string | null;
@@ -649,7 +763,7 @@ export type Database = {
           signature: string | null;
           payload: Json | null;
           order_id: string | null;
-          scalev_order_pk: number | null;
+          scalev_order_pk: string | null;
           scalev_order_id: string | null;
           scalev_pg_reference_id: string | null;
           payment_status: string | null;
@@ -666,7 +780,7 @@ export type Database = {
           signature?: string | null;
           payload?: Json | null;
           order_id?: string | null;
-          scalev_order_pk?: number | null;
+          scalev_order_pk?: string | null;
           scalev_order_id?: string | null;
           scalev_pg_reference_id?: string | null;
           payment_status?: string | null;
@@ -683,7 +797,7 @@ export type Database = {
           signature?: string | null;
           payload?: Json | null;
           order_id?: string | null;
-          scalev_order_pk?: number | null;
+          scalev_order_pk?: string | null;
           scalev_order_id?: string | null;
           scalev_pg_reference_id?: string | null;
           payment_status?: string | null;
@@ -720,6 +834,61 @@ export type Database = {
           deleted_webhook_event_count: number;
         }[];
       };
+      claim_voucher_deliveries: {
+        Args: {
+          p_order_id: string;
+          p_order_item_id: string | null;
+          p_voucher_id: string;
+          p_channels: Database["public"]["Enums"]["voucher_delivery_channel"][];
+        };
+        Returns: {
+          id: string;
+          channel: Database["public"]["Enums"]["voucher_delivery_channel"];
+          claim_token: string;
+        }[];
+      };
+      finalize_voucher_delivery_sent: {
+        Args: { p_delivery_id: string; p_claim_token: string };
+        Returns: boolean;
+      };
+      finalize_voucher_delivery_failed: {
+        Args: {
+          p_delivery_id: string;
+          p_claim_token: string;
+          p_error: string;
+        };
+        Returns: boolean;
+      };
+      finalize_voucher_delivery_handoff_required: {
+        Args: {
+          p_delivery_id: string;
+          p_claim_token: string;
+          p_handoff_url: string;
+        };
+        Returns: boolean;
+      };
+      get_admin_dashboard_aggregates: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          total_revenue: number;
+          active_vouchers: number;
+          redeemed_vouchers: number;
+          expired_vouchers: number;
+          total_orders: number;
+          total_vouchers: number;
+          total_reviews: number;
+          average_rating: number;
+          bucket_date: string;
+          bucket_revenue: number;
+          bucket_orders: number;
+        }[];
+      };
+      search_admin_orders: {
+        Args: {
+          search_query: string;
+        };
+        Returns: Database["public"]["Tables"]["orders"]["Row"][];
+      };
       generate_voucher_code: {
         Args: Record<PropertyKey, never>;
         Returns: string;
@@ -749,12 +918,54 @@ export type Database = {
           redemption_id: string | null;
         }[];
       };
+      transition_order_payment_state: {
+        Args: {
+          p_order_id: string;
+          p_target_status: Database["public"]["Enums"]["payment_status"];
+          p_provider: string;
+          p_provider_event_at: string;
+          p_provider_event_at_is_fallback?: boolean;
+          p_expected_version?: number | null;
+          p_transaction_id?: string | null;
+          p_payment_type?: string | null;
+          p_transaction_time?: string | null;
+          p_payment_link?: string | null;
+          p_scalev_order_pk?: string | null;
+          p_scalev_order_id?: string | null;
+          p_scalev_pg_reference_id?: string | null;
+          p_scalev_payment_method?: string | null;
+          p_scalev_sub_payment_method?: string | null;
+          p_scalev_store_unique_id?: string | null;
+          p_scalev_raw_status?: string | null;
+          p_scalev_raw_payment_status?: string | null;
+          p_scalev_last_checked_at?: string | null;
+        };
+        Returns: {
+          accepted: boolean;
+          changed: boolean;
+          reason: string;
+          previous_status:
+            | Database["public"]["Enums"]["payment_status"]
+            | null;
+          current_status:
+            | Database["public"]["Enums"]["payment_status"]
+            | null;
+          state_version: number | null;
+        }[];
+      };
     };
     Enums: {
       service_category: "MASSAGE" | "FACIAL" | "BODY_TREATMENT" | "PACKAGE";
       payment_method: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
       payment_status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
       admin_role: "SUPER_ADMIN" | "MANAGER" | "STAFF";
+      voucher_delivery_channel: "EMAIL" | "WHATSAPP";
+      voucher_delivery_status:
+        | "PENDING"
+        | "PROCESSING"
+        | "SENT"
+        | "FAILED"
+        | "HANDOFF_REQUIRED";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -770,6 +981,13 @@ export type ServiceUpdate = Database["public"]["Tables"]["services"]["Update"];
 export type Voucher = Database["public"]["Tables"]["vouchers"]["Row"];
 export type VoucherInsert = Database["public"]["Tables"]["vouchers"]["Insert"];
 export type VoucherUpdate = Database["public"]["Tables"]["vouchers"]["Update"];
+
+export type VoucherDeliveryOutbox =
+  Database["public"]["Tables"]["voucher_delivery_outbox"]["Row"];
+export type VoucherDeliveryOutboxInsert =
+  Database["public"]["Tables"]["voucher_delivery_outbox"]["Insert"];
+export type VoucherDeliveryOutboxUpdate =
+  Database["public"]["Tables"]["voucher_delivery_outbox"]["Update"];
 
 export type Order = Database["public"]["Tables"]["orders"]["Row"];
 export type OrderInsert = Database["public"]["Tables"]["orders"]["Insert"];
@@ -818,6 +1036,10 @@ export type ServiceCategory = Database["public"]["Enums"]["service_category"];
 export type PaymentMethod = Database["public"]["Enums"]["payment_method"];
 export type PaymentStatus = Database["public"]["Enums"]["payment_status"];
 export type AdminRole = Database["public"]["Enums"]["admin_role"];
+export type VoucherDeliveryChannel =
+  Database["public"]["Enums"]["voucher_delivery_channel"];
+export type VoucherDeliveryStatus =
+  Database["public"]["Enums"]["voucher_delivery_status"];
 
 // Joined types for frontend use
 export type VoucherWithService = Voucher & {
@@ -846,5 +1068,6 @@ export type OrderItemWithService = OrderItem & {
 
 export type OrderWithItems = Order & {
   services: Service | null;
+  vouchers: VoucherWithService | null;
   order_items: OrderItemWithService[];
 };

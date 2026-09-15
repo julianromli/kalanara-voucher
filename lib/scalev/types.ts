@@ -26,7 +26,18 @@ export const SCALEV_VA_BANK_CODES = [
 
 export type ScalevPaymentMethod = (typeof SCALEV_PAYMENT_METHODS)[number];
 export type ScalevVABankCode = (typeof SCALEV_VA_BANK_CODES)[number];
+export type ScalevCheckoutAvailabilitySource = "provider" | "fallback";
 export type CheckoutDiscountType = "FIXED_AMOUNT" | "PERCENTAGE";
+
+export function isScalevPaymentMethod(
+  value: string
+): value is ScalevPaymentMethod {
+  return SCALEV_PAYMENT_METHODS.some((method) => method === value);
+}
+
+export function isScalevVABankCode(value: string): value is ScalevVABankCode {
+  return SCALEV_VA_BANK_CODES.some((bankCode) => bankCode === value);
+}
 
 export type ScalevNormalizedPaymentStatus =
   | "PENDING"
@@ -100,7 +111,7 @@ export interface ScalevCreatePaymentResponse {
   paymentLink?: string;
   orderId?: string;
   paymentOrderId?: string;
-  publicAccessToken?: string;
+  statusSessionId?: string;
   paymentMethod?: ScalevPaymentMethod;
   subPaymentMethod?: ScalevVABankCode;
   error?: string;
@@ -166,12 +177,34 @@ export interface ScalevPaymentOption {
   subMethods?: ScalevVABankCode[];
 }
 
-export interface ScalevCheckoutConfig {
+interface ScalevCheckoutConfigBase {
   storeUniqueId: string;
-  paymentOptions: ScalevPaymentOption[];
   disabledPaymentMethods?: ScalevPaymentMethod[];
   paymentNotice?: string;
 }
+
+export interface ScalevAvailableCheckoutConfig
+  extends ScalevCheckoutConfigBase {
+  availability: "available";
+  paymentOptions: ScalevPaymentOption[];
+}
+
+export interface ScalevFallbackCheckoutConfig
+  extends ScalevCheckoutConfigBase {
+  availability: "fallback";
+  paymentOptions: ScalevPaymentOption[];
+}
+
+export interface ScalevUnavailableCheckoutConfig
+  extends ScalevCheckoutConfigBase {
+  availability: "unavailable";
+  paymentOptions: [];
+}
+
+export type ScalevCheckoutConfig =
+  | ScalevAvailableCheckoutConfig
+  | ScalevFallbackCheckoutConfig
+  | ScalevUnavailableCheckoutConfig;
 
 export interface ScalevProductVariantInput {
   name: string;
@@ -233,7 +266,7 @@ export interface ScalevOrderCreateInput extends ScalevPaymentSelection {
 }
 
 export interface ScalevOrderRecord {
-  id: number;
+  id: string;
   order_id?: string;
   payment_status?: string | null;
   status?: string | null;
@@ -243,6 +276,11 @@ export interface ScalevOrderRecord {
   invoice_url?: string | null;
   payment_link?: string | null;
   secret_slug?: string | null;
+  paid_time?: string | null;
+  settled_time?: string | null;
+  conflict_time?: string | null;
+  unpaid_time?: string | null;
+  last_updated_at?: string | null;
   metadata?: Record<string, unknown> | null;
 }
 
@@ -275,7 +313,7 @@ export interface ScalevGatewayPaymentInfo {
 }
 
 export interface ScalevPaymentStatusResponse {
-  id?: number;
+  id?: string;
   order_id?: string;
   payment_status?: string | null;
   status?: string | null;
@@ -283,20 +321,31 @@ export interface ScalevPaymentStatusResponse {
   payment_method?: string | null;
   sub_payment_method?: string | null;
   invoice_url?: string | null;
+  payment_link?: string | null;
   secret_slug?: string | null;
+  paid_time?: string | null;
+  settled_time?: string | null;
+  conflict_time?: string | null;
+  unpaid_time?: string | null;
+  last_updated_at?: string | null;
   pg_payment_info?: ScalevGatewayPaymentInfo | null;
 }
 
 export interface ScalevSettlementStatusResponse {
-  id?: number;
+  id?: string;
   order_id?: string;
   payment_status?: string | null;
   status?: string | null;
   pg_reference_id?: string | null;
+  paid_time?: string | null;
+  settled_time?: string | null;
+  conflict_time?: string | null;
+  unpaid_time?: string | null;
+  last_updated_at?: string | null;
 }
 
 export interface ScalevPaymentSnapshot {
-  orderPk?: number | null;
+  orderPk?: string | null;
   orderId?: string | null;
   pgReferenceId?: string | null;
   paymentLink?: string | null;
@@ -305,6 +354,7 @@ export interface ScalevPaymentSnapshot {
   subPaymentMethod?: string | null;
   rawPaymentStatus?: string | null;
   rawStatus?: string | null;
+  providerEventAt?: string | null;
   normalizedStatus: ScalevNormalizedPaymentStatus;
 }
 
@@ -377,7 +427,7 @@ export interface ScalevWebhookPaymentStatusHistoryItem {
 }
 
 export interface ScalevWebhookPaymentStatusChangedData {
-  id?: number;
+  id?: string;
   order_id?: string;
   payment_status?: string | null;
   payment_method?: string | null;

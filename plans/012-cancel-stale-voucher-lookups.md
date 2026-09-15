@@ -1,6 +1,6 @@
 # 012 — Cancel stale voucher verification requests
 
-- **Status**: OPEN
+- **Status**: DONE
 - **Commit**: b94c4ae
 - **Severity**: HIGH
 - **Category**: Bugs & correctness

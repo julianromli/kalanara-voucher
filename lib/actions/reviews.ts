@@ -6,10 +6,28 @@ import {
   logAdminAudit,
   requireAdminPermission,
 } from "@/lib/auth/admin-rbac-server";
+import {
+  escapePostgrestLike,
+  fetchBoundedAdminPage,
+  normalizeAdminListParams,
+  type AdminListParams,
+  type AdminPage,
+} from "@/lib/actions/admin-pagination";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { Review, ReviewInsert } from "@/lib/database.types";
 import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
+
+const REVIEW_ADMIN_LIST_SELECT =
+  "id, rating, comment, customer_name";
+const REVIEW_ADMIN_FILTERS = ["ALL", "1", "2", "3", "4", "5"] as const;
+
+export interface ReviewAdminListRow {
+  id: string;
+  rating: number;
+  comment: string | null;
+  customer_name: string;
+}
 
 interface PublicReviewVoucherRow {
   id: string;
@@ -78,21 +96,53 @@ export async function getReviewsByRating(minRating: number): Promise<Review[]> {
   return (data as Review[]) || [];
 }
 
-export async function getAdminReviews(): Promise<Review[]> {
+export async function getAdminReviewsPage(
+  params: AdminListParams,
+): Promise<AdminPage<ReviewAdminListRow>> {
   await requireAdminPermission(AdminPermission.REVIEWS_MANAGE);
 
+  const normalized = normalizeAdminListParams(
+    {
+      page: String(params.page),
+      query: params.query,
+      filter: params.filter,
+    },
+    REVIEW_ADMIN_FILTERS,
+  );
   const supabase = getAdminClient();
-  const { data, error } = await supabase
+  let request = supabase
     .from("reviews")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .select(REVIEW_ADMIN_LIST_SELECT, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
 
-  if (error) {
-    console.error("Error fetching admin reviews:", error);
-    return [];
+  if (normalized.filter !== "ALL") {
+    request = request.eq("rating", Number(normalized.filter));
   }
 
-  return (data as Review[]) || [];
+  if (normalized.query) {
+    const pattern = `"%${escapePostgrestLike(normalized.query)}%"`;
+    request = request.or(
+      `customer_name.ilike.${pattern},comment.ilike.${pattern}`,
+    );
+  }
+
+  try {
+    return await fetchBoundedAdminPage({
+      requestedPage: normalized.page,
+      fetchRange: async (from, to) => {
+        const result = await request.range(from, to);
+        return {
+          data: (result.data as ReviewAdminListRow[] | null) ?? null,
+          count: result.count,
+          error: result.error,
+        };
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching admin reviews:", error);
+    throw error;
+  }
 }
 
 export async function getPublicReviewVoucherByCode(
@@ -140,23 +190,6 @@ export async function createPublicReview(
 
   revalidateTag("dashboard-stats", "max");
   return { success: true };
-}
-
-export async function createReview(review: ReviewInsert): Promise<Review | null> {
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from("reviews")
-    .insert(review)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Error creating review:", error);
-    return null;
-  }
-
-  revalidateTag("dashboard-stats", "max");
-  return data;
 }
 
 export async function deleteReview(id: string): Promise<boolean> {

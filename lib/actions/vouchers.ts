@@ -1,21 +1,51 @@
 "use server";
 
-import crypto from "crypto";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 import {
   logAdminAudit,
   requireAdminPermission,
 } from "@/lib/auth/admin-rbac-server";
+import {
+  escapePostgrestLike,
+  fetchBoundedAdminPage,
+  normalizeAdminListParams,
+  type AdminListParams,
+  type AdminPage,
+} from "@/lib/actions/admin-pagination";
 import { getAdminClient } from "@/lib/supabase/admin";
-import type {
-  Database,
-  Voucher,
-  VoucherInsert,
-  VoucherWithService,
-} from "@/lib/database.types";
+import type { VoucherWithService } from "@/lib/database.types";
 import type { PublicVoucherLookup } from "@/lib/types";
 import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
+
+const VOUCHER_ADMIN_LIST_SELECT =
+  "id, code, recipient_name, recipient_email, expiry_date, is_redeemed, amount, services(name, duration)";
+const VOUCHER_ADMIN_FILTERS = [
+  "ALL",
+  "ACTIVE",
+  "REDEEMED",
+  "EXPIRED",
+] as const;
+
+export interface VoucherAdminSummary {
+  active: number;
+  redeemed: number;
+  expired: number;
+}
+
+export interface VoucherAdminListRow {
+  id: string;
+  code: string;
+  recipient_name: string;
+  recipient_email: string;
+  expiry_date: string;
+  is_redeemed: boolean;
+  amount: number;
+  services: {
+    name: string;
+    duration: number;
+  } | null;
+}
 
 export interface DestructiveVoucherActionResult {
   success: boolean;
@@ -108,37 +138,94 @@ async function hardDeleteVoucherTransactional(
   return result;
 }
 
-/**
- * Generates a cryptographically secure voucher code.
- * Uses crypto.randomBytes() instead of Math.random() for security.
- * Format: KSP-{YEAR}-{8 random alphanumeric characters}
- */
-function generateVoucherCode(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  const randomBytes = crypto.randomBytes(8);
-  const randomPart = Array.from(
-    { length: 8 },
-    (_, i) => chars[randomBytes[i] % chars.length],
-  ).join("");
-  const year = new Date().getFullYear();
-  return `KSP-${year}-${randomPart}`;
+export async function getVouchersPage(
+  params: AdminListParams,
+): Promise<AdminPage<VoucherAdminListRow>> {
+  await requireAdminPermission(AdminPermission.VOUCHERS_MANAGE);
+
+  const normalized = normalizeAdminListParams(
+    {
+      page: String(params.page),
+      query: params.query,
+      filter: params.filter,
+    },
+    VOUCHER_ADMIN_FILTERS,
+  );
+  const now = new Date().toISOString();
+  const supabase = getAdminClient();
+  let request = supabase
+    .from("vouchers")
+    .select(VOUCHER_ADMIN_LIST_SELECT, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
+
+  if (normalized.filter === "ACTIVE") {
+    request = request.eq("is_redeemed", false).gt("expiry_date", now);
+  } else if (normalized.filter === "REDEEMED") {
+    request = request.eq("is_redeemed", true);
+  } else if (normalized.filter === "EXPIRED") {
+    request = request.eq("is_redeemed", false).lte("expiry_date", now);
+  }
+
+  if (normalized.query) {
+    const pattern = `"%${escapePostgrestLike(normalized.query)}%"`;
+    request = request.or(
+      `code.ilike.${pattern},recipient_name.ilike.${pattern},recipient_email.ilike.${pattern}`,
+    );
+  }
+
+  try {
+    return await fetchBoundedAdminPage({
+      requestedPage: normalized.page,
+      fetchRange: async (from, to) => {
+        const result = await request.range(from, to);
+        return {
+          data: (result.data as VoucherAdminListRow[] | null) ?? null,
+          count: result.count,
+          error: result.error,
+        };
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching vouchers:", error);
+    throw error;
+  }
 }
 
-export async function getVouchers(): Promise<VoucherWithService[]> {
+export async function getVoucherAdminSummary(): Promise<VoucherAdminSummary> {
   await requireAdminPermission(AdminPermission.VOUCHERS_MANAGE);
 
   const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from("vouchers")
-    .select(`*, services(*)`)
-    .order("created_at", { ascending: false });
+  const now = new Date().toISOString();
+  const [activeResult, redeemedResult, expiredResult] = await Promise.all([
+    supabase
+      .from("vouchers")
+      .select("id", { count: "exact", head: true })
+      .eq("is_redeemed", false)
+      .gt("expiry_date", now),
+    supabase
+      .from("vouchers")
+      .select("id", { count: "exact", head: true })
+      .eq("is_redeemed", true),
+    supabase
+      .from("vouchers")
+      .select("id", { count: "exact", head: true })
+      .eq("is_redeemed", false)
+      .lte("expiry_date", now),
+  ]);
 
-  if (error) {
-    console.error("Error fetching vouchers:", error);
-    return [];
+  for (const result of [activeResult, redeemedResult, expiredResult]) {
+    if (result.error) {
+      console.error("Error counting voucher admin summary:", result.error);
+      throw result.error;
+    }
   }
 
-  return (data as VoucherWithService[]) || [];
+  return {
+    active: activeResult.count ?? 0,
+    redeemed: redeemedResult.count ?? 0,
+    expired: expiredResult.count ?? 0,
+  };
 }
 
 export async function getVoucherByCode(
@@ -177,50 +264,6 @@ export async function getVoucherById(
   return data as VoucherWithService;
 }
 
-export async function getVoucherBySourceOrderId(
-  sourceOrderId: string,
-): Promise<VoucherWithService | null> {
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from("vouchers")
-    .select("*, services(*)")
-    .eq("source_order_id", sourceOrderId)
-    .single();
-
-  if (error) {
-    if ("code" in error && error.code === "PGRST116") {
-      return null;
-    }
-
-    console.error("Error fetching voucher by source order ID:", error);
-    return null;
-  }
-
-  return data as VoucherWithService;
-}
-
-export async function getVoucherBySourceOrderItemId(
-  sourceOrderItemId: string,
-): Promise<VoucherWithService | null> {
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from("vouchers")
-    .select("*, services(*)")
-    .eq("source_order_item_id", sourceOrderItemId)
-    .single();
-
-  if (error) {
-    if ("code" in error && error.code === "PGRST116") {
-      return null;
-    }
-
-    console.error("Error fetching voucher by source order item ID:", error);
-    return null;
-  }
-
-  return data as VoucherWithService;
-}
-
 export async function getPublicVoucherLookupByCode(
   code: string,
 ): Promise<PublicVoucherLookup | null> {
@@ -242,63 +285,6 @@ export async function getPublicVoucherLookupByCode(
       image: resolveServiceImageUrl(voucher.services.image_url),
     },
   };
-}
-
-export async function createVoucher(
-  voucherData: Omit<VoucherInsert, "code">,
-): Promise<Voucher | null> {
-  // Use admin client to bypass RLS for trusted server operations
-  const supabase = getAdminClient();
-
-  // Generate unique code
-  let code = generateVoucherCode();
-  let attempts = 0;
-  const maxAttempts = 5;
-
-  while (attempts < maxAttempts) {
-    const { data: existing } = await supabase
-      .from("vouchers")
-      .select("id")
-      .eq("code", code)
-      .single();
-
-    if (!existing) break;
-    code = generateVoucherCode();
-    attempts++;
-  }
-
-  const { data, error } = await supabase
-    .from("vouchers")
-    .insert({
-      ...voucherData,
-      code,
-    } as Database["public"]["Tables"]["vouchers"]["Insert"])
-    .select()
-    .single();
-
-  if (error) {
-    if ("code" in error && error.code === "23505") {
-      if (voucherData.source_order_item_id) {
-        const existingVoucher = await getVoucherBySourceOrderItemId(
-          voucherData.source_order_item_id,
-        );
-        return existingVoucher;
-      }
-
-      if (voucherData.source_order_id) {
-        const existingVoucher = await getVoucherBySourceOrderId(
-          voucherData.source_order_id,
-        );
-        return existingVoucher;
-      }
-    }
-
-    console.error("Error creating voucher:", error);
-    return null;
-  }
-
-  revalidateTag("dashboard-stats", "max");
-  return data as Voucher;
 }
 
 export async function redeemVoucher(

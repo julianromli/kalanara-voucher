@@ -3,12 +3,20 @@ import { describe, it, expect, vi } from "vitest";
 import { ServicesSection } from "./services-section";
 import type { Service } from "@/lib/types";
 import { getDefaultServiceImageUrl } from "@/lib/utils/serviceImages";
+import { ToastProvider } from "@/context/ToastContext";
 
 import type { ImgHTMLAttributes } from "react";
 
-function NextImageMock(props: ImgHTMLAttributes<HTMLImageElement>) {
+function NextImageMock(props: ImgHTMLAttributes<HTMLImageElement> & {
+  fill?: boolean;
+  priority?: boolean;
+}) {
+  const imageProps = { ...props };
+  delete imageProps.fill;
+  delete imageProps.priority;
+
   // eslint-disable-next-line @next/next/no-img-element
-  return <img alt={props.alt ?? ""} {...props} />;
+  return <img alt={imageProps.alt ?? ""} {...imageProps} />;
 }
 
 vi.mock("next/image", () => ({
@@ -22,6 +30,14 @@ class MockIntersectionObserver {
   disconnect() {}
 }
 window.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
+
+function renderServices(services: Service[]) {
+  return render(
+    <ToastProvider>
+      <ServicesSection services={services} />
+    </ToastProvider>
+  );
+}
 
 const mockServices: Service[] = [
   {
@@ -66,7 +82,7 @@ const mockServices: Service[] = [
 
 describe("ServicesSection", () => {
   it("renders duration and category badge for valid service", () => {
-    render(<ServicesSection services={[mockServices[0]]} />);
+    renderServices([mockServices[0]]);
     
     // Duration
     expect(screen.getByText("60 menit")).toBeInTheDocument();
@@ -79,7 +95,7 @@ describe("ServicesSection", () => {
   });
 
   it("handles missing category data gracefully without crashing", () => {
-    render(<ServicesSection services={[mockServices[1]]} />);
+    renderServices([mockServices[1]]);
     
     // Duration should still render
     expect(screen.getByText("90 menit")).toBeInTheDocument();
@@ -92,7 +108,7 @@ describe("ServicesSection", () => {
   });
 
   it("uses the shared fallback image when a service image is missing", () => {
-    render(<ServicesSection services={[mockServices[2]]} />);
+    renderServices([mockServices[2]]);
 
     const image = screen.getByRole("img", { name: "Fallback Image Service" });
 

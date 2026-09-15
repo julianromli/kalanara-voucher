@@ -80,6 +80,32 @@ describe("review actions", () => {
     expect(revalidateTagMock).toHaveBeenCalledWith("dashboard-stats", "max");
   });
 
+  test("does not expose unrestricted review creation as a Server Action", async () => {
+    const reviewActions = await import("@/lib/actions/reviews");
+
+    expect(reviewActions).not.toHaveProperty("createReview");
+  });
+
+  test.each([
+    ["no session", 401],
+    ["normal user", 401],
+    ["admin lacking permission", 403],
+  ])(
+    "rejects review deletion for %s before obtaining the service-role client",
+    async (_scenario, status) => {
+      requireAdminPermissionMock.mockRejectedValueOnce(
+        Object.assign(new Error(status === 401 ? "Unauthorized" : "Forbidden"), {
+          status,
+        })
+      );
+
+      const { deleteReview } = await import("@/lib/actions/reviews");
+
+      await expect(deleteReview("review-1")).rejects.toMatchObject({ status });
+      expect(getAdminClientMock).not.toHaveBeenCalled();
+    }
+  );
+
   test("does not revalidate dashboard stats when public review creation fails", async () => {
     const voucherSingleMock = vi.fn().mockResolvedValue({
       data: {

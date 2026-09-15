@@ -1,6 +1,6 @@
 # 001 — Secure privileged server actions
 
-- **Status**: OPEN
+- **Status**: DONE
 - **Commit**: b94c4ae
 - **Title**: Secure privileged server actions
 - **Severity**: HIGH

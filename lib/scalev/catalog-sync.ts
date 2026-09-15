@@ -9,10 +9,8 @@ import {
 } from "@/lib/scalev/client";
 import { type ScalevCatalogProductInput } from "@/lib/scalev/types";
 import type { Service } from "@/lib/database.types";
-import {
-  getActiveServicesForScalevSync,
-  updateServiceScalevMapping,
-} from "@/lib/actions/services";
+import { getActiveServicesForScalevSync } from "@/lib/actions/services";
+import { updateServiceScalevMapping } from "@/lib/scalev/serviceWrites";
 
 const SCALEV_PRODUCT_DESCRIPTION_MAX_LENGTH = 255;
 
@@ -138,9 +136,16 @@ export async function syncActiveServicesToScalev() {
         await ensureScalevServiceMapping(service);
         return { serviceId: service.id, success: true as const };
       } catch (error) {
-        await updateServiceScalevMapping(service.id, {
-          scalev_sync_status: "failed",
-        });
+        try {
+          await updateServiceScalevMapping(service.id, {
+            scalev_sync_status: "failed",
+          });
+        } catch (mappingError) {
+          console.error(
+            `[Scalev] Failed to mark service ${service.id} sync as failed:`,
+            mappingError
+          );
+        }
 
         return {
           serviceId: service.id,

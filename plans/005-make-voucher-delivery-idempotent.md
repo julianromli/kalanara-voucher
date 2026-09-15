@@ -1,6 +1,6 @@
 # 005 — Make voucher delivery idempotent
 
-- **Status**: OPEN
+- **Status**: DONE
 - **Commit**: b94c4ae
 - **Severity**: HIGH
 - **Category**: Bugs & correctness
@@ -86,12 +86,19 @@ if (alreadyFulfilled) {
 
 Voucher uniqueness does not protect delivery. Concurrent webhook/public reconciliation or a later retry can send the same voucher/channel more than once.
 
-## Target
+## Target (representative initial sketch)
+
+> The SQL and TypeScript below capture the initial design, not the current
+> executable contract. The durable claim-token signatures are defined by
+> `lib/supabase/migrations/022_add_voucher_delivery_outbox.sql`, and the
+> WhatsApp `HANDOFF_REQUIRED` URL finalizer is defined by
+> `lib/supabase/migrations/026_add_voucher_delivery_handoff.sql`. Treat those
+> migrations and `lib/database.types.ts` as the source of truth.
 
 Use a database-backed outbox whose unique source/channel key is the concurrency authority:
 
 ```sql
--- lib/supabase/migrations/020_add_voucher_delivery_outbox.sql — target
+-- Representative initial schema sketch; see migrations 022 and 026.
 CREATE TYPE public.voucher_delivery_channel AS ENUM ('EMAIL', 'WHATSAPP');
 CREATE TYPE public.voucher_delivery_status AS ENUM
   ('PENDING', 'PROCESSING', 'SENT', 'FAILED');
@@ -133,7 +140,7 @@ Define one `SECURITY DEFINER SET search_path = ''` RPC that fully qualifies ever
 4. perform no HTTP/provider work.
 
 ```ts
-// lib/payment/voucher-delivery-outbox.ts — target API
+// lib/payment/voucherDeliveryOutbox.ts — target API
 export type VoucherDeliveryChannel = "EMAIL" | "WHATSAPP";
 export interface ClaimedVoucherDelivery {
   id: string;
@@ -201,9 +208,9 @@ Pass each concrete `Voucher` returned/reused by item or single-voucher creation 
 
 ## Steps
 
-1. Add migration `020_add_voucher_delivery_outbox.sql` with the exact schema/index/RLS/RPC contract above; deny direct anon access.
+1. Add migration `022_add_voucher_delivery_outbox.sql` with the exact schema/index/RLS/RPC contract above; deny direct anon access.
 2. Add generated-equivalent table, enum, aliases, and RPC result types to `lib/database.types.ts`.
-3. Add `lib/payment/voucher-delivery-outbox.ts` using `getAdminClient()` and explicit error checks for claim/SENT/FAILED transitions.
+3. Add `lib/payment/voucherDeliveryOutbox.ts` using `getAdminClient()` and explicit error checks for claim/SENT/FAILED transitions.
 4. Replace `triggerSingleVoucherDelivery` at `lib/payment/voucher-service.ts:199-217` with channel expansion and claimed delivery. Preserve EMAIL/WHATSAPP/BOTH and no-item compatibility.
 5. Refactor the single branch to retain the concrete new/existing voucher while keeping exported `VoucherCreationResult` unchanged.
 6. Keep webhook/reconcile preflight checks only as fast paths; correctness must depend on the durable claim.
