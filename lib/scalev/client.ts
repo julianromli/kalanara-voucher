@@ -317,7 +317,7 @@ export async function updateScalevProduct(
   await scalevRequest<void>(
     `/products/${id}/variants/bulk`,
     {
-      method: "POST",
+      method: "PATCH",
       body: JSON.stringify({
         field: "price",
         value: targetVariant.price,
@@ -368,18 +368,18 @@ export async function createScalevOrder(input: ScalevOrderCreateInput) {
   });
 }
 
-export async function createScalevPaymentIntent(orderPk: number) {
+export async function createScalevPaymentIntent(orderPk: string) {
   return scalevRequest<ScalevPaymentIntentResponse>(`/order/${orderPk}/payment`, {
     method: "POST",
   });
 }
 
-export async function retrieveScalevOrder(orderPk: number) {
+export async function retrieveScalevOrder(orderPk: string) {
   return scalevRequest<ScalevOrderRecord>(`/order/${orderPk}`);
 }
 
 export async function getScalevOrderByPgReference(pgReferenceId: string) {
-  const data = await scalevRequest<{ id: number }>(
+  const data = await scalevRequest<{ id: string }>(
     `/order/retrieve-by-pg-reference-id?pg_reference_id=${encodeURIComponent(pgReferenceId)}`
   );
 
@@ -390,11 +390,11 @@ export async function getScalevOrderByPgReference(pgReferenceId: string) {
   return retrieveScalevOrder(data.id);
 }
 
-export async function checkScalevPaymentStatus(orderPk: number) {
+export async function checkScalevPaymentStatus(orderPk: string) {
   return scalevRequest<ScalevPaymentStatusResponse>(`/order/${orderPk}/check-payment`);
 }
 
-export async function checkScalevSettlementStatus(orderPk: number) {
+export async function checkScalevSettlementStatus(orderPk: string) {
   return scalevRequest<ScalevSettlementStatusResponse>(
     `/order/${orderPk}/check-settlement`
   );

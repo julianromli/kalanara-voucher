@@ -20,6 +20,14 @@ ALTER TABLE public.orders
   ADD COLUMN payment_provider_event_at timestamptz,
   ADD COLUMN payment_state_version bigint NOT NULL DEFAULT 0;
 
+-- Scalev order primary IDs are opaque identifiers. Current responses use UUIDs,
+-- while historical rows may contain numeric IDs.
+ALTER TABLE public.orders
+  ALTER COLUMN scalev_order_pk TYPE text USING scalev_order_pk::text;
+
+ALTER TABLE public.scalev_webhook_events
+  ALTER COLUMN scalev_order_pk TYPE text USING scalev_order_pk::text;
+
 COMMENT ON COLUMN public.orders.payment_provider_event_at IS
   'Latest genuine provider event timestamp used for stale-event comparison; fallback receipt time is tracked only in scalev_last_checked_at.';
 COMMENT ON COLUMN public.orders.payment_state_version IS
@@ -36,7 +44,7 @@ CREATE OR REPLACE FUNCTION public.transition_order_payment_state(
   p_payment_type text DEFAULT NULL,
   p_transaction_time timestamptz DEFAULT NULL,
   p_payment_link text DEFAULT NULL,
-  p_scalev_order_pk bigint DEFAULT NULL,
+  p_scalev_order_pk text DEFAULT NULL,
   p_scalev_order_id text DEFAULT NULL,
   p_scalev_pg_reference_id text DEFAULT NULL,
   p_scalev_payment_method text DEFAULT NULL,
@@ -206,7 +214,7 @@ REVOKE ALL ON FUNCTION public.transition_order_payment_state(
   text,
   timestamptz,
   text,
-  bigint,
+  text,
   text,
   text,
   text,
@@ -228,7 +236,7 @@ GRANT EXECUTE ON FUNCTION public.transition_order_payment_state(
   text,
   timestamptz,
   text,
-  bigint,
+  text,
   text,
   text,
   text,

@@ -131,7 +131,7 @@ describe("POST /api/scalev/webhook", () => {
     const payload = JSON.stringify({
       event: "order.payment_status_changed",
       data: {
-        id: 99,
+        id: "01a0a3c9-8c50-7bd7-9086-9a33c5bcc8e6",
         order_id: "scalev-1",
         pg_reference_id: "pg-1",
         payment_status: "paid",
@@ -151,6 +151,14 @@ describe("POST /api/scalev/webhook", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(getOrderByScalevOrderPkMock).toHaveBeenCalledWith(
+      "01a0a3c9-8c50-7bd7-9086-9a33c5bcc8e6"
+    );
+    expect(createScalevWebhookEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scalev_order_pk: "01a0a3c9-8c50-7bd7-9086-9a33c5bcc8e6",
+      })
+    );
     expect(transitionOrderPaymentStateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         orderId: "order-1",

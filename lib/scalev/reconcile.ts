@@ -62,7 +62,7 @@ function buildGatewayUpdate(
   existingOrder: NonNullable<
     Awaited<ReturnType<typeof getOrderStatusDetailsById>>
   >,
-  orderPk: number,
+  orderPk: string,
   providerEventAt: string,
   receivedAt: string
 ): GatewayPaymentUpdate {

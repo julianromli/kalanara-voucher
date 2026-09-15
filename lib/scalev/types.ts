@@ -266,7 +266,7 @@ export interface ScalevOrderCreateInput extends ScalevPaymentSelection {
 }
 
 export interface ScalevOrderRecord {
-  id: number;
+  id: string;
   order_id?: string;
   payment_status?: string | null;
   status?: string | null;
@@ -313,7 +313,7 @@ export interface ScalevGatewayPaymentInfo {
 }
 
 export interface ScalevPaymentStatusResponse {
-  id?: number;
+  id?: string;
   order_id?: string;
   payment_status?: string | null;
   status?: string | null;
@@ -332,7 +332,7 @@ export interface ScalevPaymentStatusResponse {
 }
 
 export interface ScalevSettlementStatusResponse {
-  id?: number;
+  id?: string;
   order_id?: string;
   payment_status?: string | null;
   status?: string | null;
@@ -345,7 +345,7 @@ export interface ScalevSettlementStatusResponse {
 }
 
 export interface ScalevPaymentSnapshot {
-  orderPk?: number | null;
+  orderPk?: string | null;
   orderId?: string | null;
   pgReferenceId?: string | null;
   paymentLink?: string | null;
@@ -427,7 +427,7 @@ export interface ScalevWebhookPaymentStatusHistoryItem {
 }
 
 export interface ScalevWebhookPaymentStatusChangedData {
-  id?: number;
+  id?: string;
   order_id?: string;
   payment_status?: string | null;
   payment_method?: string | null;

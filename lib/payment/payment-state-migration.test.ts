@@ -136,4 +136,16 @@ describe("payment state migration contract", () => {
       /drop policy if exists "orders_anon_update" on public\.orders/i
     );
   });
+
+  test("stores opaque Scalev order identifiers as text", () => {
+    const sql = readFileSync(migrationPath, "utf8");
+    const databaseTypes = readFileSync(databaseTypesPath, "utf8");
+
+    expect(sql).toMatch(
+      /alter column scalev_order_pk type text using scalev_order_pk::text/i
+    );
+    expect(sql).toMatch(/p_scalev_order_pk text default null/i);
+    expect(databaseTypes).toMatch(/scalev_order_pk: string \| null/);
+    expect(databaseTypes).toMatch(/p_scalev_order_pk\?: string \| null/);
+  });
 });

@@ -13,7 +13,7 @@ export interface GatewayPaymentUpdate {
   transaction_time?: string | null;
   paymentProvider?: string;
   paymentLink?: string | null;
-  scalevOrderPk?: number | null;
+  scalevOrderPk?: string | null;
   scalevOrderId?: string | null;
   scalevPgReferenceId?: string | null;
   scalevPaymentMethod?: string | null;

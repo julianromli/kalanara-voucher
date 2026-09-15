@@ -361,9 +361,7 @@ export async function getOrderByTransactionId(
   return data as OrderWithService;
 }
 
-export async function getOrderByScalevOrderPk(
-  scalevOrderPk: number
-): Promise<OrderWithService | null> {
+export async function getOrderByScalevOrderPk(scalevOrderPk: string): Promise<OrderWithService | null> {
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("orders")

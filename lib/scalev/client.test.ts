@@ -188,6 +188,9 @@ describe("Scalev v3 catalog requests", () => {
     expect(fetchMock.mock.calls[1]?.[0]).toBe(
       "https://catalog.example/v3/products/123/variants/bulk"
     );
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({ method: "PATCH" })
+    );
     expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toEqual({
       field: "price",
       value: 450000,

@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
     payload: toJsonValue(body),
     scalev_order_pk:
       typeof body.data === "object" && body.data !== null && "id" in body.data
-        ? Number((body.data as { id?: unknown }).id) || null
+        ? String((body.data as { id?: unknown }).id || "") || null
         : null,
     scalev_order_id:
       typeof body.data === "object" && body.data !== null && "order_id" in body.data

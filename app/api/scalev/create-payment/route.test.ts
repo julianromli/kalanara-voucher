@@ -116,7 +116,7 @@ describe("POST /api/scalev/create-payment", () => {
       async (_orderId: string, items: unknown[]) => items
     );
     createScalevOrderMock.mockResolvedValue({
-      id: 99,
+      id: "01a0a3c9-8c50-7bd7-9086-9a33c5bcc8e6",
       order_id: "scalev-1",
       payment_method: "qris",
       sub_payment_method: null,
@@ -378,7 +378,7 @@ describe("POST /api/scalev/create-payment", () => {
       reference_id: "pg-1",
     });
     createScalevOrderMock.mockResolvedValue({
-      id: 99,
+      id: "01a0a3c9-8c50-7bd7-9086-9a33c5bcc8e6",
       order_id: "scalev-1",
       payment_method: "qris",
       payment_link: "https://lookalike-scalev.id/pay",
@@ -455,7 +455,7 @@ describe("POST /api/scalev/create-payment", () => {
       "order-1",
       expect.objectContaining({
         paymentProvider: "scalev",
-        scalevOrderPk: 99,
+        scalevOrderPk: "01a0a3c9-8c50-7bd7-9086-9a33c5bcc8e6",
         scalevPgReferenceId: "pg-1",
       })
     );
@@ -790,7 +790,7 @@ describe("POST /api/scalev/create-payment", () => {
   test("marks the local order failed when Scalev returns no payment link", async () => {
     const { POST } = await import("@/app/api/scalev/create-payment/route");
     createScalevOrderMock.mockResolvedValue({
-      id: 99,
+      id: "01a0a3c9-8c50-7bd7-9086-9a33c5bcc8e6",
       order_id: "scalev-1",
       payment_method: "qris",
       sub_payment_method: null,
@@ -830,7 +830,7 @@ describe("POST /api/scalev/create-payment", () => {
       "order-1",
       expect.objectContaining({
         paymentProvider: "scalev",
-        scalevOrderPk: 99,
+        scalevOrderPk: "01a0a3c9-8c50-7bd7-9086-9a33c5bcc8e6",
       })
     );
   });

@@ -45,7 +45,7 @@ describe("buildPaymentSnapshot", () => {
   it("prefers payment payload values and normalizes the result", () => {
     const snapshot = buildPaymentSnapshot(
       {
-        id: 123,
+        id: "01a0a3c9-8c50-7bd7-9086-9a33c5bcc8e6",
         order_id: "ORD-1",
         payment_status: "paid",
         status: "completed",
@@ -58,7 +58,7 @@ describe("buildPaymentSnapshot", () => {
       null
     );
 
-    expect(snapshot.orderPk).toBe(123);
+    expect(snapshot.orderPk).toBe("01a0a3c9-8c50-7bd7-9086-9a33c5bcc8e6");
     expect(snapshot.orderId).toBe("ORD-1");
     expect(snapshot.pgReferenceId).toBe("PG-1");
     expect(snapshot.paymentMethod).toBe("qris");
@@ -70,7 +70,7 @@ describe("buildPaymentSnapshot", () => {
   it("builds a hosted Scalev URL when only secret_slug is returned", () => {
     const snapshot = buildPaymentSnapshot(
       {
-        id: 456,
+        id: "01a0a3c9-8c50-7bd7-9086-9a33c5bcc8e7",
         order_id: "ORD-2",
         payment_status: "pending",
         status: "created",
@@ -174,7 +174,7 @@ describe("buildPaymentSnapshot", () => {
   it("extracts QRIS instructions from pg_payment_info when no hosted link is available", () => {
     const snapshot = buildPaymentSnapshot(
       {
-        id: 789,
+        id: "01a0a3c9-8c50-7bd7-9086-9a33c5bcc8e8",
         order_id: "ORD-3",
         payment_status: "unpaid",
         status: "pending",

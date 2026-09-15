@@ -426,7 +426,7 @@ export type Database = {
           payment_type: string | null;
           payment_transaction_time: string | null;
           payment_link: string | null;
-          scalev_order_pk: number | null;
+          scalev_order_pk: string | null;
           scalev_order_id: string | null;
           scalev_pg_reference_id: string | null;
           scalev_payment_method: string | null;
@@ -470,7 +470,7 @@ export type Database = {
           payment_type?: string | null;
           payment_transaction_time?: string | null;
           payment_link?: string | null;
-          scalev_order_pk?: number | null;
+          scalev_order_pk?: string | null;
           scalev_order_id?: string | null;
           scalev_pg_reference_id?: string | null;
           scalev_payment_method?: string | null;
@@ -514,7 +514,7 @@ export type Database = {
           payment_type?: string | null;
           payment_transaction_time?: string | null;
           payment_link?: string | null;
-          scalev_order_pk?: number | null;
+          scalev_order_pk?: string | null;
           scalev_order_id?: string | null;
           scalev_pg_reference_id?: string | null;
           scalev_payment_method?: string | null;
@@ -763,7 +763,7 @@ export type Database = {
           signature: string | null;
           payload: Json | null;
           order_id: string | null;
-          scalev_order_pk: number | null;
+          scalev_order_pk: string | null;
           scalev_order_id: string | null;
           scalev_pg_reference_id: string | null;
           payment_status: string | null;
@@ -780,7 +780,7 @@ export type Database = {
           signature?: string | null;
           payload?: Json | null;
           order_id?: string | null;
-          scalev_order_pk?: number | null;
+          scalev_order_pk?: string | null;
           scalev_order_id?: string | null;
           scalev_pg_reference_id?: string | null;
           payment_status?: string | null;
@@ -797,7 +797,7 @@ export type Database = {
           signature?: string | null;
           payload?: Json | null;
           order_id?: string | null;
-          scalev_order_pk?: number | null;
+          scalev_order_pk?: string | null;
           scalev_order_id?: string | null;
           scalev_pg_reference_id?: string | null;
           payment_status?: string | null;
@@ -930,7 +930,7 @@ export type Database = {
           p_payment_type?: string | null;
           p_transaction_time?: string | null;
           p_payment_link?: string | null;
-          p_scalev_order_pk?: number | null;
+          p_scalev_order_pk?: string | null;
           p_scalev_order_id?: string | null;
           p_scalev_pg_reference_id?: string | null;
           p_scalev_payment_method?: string | null;
