@@ -71,11 +71,15 @@ function normalizeScalevMetaThumbnail(metaThumbnail?: string) {
 
 async function scalevRequest<T>(
   path: string,
-  init?: RequestInit
+  init?: RequestInit,
+  options: {
+    baseUrl?: string;
+    allowEmptyResponse?: boolean;
+  } = {}
 ): Promise<T> {
   ensureScalevIpv4First();
   const config = getScalevConfig();
-  const response = await fetch(`${config.apiBaseUrl}${path}`, {
+  const response = await fetch(`${options.baseUrl || config.apiBaseUrl}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${config.apiKey}`,
@@ -100,12 +104,16 @@ async function scalevRequest<T>(
     | T
     | null;
 
-  if (!response.ok || !json) {
+  if (!response.ok || (!json && !options.allowEmptyResponse)) {
     throw new ScalevApiError(
       path,
       response.status,
       json || rawText || null
     );
+  }
+
+  if (!json) {
+    return undefined as T;
   }
 
   if (typeof json === "object" && json !== null && "data" in json) {
@@ -200,19 +208,26 @@ export async function getScalevCheckoutAvailability(signal?: AbortSignal) {
 }
 
 export async function listScalevProducts(search?: string) {
+  const config = getScalevConfig();
   const suffix = search ? `?search=${encodeURIComponent(search)}&page_size=25` : "?page_size=25";
-  const data = await scalevRequest<{ results: ScalevProductRecord[] }>(
-    `/products${suffix}`
+  return scalevRequest<ScalevProductRecord[]>(
+    `/products${suffix}`,
+    undefined,
+    { baseUrl: config.catalogApiBaseUrl }
   );
-
-  return data.results;
 }
 
 export async function getScalevProduct(id: number) {
-  return scalevRequest<ScalevProductRecord>(`/products/${id}`);
+  const config = getScalevConfig();
+  return scalevRequest<ScalevProductRecord>(
+    `/products/${id}`,
+    undefined,
+    { baseUrl: config.catalogApiBaseUrl }
+  );
 }
 
 export async function createScalevProduct(input: ScalevCatalogProductInput) {
+  const config = getScalevConfig();
   const metaThumbnail = normalizeScalevMetaThumbnail(input.metaThumbnail);
   const normalizedInput = { ...input, metaThumbnail };
 
@@ -232,7 +247,7 @@ export async function createScalevProduct(input: ScalevCatalogProductInput) {
         is_checked: true,
       })),
     }),
-  });
+  }, { baseUrl: config.catalogApiBaseUrl });
 
   const primaryVariant = getVariantFromProduct(product);
   if (!primaryVariant) {
@@ -246,10 +261,11 @@ export async function updateScalevProduct(
   id: number,
   input: ScalevCatalogProductInput
 ) {
+  const config = getScalevConfig();
   const metaThumbnail = normalizeScalevMetaThumbnail(input.metaThumbnail);
   const normalizedInput = { ...input, metaThumbnail };
 
-  const product = await scalevRequest<ScalevProductRecord>(`/products/${id}`, {
+  await scalevRequest<ScalevProductRecord>(`/products/${id}`, {
     method: "PATCH",
     body: JSON.stringify({
       name: normalizedInput.name,
@@ -258,15 +274,30 @@ export async function updateScalevProduct(
       rich_description: normalizedInput.richDescription,
       item_type: normalizedInput.itemType,
       meta_thumbnail: normalizedInput.metaThumbnail,
-      variants: normalizedInput.variants.map((variant) => ({
-        variant_id: variant.variantId,
-        price: variant.price,
-        weight: variant.weight,
-        metadata: variant.metadata,
-        is_checked: true,
-      })),
     }),
-  });
+  }, { baseUrl: config.catalogApiBaseUrl });
+
+  const targetVariant = normalizedInput.variants[0];
+  if (!targetVariant) {
+    throw new Error("Scalev product update requires a primary variant");
+  }
+
+  await scalevRequest<void>(
+    `/products/${id}/variants/bulk`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        field: "price",
+        value: targetVariant.price,
+      }),
+    },
+    {
+      baseUrl: config.catalogApiBaseUrl,
+      allowEmptyResponse: true,
+    }
+  );
+
+  const product = await getScalevProduct(id);
 
   const primaryVariant = getVariantFromProduct(product, input.variants[0]?.variantId);
   if (!primaryVariant) {

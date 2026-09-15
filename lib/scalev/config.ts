@@ -11,9 +11,11 @@ import {
 
 const DEFAULT_STORE_UNIQUE_ID = "store_uFfyn8rkIwuwWbHAKVYeRjOi";
 const DEFAULT_API_BASE_URL = "https://api.scalev.id/v2";
+const DEFAULT_CATALOG_API_BASE_URL = "https://api.scalev.com/v3";
 
 export interface ScalevConfig {
   apiBaseUrl: string;
+  catalogApiBaseUrl: string;
   apiKey: string;
   webhookSigningSecret?: string;
   storeUniqueId: string;
@@ -92,6 +94,9 @@ export function getScalevConfig(): ScalevConfig {
   return {
     apiBaseUrl:
       process.env.SCALEV_API_BASE_URL?.trim() || DEFAULT_API_BASE_URL,
+    catalogApiBaseUrl:
+      process.env.SCALEV_CATALOG_API_BASE_URL?.trim() ||
+      DEFAULT_CATALOG_API_BASE_URL,
     apiKey: requireEnv("SCALEV_API_KEY", process.env.SCALEV_API_KEY),
     webhookSigningSecret: process.env.SCALEV_WEBHOOK_SIGNING_SECRET?.trim(),
     storeUniqueId,
