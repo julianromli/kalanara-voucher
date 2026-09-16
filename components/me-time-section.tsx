@@ -93,7 +93,7 @@ export function MeTimeSection() {
           {personas.map((persona, index) => (
             <div
               key={index}
-              className={`bg-card rounded-2xl p-8 border border-border/50 shadow-sm transition-all duration-300 hover:shadow-md hover:border-border card-hover-lift ${
+              className={`bg-card rounded-2xl p-6 sm:p-8 border border-border/50 shadow-sm transition-[box-shadow,border-color] duration-300 hover:shadow-md hover:border-border card-hover-lift ${
                 isInView ? "animate-fade-slide-up" : "opacity-0"
               }`}
               style={{
@@ -113,7 +113,7 @@ export function MeTimeSection() {
 
         {/* Value Bridge & CTA */}
         <div
-          className={`bg-primary rounded-3xl p-10 md:p-16 text-center text-primary-foreground relative overflow-hidden shadow-2xl ${
+          className={`bg-primary rounded-3xl p-6 sm:p-10 md:p-16 text-center text-primary-foreground relative overflow-hidden shadow-2xl ${
             isInView ? "animate-fade-slide-up" : "opacity-0"
           }`}
           style={{ animationDelay: isInView ? "600ms" : "0ms" }}
@@ -137,7 +137,7 @@ export function MeTimeSection() {
             </p>
             <a
               href="#services"
-              className="inline-flex items-center gap-2 bg-accent text-accent-foreground px-8 py-4 rounded-full text-base font-semibold hover:bg-accent/90 transition-all hover:scale-105 shadow-xl mx-auto btn-hover-lift"
+              className="inline-flex max-w-full items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-4 sm:px-8 rounded-full text-base font-semibold hover:bg-accent/90 transition-colors shadow-xl mx-auto btn-hover-lift"
             >
               Lihat Pilihan Gift Voucher
               <ArrowRight size={20} aria-hidden="true" />

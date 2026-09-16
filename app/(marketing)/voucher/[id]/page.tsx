@@ -113,14 +113,14 @@ export default async function VoucherDetailPage({ params }: PageProps) {
             <span className="animate-fade-slide-up text-muted-foreground uppercase tracking-wider text-sm mb-2">
               {service.category.name}
             </span>
-            <h1 className="animate-fade-slide-up animate-stagger-1 font-sans font-semibold text-4xl lg:text-5xl text-foreground mb-6">
+            <h1 className="animate-fade-slide-up animate-stagger-1 font-sans font-semibold text-3xl sm:text-4xl lg:text-5xl text-foreground mb-6 text-balance break-words">
               {service.name}
             </h1>
             <p className="animate-fade-slide-up animate-stagger-2 text-muted-foreground text-lg leading-relaxed mb-8">
               {service.description}
             </p>
 
-            <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 mb-8">
               <div className="animate-scale-in animate-stagger-3 bg-card p-4 rounded-xl border border-border card-hover-lift">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
@@ -149,13 +149,13 @@ export default async function VoucherDetailPage({ params }: PageProps) {
               </div>
             </div>
 
-            <div className="animate-fade-slide-up animate-stagger-5 mt-auto bg-card p-6 rounded-2xl border border-border shadow-spa">
-              <div className="flex items-center justify-between mb-6">
+            <div className="animate-fade-slide-up animate-stagger-5 mt-auto bg-card p-5 sm:p-6 rounded-2xl border border-border shadow-spa">
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">
                     Harga Voucher
                   </p>
-                  <p className="font-sans font-semibold text-3xl text-foreground">
+                  <p className="font-sans font-semibold text-3xl tabular-nums text-foreground">
                     {formatCurrency(service.price)}
                   </p>
                 </div>
@@ -166,13 +166,13 @@ export default async function VoucherDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <AddToCartButton service={service} layout="featured" />
 
                 <Button
                   asChild
                   variant="outline"
-                  className="h-auto w-full gap-2 py-4 leading-[0] text-base font-medium"
+                  className="h-auto min-h-11 w-full gap-2 whitespace-normal px-4 py-3 text-base font-medium leading-none has-[>svg]:px-4"
                 >
                   <Link href={`/checkout/${service.id}`}>
                     <Gift size={20} className="shrink-0" />

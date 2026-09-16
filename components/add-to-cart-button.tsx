@@ -22,13 +22,13 @@ const layoutConfig: Record<
   card: {
     buttonSize: "sm",
     className:
-      "h-auto w-full gap-2 px-4 py-2.5 text-xs font-medium md:min-h-10 md:py-3 md:text-sm",
+      "h-auto min-h-11 w-full gap-2 whitespace-normal px-4 py-3 text-xs font-medium leading-none has-[>svg]:px-4 md:min-h-11 md:py-3 md:text-sm",
     iconSize: 16,
   },
   featured: {
     buttonSize: "default",
     className:
-      "btn-hover-lift h-auto w-full gap-2 py-0 leading-[0] text-base font-medium",
+      "btn-hover-lift h-auto min-h-11 w-full gap-2 whitespace-normal px-4 py-3 text-base font-medium leading-none has-[>svg]:px-4",
     iconSize: 20,
   },
 };

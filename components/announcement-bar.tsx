@@ -93,7 +93,7 @@ export function AnnouncementBar({
   if (!isVisible) return null;
 
   return (
-    <div className="relative w-full bg-foreground text-background text-xs sm:text-sm py-2 px-10 text-center font-medium tracking-wide">
+    <div className="relative w-full bg-foreground text-background text-xs sm:text-sm py-2 px-12 text-center font-medium tracking-wide">
       {text}
       {showCountdown ? (
         <>

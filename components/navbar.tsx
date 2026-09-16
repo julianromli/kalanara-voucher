@@ -171,7 +171,7 @@ export default function Navbar({
                 aria-controls="primary-mobile-menu"
                 aria-label={isOpen ? "Tutup menu utama" : "Buka menu utama"}
                 onClick={() => setIsOpen(!isOpen)}
-                className={`p-2 transition-colors duration-500 ${isScrolled ? "text-foreground" : "text-primary-foreground"
+                className={`inline-flex size-11 items-center justify-center transition-colors duration-500 ${isScrolled ? "text-foreground" : "text-primary-foreground"
                   }`}
               >
                 <HugeiconsIcon

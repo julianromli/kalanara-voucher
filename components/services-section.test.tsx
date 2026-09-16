@@ -114,4 +114,48 @@ describe("ServicesSection", () => {
 
     expect(image).toHaveAttribute("src", getDefaultServiceImageUrl());
   });
+
+  it("keeps a single-column catalog on small phones", () => {
+    const { container } = renderServices(mockServices);
+    const grid = container.querySelector("#services .grid");
+
+    expect(grid?.className).toContain("grid-cols-1");
+    expect(grid?.className).toContain("sm:grid-cols-2");
+    expect(grid?.className).toContain("lg:grid-cols-3");
+    expect(grid?.className).not.toContain("min-[380px]");
+  });
+
+  it("keeps price and the detail link visually separate", () => {
+    renderServices([mockServices[0]]);
+
+    const detailLink = screen.getByRole("link", { name: /detail/i });
+    const priceRow = detailLink.parentElement;
+
+    expect(detailLink).toHaveAttribute("href", "/voucher/test-id-1");
+    expect(priceRow?.textContent).toMatch(/Rp/);
+    expect(priceRow?.className).toContain("gap-x-3");
+    expect(detailLink.className).toContain("shrink-0");
+  });
+
+  it("truncates category badges so they do not fight the duration pill", () => {
+    renderServices([
+      {
+        ...mockServices[0],
+        category: {
+          id: "outlet",
+          slug: "lantai-outlet",
+          name: "Lantai 2 - Kalanara Outlet",
+          isActive: true,
+        },
+      },
+    ]);
+
+    const category = screen.getByText("Lantai 2 - Kalanara Outlet");
+    const overlay = category.parentElement;
+
+    expect(category.className).toContain("truncate");
+    expect(category.className).toContain("max-w-[calc(100%-7.5rem)]");
+    expect(overlay?.className).toContain("justify-between");
+    expect(screen.getByText("60 menit").className).toContain("whitespace-nowrap");
+  });
 });

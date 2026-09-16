@@ -31,7 +31,7 @@ export function FlashSaleTestimonials({ testimonials }: { testimonials: Testimon
           {testimonials.map((t, index) => (
             <div
               key={t.id}
-              className={`bg-background p-8 rounded-2xl border border-border/50 relative shadow-sm card-hover-lift ${
+                className={`bg-background p-6 sm:p-8 rounded-2xl border border-border/50 relative shadow-sm card-hover-lift ${
                 isInView ? "animate-fade-slide-up" : "opacity-0"
               }`}
               style={{
