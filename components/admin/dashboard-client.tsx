@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { formatCurrency } from "@/lib/constants";
@@ -9,6 +9,7 @@ import { StatCard } from "@/components/admin/stat-card";
 import { ChartCard } from "@/components/admin/chart-card";
 import { RecentOrders } from "@/components/admin/recent-orders";
 import { VoucherSummary } from "@/components/admin/voucher-summary";
+import { AdminPageBody } from "@/components/admin/admin-page";
 import { cn } from "@/lib/utils";
 import type { DashboardStats } from "@/lib/actions/dashboard";
 
@@ -19,7 +20,6 @@ interface DashboardClientProps {
 export function DashboardClient({ stats }: DashboardClientProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -27,13 +27,6 @@ export function DashboardClient({ stats }: DashboardClientProps) {
     }
   }, [authLoading, isAuthenticated, router]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsMounted(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // The protected layout already authorizes this subtree on the server.
-  // Keep rendering while client auth hydrates to avoid production-only blank panels.
   if (!isAuthenticated && !authLoading) {
     return null;
   }
@@ -64,127 +57,110 @@ export function DashboardClient({ stats }: DashboardClientProps) {
   return (
     <>
       <DashboardHeader />
-      <div className="w-full overflow-y-auto overflow-x-hidden p-4 md:p-6 h-full">
-        <div className="mx-auto w-full space-y-6">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {canViewBusinessMetrics ? (
+      <AdminPageBody>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {canViewBusinessMetrics ? (
+            <StatCard
+              title="Total Revenue"
+              value={formatCurrency(totalRevenue)}
+              icon="revenue"
+              badge="All Time"
+            />
+          ) : null}
+          <StatCard
+            title="Active Vouchers"
+            value={activeVouchers}
+            icon="active"
+            badge={canViewBusinessMetrics ? "Current" : "Operational"}
+          />
+          <StatCard
+            title="Total Orders"
+            value={totalOrders}
+            icon="orders"
+            badge={canViewBusinessMetrics ? "All Time" : "Read Only"}
+          />
+          {canViewBusinessMetrics ? (
+            <StatCard
+              title="Avg. Rating"
+              value={`${avgRating || "N/A"} / 5`}
+              icon="rating"
+              badge="Reviews"
+            />
+          ) : (
+            <>
               <StatCard
-                title="Total Revenue"
-                value={formatCurrency(totalRevenue)}
-                icon="revenue"
+                title="Total Vouchers"
+                value={totalVouchers}
+                icon="vouchers"
                 badge="All Time"
-                animationDelay={0}
               />
-            ) : null}
-            <StatCard
-              title="Active Vouchers"
-              value={activeVouchers}
-              icon="active"
-              badge={canViewBusinessMetrics ? "Current" : "Operational"}
-              animationDelay={canViewBusinessMetrics ? 75 : 0}
-            />
-            <StatCard
-              title="Total Orders"
-              value={totalOrders}
-              icon="orders"
-              badge={canViewBusinessMetrics ? "All Time" : "Read Only"}
-              animationDelay={canViewBusinessMetrics ? 150 : 75}
-            />
-            {canViewBusinessMetrics ? (
               <StatCard
-                title="Avg. Rating"
-                value={`${avgRating || "N/A"} / 5`}
-                icon="rating"
-                badge="Reviews"
-                animationDelay={225}
+                title="Redeemed"
+                value={redeemedVouchers}
+                icon="redeemed"
+                badge="All Time"
               />
-            ) : (
-              <>
-                <StatCard
-                  title="Total Vouchers"
-                  value={totalVouchers}
-                  icon="vouchers"
-                  badge="All Time"
-                  animationDelay={150}
-                />
-                <StatCard
-                  title="Redeemed"
-                  value={redeemedVouchers}
-                  icon="redeemed"
-                  badge="All Time"
-                  animationDelay={225}
-                />
-              </>
-            )}
-          </div>
+            </>
+          )}
+        </div>
 
-          {/* Charts Row */}
-          <div className={cn(
+        <div
+          className={cn(
             "grid grid-cols-1 gap-6",
-            canViewBusinessMetrics ? "lg:grid-cols-2" : ""
-          )}>
-            {canViewBusinessMetrics ? (
-              <ChartCard data={revenueData} animationDelay={300} />
-            ) : null}
-            <RecentOrders orders={recentOrders} animationDelay={375} />
-          </div>
+            canViewBusinessMetrics ? "lg:grid-cols-2" : "",
+          )}
+        >
+          {canViewBusinessMetrics ? <ChartCard data={revenueData} /> : null}
+          <RecentOrders orders={recentOrders} />
+        </div>
 
-          {/* Bottom Row */}
-          <div className={cn(
+        <div
+          className={cn(
             "grid grid-cols-1 gap-6",
             canViewBusinessMetrics ? "lg:grid-cols-3" : "lg:grid-cols-2",
-            isMounted ? "animate-fade-slide-up" : "opacity-0"
-          )} style={{ animationDelay: "450ms" }}>
-            <div className={canViewBusinessMetrics ? "lg:col-span-2" : undefined}>
-              {/* Quick Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {canViewBusinessMetrics ? (
-                  <StatCard
-                    title="Services"
-                    value={totalServices}
-                    icon="services"
-                    animationDelay={500}
-                  />
-                ) : null}
+          )}
+        >
+          <div className={canViewBusinessMetrics ? "lg:col-span-2" : undefined}>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {canViewBusinessMetrics ? (
                 <StatCard
-                  title="Total Vouchers"
-                  value={totalVouchers}
-                  icon="vouchers"
-                  animationDelay={canViewBusinessMetrics ? 575 : 500}
+                  title="Services"
+                  value={totalServices}
+                  icon="services"
                 />
+              ) : null}
+              <StatCard
+                title="Total Vouchers"
+                value={totalVouchers}
+                icon="vouchers"
+              />
+              <StatCard
+                title="Redeemed"
+                value={redeemedVouchers}
+                icon="redeemed"
+              />
+              {canViewBusinessMetrics ? (
                 <StatCard
-                  title="Redeemed"
-                  value={redeemedVouchers}
-                  icon="redeemed"
-                  animationDelay={canViewBusinessMetrics ? 650 : 575}
+                  title="Reviews"
+                  value={totalReviews}
+                  icon="rating"
                 />
-                {canViewBusinessMetrics ? (
-                  <StatCard
-                    title="Reviews"
-                    value={totalReviews}
-                    icon="rating"
-                    animationDelay={725}
-                  />
-                ) : (
-                  <StatCard
-                    title="Expired"
-                    value={expiredVouchers}
-                    icon="expired"
-                    animationDelay={650}
-                  />
-                )}
-              </div>
+              ) : (
+                <StatCard
+                  title="Expired"
+                  value={expiredVouchers}
+                  icon="expired"
+                />
+              )}
             </div>
-            <VoucherSummary
-              stats={voucherStats}
-              reviews={recentReviews}
-              showReviews={canManageReviews}
-              animationDelay={500}
-            />
           </div>
+          <VoucherSummary
+            stats={voucherStats}
+            reviews={recentReviews}
+            showReviews={canManageReviews}
+          />
         </div>
-      </div>
+      </AdminPageBody>
     </>
   );
 }

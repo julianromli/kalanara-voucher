@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
+import { AdminPageBody } from "@/components/admin/admin-page";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { SearchIcon } from "@hugeicons/core-free-icons";
+import { SearchIcon, Mail01Icon } from "@hugeicons/core-free-icons";
+import { ChevronDown } from "lucide-react";
 
 const HELP_SECTIONS = [
   {
@@ -101,11 +103,10 @@ export function HelpClient() {
   return (
     <>
       <DashboardHeader title="Help Center" showActions={false} />
-      <div className="w-full overflow-y-auto overflow-x-hidden p-4 md:p-6 h-full">
-        <div className="max-w-6xl mx-auto space-y-6">
-          <div className="text-center space-y-4">
-            <h1 className="text-3xl font-semibold">Admin Help Center</h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+      <AdminPageBody>
+        <div className="mx-auto w-full max-w-6xl space-y-6">
+          <div className="space-y-4 text-center">
+            <p className="mx-auto max-w-2xl text-sm text-pretty text-muted-foreground">
               Find answers to common questions and learn how to use the admin dashboard effectively.
             </p>
             
@@ -120,9 +121,16 @@ export function HelpClient() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              {filteredSections.map((section) => (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="space-y-6 lg:col-span-2">
+              {filteredSections.length === 0 ? (
+                <Card>
+                  <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                    No help articles match that search.
+                  </CardContent>
+                </Card>
+              ) : (
+                filteredSections.map((section) => (
                 <Card key={section.title}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -139,7 +147,8 @@ export function HelpClient() {
                     ))}
                   </CardContent>
                 </Card>
-              ))}
+              ))
+              )}
             </div>
 
             <div className="space-y-6">
@@ -157,11 +166,10 @@ export function HelpClient() {
                       open={openFaq === `faq-${index}`}
                       onOpenChange={() => setOpenFaq(openFaq === `faq-${index}` ? null : `faq-${index}`)}
                     >
-                      <CollapsibleTrigger className="flex items-center justify-between w-full text-left p-2 rounded-lg hover:bg-accent">
+                      <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 rounded-lg p-2 text-left transition-colors hover:bg-accent">
                         <span className="text-sm font-medium">{faq.question}</span>
-                        <HugeiconsIcon 
-                          icon={SearchIcon} 
-                          className={`w-4 h-4 transition-transform ${openFaq === `faq-${index}` ? 'rotate-180' : ''}`} 
+                        <ChevronDown
+                          className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${openFaq === `faq-${index}` ? "rotate-180" : ""}`}
                         />
                       </CollapsibleTrigger>
                       <CollapsibleContent className="mt-2 text-sm text-muted-foreground p-2">
@@ -181,7 +189,7 @@ export function HelpClient() {
                     Can&apos;t find what you&apos;re looking for? Contact our support team.
                   </p>
                   <Button onClick={handleContactSupport} className="w-full">
-                    <HugeiconsIcon icon={SearchIcon} className="w-4 h-4 mr-2" />
+                    <HugeiconsIcon icon={Mail01Icon} className="mr-2 h-4 w-4" />
                     Contact Support
                   </Button>
                 </CardContent>
@@ -189,7 +197,7 @@ export function HelpClient() {
             </div>
           </div>
         </div>
-      </div>
+      </AdminPageBody>
     </>
   );
 }

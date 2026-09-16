@@ -16,6 +16,13 @@ import {
 } from "lucide-react";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
 import { AdminListPagination } from "@/components/admin/admin-list-pagination";
+import {
+  AdminFilterBar,
+  AdminPageBody,
+  AdminPageIntro,
+  AdminSurface,
+} from "@/components/admin/admin-page";
+import { AdminRowOverflowMenu } from "@/components/admin/admin-row-overflow-menu";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useAdminListUrl } from "@/hooks/use-admin-list-url";
@@ -35,6 +42,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -42,6 +56,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { OrderWithVoucherItems } from "@/lib/database.types";
 
@@ -290,61 +308,59 @@ export function PurchasesClient({
   return (
     <>
       <DashboardHeader title="Purchases Management" showActions={false} />
-      <div className="h-full w-full overflow-x-hidden overflow-y-auto p-4 md:p-6">
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <p className="text-sm text-muted-foreground">
-              Manage customer voucher purchases and payment status.
-            </p>
+      <AdminPageBody>
+        <AdminPageIntro description="Manage customer voucher purchases and payment status.">
+          {canDeletePurchases ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setPendingDeleteOrder(null);
+                setDeleteMode("all");
+              }}
+              disabled={
+                initialTotalCount === 0 ||
+                isDeleteBusy ||
+                Boolean(isUpdatingStatus)
+              }
+              className="border-destructive/20 text-destructive shadow-none hover:bg-destructive/10 hover:text-destructive"
+            >
+              {isClearingAll ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+              Clear All Purchases
+            </Button>
+          ) : null}
+        </AdminPageIntro>
 
-            {canDeletePurchases ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setPendingDeleteOrder(null);
-                  setDeleteMode("all");
-                }}
-                disabled={
-                  initialTotalCount === 0 ||
-                  isDeleteBusy ||
-                  Boolean(isUpdatingStatus)
-                }
-                className="border-destructive/20 text-destructive shadow-none hover:bg-destructive/10 hover:text-destructive"
-              >
-                {isClearingAll ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Trash2 className="size-4" />
-                )}
-                Clear All Purchases
-              </Button>
-            ) : null}
-          </div>
+        <AdminSurface>
+          <AdminFilterBar className="mb-4">
+            <Input
+              placeholder="Search purchases..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="flex-1"
+            />
+            <Select
+              value={statusFilter}
+              onValueChange={setStatusFilter}
+            >
+              <SelectTrigger className="w-full md:w-44">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Status</SelectItem>
+                <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="COMPLETED">Completed</SelectItem>
+                <SelectItem value="FAILED">Failed</SelectItem>
+                <SelectItem value="REFUNDED">Refunded</SelectItem>
+              </SelectContent>
+            </Select>
+          </AdminFilterBar>
 
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-spa">
-            <div className="mb-4 flex flex-col gap-4 md:flex-row">
-              <Input
-                placeholder="Search purchases..."
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                className="flex-1"
-              />
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-2"
-              >
-                <option value="ALL">All Status</option>
-                <option value="PENDING">Pending</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="FAILED">Failed</option>
-                <option value="REFUNDED">Refunded</option>
-              </select>
-            </div>
-
-            <div className="overflow-x-auto">
-              <Table>
+            <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Customer</TableHead>
@@ -355,8 +371,8 @@ export function PurchasesClient({
                     <TableHead>Payment</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead className="w-[220px] text-right">
-                      Actions
+                    <TableHead className="w-12 text-right">
+                      <span className="sr-only">Actions</span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -428,60 +444,45 @@ export function PurchasesClient({
                           <TableCell>
                             {new Date(order.created_at).toLocaleDateString()}
                           </TableCell>
-                          <TableCell className="align-top">
-                            <div className="flex min-w-[210px] flex-col items-end gap-2 py-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setSelectedOrder(order)}
-                                disabled={isDeleteBusy}
-                                className="h-9 min-w-[118px] justify-between border-border/70 bg-background/80 px-3 text-foreground shadow-none hover:bg-accent/70"
-                              >
-                                Details
-                                <ArrowUpRight className="size-3.5" />
-                              </Button>
-
-                              <div className="flex flex-wrap justify-end gap-2">
-                                {canUpdatePaymentStatus &&
-                                order.payment_status === "PENDING" ? (
-                                  <Button
-                                    size="sm"
-                                    onClick={() =>
-                                      updateOrderStatus(order.id, "COMPLETED")
-                                    }
-                                    disabled={isStatusBusy || isDeleteBusy}
-                                    className="h-8 bg-success px-3 text-success-foreground shadow-none hover:bg-success/90"
+                          <TableCell className="text-right">
+                            <AdminRowOverflowMenu
+                              label={`Open actions for ${order.payment_order_id || order.customer_name}`}
+                              busy={isStatusBusy || isRowDeleteBusy}
+                              disabled={isStatusBusy || isDeleteBusy}
+                            >
+                                <DropdownMenuItem
+                                    onSelect={() => setSelectedOrder(order)}
                                   >
-                                    {isStatusBusy ? (
-                                      <Loader2 className="size-4 animate-spin" />
-                                    ) : (
-                                      <CheckCheck className="size-3.5" />
-                                    )}
-                                    Complete
-                                  </Button>
-                                ) : null}
-
-                                {canDeletePurchases ? (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      setPendingDeleteOrder(order);
-                                      setDeleteMode("single");
-                                    }}
-                                    disabled={isDeleteBusy || isStatusBusy}
-                                    className="h-8 px-2.5 text-destructive shadow-none hover:bg-destructive/10 hover:text-destructive"
-                                  >
-                                    {isRowDeleteBusy ? (
-                                      <Loader2 className="size-4 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="size-4" />
-                                    )}
-                                    Delete
-                                  </Button>
-                                ) : null}
-                              </div>
-                            </div>
+                                    <ArrowUpRight />
+                                    Details
+                                  </DropdownMenuItem>
+                                  {canUpdatePaymentStatus &&
+                                  order.payment_status === "PENDING" ? (
+                                    <DropdownMenuItem
+                                      onSelect={() =>
+                                        updateOrderStatus(order.id, "COMPLETED")
+                                      }
+                                    >
+                                      <CheckCheck />
+                                      Complete
+                                    </DropdownMenuItem>
+                                  ) : null}
+                                  {canDeletePurchases ? (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        variant="destructive"
+                                        onSelect={() => {
+                                          setPendingDeleteOrder(order);
+                                          setDeleteMode("single");
+                                        }}
+                                      >
+                                        <Trash2 />
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </>
+                                  ) : null}
+                            </AdminRowOverflowMenu>
                           </TableCell>
                         </TableRow>
                       );
@@ -489,7 +490,6 @@ export function PurchasesClient({
                   )}
                 </TableBody>
               </Table>
-            </div>
             <AdminListPagination
               itemLabel="pembelian"
               page={initialPage.page}
@@ -502,9 +502,8 @@ export function PurchasesClient({
                 isClearingAll
               }
             />
-          </div>
-        </div>
-      </div>
+          </AdminSurface>
+      </AdminPageBody>
 
       <Dialog
         open={Boolean(selectedOrder)}

@@ -3,12 +3,26 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
+import {
+  AdminEmptyState,
+  AdminFilterBar,
+  AdminPageBody,
+  AdminPageIntro,
+  AdminSurface,
+} from "@/components/admin/admin-page";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { PlusSignIcon, PencilEdit01Icon } from "@hugeicons/core-free-icons";
 import {
@@ -43,9 +57,9 @@ interface EditUserFormState {
 const MIN_PASSWORD_LENGTH = 8;
 
 const ROLE_COLORS = {
-  SUPER_ADMIN: "bg-red-100 text-red-800",
-  MANAGER: "bg-blue-100 text-blue-800",
-  STAFF: "bg-gray-100 text-gray-800"
+  SUPER_ADMIN: "border-transparent bg-destructive/10 text-destructive",
+  MANAGER: "border-transparent bg-info/10 text-info",
+  STAFF: "border-transparent bg-muted text-muted-foreground",
 } as const;
 
 const INITIAL_NEW_USER_FORM: NewUserFormState = {
@@ -246,42 +260,42 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
   return (
     <>
       <DashboardHeader title="User Management" showActions={false} />
-      <div className="w-full overflow-y-auto overflow-x-hidden p-4 md:p-6 h-full">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <p className="text-muted-foreground text-sm">
-              Kelola admin, akses, dan onboarding akun tim.
-            </p>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <HugeiconsIcon icon={PlusSignIcon} className="w-4 h-4 mr-2" />
-              Tambah Admin
-            </Button>
-          </div>
+      <AdminPageBody>
+        <AdminPageIntro description="Kelola admin, akses, dan onboarding akun tim.">
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <HugeiconsIcon icon={PlusSignIcon} className="mr-2 h-4 w-4" />
+            Tambah Admin
+          </Button>
+        </AdminPageIntro>
 
-          <div className="bg-card rounded-2xl shadow-spa border border-border p-4">
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
-              <Input
-                placeholder="Cari nama atau email admin..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1"
-              />
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value as AdminRole | "ALL")}
-                className="px-3 py-2 border border-border rounded-lg"
-              >
-                <option value="ALL">Semua Role</option>
-                <option value="SUPER_ADMIN">Super Admin</option>
-                <option value="MANAGER">Manager</option>
-                <option value="STAFF">Staff</option>
-              </select>
-            </div>
+        <AdminSurface>
+          <AdminFilterBar className="mb-6">
+            <Input
+              placeholder="Cari nama atau email admin..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1"
+            />
+            <Select
+              value={roleFilter}
+              onValueChange={(value) => setRoleFilter(value as AdminRole | "ALL")}
+            >
+              <SelectTrigger className="w-full md:w-48">
+                <SelectValue placeholder="Semua Role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Semua Role</SelectItem>
+                <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
+                <SelectItem value="MANAGER">Manager</SelectItem>
+                <SelectItem value="STAFF">Staff</SelectItem>
+              </SelectContent>
+            </Select>
+          </AdminFilterBar>
 
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-border bg-accent/50">
+                  <tr className="border-b border-border bg-muted/40">
                      <th className="text-left p-4">Nama</th>
                      <th className="text-left p-4">Email</th>
                      <th className="text-left p-4">Role</th>
@@ -296,7 +310,7 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
                       user.role === "SUPER_ADMIN" && superAdminCount === 1;
 
                     return (
-                      <tr key={user.id} className="hover:bg-accent/50">
+                      <tr key={user.id} className="row-hover-lift">
                         <td className="p-4">
                           <div className="font-medium">{user.name}</div>
                         </td>
@@ -315,26 +329,44 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center justify-end gap-2">
-                          <select
+                          <Select
                             value={user.role}
-                            onChange={(e) => handleRoleUpdate(user.id, e.target.value as AdminRole)}
+                            onValueChange={(value) =>
+                              handleRoleUpdate(user.id, value as AdminRole)
+                            }
                             disabled={isCurrentUser || isLastSuperAdmin}
-                            className="px-2 py-1 text-sm border border-border rounded"
                           >
-                            <option value="SUPER_ADMIN">Super Admin</option>
-                            <option value="MANAGER">Manager</option>
-                            <option value="STAFF">Staff</option>
-                          </select>
+                            <SelectTrigger
+                              size="sm"
+                              className="h-8 w-[8.5rem]"
+                              aria-describedby={
+                                isCurrentUser || isLastSuperAdmin
+                                  ? `user-role-hint-${user.id}`
+                                  : undefined
+                              }
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
+                              <SelectItem value="MANAGER">Manager</SelectItem>
+                              <SelectItem value="STAFF">Staff</SelectItem>
+                            </SelectContent>
+                          </Select>
                            <Button
                              size="sm"
                              variant="outline"
+                             aria-label={`Ubah ${user.name}`}
                              onClick={() => openEditDialog(user)}
                            >
                              <HugeiconsIcon icon={PencilEdit01Icon} className="w-4 h-4" />
                            </Button>
                         </div>
                         {(isCurrentUser || isLastSuperAdmin) && (
-                          <p className="mt-2 text-right text-xs text-muted-foreground">
+                          <p
+                            id={`user-role-hint-${user.id}`}
+                            className="sr-only"
+                          >
                             {isCurrentUser
                               ? "Anda tidak bisa mengubah role akun sendiri"
                               : "Super admin terakhir harus tetap aktif"}
@@ -349,13 +381,13 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
             </div>
 
             {filteredUsers.length === 0 && (
-                <div className="text-center py-12">
-                 <p className="text-muted-foreground">Tidak ada admin yang cocok.</p>
-                </div>
-              )}
-            </div>
-        </div>
-      </div>
+              <AdminEmptyState
+                title="Tidak ada admin yang cocok"
+                description="Ubah kata kunci atau filter role untuk melihat akun lain."
+              />
+            )}
+            </AdminSurface>
+      </AdminPageBody>
 
       {/* Create User Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -388,21 +420,24 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
              
              <div>
                 <label htmlFor={CREATE_ROLE_SELECT_ID} className="block text-sm font-medium mb-1">Role</label>
-               <select
-                 id={CREATE_ROLE_SELECT_ID}
+               <Select
                  value={newUserForm.role}
-                 onChange={(e) =>
+                 onValueChange={(value) =>
                    setNewUserForm({
                     ...newUserForm,
-                    role: e.target.value as AdminRole,
+                    role: value as AdminRole,
                   })
                 }
-                className="w-full px-3 py-2 border border-border rounded-lg"
               >
-                <option value="SUPER_ADMIN">Super Admin</option>
-                <option value="MANAGER">Manager</option>
-                <option value="STAFF">Staff</option>
-              </select>
+                <SelectTrigger id={CREATE_ROLE_SELECT_ID} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
+                  <SelectItem value="MANAGER">Manager</SelectItem>
+                  <SelectItem value="STAFF">Staff</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div>

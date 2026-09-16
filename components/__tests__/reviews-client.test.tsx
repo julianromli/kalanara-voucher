@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { ReviewsClient } from "@/components/admin/reviews-client";
 import { ToastProvider } from "@/context/ToastContext";
@@ -46,6 +47,24 @@ const initialPage: AdminPage<ReviewAdminListRow> = {
   totalPages: 2,
 };
 
+class MockPointerEvent extends Event {
+  button: number;
+  ctrlKey: boolean;
+  pointerType: string;
+
+  constructor(type: string, props: PointerEventInit = {}) {
+    super(type, props);
+    this.button = props.button || 0;
+    this.ctrlKey = props.ctrlKey || false;
+    this.pointerType = props.pointerType || "mouse";
+  }
+}
+
+window.PointerEvent = MockPointerEvent as unknown as typeof PointerEvent;
+window.HTMLElement.prototype.scrollIntoView = vi.fn();
+window.HTMLElement.prototype.hasPointerCapture = vi.fn();
+window.HTMLElement.prototype.releasePointerCapture = vi.fn();
+
 function renderComponent() {
   return render(
     <ToastProvider>
@@ -83,24 +102,24 @@ describe("ReviewsClient pagination", () => {
     );
   });
 
-  test("filter changes immediately and include the current typed query before debounce", () => {
-    vi.useFakeTimers();
+  test("filter changes immediately and include the current typed query before debounce", async () => {
+    const user = userEvent.setup();
     renderComponent();
 
     fireEvent.change(screen.getByPlaceholderText("Search reviews..."), {
       target: { value: "query terbaru" },
     });
-    const ratingFilter = screen.getByRole("combobox");
-    fireEvent.change(ratingFilter, { target: { value: "4" } });
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByRole("option", { name: "4 Stars" }));
 
-    expect(ratingFilter).toHaveValue("5");
     expect(replace).toHaveBeenCalledWith(
       "/admin/reviews?query=query+terbaru&rating=4",
       { scroll: false },
     );
   });
 
-  test("filter changes preserve the settled URL query when search has no local edit", () => {
+  test("filter changes preserve the settled URL query when search has no local edit", async () => {
+    const user = userEvent.setup();
     const view = renderComponent();
 
     currentSearchParams = "page=2&query=hasil+navigasi&rating=5";
@@ -109,9 +128,8 @@ describe("ReviewsClient pagination", () => {
         <ReviewsClient initialPage={initialPage} />
       </ToastProvider>,
     );
-    fireEvent.change(screen.getByRole("combobox"), {
-      target: { value: "4" },
-    });
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByRole("option", { name: "4 Stars" }));
 
     expect(replace).toHaveBeenCalledWith(
       "/admin/reviews?query=hasil+navigasi&rating=4",

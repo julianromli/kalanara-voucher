@@ -6,9 +6,23 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { StarIcon } from "@hugeicons/core-free-icons";
 import { AdminListPagination } from "@/components/admin/admin-list-pagination";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
+import {
+  AdminEmptyState,
+  AdminFilterBar,
+  AdminPageBody,
+  AdminPageIntro,
+  AdminSurface,
+} from "@/components/admin/admin-page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useAdminListUrl } from "@/hooks/use-admin-list-url";
@@ -80,42 +94,46 @@ export function ReviewsClient({
   return (
     <>
       <DashboardHeader title="Reviews Management" showActions={false} />
-      <div className="h-full w-full overflow-x-hidden overflow-y-auto p-4 md:p-6">
-        <div className="space-y-6">
-          <p className="text-sm text-muted-foreground">
-            Moderate customer reviews and feedback
-          </p>
+      <AdminPageBody>
+        <AdminPageIntro description="Moderate customer reviews and feedback." />
 
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-spa">
-            <div className="mb-6 flex flex-col gap-4 md:flex-row">
-              <Input
-                placeholder="Search reviews..."
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                className="flex-1"
-              />
-              <select
-                value={ratingFilter}
-                onChange={(event) => setRatingFilter(event.target.value)}
-                className="rounded-lg border border-border px-3 py-2"
-              >
-                <option value="ALL">All Ratings</option>
-                <option value="5">5 Stars</option>
-                <option value="4">4 Stars</option>
-                <option value="3">3 Stars</option>
-                <option value="2">2 Stars</option>
-                <option value="1">1 Star</option>
-              </select>
-            </div>
+        <AdminSurface>
+          <AdminFilterBar className="mb-6">
+            <Input
+              placeholder="Search reviews..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="flex-1"
+            />
+            <Select value={ratingFilter} onValueChange={setRatingFilter}>
+              <SelectTrigger className="w-full md:w-40">
+                <SelectValue placeholder="All Ratings" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Ratings</SelectItem>
+                <SelectItem value="5">5 Stars</SelectItem>
+                <SelectItem value="4">4 Stars</SelectItem>
+                <SelectItem value="3">3 Stars</SelectItem>
+                <SelectItem value="2">2 Stars</SelectItem>
+                <SelectItem value="1">1 Star</SelectItem>
+              </SelectContent>
+            </Select>
+          </AdminFilterBar>
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {reviews.length === 0 ? (
+            <AdminEmptyState
+              title="Belum ada ulasan"
+              description="Ulasan pelanggan akan muncul di sini setelah tamu mengirim umpan balik."
+            />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {reviews.map((review) => (
                 <div
                   key={review.id}
-                  className="rounded-2xl border border-border bg-card p-5 shadow-spa transition-shadow hover:shadow-spa-lg"
+                  className="rounded-xl border border-border bg-background/60 p-5"
                 >
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="font-semibold">{review.customer_name}</h3>
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="truncate font-semibold">{review.customer_name}</h3>
                     <div className="flex items-center gap-1">
                       {[1, 2, 3, 4, 5].map((ratingValue) => (
                         <HugeiconsIcon
@@ -124,8 +142,8 @@ export function ReviewsClient({
                           className={cn(
                             "size-4",
                             ratingValue <= review.rating
-                              ? "fill-yellow-400 text-yellow-400"
-                              : "text-gray-300",
+                              ? "fill-warning text-warning"
+                              : "text-muted-foreground/40",
                           )}
                         />
                       ))}
@@ -133,7 +151,7 @@ export function ReviewsClient({
                   </div>
 
                   {review.comment ? (
-                    <p className="mb-4 line-clamp-3 text-sm text-muted-foreground">
+                    <p className="mb-4 line-clamp-3 text-sm text-pretty text-muted-foreground">
                       &ldquo;{review.comment}&rdquo;
                     </p>
                   ) : null}
@@ -152,23 +170,17 @@ export function ReviewsClient({
                 </div>
               ))}
             </div>
+          )}
 
-            {reviews.length === 0 ? (
-              <div className="py-12 text-center">
-                <p className="text-muted-foreground">No reviews found</p>
-              </div>
-            ) : null}
-
-            <AdminListPagination
-              itemLabel="ulasan"
-              page={initialPage.page}
-              totalCount={initialPage.totalCount}
-              totalPages={initialPage.totalPages}
-              onPageChange={setPage}
-            />
-          </div>
-        </div>
-      </div>
+          <AdminListPagination
+            itemLabel="ulasan"
+            page={initialPage.page}
+            totalCount={initialPage.totalCount}
+            totalPages={initialPage.totalPages}
+            onPageChange={setPage}
+          />
+        </AdminSurface>
+      </AdminPageBody>
     </>
   );
 }

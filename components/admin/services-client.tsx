@@ -42,6 +42,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
 import {
+  AdminEmptyState,
+  AdminPageBody,
+  AdminPageIntro,
+  AdminSurface,
+} from "@/components/admin/admin-page";
+import {
   createService,
   updateService,
   setServiceActiveState,
@@ -134,7 +140,6 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
   const [isCatBusy, setIsCatBusy] = useState(false);
 
   // Layout & sync state
-  const [isMounted, setIsMounted] = useState(false);
   const [optimisticIds, setOptimisticIds] = useState<Set<string>>(new Set());
   
   // Upload state
@@ -185,11 +190,6 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
       router.push("/admin/login");
     }
   }, [authLoading, isAuthenticated, router]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsMounted(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     if (!imagePreviewUrl.startsWith("blob:")) {
@@ -608,46 +608,37 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
   return (
     <main aria-labelledby="services-page-title" className="contents">
       <DashboardHeader title="Manajemen Layanan" showActions={false} />
-      <div className="h-full w-full overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-4 md:px-6">
-        <div
-          className={cn(
-            "mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
-            isMounted ? "animate-fade-slide-down" : "opacity-0"
-          )}
-        >
-          <div className="min-w-0">
-            <h2 id="services-page-title" className="text-lg font-semibold text-foreground sm:text-xl">
-              Kelola layanan spa
-            </h2>
-            <p className="text-sm text-muted-foreground">
+      <AdminPageBody>
+        <AdminPageIntro
+          title="Kelola layanan spa"
+          titleId="services-page-title"
+          description={
+            <>
               Kelola layanan spa, harga, dan ketersediaannya
-            </p>
-            {!canCreateService && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Penambahan layanan baru dan perubahan gambar hanya tersedia untuk super admin.
-              </p>
-            )}
-          </div>
-          {canCreateService && (
+              {!canCreateService ? (
+                <span className="mt-1 block">
+                  Penambahan layanan baru dan perubahan gambar hanya tersedia untuk super admin.
+                </span>
+              ) : null}
+            </>
+          }
+        >
+          {canCreateService ? (
             <Button
               onClick={handleOpenCreate}
-              className="btn-hover-lift min-h-11 w-full sm:w-auto"
+              className="min-h-11 w-full sm:w-auto"
             >
               <HugeiconsIcon icon={PlusSignIcon} size={16} className="mr-2" />
               Tambah Layanan
             </Button>
-          )}
-        </div>
+          ) : null}
+        </AdminPageIntro>
 
         {/* Category Management Block */}
         <Collapsible
           open={isCategoriesOpen}
           onOpenChange={setIsCategoriesOpen}
-          className={cn(
-            "mb-6 rounded-2xl border border-border bg-card shadow-spa transition-all",
-            isMounted ? "animate-fade-slide-down" : "opacity-0"
-          )}
-          style={{ animationDelay: "50ms" }}
+          className="admin-surface overflow-hidden"
         >
           <div className="flex items-center justify-between p-4 sm:p-5">
             <div className="flex items-center gap-3">
@@ -680,7 +671,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                     setCatName("");
                     setIsCatDialogOpen(true);
                   }}
-                  className="btn-hover-lift h-9"
+                  className="h-9"
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Tambah Kategori
@@ -767,13 +758,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
           </CollapsibleContent>
         </Collapsible>
 
-        <div
-          className={cn(
-            "mb-6 rounded-2xl border border-border bg-card p-4 shadow-spa sm:p-5",
-            isMounted ? "animate-fade-slide-up" : "opacity-0"
-          )}
-            style={{ animationDelay: "100ms" }}
-          >
+        <AdminSurface>
           <form
             aria-label="Filter layanan"
             className="flex flex-col gap-4 lg:flex-row lg:items-end"
@@ -802,7 +787,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
 
             <div className="space-y-2 lg:w-[240px]">
               <label htmlFor={categoryFilterId} className="text-sm font-medium text-foreground">
-                Category
+                Kategori
               </label>
               <Select
                 value={categoryFilter}
@@ -832,34 +817,31 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
               {filteredServices.length} layanan ditampilkan
             </p>
           </form>
-        </div>
+        </AdminSurface>
 
         {filteredServices.length === 0 ? (
-          <div
-            role="status"
-            aria-live="polite"
-            className="rounded-2xl border border-border bg-card px-6 py-10 text-center shadow-spa sm:px-8 sm:py-12"
-          >
-            <HugeiconsIcon icon={Tag01Icon} size={48} className="mx-auto mb-4 text-muted-foreground" />
-            <h3 className="mb-2 text-lg font-medium text-foreground">
-              Tidak ada layanan ditemukan
-            </h3>
-            <p className="mb-6 text-muted-foreground">
-              {searchQuery || categoryFilter !== "ALL"
-                ? "Coba sesuaikan kata kunci atau filter Anda"
-                : "Buat layanan pertama Anda untuk memulai"}
-            </p>
-            {!searchQuery && categoryFilter === "ALL" && canCreateService && (
-              <Button onClick={handleOpenCreate} className="min-h-11 bg-primary hover:bg-primary/90">
-                <HugeiconsIcon icon={PlusSignIcon} size={18} className="mr-2" />
-                Buat Layanan
-              </Button>
-            )}
-          </div>
+          <AdminSurface padded={false}>
+            <AdminEmptyState
+              icon={<HugeiconsIcon icon={Tag01Icon} size={22} />}
+              title="Tidak ada layanan ditemukan"
+              description={
+                searchQuery || categoryFilter !== "ALL"
+                  ? "Coba sesuaikan kata kunci atau filter Anda"
+                  : "Buat layanan pertama Anda untuk memulai"
+              }
+            >
+              {!searchQuery && categoryFilter === "ALL" && canCreateService ? (
+                <Button onClick={handleOpenCreate} className="min-h-11">
+                  <HugeiconsIcon icon={PlusSignIcon} size={18} className="mr-2" />
+                  Buat Layanan
+                </Button>
+              ) : null}
+            </AdminEmptyState>
+          </AdminSurface>
         ) : (
           <section aria-label="Daftar layanan" aria-busy={isBusy}>
             <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {filteredServices.map((service, index) => {
+            {filteredServices.map((service) => {
               const isOptimistic = optimisticIds.has(service.id);
               const badgeLabel = service.category_relation?.name || "Layanan";
               
@@ -867,12 +849,10 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                 <article
                   key={service.id}
                   className={cn(
-                    "card-hover-lift overflow-hidden rounded-2xl border border-border bg-card shadow-spa transition-all duration-200 hover:shadow-spa-lg focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+                    "admin-card-hover overflow-hidden rounded-xl border border-border bg-card focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
                     !service.is_active && "opacity-60",
                     isOptimistic && "opacity-70 saturate-50",
-                    isMounted ? "animate-fade-slide-up" : "opacity-0"
                   )}
-                  style={{ animationDelay: `${200 + index * 75}ms` }}
                   aria-labelledby={`service-name-${service.id}`}
                 >
                     <div className="relative h-44 sm:h-40">
@@ -973,7 +953,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
             </div>
           </section>
         )}
-      </div>
+      </AdminPageBody>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-lg">

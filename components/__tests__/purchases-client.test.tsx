@@ -124,7 +124,10 @@ describe("PurchasesClient", () => {
       </ToastProvider>
     );
 
-    await user.click(screen.getByRole("button", { name: "Complete" }));
+    await user.click(
+      screen.getByRole("button", { name: "Open actions for PAY-1" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Complete" }));
 
     expect(screen.getByRole("button", { name: "Sebelumnya" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Berikutnya" })).toBeDisabled();

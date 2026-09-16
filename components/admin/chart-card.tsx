@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ChartIncreaseIcon, Calendar01Icon, ArrowDown01Icon } from "@hugeicons/core-free-icons";
-import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -32,67 +31,58 @@ interface ChartDataPoint {
 interface ChartCardProps {
   data: ChartDataPoint[];
   title?: string;
-  animationDelay?: number;
 }
 
-// Theme-aware colors using Kalanara's sage palette
 const CHART_COLORS = {
   light: {
-    bar: "#5d7048",      // sage-600
-    barHover: "#4a5a3b", // sage-700
-    label: "#5d4a3b",    // sand-900
-    grid: "#e8ebe3",     // sage-100
+    bar: "#5d7048",
+    barHover: "#4a5a3b",
+    label: "#5d4a3b",
+    grid: "#e8ebe3",
     tooltip: {
       bg: "#ffffff",
-      border: "#d2d9c8", // sage-200
-      text: "#343f2c",   // sage-900
+      border: "#d2d9c8",
+      text: "#343f2c",
     },
   },
   dark: {
-    bar: "#94a67a",      // sage-400
-    barHover: "#b3c0a1", // sage-300
-    label: "#d5c6b1",    // sand-300
-    grid: "#343f2c",     // sage-900
+    bar: "#94a67a",
+    barHover: "#b3c0a1",
+    label: "#d5c6b1",
+    grid: "#343f2c",
     tooltip: {
-      bg: "#1a2115",     // sage-950
-      border: "#3d4932", // sage-800
-      text: "#f3efe8",   // sand-100
+      bg: "#1a2115",
+      border: "#3d4932",
+      text: "#f3efe8",
     },
   },
 };
 
-export function ChartCard({ data, title = "Revenue (Last 7 Days)", animationDelay = 0 }: ChartCardProps) {
+export function ChartCard({
+  data,
+  title = "Revenue (Last 7 Days)",
+}: ChartCardProps) {
   const { resolvedTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<Date | undefined>(undefined);
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsMounted(true), 50);
-    return () => clearTimeout(timer);
-  }, []);
 
   const isDark = resolvedTheme === "dark";
   const colors = isDark ? CHART_COLORS.dark : CHART_COLORS.light;
 
-  const formatDateRange = (date: Date | undefined) => {
-    if (!date) return "This Week";
-    const month = date.toLocaleDateString("en-US", { month: "long" });
-    return month;
+  const formatDateRange = (selectedDate: Date | undefined) => {
+    if (!selectedDate) return "This Week";
+    return selectedDate.toLocaleDateString("en-US", { month: "long" });
   };
 
   return (
-    <div 
-      className={cn(
-        "relative rounded-xl border border-border bg-card p-6 max-h-[400px] overflow-y-auto",
-        isMounted ? "animate-scale-in" : "opacity-0"
-      )}
-      style={{ animationDelay: `${animationDelay}ms` }}
-    >
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <HugeiconsIcon icon={ChartIncreaseIcon} className="size-4 text-muted-foreground" />
-          <h2 className="text-[15px] font-normal text-foreground tracking-tight">
+    <div className="admin-surface flex h-[400px] flex-col p-6">
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <HugeiconsIcon
+            icon={ChartIncreaseIcon}
+            className="size-4 shrink-0 text-muted-foreground"
+          />
+          <h2 className="truncate text-[15px] font-medium tracking-tight text-foreground">
             {title}
           </h2>
         </div>
@@ -101,7 +91,7 @@ export function ChartCard({ data, title = "Revenue (Last 7 Days)", animationDela
             <Button
               variant="outline"
               size="sm"
-              className="h-7 gap-2 text-xs px-[10px] py-[4px]"
+              className="h-7 gap-2 px-2.5 py-1 text-xs"
             >
               <HugeiconsIcon icon={Calendar01Icon} className="size-4" />
               {formatDateRange(date)}
@@ -121,7 +111,7 @@ export function ChartCard({ data, title = "Revenue (Last 7 Days)", animationDela
         </Popover>
       </div>
 
-      <div className="mb-4 flex items-center justify-center gap-[22px]">
+      <div className="mb-4 flex items-center justify-center gap-5">
         <div className="flex items-center gap-1.5">
           <div
             className="size-3 rounded-full"
@@ -133,8 +123,8 @@ export function ChartCard({ data, title = "Revenue (Last 7 Days)", animationDela
         </div>
       </div>
 
-      <div className="relative">
-        <ResponsiveContainer width="100%" height={237}>
+      <div className="min-h-0 flex-1">
+        <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
             margin={{ top: 0, right: 0, left: 0, bottom: 0 }}

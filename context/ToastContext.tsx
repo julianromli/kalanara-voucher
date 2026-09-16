@@ -93,10 +93,9 @@ function Toast({
     <div
       role="alert"
       className={`
-        relative overflow-hidden rounded-lg border shadow-lg bg-background
+        relative overflow-hidden rounded-xl border bg-background shadow-md
         ${styles.border} ${styles.text}
-        animate-in slide-in-from-right-full duration-300
-        data-[dismissed]:animate-out data-[dismissed]:slide-out-to-right-full
+        animate-in fade-in-0 slide-in-from-bottom-2 duration-200 ease-out
       `}
     >
       <div className={`absolute inset-0 pointer-events-none ${styles.bg}`} />
@@ -107,8 +106,9 @@ function Toast({
           type="button"
           onClick={() => onDismiss(toast.id)}
           className={`
-            rounded-md p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/10
-            focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
+            flex size-8 items-center justify-center rounded-lg transition-colors
+            hover:bg-black/5 dark:hover:bg-white/10
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
           `}
           aria-label="Dismiss toast"
         >
