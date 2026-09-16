@@ -7,18 +7,21 @@ interface AdminLoadingRegionProps {
   label: string;
   children: ReactNode;
   className?: string;
+  name: string;
 }
 
 export function AdminLoadingRegion({
   label,
   children,
   className,
+  name,
 }: AdminLoadingRegionProps) {
   return (
     <div
       role="status"
       aria-live="polite"
       aria-busy="true"
+      data-admin-skeleton={name}
       className={className}
     >
       <span className="sr-only">{label}</span>
@@ -40,10 +43,7 @@ export function AdminHeaderSkeleton({
       </div>
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         {showActions ? (
-          <div className="hidden items-center gap-3 lg:flex">
-            <Skeleton className="h-8 w-[92px] rounded-lg" />
-            <Skeleton className="h-8 w-[88px] rounded-lg" />
-          </div>
+          <Skeleton className="hidden h-8 w-[108px] rounded-lg lg:block" />
         ) : null}
         <Skeleton className="size-8 rounded-lg" />
       </div>
@@ -87,21 +87,47 @@ function AdminTableRowSkeleton({ columns }: { columns: number }) {
   );
 }
 
+function AdminFilterFieldsSkeleton() {
+  return (
+    <div className="flex w-full flex-col gap-3 md:flex-row md:items-center">
+      <Skeleton className="h-9 w-full md:flex-1" />
+      <Skeleton className="h-9 w-full md:w-44" />
+    </div>
+  );
+}
+
+function AdminPaginationSkeleton() {
+  return (
+    <div className="flex flex-col gap-3 border-t border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <Skeleton className="h-4 w-28" />
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-8 w-24 rounded-lg" />
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-8 w-24 rounded-lg" />
+      </div>
+    </div>
+  );
+}
+
 export function AdminTablePageSkeleton({
   columns = 6,
   rows = 6,
   showStats = false,
   showIntroAction = false,
+  filtersOutside = false,
   label = "Memuat halaman admin",
+  name = "table",
 }: {
   columns?: number;
   rows?: number;
   showStats?: boolean;
   showIntroAction?: boolean;
+  filtersOutside?: boolean;
   label?: string;
+  name?: string;
 }) {
   return (
-    <AdminLoadingRegion label={label}>
+    <AdminLoadingRegion label={label} name={name}>
       <AdminHeaderSkeleton />
       <AdminPageBody>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -123,11 +149,18 @@ export function AdminTablePageSkeleton({
           </div>
         ) : null}
 
+        {filtersOutside ? (
+          <AdminSurface>
+            <AdminFilterFieldsSkeleton />
+          </AdminSurface>
+        ) : null}
+
         <AdminSurface padded={false}>
-          <div className="flex flex-col gap-3 border-b border-border p-4 md:flex-row md:items-center md:p-5">
-            <Skeleton className="h-9 w-full md:flex-1" />
-            <Skeleton className="h-9 w-full md:w-44" />
-          </div>
+          {filtersOutside ? null : (
+            <div className="border-b border-border p-4 md:p-5">
+              <AdminFilterFieldsSkeleton />
+            </div>
+          )}
           <div className="border-b border-border bg-muted/40 px-4 py-3">
             <div
               className="grid gap-4"
@@ -141,14 +174,7 @@ export function AdminTablePageSkeleton({
           {Array.from({ length: rows }).map((_, index) => (
             <AdminTableRowSkeleton key={index} columns={columns} />
           ))}
-          <div className="flex flex-col gap-3 border-t border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <Skeleton className="h-4 w-28" />
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-8 w-24 rounded-lg" />
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-8 w-24 rounded-lg" />
-            </div>
-          </div>
+          <AdminPaginationSkeleton />
         </AdminSurface>
       </AdminPageBody>
     </AdminLoadingRegion>
@@ -157,7 +183,7 @@ export function AdminTablePageSkeleton({
 
 export function AdminDashboardSkeleton() {
   return (
-    <AdminLoadingRegion label="Memuat dasbor">
+    <AdminLoadingRegion label="Memuat dasbor" name="dashboard">
       <AdminHeaderSkeleton showActions />
       <AdminPageBody>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -267,7 +293,7 @@ export function AdminDashboardSkeleton() {
 
 export function AdminServicesSkeleton() {
   return (
-    <AdminLoadingRegion label="Memuat layanan">
+    <AdminLoadingRegion label="Memuat layanan" name="services">
       <AdminHeaderSkeleton />
       <AdminPageBody>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -332,18 +358,18 @@ export function AdminServicesSkeleton() {
 
 export function AdminReviewsSkeleton() {
   return (
-    <AdminLoadingRegion label="Memuat ulasan">
+    <AdminLoadingRegion label="Memuat ulasan" name="reviews">
       <AdminHeaderSkeleton />
       <AdminPageBody>
         <Skeleton className="h-4 w-64" />
         <AdminSurface>
-          <div className="mb-6 flex flex-col gap-3 md:flex-row">
+          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center">
             <Skeleton className="h-9 flex-1" />
             <Skeleton className="h-9 w-full md:w-40" />
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="rounded-xl border border-border p-5">
+              <div key={index} className="rounded-xl border border-border bg-background/60 p-5">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <Skeleton className="h-5 w-28" />
                   <div className="flex gap-1">
@@ -361,6 +387,7 @@ export function AdminReviewsSkeleton() {
               </div>
             ))}
           </div>
+          <AdminPaginationSkeleton />
         </AdminSurface>
       </AdminPageBody>
     </AdminLoadingRegion>
@@ -369,7 +396,7 @@ export function AdminReviewsSkeleton() {
 
 export function AdminSettingsSkeleton() {
   return (
-    <AdminLoadingRegion label="Memuat pengaturan">
+    <AdminLoadingRegion label="Memuat pengaturan" name="settings">
       <AdminHeaderSkeleton />
       <AdminPageBody>
         <div className="mx-auto w-full max-w-4xl space-y-6">
@@ -405,12 +432,11 @@ export function AdminSettingsSkeleton() {
 
 export function AdminHelpSkeleton() {
   return (
-    <AdminLoadingRegion label="Memuat bantuan">
+    <AdminLoadingRegion label="Memuat bantuan" name="help">
       <AdminHeaderSkeleton />
       <AdminPageBody>
         <div className="mx-auto w-full max-w-6xl space-y-6">
-          <div className="space-y-3 text-center">
-            <Skeleton className="mx-auto h-8 w-56" />
+          <div className="space-y-4 text-center">
             <Skeleton className="mx-auto h-4 w-80 max-w-[80vw]" />
             <Skeleton className="mx-auto h-9 w-full max-w-md" />
           </div>
@@ -454,19 +480,24 @@ export function AdminHelpSkeleton() {
 
 export function AdminCrmSkeleton() {
   return (
-    <AdminLoadingRegion label="Memuat CRM">
+    <AdminLoadingRegion label="Memuat CRM" name="crm">
       <AdminHeaderSkeleton />
       <AdminPageBody>
         <Skeleton className="h-4 w-64" />
         <div className="grid gap-6 md:grid-cols-2">
-          {Array.from({ length: 2 }).map((_, index) => (
-            <div key={index} className="admin-surface p-6">
-              <Skeleton className="mb-2 h-5 w-40" />
-              <Skeleton className="mb-5 h-4 w-56" />
-              <Skeleton className="mb-3 h-9 w-full" />
-              <Skeleton className="h-16 w-full rounded-lg" />
-            </div>
-          ))}
+          <div className="admin-surface p-6">
+            <Skeleton className="mb-2 h-5 w-40" />
+            <Skeleton className="mb-5 h-4 w-56" />
+            <Skeleton className="mb-3 h-9 w-full" />
+            <Skeleton className="mb-3 h-16 w-full rounded-lg" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+          <div className="admin-surface p-6">
+            <Skeleton className="mb-2 h-5 w-44" />
+            <Skeleton className="mb-5 h-4 w-64" />
+            <Skeleton className="mb-4 aspect-video w-full rounded-lg" />
+            <Skeleton className="h-24 w-full rounded-lg" />
+          </div>
         </div>
         <div className="admin-surface p-6">
           <div className="mb-5 flex items-center justify-between">
@@ -499,39 +530,11 @@ export function AdminCrmSkeleton() {
   );
 }
 
-export function AdminPageChromeSkeleton() {
-  return (
-    <>
-      <AdminHeaderSkeleton />
-      <AdminPageBody>
-        <div className="space-y-2">
-          <Skeleton className="h-5 w-48" />
-          <Skeleton className="h-4 w-72 max-w-[70vw]" />
-        </div>
-        <AdminSurface padded={false}>
-          <div className="space-y-3 p-5">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <Skeleton key={index} className="h-11 w-full rounded-lg" />
-            ))}
-          </div>
-        </AdminSurface>
-      </AdminPageBody>
-    </>
-  );
-}
-
-export function AdminFallbackSkeleton() {
-  return (
-    <AdminLoadingRegion label="Memuat halaman admin">
-      <AdminPageChromeSkeleton />
-    </AdminLoadingRegion>
-  );
-}
-
 export function AdminLoginSkeleton() {
   return (
     <AdminLoadingRegion
       label="Memuat halaman masuk"
+      name="login"
       className="flex min-h-screen"
     >
       <div className="flex w-full items-center justify-center bg-background px-6 py-12 lg:w-1/3 lg:px-8">
@@ -576,6 +579,7 @@ export function AdminSegmentFallbackSkeleton() {
   return (
     <AdminLoadingRegion
       label="Memuat panel admin"
+      name="segment"
       className="flex min-h-svh items-center justify-center bg-background"
     >
       <div className="flex items-center gap-3">

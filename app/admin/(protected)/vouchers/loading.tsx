@@ -6,7 +6,9 @@ export default function AdminVouchersLoading() {
       columns={7}
       rows={6}
       showStats
+      filtersOutside
       label="Memuat voucher"
+      name="vouchers"
     />
   );
 }

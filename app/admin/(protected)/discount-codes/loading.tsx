@@ -1,12 +1,14 @@
 import { AdminTablePageSkeleton } from "@/components/admin/admin-skeletons";
 
-export default function AdminUsersLoading() {
+export default function AdminDiscountCodesLoading() {
   return (
     <AdminTablePageSkeleton
-      columns={5}
+      columns={7}
       rows={5}
       showIntroAction
-      label="Memuat pengguna"
+      filtersOutside
+      label="Memuat kode promo"
+      name="discount-codes"
     />
   );
 }

@@ -7,6 +7,7 @@ export default function AdminPurchasesLoading() {
       rows={6}
       showIntroAction
       label="Memuat pembelian"
+      name="purchases"
     />
   );
 }
