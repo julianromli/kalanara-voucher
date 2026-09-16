@@ -121,8 +121,8 @@ export function ReviewsClient({
 
           {reviews.length === 0 ? (
             <AdminEmptyState
-              title="No reviews found"
-              description="Customer reviews will appear here after they are submitted."
+              title="Belum ada ulasan"
+              description="Ulasan pelanggan akan muncul di sini setelah tamu mengirim umpan balik."
             />
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">

@@ -11,6 +11,7 @@ import {
   CreditCard,
   Hash,
   Loader2,
+  MoreHorizontal,
   Trash2,
   Wallet,
 } from "lucide-react";
@@ -54,6 +55,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { OrderWithVoucherItems } from "@/lib/database.types";
 
@@ -354,8 +363,7 @@ export function PurchasesClient({
             </Select>
           </div>
 
-            <div className="overflow-x-auto">
-              <Table>
+            <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Customer</TableHead>
@@ -366,8 +374,8 @@ export function PurchasesClient({
                     <TableHead>Payment</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead className="w-[220px] text-right">
-                      Actions
+                    <TableHead className="w-12 text-right">
+                      <span className="sr-only">Actions</span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -439,60 +447,59 @@ export function PurchasesClient({
                           <TableCell>
                             {new Date(order.created_at).toLocaleDateString()}
                           </TableCell>
-                          <TableCell className="align-top">
-                            <div className="flex min-w-[210px] flex-col items-end gap-2 py-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setSelectedOrder(order)}
-                                disabled={isDeleteBusy}
-                                className="h-9 min-w-[118px] justify-between border-border/70 bg-background/80 px-3 text-foreground shadow-none hover:bg-accent/70"
-                              >
-                                Details
-                                <ArrowUpRight className="size-3.5" />
-                              </Button>
-
-                              <div className="flex flex-wrap justify-end gap-2">
-                                {canUpdatePaymentStatus &&
-                                order.payment_status === "PENDING" ? (
-                                  <Button
-                                    size="sm"
-                                    onClick={() =>
-                                      updateOrderStatus(order.id, "COMPLETED")
-                                    }
-                                    disabled={isStatusBusy || isDeleteBusy}
-                                    className="h-8 bg-success px-3 text-success-foreground shadow-none hover:bg-success/90"
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  disabled={isStatusBusy || isDeleteBusy}
+                                  aria-label={`Open actions for ${order.payment_order_id || order.customer_name}`}
+                                >
+                                  {isStatusBusy || isRowDeleteBusy ? (
+                                    <Loader2 className="size-4 animate-spin" />
+                                  ) : (
+                                    <MoreHorizontal className="size-4" />
+                                  )}
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuGroup>
+                                  <DropdownMenuItem
+                                    onSelect={() => setSelectedOrder(order)}
                                   >
-                                    {isStatusBusy ? (
-                                      <Loader2 className="size-4 animate-spin" />
-                                    ) : (
-                                      <CheckCheck className="size-3.5" />
-                                    )}
-                                    Complete
-                                  </Button>
-                                ) : null}
-
-                                {canDeletePurchases ? (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      setPendingDeleteOrder(order);
-                                      setDeleteMode("single");
-                                    }}
-                                    disabled={isDeleteBusy || isStatusBusy}
-                                    className="h-8 px-2.5 text-destructive shadow-none hover:bg-destructive/10 hover:text-destructive"
-                                  >
-                                    {isRowDeleteBusy ? (
-                                      <Loader2 className="size-4 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="size-4" />
-                                    )}
-                                    Delete
-                                  </Button>
-                                ) : null}
-                              </div>
-                            </div>
+                                    <ArrowUpRight />
+                                    Details
+                                  </DropdownMenuItem>
+                                  {canUpdatePaymentStatus &&
+                                  order.payment_status === "PENDING" ? (
+                                    <DropdownMenuItem
+                                      onSelect={() =>
+                                        updateOrderStatus(order.id, "COMPLETED")
+                                      }
+                                    >
+                                      <CheckCheck />
+                                      Complete
+                                    </DropdownMenuItem>
+                                  ) : null}
+                                  {canDeletePurchases ? (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        variant="destructive"
+                                        onSelect={() => {
+                                          setPendingDeleteOrder(order);
+                                          setDeleteMode("single");
+                                        }}
+                                      >
+                                        <Trash2 />
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </>
+                                  ) : null}
+                                </DropdownMenuGroup>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       );
@@ -500,7 +507,6 @@ export function PurchasesClient({
                   )}
                 </TableBody>
               </Table>
-            </div>
             <AdminListPagination
               itemLabel="pembelian"
               page={initialPage.page}

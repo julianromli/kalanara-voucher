@@ -328,16 +328,30 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center justify-end gap-2">
-                          <select
+                          <Select
                             value={user.role}
-                            onChange={(e) => handleRoleUpdate(user.id, e.target.value as AdminRole)}
+                            onValueChange={(value) =>
+                              handleRoleUpdate(user.id, value as AdminRole)
+                            }
                             disabled={isCurrentUser || isLastSuperAdmin}
-                            className="px-2 py-1 text-sm border border-border rounded"
                           >
-                            <option value="SUPER_ADMIN">Super Admin</option>
-                            <option value="MANAGER">Manager</option>
-                            <option value="STAFF">Staff</option>
-                          </select>
+                            <SelectTrigger
+                              size="sm"
+                              className="h-8 w-[8.5rem]"
+                              aria-describedby={
+                                isCurrentUser || isLastSuperAdmin
+                                  ? `user-role-hint-${user.id}`
+                                  : undefined
+                              }
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
+                              <SelectItem value="MANAGER">Manager</SelectItem>
+                              <SelectItem value="STAFF">Staff</SelectItem>
+                            </SelectContent>
+                          </Select>
                            <Button
                              size="sm"
                              variant="outline"
@@ -348,7 +362,10 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
                            </Button>
                         </div>
                         {(isCurrentUser || isLastSuperAdmin) && (
-                          <p className="mt-2 text-right text-xs text-muted-foreground">
+                          <p
+                            id={`user-role-hint-${user.id}`}
+                            className="sr-only"
+                          >
                             {isCurrentUser
                               ? "Anda tidak bisa mengubah role akun sendiri"
                               : "Super admin terakhir harus tetap aktif"}
@@ -402,21 +419,24 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
              
              <div>
                 <label htmlFor={CREATE_ROLE_SELECT_ID} className="block text-sm font-medium mb-1">Role</label>
-               <select
-                 id={CREATE_ROLE_SELECT_ID}
+               <Select
                  value={newUserForm.role}
-                 onChange={(e) =>
+                 onValueChange={(value) =>
                    setNewUserForm({
                     ...newUserForm,
-                    role: e.target.value as AdminRole,
+                    role: value as AdminRole,
                   })
                 }
-                className="w-full px-3 py-2 border border-border rounded-lg"
               >
-                <option value="SUPER_ADMIN">Super Admin</option>
-                <option value="MANAGER">Manager</option>
-                <option value="STAFF">Staff</option>
-              </select>
+                <SelectTrigger id={CREATE_ROLE_SELECT_ID} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
+                  <SelectItem value="MANAGER">Manager</SelectItem>
+                  <SelectItem value="STAFF">Staff</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
