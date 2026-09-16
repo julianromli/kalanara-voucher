@@ -528,6 +528,50 @@ export function AdminFallbackSkeleton() {
   );
 }
 
+export function AdminLoginSkeleton() {
+  return (
+    <AdminLoadingRegion
+      label="Memuat halaman masuk"
+      className="flex min-h-screen"
+    >
+      <div className="flex w-full items-center justify-center bg-background px-6 py-12 lg:w-1/3 lg:px-8">
+        <div className="w-full max-w-md">
+          <div className="mb-12 flex items-center gap-3">
+            <Skeleton className="size-10 rounded-xl" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-3 w-20" />
+            </div>
+          </div>
+          <Skeleton className="h-8 w-64 max-w-full" />
+          <Skeleton className="mt-3 h-4 w-full" />
+          <Skeleton className="mt-2 h-4 w-4/5" />
+          <div className="mt-10 space-y-5">
+            <Skeleton className="h-14 w-full rounded-lg" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-10 w-full rounded-md" />
+            </div>
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-10 w-full rounded-md" />
+            </div>
+            <Skeleton className="h-4 w-44" />
+            <Skeleton className="h-10 w-full rounded-lg" />
+          </div>
+        </div>
+      </div>
+      <div className="relative hidden overflow-hidden bg-primary lg:block lg:w-2/3">
+        <div className="absolute inset-0 flex flex-col items-start justify-end p-10">
+          <Skeleton className="h-8 w-3/4 bg-primary-foreground/20" />
+          <Skeleton className="mt-3 h-8 w-2/3 bg-primary-foreground/20" />
+          <Skeleton className="mt-4 h-4 w-1/2 bg-primary-foreground/15" />
+        </div>
+      </div>
+    </AdminLoadingRegion>
+  );
+}
+
 export function AdminShellBootstrapSkeleton() {
   return (
     <AdminLoadingRegion

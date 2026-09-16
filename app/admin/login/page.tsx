@@ -13,6 +13,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
+import { AdminLoginSkeleton } from "@/components/admin/admin-skeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -50,13 +51,8 @@ export default function AdminLoginPage() {
     }
   }, [isAuthenticated, authLoading, router]);
 
-  // Show loading while checking auth state
   if (authLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <HugeiconsIcon icon={Loading03Icon} className="size-8 text-primary animate-spin" />
-      </div>
-    );
+    return <AdminLoginSkeleton />;
   }
 
   // Don't render form if authenticated (redirect in progress)
@@ -183,7 +179,7 @@ export default function AdminLoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   disabled={isSubmitting}
                   aria-label="Tampilkan atau sembunyikan password"
                 >

@@ -659,7 +659,8 @@
     }
 
     .admin-press:active,
-    .btn-hover-lift:active {
+    .btn-hover-lift:active,
+    [data-slot="button"]:active {
         transform: none !important;
     }
 
