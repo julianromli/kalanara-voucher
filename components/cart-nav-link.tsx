@@ -28,7 +28,10 @@ export function CartNavLink({
     <Link
       href="/checkout/cart"
       onClick={onClick}
-      className={cn("flex items-center gap-1", className)}
+      className={cn(
+        "inline-flex min-h-11 items-center gap-1.5 px-1",
+        className,
+      )}
       style={style}
       aria-label={`Keranjang belanja, ${itemCount} voucher`}
     >

@@ -112,7 +112,7 @@ export default function Navbar({
             {/* Desktop Nav */}
             <nav
               aria-label="Menu utama"
-              className="hidden md:flex items-center space-x-8"
+              className="hidden lg:flex items-center space-x-8"
             >
               {navItems.map((item, index) => (
                 <Link
@@ -156,7 +156,7 @@ export default function Navbar({
 
             {/* Mobile Menu Button */}
             <div
-              className={`md:hidden flex items-center transition-all duration-500 ${isMounted ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"
+              className={`lg:hidden flex items-center transition-all duration-500 ${isMounted ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"
                 }`}
               style={{ transitionDelay: isMounted ? "300ms" : "0ms" }}
             >
@@ -171,7 +171,7 @@ export default function Navbar({
                 aria-controls="primary-mobile-menu"
                 aria-label={isOpen ? "Tutup menu utama" : "Buka menu utama"}
                 onClick={() => setIsOpen(!isOpen)}
-                className={`p-2 transition-colors duration-500 ${isScrolled ? "text-foreground" : "text-primary-foreground"
+                className={`inline-flex size-11 items-center justify-center transition-colors duration-500 ${isScrolled ? "text-foreground" : "text-primary-foreground"
                   }`}
               >
                 <HugeiconsIcon
@@ -189,7 +189,7 @@ export default function Navbar({
       <nav
         id="primary-mobile-menu"
         aria-label="Menu utama"
-        className={`md:hidden absolute top-full left-0 w-full shadow-lg bg-background text-foreground overflow-hidden transition-all duration-300 ease-out ${isOpen
+        className={`lg:hidden absolute top-full left-0 w-full shadow-lg bg-background text-foreground overflow-hidden transition-all duration-300 ease-out ${isOpen
           ? "visible max-h-96 opacity-100"
           : "invisible pointer-events-none max-h-0 opacity-0"
           }`}
