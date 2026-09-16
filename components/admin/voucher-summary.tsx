@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Ticket01Icon,
@@ -9,7 +8,6 @@ import {
   CancelCircleIcon,
   StarIcon,
 } from "@hugeicons/core-free-icons";
-import { cn } from "@/lib/utils";
 
 interface VoucherStats {
   active: number;
@@ -35,64 +33,54 @@ export function VoucherSummary({
   stats,
   reviews = [],
   showReviews = true,
-  animationDelay = 0,
 }: VoucherSummaryProps) {
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsMounted(true), 50);
-    return () => clearTimeout(timer);
-  }, []);
-
   return (
     <div className="space-y-6">
-      {/* Voucher Stats */}
-      <div 
-        className={cn(
-          "rounded-xl border border-border bg-card p-5",
-          isMounted ? "animate-scale-in" : "opacity-0"
-        )}
-        style={{ animationDelay: `${animationDelay}ms` }}
-      >
-        <h3 className="font-medium text-foreground mb-4 flex items-center gap-2">
-          <HugeiconsIcon icon={Ticket01Icon} className="size-4 text-muted-foreground" />
+      <div className="admin-surface p-5">
+        <h3 className="mb-4 flex items-center gap-2 font-medium text-foreground">
+          <HugeiconsIcon
+            icon={Ticket01Icon}
+            className="size-4 text-muted-foreground"
+          />
           Voucher Summary
         </h3>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground flex items-center gap-2 text-sm">
+            <span className="flex items-center gap-2 text-sm text-muted-foreground">
               <HugeiconsIcon icon={Clock01Icon} className="size-4 text-primary" />
               Active
             </span>
-            <span className="font-semibold text-foreground">{stats.active}</span>
+            <span className="font-semibold text-foreground tabular-nums">
+              {stats.active}
+            </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground flex items-center gap-2 text-sm">
+            <span className="flex items-center gap-2 text-sm text-muted-foreground">
               <HugeiconsIcon icon={Tick02Icon} className="size-4 text-primary" />
               Redeemed
             </span>
-            <span className="font-semibold text-foreground">{stats.redeemed}</span>
+            <span className="font-semibold text-foreground tabular-nums">
+              {stats.redeemed}
+            </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground flex items-center gap-2 text-sm">
-              <HugeiconsIcon icon={CancelCircleIcon} className="size-4 text-destructive" />
+            <span className="flex items-center gap-2 text-sm text-muted-foreground">
+              <HugeiconsIcon
+                icon={CancelCircleIcon}
+                className="size-4 text-destructive"
+              />
               Expired
             </span>
-            <span className="font-semibold text-foreground">{stats.expired}</span>
+            <span className="font-semibold text-foreground tabular-nums">
+              {stats.expired}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Recent Reviews */}
-      {showReviews && (
-        <div 
-          className={cn(
-            "rounded-xl border border-border bg-card p-5",
-            isMounted ? "animate-scale-in" : "opacity-0"
-          )}
-          style={{ animationDelay: `${animationDelay + 100}ms` }}
-        >
-          <h3 className="font-medium text-foreground mb-4 flex items-center gap-2">
+      {showReviews ? (
+        <div className="admin-surface p-5">
+          <h3 className="mb-4 flex items-center gap-2 font-medium text-foreground">
             <HugeiconsIcon icon={StarIcon} className="size-4 text-primary" />
             Recent Reviews
           </h3>
@@ -101,35 +89,35 @@ export function VoucherSummary({
               {reviews.slice(0, 3).map((review) => (
                 <div
                   key={review.id}
-                  className="text-sm border-l-2 border-border pl-3"
+                  className="border-l-2 border-border pl-3 text-sm"
                 >
-                  <div className="flex items-center gap-1 mb-1">
-                    {[...Array(5)].map((_, i) => (
+                  <div className="mb-1 flex items-center gap-1">
+                    {[...Array(5)].map((_, index) => (
                       <HugeiconsIcon
-                        key={i}
+                        key={index}
                         icon={StarIcon}
                         className={`size-3 ${
-                          i < review.rating
-                            ? "text-warning fill-warning"
+                          index < review.rating
+                            ? "fill-warning text-warning"
                             : "text-muted-foreground"
                         }`}
                       />
                     ))}
                   </div>
-                  <p className="text-muted-foreground line-clamp-1">
+                  <p className="line-clamp-1 text-muted-foreground">
                     {review.comment || "No comment"}
                   </p>
-                  <p className="text-muted-foreground text-xs mt-1">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {review.customerName}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-muted-foreground text-sm">No reviews yet</p>
+            <p className="text-sm text-muted-foreground">No reviews yet</p>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

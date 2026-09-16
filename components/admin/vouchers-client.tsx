@@ -72,6 +72,13 @@ import {
   type VoucherAdminSummary,
 } from "@/lib/actions/vouchers";
 import { AdminListPagination } from "@/components/admin/admin-list-pagination";
+import {
+  AdminEmptyState,
+  AdminFilterBar,
+  AdminPageBody,
+  AdminPageIntro,
+  AdminSurface,
+} from "@/components/admin/admin-page";
 import type { AdminPage } from "@/lib/actions/admin-pagination";
 import { useAdminListUrl } from "@/hooks/use-admin-list-url";
 import { cn } from "@/lib/utils";
@@ -148,7 +155,6 @@ export function VouchersClient({
     null,
   );
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
   const [optimisticIds, setOptimisticIds] = useState<Set<string>>(new Set());
 
   const setOptimistic = (id: string, active: boolean) => {
@@ -172,11 +178,6 @@ export function VouchersClient({
   useEffect(() => {
     setVouchers(initialPage.rows);
   }, [initialPage.rows]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsMounted(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -346,78 +347,49 @@ export function VouchersClient({
   return (
     <>
       <DashboardHeader title="Voucher Management" showActions={false} />
-      <div className="w-full overflow-y-auto overflow-x-hidden p-4 md:p-6 h-full">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div
-            className={cn(
-              "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
-              isMounted ? "animate-fade-slide-up" : "opacity-0",
-            )}
-          >
+      <AdminPageBody>
+        <AdminPageIntro description="Track voucher status, extend expiry, and redeem or void codes." />
+
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div className="admin-surface p-4">
             <p className="text-sm text-muted-foreground">Total</p>
-            <p className="text-2xl font-sans font-semibold text-foreground">
+            <p className="font-sans text-2xl font-semibold text-foreground tabular-nums">
               {stats.total}
             </p>
           </div>
-          <div
-            className={cn(
-              "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
-              isMounted ? "animate-fade-slide-up" : "opacity-0",
-            )}
-            style={{ animationDelay: "75ms" }}
-          >
-            <p className="text-sm text-primary flex items-center gap-1">
+          <div className="admin-surface p-4">
+            <p className="flex items-center gap-1 text-sm text-primary">
               <HugeiconsIcon icon={Clock01Icon} size={14} /> Active
             </p>
-            <p className="text-2xl font-sans font-semibold text-foreground">
+            <p className="font-sans text-2xl font-semibold text-foreground tabular-nums">
               {stats.active}
             </p>
           </div>
-          <div
-            className={cn(
-              "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
-              isMounted ? "animate-fade-slide-up" : "opacity-0",
-            )}
-            style={{ animationDelay: "150ms" }}
-          >
-            <p className="text-sm text-primary flex items-center gap-1">
+          <div className="admin-surface p-4">
+            <p className="flex items-center gap-1 text-sm text-primary">
               <HugeiconsIcon icon={Tick02Icon} size={14} /> Redeemed
             </p>
-            <p className="text-2xl font-sans font-semibold text-foreground">
+            <p className="font-sans text-2xl font-semibold text-foreground tabular-nums">
               {stats.redeemed}
             </p>
           </div>
-          <div
-            className={cn(
-              "bg-card rounded-xl p-4 shadow-spa border border-border card-hover-lift",
-              isMounted ? "animate-fade-slide-up" : "opacity-0",
-            )}
-            style={{ animationDelay: "225ms" }}
-          >
-            <p className="text-sm text-destructive flex items-center gap-1">
+          <div className="admin-surface p-4">
+            <p className="flex items-center gap-1 text-sm text-destructive">
               <HugeiconsIcon icon={CancelCircleIcon} size={14} /> Expired
             </p>
-            <p className="text-2xl font-sans font-semibold text-foreground">
+            <p className="font-sans text-2xl font-semibold text-foreground tabular-nums">
               {stats.expired}
             </p>
           </div>
         </div>
 
-        {/* Filters */}
-        <div
-          className={cn(
-            "bg-card rounded-2xl shadow-spa border border-border p-4 mb-6",
-            isMounted ? "animate-fade-slide-up" : "opacity-0",
-          )}
-          style={{ animationDelay: "300ms" }}
-        >
-          <div className="flex flex-col md:flex-row gap-4">
+        <AdminSurface>
+          <AdminFilterBar>
             <div className="relative flex-1">
               <HugeiconsIcon
                 icon={Search01Icon}
                 size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
               />
               <Input
                 placeholder="Search by code, recipient..."
@@ -441,25 +413,20 @@ export function VouchersClient({
                 <SelectItem value="EXPIRED">Expired</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-        </div>
+          </AdminFilterBar>
+        </AdminSurface>
 
-        {/* Vouchers Table */}
         {vouchers.length === 0 ? (
-          <div className="bg-card rounded-2xl shadow-spa border border-border p-12 text-center">
-            <HugeiconsIcon
-              icon={Ticket01Icon}
-              size={48}
-              className="text-muted-foreground mx-auto mb-4"
+          <AdminSurface padded={false}>
+            <AdminEmptyState
+              icon={<HugeiconsIcon icon={Ticket01Icon} size={22} />}
+              title="No vouchers found"
+              description={
+                searchQuery || statusFilter !== "ALL"
+                  ? "Try adjusting your filters"
+                  : "Vouchers will appear here when customers make purchases"
+              }
             />
-            <h3 className="text-lg font-medium text-muted-foreground mb-2">
-              No vouchers found
-            </h3>
-            <p className="text-muted-foreground">
-              {searchQuery || statusFilter !== "ALL"
-                ? "Try adjusting your filters"
-                : "Vouchers will appear here when customers make purchases"}
-            </p>
             <AdminListPagination
               itemLabel="voucher"
               page={initialPage.page}
@@ -467,19 +434,13 @@ export function VouchersClient({
               totalPages={initialPage.totalPages}
               onPageChange={setPage}
             />
-          </div>
+          </AdminSurface>
         ) : (
-          <div
-            className={cn(
-              "bg-card rounded-2xl shadow-spa border border-border overflow-hidden",
-              isMounted ? "animate-fade-slide-up" : "opacity-0",
-            )}
-            style={{ animationDelay: "400ms" }}
-          >
+          <AdminSurface padded={false}>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-border bg-accent/50">
+                  <tr className="border-b border-border bg-muted/40">
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">
                       Code
                     </th>
@@ -504,7 +465,7 @@ export function VouchersClient({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {vouchers.map((voucher, index) => {
+                  {vouchers.map((voucher) => {
                     const isOptimistic = optimisticIds.has(voucher.id);
                     const status = getVoucherStatus(voucher);
                     const config = STATUS_CONFIG[status];
@@ -518,11 +479,9 @@ export function VouchersClient({
                       <tr
                         key={voucher.id}
                         className={cn(
-                          "hover:bg-accent/50 transition-colors row-hover-lift",
+                          "transition-colors row-hover-lift",
                           isOptimistic && "opacity-70 saturate-50",
-                          isMounted ? "animate-fade-slide-up" : "opacity-0",
                         )}
-                        style={{ animationDelay: `${500 + index * 50}ms` }}
                       >
                         <td className="p-4">
                           <div className="flex items-center gap-2">
@@ -532,7 +491,8 @@ export function VouchersClient({
                             <button
                               type="button"
                               onClick={() => handleCopyCode(voucher.code)}
-                              className="text-muted-foreground hover:text-foreground transition-colors"
+                              className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                              aria-label={`Copy voucher code ${voucher.code}`}
                             >
                               {copiedCode === voucher.code ? (
                                 <HugeiconsIcon
@@ -562,7 +522,7 @@ export function VouchersClient({
                             {voucher.recipient_email}
                           </p>
                         </td>
-                        <td className="p-4 font-medium text-foreground">
+                        <td className="p-4 font-medium text-foreground tabular-nums">
                           {formatCurrency(voucher.amount)}
                         </td>
                         <td className="p-4">
@@ -669,9 +629,9 @@ export function VouchersClient({
               totalPages={initialPage.totalPages}
               onPageChange={setPage}
             />
-          </div>
+          </AdminSurface>
         )}
-      </div>
+      </AdminPageBody>
 
       {/* Action Confirmation Dialog */}
       <Dialog open={!!actionType} onOpenChange={() => closeActionDialog()}>

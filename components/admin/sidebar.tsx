@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -19,7 +19,6 @@ import {
   UserGroupIcon,
   Megaphone01Icon,
 } from "@hugeicons/core-free-icons";
-import { cn } from "@/lib/utils";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 import {
   Sidebar,
@@ -95,7 +94,8 @@ export function AdminSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const { hasPermission, logout, user } = useAuth();
-  const [isMounted, setIsMounted] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [navQuery, setNavQuery] = useState("");
   const [optimisticActiveRoute, setOptimisticActiveRoute] = useState<{
     href: string;
     sourcePathname: string;
@@ -104,11 +104,30 @@ export function AdminSidebar({
     optimisticActiveRoute?.sourcePathname === pathname
       ? optimisticActiveRoute.href
       : pathname;
-  const visibleNavItems = navItems.filter((item) => hasPermission(item.requiredPermission));
+  const visibleNavItems = navItems.filter((item) =>
+    hasPermission(item.requiredPermission),
+  );
+  const filteredNavItems = useMemo(() => {
+    const query = navQuery.trim().toLowerCase();
+    if (!query) {
+      return visibleNavItems;
+    }
+
+    return visibleNavItems.filter((item) =>
+      item.label.toLowerCase().includes(query),
+    );
+  }, [navQuery, visibleNavItems]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsMounted(true), 100);
-    return () => clearTimeout(timer);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   const activateRouteOptimistically = (href: string) => {
@@ -124,37 +143,47 @@ export function AdminSidebar({
     <Sidebar className="lg:border-r-0!" collapsible="offcanvas" {...props}>
       <SidebarHeader className="pb-0">
         <div className="px-2 py-3">
-          <div className={cn(
-            "flex items-center justify-between",
-            isMounted ? "animate-fade-slide-down" : "opacity-0"
-          )}>
+          <div className="flex items-center justify-between">
             <Link
               href="/admin/dashboard"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2.5 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => activateRouteOptimistically("/admin/dashboard")}
             >
-              <div className="size-8 bg-gradient-to-br from-sage-500 to-sage-700 rounded-lg shadow flex items-center justify-center text-white">
-                <HugeiconsIcon icon={Leaf01Icon} size={20} />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-sage-500 to-sage-700 text-white shadow-sm">
+                <HugeiconsIcon icon={Leaf01Icon} size={18} />
               </div>
-              <div className="flex flex-col">
-                <span className="font-semibold text-sm">Kalanara Spa</span>
+              <div className="flex min-w-0 flex-col leading-tight">
+                <span className="text-sm font-semibold text-sidebar-foreground">
+                  Kalanara Spa
+                </span>
                 <span className="text-xs text-muted-foreground">Admin Panel</span>
               </div>
             </Link>
           </div>
 
-          <div className="mt-4 relative">
-            <HugeiconsIcon icon={Search01Icon} size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="pl-8 pr-12 h-8 text-sm text-muted-foreground placeholder:text-muted-foreground bg-background"
+          <div className="relative mt-4">
+            <label htmlFor="admin-nav-search" className="sr-only">
+              Search navigation
+            </label>
+            <HugeiconsIcon
+              icon={Search01Icon}
+              size={16}
+              className="pointer-events-none absolute top-1/2 left-2.5 z-10 -translate-y-1/2 text-muted-foreground"
             />
-            <div className="flex items-center gap-0.5 rounded border border-border bg-sidebar px-1.5 py-0.5 shrink-0 absolute right-2 top-1/2 -translate-y-1/2">
-              <span className="text-[10px] font-medium text-muted-foreground leading-none">
+            <Input
+              ref={searchInputRef}
+              id="admin-nav-search"
+              type="search"
+              value={navQuery}
+              onChange={(event) => setNavQuery(event.target.value)}
+              placeholder="Search pages..."
+              className="h-8 bg-background pr-12 pl-8 text-sm placeholder:text-muted-foreground"
+            />
+            <div className="pointer-events-none absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-0.5 rounded border border-border bg-sidebar px-1.5 py-0.5">
+              <span className="text-[10px] leading-none font-medium text-muted-foreground">
                 ⌘
               </span>
-              <Kbd className="h-auto min-w-0 px-0 py-0 text-[10px] leading-none bg-transparent border-0">
+              <Kbd className="h-auto min-w-0 border-0 bg-transparent px-0 py-0 text-[10px] leading-none">
                 K
               </Kbd>
             </div>
@@ -168,32 +197,33 @@ export function AdminSidebar({
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {visibleNavItems.map((item, index) => {
-                const isActive = activeHref === item.href;
-                return (
-                  <SidebarMenuItem 
-                    key={item.href}
-                    className={cn(
-                      isMounted ? "animate-slide-in-left" : "opacity-0"
-                    )}
-                    style={{ animationDelay: `${150 + index * 50}ms` }}
-                  >
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      className="h-9 text-sm nav-item-hover"
-                    >
-                      <Link
-                        href={item.href}
-                        onClick={() => activateRouteOptimistically(item.href)}
+              {filteredNavItems.length === 0 ? (
+                <p className="px-2 py-2 text-xs text-muted-foreground">
+                  No matching pages
+                </p>
+              ) : (
+                filteredNavItems.map((item) => {
+                  const isActive = activeHref === item.href;
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        className="h-9 text-sm nav-item-hover"
                       >
-                        <HugeiconsIcon icon={item.icon} size={16} />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+                        <Link
+                          href={item.href}
+                          aria-current={isActive ? "page" : undefined}
+                          onClick={() => activateRouteOptimistically(item.href)}
+                        >
+                          <HugeiconsIcon icon={item.icon} size={16} />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -208,11 +238,16 @@ export function AdminSidebar({
                   <SidebarMenuButton
                     asChild
                     isActive={activeHref === "/admin/settings"}
-                    className="h-9 text-sm"
+                    className="h-9 text-sm nav-item-hover"
                   >
                     <Link
                       href="/admin/settings"
-                      onClick={() => activateRouteOptimistically("/admin/settings")}
+                      aria-current={
+                        activeHref === "/admin/settings" ? "page" : undefined
+                      }
+                      onClick={() =>
+                        activateRouteOptimistically("/admin/settings")
+                      }
                     >
                       <HugeiconsIcon icon={Settings02Icon} size={16} />
                       <span>Settings</span>
@@ -224,10 +259,13 @@ export function AdminSidebar({
                 <SidebarMenuButton
                   asChild
                   isActive={activeHref === "/admin/help"}
-                  className="h-9 text-sm"
+                  className="h-9 text-sm nav-item-hover"
                 >
                   <Link
                     href="/admin/help"
+                    aria-current={
+                      activeHref === "/admin/help" ? "page" : undefined
+                    }
                     onClick={() => activateRouteOptimistically("/admin/help")}
                   >
                     <HugeiconsIcon icon={HelpCircleIcon} size={16} />
@@ -241,19 +279,15 @@ export function AdminSidebar({
       </SidebarContent>
 
       <SidebarFooter className="p-4">
-        <div 
-          className={cn(
-            "flex items-center gap-3 px-2 py-2 rounded-lg bg-muted/50 mb-3",
-            isMounted ? "animate-fade-slide-up" : "opacity-0"
-          )}
-          style={{ animationDelay: "400ms" }}
-        >
-          <div className="size-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
+        <div className="mb-3 flex items-center gap-3 rounded-xl bg-muted/50 px-2 py-2">
+          <div className="flex size-8 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground">
             {user?.name?.charAt(0).toUpperCase() || "A"}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user?.name || "Admin"}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.email || "admin@kalanara.com"}</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{user?.name || "Admin"}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {user?.email || "admin@kalanara.com"}
+            </p>
           </div>
         </div>
 
@@ -261,11 +295,7 @@ export function AdminSidebar({
           variant="outline"
           size="sm"
           onClick={handleLogout}
-          className={cn(
-            "w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30",
-            isMounted ? "animate-fade-slide-up" : "opacity-0"
-          )}
-          style={{ animationDelay: "450ms" }}
+          className="w-full justify-start gap-2 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
         >
           <HugeiconsIcon icon={Logout01Icon} size={16} />
           Logout

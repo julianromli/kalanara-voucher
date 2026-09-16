@@ -24,7 +24,7 @@ export function AdminListPagination({
       aria-label={`Navigasi halaman ${itemLabel}`}
       className="flex flex-col gap-3 border-t border-border px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between"
     >
-      <p className="text-muted-foreground" aria-live="polite">
+      <p className="text-muted-foreground tabular-nums" aria-live="polite">
         {totalCount} {itemLabel}
       </p>
       <div className="flex items-center gap-3">
@@ -39,7 +39,7 @@ export function AdminListPagination({
         </Button>
         <span
           aria-current="page"
-          className="min-w-24 text-center text-muted-foreground"
+          className="min-w-24 text-center text-muted-foreground tabular-nums"
         >
           Halaman {page} dari {totalPages}
         </span>

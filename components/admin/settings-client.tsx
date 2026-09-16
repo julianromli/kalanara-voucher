@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
+import { AdminPageBody } from "@/components/admin/admin-page";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { Button } from "@/components/ui/button";
@@ -57,29 +58,29 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
   return (
     <>
       <DashboardHeader title="Settings" showActions={false} />
-      <div className="w-full overflow-y-auto overflow-x-hidden p-4 md:p-6 h-full">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold">System Settings</h1>
-              <p className="text-muted-foreground">Configure your spa business settings</p>
-            </div>
+      <AdminPageBody>
+        <div className="mx-auto w-full max-w-4xl space-y-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Configure your spa business settings
+            </p>
             <Button onClick={handleSave} disabled={isSaving}>
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
           </div>
 
-          {/* Simple Tab Navigation */}
           <div className="w-full">
-            <div className="flex border-b border-border">
+            <div role="tablist" aria-label="Settings sections" className="flex gap-1 overflow-x-auto border-b border-border">
               <button
                 type="button"
                 onClick={() => setActiveTab("business")}
-                className={`px-4 py-2 text-sm font-medium border-b-2 ${
+                className={`shrink-0 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === "business"
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
+                role="tab"
+                aria-selected={activeTab === "business"}
               >
                 Business Hours
               </button>
@@ -238,7 +239,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
             </div>
           </div>
         </div>
-      </div>
+      </AdminPageBody>
     </>
   );
 }

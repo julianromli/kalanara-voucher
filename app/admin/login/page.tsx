@@ -16,7 +16,6 @@ import { useToast } from "@/context/ToastContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
 
 function getLoginNotice(authError: string | null) {
 
@@ -42,13 +41,6 @@ export default function AdminLoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsMounted(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
-
   const notice = getLoginNotice(searchParams.get("error"));
 
   // Redirect if already authenticated
@@ -96,9 +88,7 @@ export default function AdminLoginPage() {
       <div className="flex items-center justify-center w-full lg:w-1/3 bg-background px-6 py-12 lg:px-8">
         <div className="w-full max-w-md">
           {/* Logo */}
-          <div
-            className={cn(isMounted ? "animate-fade-slide-down" : "opacity-0")}
-          >
+          <div>
             <div className="flex items-center gap-3 mb-12">
               <div className="size-10 bg-gradient-to-br from-sage-500 to-sage-700 rounded-xl shadow-lg flex items-center justify-center text-white">
                 <HugeiconsIcon icon={Leaf01Icon} className="size-6" />
@@ -122,22 +112,14 @@ export default function AdminLoginPage() {
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="mt-10 space-y-5">
             <div
-              className={cn(
-                "rounded-lg border border-border bg-accent/30 px-4 py-3 text-sm text-muted-foreground",
-                isMounted ? "animate-fade-slide-up" : "opacity-0",
-              )}
-              style={{ animationDelay: "110ms" }}
+              className="rounded-lg border border-border bg-accent/30 px-4 py-3 text-sm text-muted-foreground"
             >
               Jika Anda menerima undangan admin baru, buka link pada email undangan terlebih dahulu untuk mengatur password.
             </div>
 
             {notice ? (
               <div
-                className={cn(
-                  "rounded-lg bg-accent px-4 py-3 text-sm text-foreground",
-                  isMounted ? "animate-fade-slide-up" : "opacity-0",
-                )}
-                style={{ animationDelay: "130ms" }}
+                className="rounded-lg bg-accent px-4 py-3 text-sm text-foreground"
               >
                 {notice}
               </div>
@@ -145,20 +127,13 @@ export default function AdminLoginPage() {
 
             {error && (
               <div
-                className={cn(
-                  "bg-destructive/10 text-destructive px-4 py-3 rounded-lg text-sm",
-                  isMounted ? "animate-fade-slide-up" : "opacity-0",
-                )}
+                className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg text-sm"
               >
                 {error}
               </div>
             )}
 
-            {/* Email */}
-            <div
-              className={cn(isMounted ? "animate-fade-slide-up" : "opacity-0")}
-              style={{ animationDelay: "150ms" }}
-            >
+            <div>
               <label
                 htmlFor="email"
                 className="block text-sm font-medium text-muted-foreground mb-1.5"
@@ -177,7 +152,7 @@ export default function AdminLoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@kalanaraspa.com"
-                  className="pl-10 h-10 bg-background border-border ring-1 ring-border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  className="pl-10 h-10 bg-background border-border ring-1 ring-border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-[border-color,box-shadow]"
                   required
                   disabled={isSubmitting}
                   autoComplete="email"
@@ -186,10 +161,7 @@ export default function AdminLoginPage() {
             </div>
 
             {/* Password */}
-            <div
-              className={cn(isMounted ? "animate-fade-slide-up" : "opacity-0")}
-              style={{ animationDelay: "225ms" }}
-            >
+            <div>
               <label
                 htmlFor="password"
                 className="block text-sm font-medium text-muted-foreground mb-1.5"
@@ -203,7 +175,7 @@ export default function AdminLoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Masukkan password"
-                  className="h-10 pr-10 bg-background border-border ring-1 ring-border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  className="h-10 pr-10 bg-background border-border ring-1 ring-border focus:ring-2 focus:ring-primary/20 focus:border-primary transition-[border-color,box-shadow]"
                   required
                   disabled={isSubmitting}
                   autoComplete="current-password"
@@ -213,7 +185,6 @@ export default function AdminLoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   disabled={isSubmitting}
-                  tabIndex={-1}
                   aria-label="Tampilkan atau sembunyikan password"
                 >
                   {showPassword ? (
@@ -227,11 +198,7 @@ export default function AdminLoginPage() {
 
             {/* Remember Me */}
             <div
-              className={cn(
-                "flex items-center gap-2",
-                isMounted ? "animate-fade-slide-up" : "opacity-0",
-              )}
-              style={{ animationDelay: "300ms" }}
+              className="flex items-center gap-2"
             >
               <Checkbox
                 id="remember"
@@ -252,11 +219,7 @@ export default function AdminLoginPage() {
             <Button
               type="submit"
               disabled={isSubmitting}
-              className={cn(
-                "w-full h-10 font-medium btn-hover-lift",
-                isMounted ? "animate-fade-slide-up" : "opacity-0",
-              )}
-              style={{ animationDelay: "375ms" }}
+              className="w-full h-10 font-medium"
             >
               {isSubmitting ? (
                 <>
@@ -283,13 +246,7 @@ export default function AdminLoginPage() {
         <div className="absolute inset-0 bg-primary/75" />
 
         {/* Quote Overlay */}
-        <div
-          className={cn(
-            "absolute inset-0 flex flex-col items-start justify-end p-10",
-            isMounted ? "animate-fade-slide-up" : "opacity-0",
-          )}
-          style={{ animationDelay: "400ms" }}
-        >
+        <div className="absolute inset-0 flex flex-col items-start justify-end p-10">
           <div className="max-w-lg">
             <p className="text-xl md:text-2xl lg:text-3xl font-semibold text-primary-foreground text-balance leading-snug">
               Kelola pengalaman tamu dengan sistem voucher yang rapi,

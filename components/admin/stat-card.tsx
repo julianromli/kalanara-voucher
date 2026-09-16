@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import {
   ChartIncreaseIcon,
@@ -34,40 +33,43 @@ interface StatCardProps {
   animationDelay?: number;
 }
 
-export function StatCard({ title, value, icon, badge, className, animationDelay = 0 }: StatCardProps) {
+export function StatCard({
+  title,
+  value,
+  icon,
+  badge,
+  className,
+}: StatCardProps) {
   const IconComponent = iconMap[icon] || Tag01Icon;
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsMounted(true), 50);
-    return () => clearTimeout(timer);
-  }, []);
 
   return (
-    <div 
+    <div
       className={cn(
-        "relative overflow-hidden rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:shadow-spa hover:border-border/80 group card-hover-lift",
-        isMounted ? "animate-fade-slide-up" : "opacity-0",
-        className
+        "admin-surface admin-card-hover group relative overflow-hidden p-5",
+        className,
       )}
-      style={{ animationDelay: `${animationDelay}ms` }}
     >
-      <div className="flex items-start justify-between">
-        <div className="space-y-1.5">
-          <p className="text-sm text-muted-foreground font-medium tracking-tight">{title}</p>
-          <p className="text-2xl font-semibold text-foreground tracking-tight">{value}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1.5">
+          <p className="text-sm font-medium tracking-tight text-muted-foreground">
+            {title}
+          </p>
+          <p className="truncate text-2xl font-semibold tracking-tight text-foreground tabular-nums">
+            {value}
+          </p>
         </div>
-        <div className="flex flex-col items-end gap-2">
-          {badge && (
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground bg-muted/80 px-2 py-0.5 rounded-full font-medium">
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          {badge ? (
+            <span className="rounded-full bg-muted/80 px-2 py-0.5 text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap">
               {badge}
             </span>
-          )}
-          <div className={cn(
-            "flex size-12 items-center justify-center rounded-xl border border-primary/20 bg-primary transition-transform duration-300 group-hover:scale-105",
-            isMounted && "animate-icon-bounce"
-          )} style={{ animationDelay: `${animationDelay + 200}ms` }}>
-            <HugeiconsIcon icon={IconComponent} size={20} className="text-primary-foreground" />
+          ) : null}
+          <div className="flex size-12 items-center justify-center rounded-xl border border-primary/20 bg-primary">
+            <HugeiconsIcon
+              icon={IconComponent}
+              size={20}
+              className="text-primary-foreground"
+            />
           </div>
         </div>
       </div>

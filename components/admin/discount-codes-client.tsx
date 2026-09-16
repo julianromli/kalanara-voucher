@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Edit2, Loader2, Plus, TicketPercent } from "lucide-react";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
+import { AdminPageBody, AdminPageIntro, AdminSurface } from "@/components/admin/admin-page";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -144,18 +145,12 @@ export function DiscountCodesClient({
   const [formState, setFormState] = useState<DiscountCodeFormState>(DEFAULT_FORM);
   const [isSaving, setIsSaving] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push("/admin/login");
     }
   }, [authLoading, isAuthenticated, router]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsMounted(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
 
   const filteredCodes = useMemo(
     () =>
@@ -292,26 +287,18 @@ export function DiscountCodesClient({
   return (
     <>
       <DashboardHeader title="Promo Codes" showActions={false} />
-      <div className="h-full w-full overflow-y-auto overflow-x-hidden p-4 md:p-6">
-        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">Kelola kode diskon</h2>
-            <p className="text-sm text-muted-foreground">
-              Atur promo checkout, periode aktif, dan batas penggunaan.
-            </p>
-          </div>
+      <AdminPageBody>
+        <AdminPageIntro
+          title="Kelola kode diskon"
+          description="Atur promo checkout, periode aktif, dan batas penggunaan."
+        >
           <Button onClick={openCreateDialog} className="min-h-11">
             <Plus className="mr-2 size-4" />
             Tambah Promo
           </Button>
-        </div>
+        </AdminPageIntro>
 
-        <div
-          className={cn(
-            "mb-6 grid gap-4 rounded-2xl border border-border bg-card p-4 shadow-spa md:grid-cols-[minmax(0,1fr)_220px]",
-            isMounted ? "animate-fade-slide-up" : "opacity-0"
-          )}
-        >
+        <AdminSurface className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
           <Input
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
@@ -332,14 +319,9 @@ export function DiscountCodesClient({
               <SelectItem value="INACTIVE">Nonaktif</SelectItem>
             </SelectContent>
           </Select>
-        </div>
+        </AdminSurface>
 
-        <div
-          className={cn(
-            "overflow-hidden rounded-2xl border border-border bg-card shadow-spa",
-            isMounted ? "animate-fade-slide-up" : "opacity-0"
-          )}
-        >
+        <AdminSurface padded={false}>
           <Table>
             <TableHeader>
               <TableRow>
@@ -421,8 +403,8 @@ export function DiscountCodesClient({
               )}
             </TableBody>
           </Table>
-        </div>
-      </div>
+        </AdminSurface>
+      </AdminPageBody>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">

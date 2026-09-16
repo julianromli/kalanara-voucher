@@ -11,6 +11,7 @@ import {
   updateTestimonial,
 } from "@/lib/actions/crm";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
+import { AdminPageBody, AdminPageIntro } from "@/components/admin/admin-page";
 import {
   Card,
   CardContent,
@@ -268,14 +269,11 @@ export function CRMClient({
 
   return (
     <>
-      <DashboardHeader title="CRM" />
-      <div className="h-full w-full overflow-y-auto overflow-x-hidden p-4 md:p-6">
-        <div className="flex flex-col gap-6">
-          <p className="text-muted-foreground">
-            Manage website content and settings
-          </p>
+      <DashboardHeader title="CRM" showActions={false} />
+      <AdminPageBody>
+        <AdminPageIntro description="Manage website content and settings." />
 
-          <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Announcement Bar</CardTitle>
@@ -420,6 +418,7 @@ export function CRMClient({
                   <Button
                     variant="outline"
                     size="icon"
+                    aria-label={`Edit ${testimonial.name}`}
                     onClick={() => handleOpenTestimonialModal(testimonial)}
                   >
                     <Edit2 className="size-4" />
@@ -427,6 +426,7 @@ export function CRMClient({
                   <Button
                     variant="destructive"
                     size="icon"
+                    aria-label={`Delete ${testimonial.name}`}
                     onClick={() => handleDeleteTestimonial(testimonial.id)}
                   >
                     <Trash2 className="size-4" />
@@ -566,8 +566,7 @@ export function CRMClient({
           </DialogFooter>
         </DialogContent>
           </Dialog>
-        </div>
-      </div>
+      </AdminPageBody>
     </>
   );
 }
