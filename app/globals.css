@@ -332,7 +332,7 @@
 
     /* Smooth transitions for interactive elements */
     .transition-spa {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: transform 0.3s ease-out, box-shadow 0.3s ease-out, opacity 0.3s ease-out;
     }
 }
 
@@ -478,26 +478,30 @@
 
     /* Button hover lift effect */
     .btn-hover-lift {
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
     }
 
-    .btn-hover-lift:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.2);
+    @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+        .btn-hover-lift:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.2);
+        }
     }
 
     .btn-hover-lift:active {
-        transform: translateY(0);
+        transform: translateY(0) scale(0.98);
     }
 
     /* Card hover lift */
     .card-hover-lift {
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
     }
 
-    .card-hover-lift:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+    @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+        .card-hover-lift:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+        }
     }
 
     /* Image zoom on hover */
@@ -540,41 +544,90 @@
 }
 
 /* Admin Dashboard Specific Animations */
+@keyframes skeleton-shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
 @keyframes iconBounce {
     0%, 100% {
         transform: scale(1);
     }
     50% {
-        transform: scale(1.1);
+        transform: scale(1.06);
     }
 }
 
 @layer utilities {
-    /* Row hover for tables/lists */
+    /* Row hover for tables/lists — color only, no layout shift */
     .row-hover-lift {
-        transition: transform 0.2s ease, background-color 0.2s ease;
+        transition: background-color 160ms ease-out;
     }
 
-    .row-hover-lift:hover {
-        transform: translateX(4px);
-        background-color: var(--accent);
+    @media (hover: hover) {
+        .row-hover-lift:hover {
+            background-color: var(--accent);
+        }
     }
 
     /* Sidebar nav item hover */
     .nav-item-hover {
-        transition: transform 0.15s ease, background-color 0.15s ease;
+        transition: background-color 150ms ease-out;
     }
 
-    .nav-item-hover:hover {
-        transform: translateX(2px);
-    }
-
-    /* Icon bounce animation */
+    /* Icon bounce kept for rare success states, not page load */
     .animate-icon-bounce {
-        animation: iconBounce 0.5s ease-out;
+        animation: iconBounce 0.4s ease-out;
     }
 
-    /* Extended stagger delays for admin grids */
+    .admin-surface {
+        border-radius: var(--radius-xl);
+        border: 1px solid var(--border);
+        background-color: var(--card);
+    }
+
+    .admin-card-hover {
+        transition: box-shadow 160ms ease-out, border-color 160ms ease-out;
+    }
+
+    @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+        .admin-card-hover:hover {
+            border-color: color-mix(in oklab, var(--border) 55%, var(--foreground));
+            box-shadow: var(--shadow-sm);
+        }
+    }
+
+    .admin-press {
+        transition: transform 160ms ease-out;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .admin-press:active {
+            transform: scale(0.98);
+        }
+    }
+
+    .skeleton-shimmer {
+        background-color: var(--muted);
+    }
+
+    .skeleton-shimmer::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        transform: translateX(-100%);
+        background-image: linear-gradient(
+            90deg,
+            transparent,
+            color-mix(in oklab, var(--background) 72%, transparent),
+            transparent
+        );
+        animation: skeleton-shimmer 1.35s ease-in-out infinite;
+        pointer-events: none;
+    }
+
+    /* Extended stagger delays for marketing grids */
     .animate-stagger-7 { animation-delay: 700ms; }
     .animate-stagger-8 { animation-delay: 800ms; }
 }
@@ -598,6 +651,16 @@
         opacity: 1 !important;
         transform: none !important;
         filter: none !important;
+    }
+
+    .skeleton-shimmer::after {
+        animation: none !important;
+        display: none;
+    }
+
+    .admin-press:active,
+    .btn-hover-lift:active {
+        transform: none !important;
     }
 
     /* Hero headline optimization for zoom behavior */
