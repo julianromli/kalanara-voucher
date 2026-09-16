@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AdminPageBody, AdminSurface } from "@/components/admin/admin-page";
+import { AdminPageBody, AdminSurface, ADMIN_SURFACE_CLASS } from "@/components/admin/admin-page";
 import { cn } from "@/lib/utils";
 
 function bones(count: number) {
@@ -152,7 +152,7 @@ function AdminTableSkeleton({
 
 function AdminStatCardSkeleton({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="admin-surface p-5">
+    <div className={cn(ADMIN_SURFACE_CLASS, "p-5")}>
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-2">
           <Skeleton className="h-4 w-24" />
@@ -203,7 +203,7 @@ export function AdminVouchersSkeleton() {
       <AdminIntroSkeleton />
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {bones(4).map((index) => (
-          <div key={index} className="admin-surface p-4">
+          <div key={index} className={cn(ADMIN_SURFACE_CLASS, "p-4")}>
             <Skeleton className="mb-2 h-4 w-16" />
             <Skeleton className="h-7 w-12" />
           </div>
@@ -252,7 +252,7 @@ export function AdminDashboardSkeleton() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="admin-surface flex h-[400px] flex-col p-6">
+        <div className={cn(ADMIN_SURFACE_CLASS, "flex h-[400px] flex-col p-6")}>
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Skeleton className="size-4 rounded" />
@@ -269,7 +269,7 @@ export function AdminDashboardSkeleton() {
           <Skeleton className="min-h-0 flex-1 w-full rounded-lg" />
         </div>
 
-        <div className="admin-surface flex h-[400px] flex-col">
+        <div className={cn(ADMIN_SURFACE_CLASS, "flex h-[400px] flex-col")}>
           <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-4">
             <div className="flex items-center gap-2">
               <Skeleton className="size-4 rounded" />
@@ -307,7 +307,7 @@ export function AdminDashboardSkeleton() {
           ))}
         </div>
         <div className="space-y-6">
-          <div className="admin-surface p-5">
+          <div className={cn(ADMIN_SURFACE_CLASS, "p-5")}>
             <div className="mb-4 flex items-center gap-2">
               <Skeleton className="size-4 rounded" />
               <Skeleton className="h-4 w-32" />
@@ -324,7 +324,7 @@ export function AdminDashboardSkeleton() {
               ))}
             </div>
           </div>
-          <div className="admin-surface p-5">
+          <div className={cn(ADMIN_SURFACE_CLASS, "p-5")}>
             <div className="mb-4 flex items-center gap-2">
               <Skeleton className="size-4 rounded" />
               <Skeleton className="h-4 w-28" />
@@ -389,7 +389,7 @@ export function AdminServicesSkeleton() {
 
       <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
         {bones(6).map((index) => (
-          <div key={index} className="admin-surface overflow-hidden">
+          <div key={index} className={cn(ADMIN_SURFACE_CLASS, "overflow-hidden")}>
             <Skeleton className="h-44 w-full rounded-none sm:h-40" />
             <div className="space-y-3 p-4 sm:p-5">
               <Skeleton className="h-6 w-40" />
@@ -464,7 +464,7 @@ export function AdminSettingsSkeleton() {
             <Skeleton key={index} className="mb-px h-9 w-28 rounded-none" />
           ))}
         </div>
-        <div className="admin-surface p-6">
+        <div className={cn(ADMIN_SURFACE_CLASS, "p-6")}>
           <Skeleton className="mb-6 h-5 w-40" />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
@@ -493,7 +493,7 @@ export function AdminHelpSkeleton() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
             {bones(2).map((index) => (
-              <div key={index} className="admin-surface p-6">
+              <div key={index} className={cn(ADMIN_SURFACE_CLASS, "p-6")}>
                 <Skeleton className="mb-5 h-5 w-40" />
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -509,13 +509,13 @@ export function AdminHelpSkeleton() {
             ))}
           </div>
           <div className="space-y-6">
-            <div className="admin-surface p-6">
+            <div className={cn(ADMIN_SURFACE_CLASS, "p-6")}>
               <Skeleton className="mb-4 h-5 w-16" />
               {bones(3).map((index) => (
                 <Skeleton key={index} className="mb-2 h-10 w-full rounded-lg" />
               ))}
             </div>
-            <div className="admin-surface p-6">
+            <div className={cn(ADMIN_SURFACE_CLASS, "p-6")}>
               <Skeleton className="mb-3 h-5 w-36" />
               <Skeleton className="mb-4 h-4 w-full" />
               <Skeleton className="h-10 w-full rounded-lg" />
@@ -532,21 +532,21 @@ export function AdminCrmSkeleton() {
     <AdminPageSkeletonShell label="Memuat CRM" name="crm">
       <Skeleton className="h-4 w-64" />
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="admin-surface p-6">
+        <div className={cn(ADMIN_SURFACE_CLASS, "p-6")}>
           <Skeleton className="mb-2 h-5 w-40" />
           <Skeleton className="mb-5 h-4 w-56" />
           <Skeleton className="mb-3 h-9 w-full" />
           <Skeleton className="mb-3 h-16 w-full rounded-lg" />
           <Skeleton className="h-9 w-full" />
         </div>
-        <div className="admin-surface p-6">
+        <div className={cn(ADMIN_SURFACE_CLASS, "p-6")}>
           <Skeleton className="mb-2 h-5 w-44" />
           <Skeleton className="mb-5 h-4 w-64" />
           <Skeleton className="mb-4 aspect-video w-full rounded-lg" />
           <Skeleton className="h-24 w-full rounded-lg" />
         </div>
       </div>
-      <div className="admin-surface p-6">
+      <div className={cn(ADMIN_SURFACE_CLASS, "p-6")}>
         <div className="mb-5 flex items-center justify-between">
           <div className="space-y-2">
             <Skeleton className="h-5 w-32" />

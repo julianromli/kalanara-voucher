@@ -11,6 +11,10 @@ import {
   Tick02Icon,
   CancelCircleIcon,
 } from "@hugeicons/core-free-icons";
+import {
+  ADMIN_CARD_HOVER_CLASS,
+  ADMIN_SURFACE_CLASS,
+} from "@/components/admin/admin-page";
 import { cn } from "@/lib/utils";
 
 const iconMap: Record<string, IconSvgElement> = {
@@ -44,7 +48,9 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "admin-surface admin-card-hover group relative overflow-hidden p-5",
+        ADMIN_SURFACE_CLASS,
+        ADMIN_CARD_HOVER_CLASS,
+        "group relative overflow-hidden p-5",
         className,
       )}
     >

@@ -20,7 +20,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { ADMIN_SURFACE_CLASS } from "@/components/admin/admin-page";
 import { formatCurrency } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 interface ChartDataPoint {
   day: string;
@@ -75,7 +77,7 @@ export function ChartCard({
   };
 
   return (
-    <div className="admin-surface flex h-[400px] flex-col p-6">
+    <div className={cn(ADMIN_SURFACE_CLASS, "flex h-[400px] flex-col p-6")}>
       <div className="mb-6 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <HugeiconsIcon

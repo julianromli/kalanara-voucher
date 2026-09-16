@@ -73,6 +73,12 @@ export function AdminPageIntro({
   );
 }
 
+/** Card chrome that still ships if custom `.admin-surface` CSS is dropped. */
+export const ADMIN_SURFACE_CLASS =
+  "admin-surface rounded-xl border border-border bg-card";
+
+export const ADMIN_CARD_HOVER_CLASS = "admin-card-hover";
+
 interface AdminSurfaceProps {
   children: ReactNode;
   className?: string;
@@ -87,7 +93,8 @@ export function AdminSurface({
   return (
     <div
       className={cn(
-        "admin-surface overflow-hidden",
+        ADMIN_SURFACE_CLASS,
+        "overflow-hidden",
         padded && "p-4 md:p-5",
         className,
       )}

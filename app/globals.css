@@ -490,10 +490,6 @@
         transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
     }
 
-    .admin-card-hover {
-        transition: box-shadow 160ms ease-out, border-color 160ms ease-out;
-    }
-
     @media (hover: hover) and (prefers-reduced-motion: no-preference) {
         .btn-hover-lift:hover {
             transform: translateY(-2px);
@@ -503,11 +499,6 @@
         .card-hover-lift:hover {
             transform: translateY(-4px);
             box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
-        }
-
-        .admin-card-hover:hover {
-            border-color: color-mix(in oklab, var(--border) 55%, var(--foreground));
-            box-shadow: var(--shadow-sm);
         }
     }
 
@@ -563,33 +554,49 @@
         }
     }
 
-    .admin-surface {
-        border-radius: var(--radius-xl);
-        border: 1px solid var(--border);
-        background-color: var(--card);
-    }
-
-    .skeleton-shimmer {
-        background-color: var(--muted);
-    }
-
-    .skeleton-shimmer::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        transform: translateX(-100%);
-        background-image: linear-gradient(
-            90deg,
-            transparent,
-            color-mix(in oklab, var(--background) 72%, transparent),
-            transparent
-        );
-        animation: skeleton-shimmer 1.35s ease-in-out infinite;
-        pointer-events: none;
-    }
-
     .animate-stagger-7 { animation-delay: 700ms; }
     .animate-stagger-8 { animation-delay: 800ms; }
+}
+
+/*
+ * Admin chrome must stay unlayered.
+ * Tailwind v4 production CSS can drop custom rules from the utilities layer,
+ * which made dashboard cards render flat after PR #22.
+ */
+.admin-surface {
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border);
+    background-color: var(--card);
+}
+
+.admin-card-hover {
+    transition: box-shadow 160ms ease-out, border-color 160ms ease-out;
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .admin-card-hover:hover {
+        border-color: color-mix(in oklab, var(--border) 55%, var(--foreground));
+        box-shadow: var(--shadow-sm);
+    }
+}
+
+.skeleton-shimmer {
+    background-color: var(--muted);
+}
+
+.skeleton-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+        90deg,
+        transparent,
+        color-mix(in oklab, var(--background) 72%, transparent),
+        transparent
+    );
+    animation: skeleton-shimmer 1.35s ease-in-out infinite;
+    pointer-events: none;
 }
 
 /* Accessibility - Respect reduced motion preference */

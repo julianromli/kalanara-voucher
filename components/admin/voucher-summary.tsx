@@ -1,6 +1,8 @@
 "use client";
 
 import { HugeiconsIcon } from "@hugeicons/react";
+import { ADMIN_SURFACE_CLASS } from "@/components/admin/admin-page";
+import { cn } from "@/lib/utils";
 import {
   Ticket01Icon,
   Clock01Icon,
@@ -35,7 +37,7 @@ export function VoucherSummary({
 }: VoucherSummaryProps) {
   return (
     <div className="space-y-6">
-      <div className="admin-surface p-5">
+      <div className={cn(ADMIN_SURFACE_CLASS, "p-5")}>
         <h3 className="mb-4 flex items-center gap-2 font-medium text-foreground">
           <HugeiconsIcon
             icon={Ticket01Icon}
@@ -78,7 +80,7 @@ export function VoucherSummary({
       </div>
 
       {showReviews ? (
-        <div className="admin-surface p-5">
+        <div className={cn(ADMIN_SURFACE_CLASS, "p-5")}>
           <h3 className="mb-4 flex items-center gap-2 font-medium text-foreground">
             <HugeiconsIcon icon={StarIcon} className="size-4 text-primary" />
             Recent Reviews
