@@ -21,7 +21,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
     <section
       ref={servicesRef}
       id="services"
-      className="relative overflow-hidden bg-background py-24"
+      className="relative overflow-hidden bg-background py-24 scroll-mt-36"
     >
       {/* Gradient Mesh Background */}
       <div className="absolute inset-0 pointer-events-none">

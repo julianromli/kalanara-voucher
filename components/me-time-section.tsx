@@ -60,7 +60,7 @@ export function MeTimeSection() {
     <section
       id="me-time-gift"
       ref={sectionRef}
-      className="relative overflow-hidden bg-background py-24"
+      className="relative overflow-hidden bg-background py-24 scroll-mt-36"
     >
       {/* Decorative Background */}
       <div className="absolute inset-0 pointer-events-none">

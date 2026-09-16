@@ -123,6 +123,7 @@ describe("ServicesSection", () => {
     expect(grid?.className).toContain("sm:grid-cols-2");
     expect(grid?.className).toContain("lg:grid-cols-3");
     expect(grid?.className).not.toContain("min-[380px]");
+    expect(container.querySelector("#services")?.className).toContain("scroll-mt-36");
   });
 
   it("keeps price and the detail link visually separate", () => {
