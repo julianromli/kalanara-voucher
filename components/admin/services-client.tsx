@@ -41,7 +41,12 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
-import { AdminPageBody } from "@/components/admin/admin-page";
+import {
+  AdminEmptyState,
+  AdminPageBody,
+  AdminPageIntro,
+  AdminSurface,
+} from "@/components/admin/admin-page";
 import {
   createService,
   updateService,
@@ -604,21 +609,21 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
     <main aria-labelledby="services-page-title" className="contents">
       <DashboardHeader title="Manajemen Layanan" showActions={false} />
       <AdminPageBody>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <h2 id="services-page-title" className="text-lg font-semibold text-foreground sm:text-xl">
-              Kelola layanan spa
-            </h2>
-            <p className="text-sm text-muted-foreground">
+        <AdminPageIntro
+          title="Kelola layanan spa"
+          titleId="services-page-title"
+          description={
+            <>
               Kelola layanan spa, harga, dan ketersediaannya
-            </p>
-            {!canCreateService && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Penambahan layanan baru dan perubahan gambar hanya tersedia untuk super admin.
-              </p>
-            )}
-          </div>
-          {canCreateService && (
+              {!canCreateService ? (
+                <span className="mt-1 block">
+                  Penambahan layanan baru dan perubahan gambar hanya tersedia untuk super admin.
+                </span>
+              ) : null}
+            </>
+          }
+        >
+          {canCreateService ? (
             <Button
               onClick={handleOpenCreate}
               className="min-h-11 w-full sm:w-auto"
@@ -626,14 +631,14 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
               <HugeiconsIcon icon={PlusSignIcon} size={16} className="mr-2" />
               Tambah Layanan
             </Button>
-          )}
-        </div>
+          ) : null}
+        </AdminPageIntro>
 
         {/* Category Management Block */}
         <Collapsible
           open={isCategoriesOpen}
           onOpenChange={setIsCategoriesOpen}
-          className="rounded-xl border border-border bg-card"
+          className="admin-surface overflow-hidden"
         >
           <div className="flex items-center justify-between p-4 sm:p-5">
             <div className="flex items-center gap-3">
@@ -753,7 +758,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
           </CollapsibleContent>
         </Collapsible>
 
-        <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
+        <AdminSurface>
           <form
             aria-label="Filter layanan"
             className="flex flex-col gap-4 lg:flex-row lg:items-end"
@@ -812,30 +817,27 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
               {filteredServices.length} layanan ditampilkan
             </p>
           </form>
-        </div>
+        </AdminSurface>
 
         {filteredServices.length === 0 ? (
-          <div
-            role="status"
-            aria-live="polite"
-            className="rounded-xl border border-border bg-card px-6 py-10 text-center sm:px-8 sm:py-12"
-          >
-            <HugeiconsIcon icon={Tag01Icon} size={48} className="mx-auto mb-4 text-muted-foreground" />
-            <h3 className="mb-2 text-lg font-medium text-foreground">
-              Tidak ada layanan ditemukan
-            </h3>
-            <p className="mb-6 text-muted-foreground">
-              {searchQuery || categoryFilter !== "ALL"
-                ? "Coba sesuaikan kata kunci atau filter Anda"
-                : "Buat layanan pertama Anda untuk memulai"}
-            </p>
-            {!searchQuery && categoryFilter === "ALL" && canCreateService && (
-              <Button onClick={handleOpenCreate} className="min-h-11 bg-primary hover:bg-primary/90">
-                <HugeiconsIcon icon={PlusSignIcon} size={18} className="mr-2" />
-                Buat Layanan
-              </Button>
-            )}
-          </div>
+          <AdminSurface padded={false}>
+            <AdminEmptyState
+              icon={<HugeiconsIcon icon={Tag01Icon} size={22} />}
+              title="Tidak ada layanan ditemukan"
+              description={
+                searchQuery || categoryFilter !== "ALL"
+                  ? "Coba sesuaikan kata kunci atau filter Anda"
+                  : "Buat layanan pertama Anda untuk memulai"
+              }
+            >
+              {!searchQuery && categoryFilter === "ALL" && canCreateService ? (
+                <Button onClick={handleOpenCreate} className="min-h-11">
+                  <HugeiconsIcon icon={PlusSignIcon} size={18} className="mr-2" />
+                  Buat Layanan
+                </Button>
+              ) : null}
+            </AdminEmptyState>
+          </AdminSurface>
         ) : (
           <section aria-label="Daftar layanan" aria-busy={isBusy}>
             <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">

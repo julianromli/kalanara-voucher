@@ -31,7 +31,6 @@ interface ChartDataPoint {
 interface ChartCardProps {
   data: ChartDataPoint[];
   title?: string;
-  animationDelay?: number;
 }
 
 const CHART_COLORS = {

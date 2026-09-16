@@ -11,17 +11,18 @@ import {
   CreditCard,
   Hash,
   Loader2,
-  MoreHorizontal,
   Trash2,
   Wallet,
 } from "lucide-react";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
 import { AdminListPagination } from "@/components/admin/admin-list-pagination";
 import {
+  AdminFilterBar,
   AdminPageBody,
   AdminPageIntro,
   AdminSurface,
 } from "@/components/admin/admin-page";
+import { AdminRowOverflowMenu } from "@/components/admin/admin-row-overflow-menu";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { useAdminListUrl } from "@/hooks/use-admin-list-url";
@@ -56,12 +57,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { OrderWithVoucherItems } from "@/lib/database.types";
@@ -339,7 +336,7 @@ export function PurchasesClient({
         </AdminPageIntro>
 
         <AdminSurface>
-          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center">
+          <AdminFilterBar className="mb-4">
             <Input
               placeholder="Search purchases..."
               value={searchQuery}
@@ -361,7 +358,7 @@ export function PurchasesClient({
                 <SelectItem value="REFUNDED">Refunded</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </AdminFilterBar>
 
             <Table>
                 <TableHeader>
@@ -448,24 +445,12 @@ export function PurchasesClient({
                             {new Date(order.created_at).toLocaleDateString()}
                           </TableCell>
                           <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  disabled={isStatusBusy || isDeleteBusy}
-                                  aria-label={`Open actions for ${order.payment_order_id || order.customer_name}`}
-                                >
-                                  {isStatusBusy || isRowDeleteBusy ? (
-                                    <Loader2 className="size-4 animate-spin" />
-                                  ) : (
-                                    <MoreHorizontal className="size-4" />
-                                  )}
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuGroup>
-                                  <DropdownMenuItem
+                            <AdminRowOverflowMenu
+                              label={`Open actions for ${order.payment_order_id || order.customer_name}`}
+                              busy={isStatusBusy || isRowDeleteBusy}
+                              disabled={isStatusBusy || isDeleteBusy}
+                            >
+                                <DropdownMenuItem
                                     onSelect={() => setSelectedOrder(order)}
                                   >
                                     <ArrowUpRight />
@@ -497,9 +482,7 @@ export function PurchasesClient({
                                       </DropdownMenuItem>
                                     </>
                                   ) : null}
-                                </DropdownMenuGroup>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            </AdminRowOverflowMenu>
                           </TableCell>
                         </TableRow>
                       );

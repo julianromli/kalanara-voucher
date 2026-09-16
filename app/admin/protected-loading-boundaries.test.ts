@@ -4,15 +4,19 @@ import { describe, expect, test } from "vitest";
 
 const adminRoot = resolve(process.cwd(), "app/admin");
 const protectedRoot = resolve(adminRoot, "(protected)");
+const skeletonModulePath = resolve(
+  process.cwd(),
+  "components/admin/admin-skeletons.tsx",
+);
 
 const PAGE_SKELETONS = [
   ["dashboard", "AdminDashboardSkeleton"],
   ["services", "AdminServicesSkeleton"],
-  ["purchases", "AdminTablePageSkeleton"],
+  ["purchases", "AdminPurchasesSkeleton"],
   ["reviews", "AdminReviewsSkeleton"],
-  ["vouchers", "AdminTablePageSkeleton"],
-  ["users", "AdminTablePageSkeleton"],
-  ["discount-codes", "AdminTablePageSkeleton"],
+  ["vouchers", "AdminVouchersSkeleton"],
+  ["users", "AdminUsersSkeleton"],
+  ["discount-codes", "AdminDiscountCodesSkeleton"],
   ["crm", "AdminCrmSkeleton"],
   ["settings", "AdminSettingsSkeleton"],
   ["help", "AdminHelpSkeleton"],
@@ -20,6 +24,8 @@ const PAGE_SKELETONS = [
 
 describe("protected admin loading boundaries", () => {
   test("places each page loader next to its protected page", () => {
+    const skeletonModule = readFileSync(skeletonModulePath, "utf8");
+
     for (const [route, skeleton] of PAGE_SKELETONS) {
       const pagePath = resolve(protectedRoot, route, "page.tsx");
       const loadingPath = resolve(protectedRoot, route, "loading.tsx");
@@ -33,7 +39,13 @@ describe("protected admin loading boundaries", () => {
       expect(loadingSource).toContain(skeleton);
       expect(loadingSource).not.toContain("AdminFallbackSkeleton");
       expect(loadingSource).not.toContain("AdminPageChromeSkeleton");
+      expect(loadingSource).not.toContain("AdminTablePageSkeleton");
+      expect(skeletonModule).toContain(`name="${route}"`);
     }
+
+    expect(skeletonModule).not.toContain("AdminFallbackSkeleton");
+    expect(skeletonModule).not.toContain("AdminPageChromeSkeleton");
+    expect(skeletonModule).not.toContain("AdminTablePageSkeleton");
   });
 
   test("does not keep a generic protected-segment loader", () => {

@@ -209,7 +209,7 @@ export function AdminSidebar({
                       <SidebarMenuButton
                         asChild
                         isActive={isActive}
-                        className="h-9 text-sm nav-item-hover"
+                        className="h-9 text-sm"
                       >
                         <Link
                           href={item.href}
@@ -238,7 +238,7 @@ export function AdminSidebar({
                   <SidebarMenuButton
                     asChild
                     isActive={activeHref === "/admin/settings"}
-                    className="h-9 text-sm nav-item-hover"
+                    className="h-9 text-sm"
                   >
                     <Link
                       href="/admin/settings"
@@ -259,7 +259,7 @@ export function AdminSidebar({
                 <SidebarMenuButton
                   asChild
                   isActive={activeHref === "/admin/help"}
-                  className="h-9 text-sm nav-item-hover"
+                  className="h-9 text-sm"
                 >
                   <Link
                     href="/admin/help"

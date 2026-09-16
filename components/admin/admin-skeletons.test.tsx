@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, test } from "vitest";
 import {
   AdminDashboardSkeleton,
+  AdminPurchasesSkeleton,
   AdminReviewsSkeleton,
   AdminServicesSkeleton,
 } from "@/components/admin/admin-skeletons";
@@ -38,5 +39,16 @@ describe("admin page skeletons", () => {
     );
     expect(container.querySelector(".lg\\:grid-cols-4")).not.toBeNull();
     expect(container.querySelectorAll(".h-\\[400px\\]")).toHaveLength(2);
+  });
+
+  test("purchases skeleton is a filter plus table, not a stacked stub", () => {
+    const { container } = render(<AdminPurchasesSkeleton />);
+
+    expect(screen.getByRole("status")).toHaveAttribute(
+      "data-admin-skeleton",
+      "purchases",
+    );
+    expect(container.querySelector("[style*='repeat(9']")).not.toBeNull();
+    expect(container.querySelectorAll(".h-11.w-full.rounded-lg")).toHaveLength(0);
   });
 });

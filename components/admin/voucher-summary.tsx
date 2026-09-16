@@ -26,7 +26,6 @@ interface VoucherSummaryProps {
   stats: VoucherStats;
   reviews?: Review[];
   showReviews?: boolean;
-  animationDelay?: number;
 }
 
 export function VoucherSummary({

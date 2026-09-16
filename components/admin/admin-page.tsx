@@ -32,7 +32,7 @@ export function AdminPageBody({
 interface AdminPageIntroProps {
   title?: string;
   titleId?: string;
-  description: string;
+  description: ReactNode;
   children?: ReactNode;
   className?: string;
 }

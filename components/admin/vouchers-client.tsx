@@ -21,7 +21,6 @@ import {
   AlertTriangle,
   Ban,
   CalendarPlus,
-  MoreHorizontal,
   QrCode,
   Trash2,
 } from "lucide-react";
@@ -55,12 +54,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
 import {
@@ -79,6 +74,7 @@ import {
   AdminPageIntro,
   AdminSurface,
 } from "@/components/admin/admin-page";
+import { AdminRowOverflowMenu } from "@/components/admin/admin-row-overflow-menu";
 import type { AdminPage } from "@/lib/actions/admin-pagination";
 import { useAdminListUrl } from "@/hooks/use-admin-list-url";
 import { cn } from "@/lib/utils";
@@ -550,28 +546,11 @@ export function VouchersClient({
                         </td>
                         <td className="p-4">
                           <div className="flex items-center justify-end gap-1">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={isActionBusy}
-                                  className="h-8 w-8 p-0"
-                                  aria-label={`Open actions for ${voucher.code}`}
-                                >
-                                  {isDeleteBusy ? (
-                                    <HugeiconsIcon
-                                      icon={Loading03Icon}
-                                      size={16}
-                                      className="animate-spin"
-                                    />
-                                  ) : (
-                                    <MoreHorizontal />
-                                  )}
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuGroup>
+                            <AdminRowOverflowMenu
+                              label={`Open actions for ${voucher.code}`}
+                              busy={isDeleteBusy}
+                              disabled={isActionBusy}
+                            >
                                   {status === "active" ? (
                                     <>
                                       <DropdownMenuItem
@@ -611,9 +590,7 @@ export function VouchersClient({
                                     <Trash2 />
                                     Delete
                                   </DropdownMenuItem>
-                                </DropdownMenuGroup>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            </AdminRowOverflowMenu>
                           </div>
                         </td>
                       </tr>

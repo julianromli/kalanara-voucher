@@ -17,7 +17,6 @@ interface Order {
 
 interface RecentOrdersProps {
   orders: Order[];
-  animationDelay?: number;
 }
 
 export function RecentOrders({ orders }: RecentOrdersProps) {

@@ -8,6 +8,7 @@ import { AdminListPagination } from "@/components/admin/admin-list-pagination";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
 import {
   AdminEmptyState,
+  AdminFilterBar,
   AdminPageBody,
   AdminPageIntro,
   AdminSurface,
@@ -97,7 +98,7 @@ export function ReviewsClient({
         <AdminPageIntro description="Moderate customer reviews and feedback." />
 
         <AdminSurface>
-          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center">
+          <AdminFilterBar className="mb-6">
             <Input
               placeholder="Search reviews..."
               value={searchQuery}
@@ -117,7 +118,7 @@ export function ReviewsClient({
                 <SelectItem value="1">1 Star</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </AdminFilterBar>
 
           {reviews.length === 0 ? (
             <AdminEmptyState

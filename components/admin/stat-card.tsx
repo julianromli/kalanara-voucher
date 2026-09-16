@@ -30,7 +30,6 @@ interface StatCardProps {
   icon: keyof typeof iconMap;
   badge?: string;
   className?: string;
-  animationDelay?: number;
 }
 
 export function StatCard({

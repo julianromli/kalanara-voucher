@@ -439,6 +439,12 @@
     }
 }
 
+@keyframes skeleton-shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
 /* Animation Utility Classes */
 @layer utilities {
     .animate-fade-slide-up {
@@ -476,9 +482,16 @@
     .animate-stagger-5 { animation-delay: 500ms; }
     .animate-stagger-6 { animation-delay: 600ms; }
 
-    /* Button hover lift effect */
     .btn-hover-lift {
         transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+    }
+
+    .card-hover-lift {
+        transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
+    }
+
+    .admin-card-hover {
+        transition: box-shadow 160ms ease-out, border-color 160ms ease-out;
     }
 
     @media (hover: hover) and (prefers-reduced-motion: no-preference) {
@@ -486,22 +499,20 @@
             transform: translateY(-2px);
             box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.2);
         }
-    }
 
-    .btn-hover-lift:active {
-        transform: translateY(0) scale(0.98);
-    }
-
-    /* Card hover lift */
-    .card-hover-lift {
-        transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
-    }
-
-    @media (hover: hover) and (prefers-reduced-motion: no-preference) {
         .card-hover-lift:hover {
             transform: translateY(-4px);
             box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
         }
+
+        .admin-card-hover:hover {
+            border-color: color-mix(in oklab, var(--border) 55%, var(--foreground));
+            box-shadow: var(--shadow-sm);
+        }
+    }
+
+    .btn-hover-lift:active {
+        transform: translateY(0) scale(0.98);
     }
 
     /* Image zoom on hover */
@@ -541,26 +552,7 @@
     .conditional-field {
         transition: opacity 0.3s ease-in-out, max-height 0.3s ease-in-out, visibility 0.3s ease-in-out;
     }
-}
 
-/* Admin Dashboard Specific Animations */
-@keyframes skeleton-shimmer {
-    100% {
-        transform: translateX(100%);
-    }
-}
-
-@keyframes iconBounce {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.06);
-    }
-}
-
-@layer utilities {
-    /* Row hover for tables/lists — color only, no layout shift */
     .row-hover-lift {
         transition: background-color 160ms ease-out;
     }
@@ -571,41 +563,10 @@
         }
     }
 
-    /* Sidebar nav item hover */
-    .nav-item-hover {
-        transition: background-color 150ms ease-out;
-    }
-
-    /* Icon bounce kept for rare success states, not page load */
-    .animate-icon-bounce {
-        animation: iconBounce 0.4s ease-out;
-    }
-
     .admin-surface {
         border-radius: var(--radius-xl);
         border: 1px solid var(--border);
         background-color: var(--card);
-    }
-
-    .admin-card-hover {
-        transition: box-shadow 160ms ease-out, border-color 160ms ease-out;
-    }
-
-    @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-        .admin-card-hover:hover {
-            border-color: color-mix(in oklab, var(--border) 55%, var(--foreground));
-            box-shadow: var(--shadow-sm);
-        }
-    }
-
-    .admin-press {
-        transition: transform 160ms ease-out;
-    }
-
-    @media (prefers-reduced-motion: no-preference) {
-        .admin-press:active {
-            transform: scale(0.98);
-        }
     }
 
     .skeleton-shimmer {
@@ -627,7 +588,6 @@
         pointer-events: none;
     }
 
-    /* Extended stagger delays for marketing grids */
     .animate-stagger-7 { animation-delay: 700ms; }
     .animate-stagger-8 { animation-delay: 800ms; }
 }
@@ -658,7 +618,6 @@
         display: none;
     }
 
-    .admin-press:active,
     .btn-hover-lift:active,
     [data-slot="button"]:active {
         transform: none !important;

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
 import {
   AdminEmptyState,
+  AdminFilterBar,
   AdminPageBody,
   AdminPageIntro,
   AdminSurface,
@@ -268,7 +269,7 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
         </AdminPageIntro>
 
         <AdminSurface>
-          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center">
+          <AdminFilterBar className="mb-6">
             <Input
               placeholder="Cari nama atau email admin..."
               value={searchQuery}
@@ -289,7 +290,7 @@ export function AdminUsersClient({ initialUsers }: AdminUsersClientProps) {
                 <SelectItem value="STAFF">Staff</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </AdminFilterBar>
 
             <div className="overflow-x-auto">
               <table className="w-full">
