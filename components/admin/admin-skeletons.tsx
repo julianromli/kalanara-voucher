@@ -572,34 +572,17 @@ export function AdminLoginSkeleton() {
   );
 }
 
-export function AdminShellBootstrapSkeleton() {
+export function AdminSegmentFallbackSkeleton() {
   return (
     <AdminLoadingRegion
       label="Memuat panel admin"
-      className="flex h-svh bg-sidebar"
+      className="flex min-h-svh items-center justify-center bg-background"
     >
-      <div className="hidden w-64 shrink-0 flex-col p-4 lg:flex">
-        <div className="mb-6 flex items-center gap-2 px-2 py-3">
-          <Skeleton className="size-8 rounded-lg" />
-          <div className="space-y-1">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-3 w-16" />
-          </div>
-        </div>
-        <Skeleton className="mb-6 h-8 w-full rounded-md" />
-        <div className="space-y-2">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <Skeleton key={index} className="h-9 w-full rounded-md" />
-          ))}
-        </div>
-        <div className="mt-auto space-y-3">
-          <Skeleton className="h-14 w-full rounded-lg" />
-          <Skeleton className="h-8 w-full rounded-lg" />
-        </div>
-      </div>
-      <div className="h-full min-w-0 flex-1 overflow-hidden lg:p-2">
-        <div className="flex h-full flex-col overflow-hidden bg-background lg:rounded-xl lg:border">
-          <AdminPageChromeSkeleton />
+      <div className="flex items-center gap-3">
+        <Skeleton className="size-10 rounded-xl" />
+        <div className="space-y-1.5">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-3 w-20" />
         </div>
       </div>
     </AdminLoadingRegion>

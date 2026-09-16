@@ -1,5 +1,5 @@
-import { AdminShellBootstrapSkeleton } from "@/components/admin/admin-skeletons";
+import { AdminSegmentFallbackSkeleton } from "@/components/admin/admin-skeletons";
 
 export default function AdminLoading() {
-  return <AdminShellBootstrapSkeleton />;
+  return <AdminSegmentFallbackSkeleton />;
 }
