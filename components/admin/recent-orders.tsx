@@ -5,7 +5,9 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Search01Icon, ShoppingBag01Icon, Calendar01Icon } from "@hugeicons/core-free-icons";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ADMIN_SURFACE_CLASS } from "@/components/admin/admin-page";
 import { formatCurrency, APP_CONFIG } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 interface Order {
   id: string;
@@ -36,7 +38,12 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
   }, [orders, query]);
 
   return (
-    <div className="admin-surface flex h-[400px] flex-col overflow-hidden">
+    <div
+      className={cn(
+        ADMIN_SURFACE_CLASS,
+        "flex h-[400px] flex-col overflow-hidden",
+      )}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4 pb-4">
         <div className="flex items-center gap-2">
           <HugeiconsIcon

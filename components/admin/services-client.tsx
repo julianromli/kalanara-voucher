@@ -46,6 +46,8 @@ import {
   AdminPageBody,
   AdminPageIntro,
   AdminSurface,
+  ADMIN_CARD_HOVER_CLASS,
+  ADMIN_SURFACE_CLASS,
 } from "@/components/admin/admin-page";
 import {
   createService,
@@ -638,7 +640,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
         <Collapsible
           open={isCategoriesOpen}
           onOpenChange={setIsCategoriesOpen}
-          className="admin-surface overflow-hidden"
+          className={cn(ADMIN_SURFACE_CLASS, "overflow-hidden")}
         >
           <div className="flex items-center justify-between p-4 sm:p-5">
             <div className="flex items-center gap-3">
@@ -849,7 +851,8 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                 <article
                   key={service.id}
                   className={cn(
-                    "admin-card-hover overflow-hidden rounded-xl border border-border bg-card focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+                    ADMIN_CARD_HOVER_CLASS,
+                    "overflow-hidden rounded-xl border border-border bg-card focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
                     !service.is_active && "opacity-60",
                     isOptimistic && "opacity-70 saturate-50",
                   )}

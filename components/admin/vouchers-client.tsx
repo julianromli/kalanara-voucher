@@ -73,6 +73,7 @@ import {
   AdminPageBody,
   AdminPageIntro,
   AdminSurface,
+  ADMIN_SURFACE_CLASS,
 } from "@/components/admin/admin-page";
 import { AdminRowOverflowMenu } from "@/components/admin/admin-row-overflow-menu";
 import type { AdminPage } from "@/lib/actions/admin-pagination";
@@ -347,13 +348,13 @@ export function VouchersClient({
         <AdminPageIntro description="Track voucher status, extend expiry, and redeem or void codes." />
 
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <div className="admin-surface p-4">
+          <div className={cn(ADMIN_SURFACE_CLASS, "p-4")}>
             <p className="text-sm text-muted-foreground">Total</p>
             <p className="font-sans text-2xl font-semibold text-foreground tabular-nums">
               {stats.total}
             </p>
           </div>
-          <div className="admin-surface p-4">
+          <div className={cn(ADMIN_SURFACE_CLASS, "p-4")}>
             <p className="flex items-center gap-1 text-sm text-primary">
               <HugeiconsIcon icon={Clock01Icon} size={14} /> Active
             </p>
@@ -361,7 +362,7 @@ export function VouchersClient({
               {stats.active}
             </p>
           </div>
-          <div className="admin-surface p-4">
+          <div className={cn(ADMIN_SURFACE_CLASS, "p-4")}>
             <p className="flex items-center gap-1 text-sm text-primary">
               <HugeiconsIcon icon={Tick02Icon} size={14} /> Redeemed
             </p>
@@ -369,7 +370,7 @@ export function VouchersClient({
               {stats.redeemed}
             </p>
           </div>
-          <div className="admin-surface p-4">
+          <div className={cn(ADMIN_SURFACE_CLASS, "p-4")}>
             <p className="flex items-center gap-1 text-sm text-destructive">
               <HugeiconsIcon icon={CancelCircleIcon} size={14} /> Expired
             </p>
