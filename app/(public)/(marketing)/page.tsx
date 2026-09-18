@@ -43,12 +43,14 @@ export default async function LandingPage() {
     services: dbServices,
     heroImageUrl: configuredHeroImageUrl,
     testimonials: activeTestimonials,
+    landingCopy,
   } = await getPublicLandingData();
 
   const services = dbServices.map(adaptDBServiceToFrontend);
   const heroImageUrl =
     configuredHeroImageUrl ||
     "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&q=80";
+  const hero = landingCopy.hero;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -70,33 +72,32 @@ export default async function LandingPage() {
           <SiteContainer>
             <div className="max-w-3xl">
               <span className="animate-fade-slide-up text-primary-foreground/60 tracking-[0.3em] text-xs md:text-sm uppercase mb-6 block">
-                Selamat Datang di Kalanara
+                {hero.eyebrow}
               </span>
               <h1 className="animate-fade-slide-up animate-stagger-1 font-sans font-semibold text-4xl sm:text-5xl md:text-6xl lg:text-6xl xl:text-7xl text-primary-foreground mb-8 leading-[1.2] text-wrap-balance max-w-2xl hero-headline">
-                Hadiah Spesial
+                {hero.titleLine1}
                 <br />
-                untuk{" "}
+                {hero.titleLine2Before}{" "}
                 <span className="italic font-normal text-primary-foreground/70">
-                  Me Time
+                  {hero.titleEmphasis}
                 </span>
               </h1>
               <p className="animate-fade-slide-up animate-stagger-2 text-primary-foreground/80 text-base sm:text-lg md:text-xl mb-10 max-w-xl font-light leading-relaxed">
-                Voucher spa premium untuk diri sendiri atau orang tersayang.
-                Nikmati perawatan terbaik dari terapis profesional di Kalanara Spa Galaxy, Bekasi.
+                {hero.description}
               </p>
               <div className="animate-fade-slide-up animate-stagger-3 flex flex-col sm:flex-row items-start gap-4">
                 <a
                   href="#services"
                   className="btn-hover-lift inline-flex items-center gap-3 bg-accent text-accent-foreground px-8 py-4 rounded-lg text-base sm:text-lg font-medium hover:bg-accent/90 transition-all shadow-xl"
                 >
-                  Lihat Paket Voucher
+                  {hero.primaryCta}
                   <ArrowRight size={20} aria-hidden="true" />
                 </a>
                 <Link
                   href="/verify"
                   className="inline-flex items-center gap-2 text-primary-foreground/70 hover:text-primary-foreground px-4 py-4 text-base font-medium transition-colors"
                 >
-                  Cek Voucher Kamu
+                  {hero.secondaryCta}
                 </Link>
               </div>
             </div>
@@ -104,11 +105,14 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <MeTimeSection />
-      <ServicesSection services={services} />
-      <FlashSaleTestimonials testimonials={activeTestimonials} />
-      <TrustFeatures />
-      <Footer13 />
+      <MeTimeSection copy={landingCopy.meTime} />
+      <ServicesSection services={services} copy={landingCopy.services} />
+      <FlashSaleTestimonials
+        testimonials={activeTestimonials}
+        copy={landingCopy.testimonials}
+      />
+      <TrustFeatures copy={landingCopy.trust} />
+      <Footer13 copy={landingCopy.footer} />
     </div>
   );
 }
