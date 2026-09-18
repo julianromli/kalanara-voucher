@@ -268,24 +268,24 @@ export const DEFAULT_LANDING_COPY: LandingCopy = {
       {
         title: "Kalanara Spa",
         links: [
-          { name: "Tentang Kami", href: "/about" },
+          { name: "Tentang Kami", href: "/" },
           { name: "Layanan Kami", href: "/#services" },
-          { name: "Hubungi Kami", href: "/contact" },
+          { name: "Hubungi Kami", href: "/#footer" },
         ],
       },
       {
         title: "Bantuan",
         links: [
-          { name: "Cara Pembelian", href: "/how-it-works" },
-          { name: "FAQ", href: "/faq" },
+          { name: "Cara Pembelian", href: "/#services" },
+          { name: "FAQ", href: "/#trust" },
           { name: "Tukar Voucher", href: "/verify" },
         ],
       },
       {
         title: "Legal",
         links: [
-          { name: "Syarat & Ketentuan", href: "/terms" },
-          { name: "Kebijakan Privasi", href: "/privacy" },
+          { name: "Syarat & Ketentuan", href: "/" },
+          { name: "Kebijakan Privasi", href: "/" },
         ],
       },
     ],
@@ -303,7 +303,12 @@ const FOOTER_COLUMN_LINK_COUNTS = DEFAULT_LANDING_COPY.footer.columns.map(
 ) as [number, number, number, number];
 
 export function isInternalSitePath(value: string): boolean {
-  return value.startsWith("/") && !value.startsWith("//");
+  return (
+    value.startsWith("/") &&
+    !value.startsWith("//") &&
+    !value.includes("\\") &&
+    !/%5c/i.test(value)
+  );
 }
 
 export function isHttpUrl(value: string): boolean {

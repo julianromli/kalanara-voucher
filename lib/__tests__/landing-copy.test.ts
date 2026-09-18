@@ -82,6 +82,31 @@ describe("landing copy save validation", () => {
     expect(isValidSocialHref("/instagram")).toBe(false);
   });
 
+  it("rejects backslash paths that browsers can treat as external hosts", () => {
+    expect(isValidFooterHref("/\\evil.com")).toBe(false);
+    expect(isValidFooterHref("/\\\\evil.com")).toBe(false);
+    expect(isValidFooterHref("/%5cevil.com")).toBe(false);
+    expect(isValidFooterHref("/verify")).toBe(true);
+  });
+
+  it("uses implemented public routes in default footer links", () => {
+    const unimplementedRoutes = [
+      "/about",
+      "/contact",
+      "/how-it-works",
+      "/faq",
+      "/terms",
+      "/privacy",
+    ];
+
+    for (const column of DEFAULT_LANDING_COPY.footer.columns) {
+      for (const link of column.links) {
+        expect(isValidFooterHref(link.href)).toBe(true);
+        expect(unimplementedRoutes).not.toContain(link.href);
+      }
+    }
+  });
+
   it("rejects http external URLs for footer and social links", () => {
     expect(isValidFooterHref("http://kalanara.com/promo")).toBe(false);
     expect(isValidSocialHref("http://instagram.com/kalanara")).toBe(false);

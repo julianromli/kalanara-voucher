@@ -29,18 +29,27 @@ export function CrmCopyField({
   type = "text",
   disabled = false,
 }: CrmCopyFieldProps) {
+  const hintId = hint ? `${id}-hint` : undefined;
+  const counterId = maxLength ? `${id}-counter` : undefined;
+  const describedBy = [hintId, counterId].filter(Boolean).join(" ") || undefined;
+
   return (
     <div className="grid gap-1.5">
       <div className="flex items-baseline justify-between gap-3">
         <Label htmlFor={id}>{label}</Label>
         {maxLength ? (
-          <span className="text-xs tabular-nums text-muted-foreground">
+          <span
+            id={counterId}
+            className="text-xs tabular-nums text-muted-foreground"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             {value.length}/{maxLength}
           </span>
         ) : null}
       </div>
       {hint ? (
-        <p id={`${id}-hint`} className="text-xs text-pretty text-muted-foreground">
+        <p id={hintId} className="text-xs text-pretty text-muted-foreground">
           {hint}
         </p>
       ) : null}
@@ -52,7 +61,7 @@ export function CrmCopyField({
           placeholder={placeholder}
           maxLength={maxLength}
           disabled={disabled}
-          aria-describedby={hint ? `${id}-hint` : undefined}
+          aria-describedby={describedBy}
           className="min-h-24"
         />
       ) : (
@@ -64,7 +73,7 @@ export function CrmCopyField({
           placeholder={placeholder}
           maxLength={maxLength}
           disabled={disabled}
-          aria-describedby={hint ? `${id}-hint` : undefined}
+          aria-describedby={describedBy}
         />
       )}
     </div>

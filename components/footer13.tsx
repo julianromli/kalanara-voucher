@@ -116,14 +116,14 @@ const Footer13 = ({ copy }: Footer13Props) => {
           <nav className="border-border grid grid-cols-2 gap-x-6 gap-y-10 border-b py-10 sm:grid-cols-4 lg:py-16">
             {copy.columns.map((section, index) => (
               <div
-                key={section.title}
+                key={`footer-column-${index}`}
                 className={isInView ? "animate-fade-slide-up" : "opacity-0"}
                 style={{ animationDelay: isInView ? `${500 + index * 100}ms` : "0ms" }}
               >
                 <h3 className="mb-5 text-lg font-semibold text-foreground">{section.title}</h3>
                 <ul className="space-y-4">
-                  {section.links.map((link) => (
-                    <li key={`${link.name}-${link.href}`}>
+                  {section.links.map((link, linkIndex) => (
+                    <li key={`footer-column-${index}-link-${linkIndex}`}>
                       <Link
                         href={link.href}
                         className="text-muted-foreground hover:text-primary inline-block transition-colors duration-200 hover:translate-x-1 transform"

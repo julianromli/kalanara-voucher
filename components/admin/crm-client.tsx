@@ -30,6 +30,7 @@ import { type Testimonial, type TestimonialInsert } from "@/lib/database.types";
 import {
   cloneLandingCopy,
   DEFAULT_LANDING_COPY,
+  isLandingCopySection,
   mergeLandingCopyPreservingDirty,
   type LandingCopy,
   type LandingCopySection,
@@ -140,8 +141,8 @@ export function CRMClient({
   const [landingCopy, setLandingCopy] = useState<LandingCopy>(() =>
     cloneLandingCopy(initialLandingCopy)
   );
-  const [savingSection, setSavingSection] = useState<LandingCopySection | null>(
-    null
+  const [savingSections, setSavingSections] = useState(
+    () => new Set<LandingCopySection>()
   );
   const dirtyLandingSectionsRef = useRef(new Set<LandingCopySection>());
   const [testimonialItems, setTestimonialItems] = useState<Testimonial[]>(() =>
@@ -205,6 +206,22 @@ export function CRMClient({
     dirtyLandingSectionsRef.current.delete(section);
   }
 
+  function beginSavingSection(section: LandingCopySection) {
+    setSavingSections((current) => {
+      const next = new Set(current);
+      next.add(section);
+      return next;
+    });
+  }
+
+  function endSavingSection(section: LandingCopySection) {
+    setSavingSections((current) => {
+      const next = new Set(current);
+      next.delete(section);
+      return next;
+    });
+  }
+
   const handleSaveAnnouncement = async () => {
     try {
       setIsSavingAnnouncement(true);
@@ -261,7 +278,7 @@ export function CRMClient({
 
   const handleSaveLandingSection = async (section: LandingCopySection) => {
     try {
-      setSavingSection(section);
+      beginSavingSection(section);
       const saved = await updateLandingCopySection(section, landingCopy[section]);
       markLandingSectionClean(section);
       setLandingCopy((current) => ({
@@ -277,7 +294,7 @@ export function CRMClient({
         "error"
       );
     } finally {
-      setSavingSection(null);
+      endSavingSection(section);
     }
   };
 
@@ -293,7 +310,7 @@ export function CRMClient({
     const defaults = cloneLandingCopy(DEFAULT_LANDING_COPY[section]);
 
     try {
-      setSavingSection(section);
+      beginSavingSection(section);
       const saved = await updateLandingCopySection(section, defaults);
       markLandingSectionClean(section);
       setLandingCopy((current) => ({
@@ -309,7 +326,7 @@ export function CRMClient({
         "error"
       );
     } finally {
-      setSavingSection(null);
+      endSavingSection(section);
     }
   };
 
@@ -392,20 +409,20 @@ export function CRMClient({
 
   const activeNav = CRM_NAV.find((item) => item.id === activeSection) ?? CRM_NAV[0];
   const isSavingCopy =
-    activeSection !== "announcement" && savingSection === activeSection;
+    isLandingCopySection(activeSection) && savingSections.has(activeSection);
 
   const renderSectionActions = (section: LandingCopySection, previewHref: string) => (
     <div className="flex flex-wrap items-center gap-2">
       <Button
         onClick={() => void handleSaveLandingSection(section)}
-        disabled={savingSection === section}
+        disabled={savingSections.has(section)}
       >
-        {savingSection === section ? "Menyimpan..." : "Simpan"}
+        {savingSections.has(section) ? "Menyimpan..." : "Simpan"}
       </Button>
       <Button
         variant="outline"
         onClick={() => void handleResetLandingSection(section)}
-        disabled={savingSection === section}
+        disabled={savingSections.has(section)}
       >
         Kembalikan teks awal
       </Button>
