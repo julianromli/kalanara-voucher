@@ -10,7 +10,7 @@ import {
   parseLandingCopyFromSettings,
   PUBLIC_LANDING_SETTING_KEYS,
   type LandingCopy,
-} from "@/lib/landing-copy";
+} from "@/lib/landingCopy";
 import {
   loadActivePublicServices,
   type ServiceCategoryRelation,

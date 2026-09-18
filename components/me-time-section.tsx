@@ -3,7 +3,7 @@
 import { useInView } from "@/hooks/useInView";
 import { SiteContainer } from "@/components/site-container";
 import { ArrowRight } from "lucide-react";
-import type { MeTimeCopy } from "@/lib/landing-copy";
+import type { MeTimeCopy } from "@/lib/landingCopy";
 
 interface MeTimeSectionProps {
   copy: MeTimeCopy;

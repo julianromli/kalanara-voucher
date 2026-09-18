@@ -4,7 +4,7 @@ import { Quote } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
 import { SiteContainer } from "@/components/site-container";
 import type { Testimonial } from "@/lib/database.types";
-import type { TestimonialsCopy } from "@/lib/landing-copy";
+import type { TestimonialsCopy } from "@/lib/landingCopy";
 
 interface FlashSaleTestimonialsProps {
   testimonials: Testimonial[];

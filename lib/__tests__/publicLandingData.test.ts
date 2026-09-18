@@ -19,7 +19,7 @@ import {
   LANDING_CMS_CACHE_TAG,
   PUBLIC_SERVICES_CACHE_TAG,
 } from "@/lib/cache-tags";
-import { DEFAULT_LANDING_COPY } from "@/lib/landing-copy";
+import { DEFAULT_LANDING_COPY } from "@/lib/landingCopy";
 import { getPublicLandingData } from "@/lib/publicLandingData";
 
 beforeEach(() => {

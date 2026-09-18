@@ -1,7 +1,7 @@
 "use client";
 
 import { CrmCopyField } from "@/components/admin/crm-copy-field";
-import { LANDING_COPY_LIMITS } from "@/lib/landing-copy";
+import { LANDING_COPY_LIMITS } from "@/lib/landingCopy";
 import type {
   FooterCopy,
   HeroCopy,
@@ -9,7 +9,7 @@ import type {
   ServicesCopy,
   TestimonialsCopy,
   TrustCopy,
-} from "@/lib/landing-copy";
+} from "@/lib/landingCopy";
 
 interface CopyFieldsProps<T> {
   copy: T;

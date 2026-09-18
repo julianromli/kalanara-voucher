@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_LANDING_COPY,
+  LANDING_COPY_LIMITS,
   isValidFooterHref,
   isValidSocialHref,
   mergeLandingCopyPreservingDirty,
@@ -8,7 +9,7 @@ import {
   parseLandingCopySection,
   parseLandingCopySectionForSave,
   serializeLandingCopySection,
-} from "@/lib/landing-copy";
+} from "@/lib/landingCopy";
 
 describe("landing copy parsers", () => {
   it("returns defaults when JSON is missing or invalid", () => {
@@ -81,13 +82,27 @@ describe("landing copy save validation", () => {
     expect(isValidSocialHref("/instagram")).toBe(false);
   });
 
+  it("rejects http external URLs for footer and social links", () => {
+    expect(isValidFooterHref("http://kalanara.com/promo")).toBe(false);
+    expect(isValidSocialHref("http://instagram.com/kalanara")).toBe(false);
+    expect(isValidFooterHref("https://kalanara.com/promo")).toBe(true);
+    expect(isValidSocialHref("https://instagram.com/kalanara")).toBe(true);
+  });
+
   it("rejects blank required fields and invalid footer URLs on save", () => {
     expect(() =>
       parseLandingCopySectionForSave("hero", {
         ...DEFAULT_LANDING_COPY.hero,
         titleLine1: "   ",
       })
-    ).toThrow(/required/i);
+    ).toThrow(/wajib/i);
+
+    expect(() =>
+      parseLandingCopySectionForSave("hero", {
+        ...DEFAULT_LANDING_COPY.hero,
+        titleLine1: "A".repeat(LANDING_COPY_LIMITS.title + 1),
+      })
+    ).toThrow(/maksimal/i);
 
     expect(() =>
       parseLandingCopySectionForSave("footer", {
@@ -103,7 +118,25 @@ describe("landing copy save validation", () => {
             : column
         ),
       })
-    ).toThrow(/path|https/i);
+    ).toThrow(/https:\/\//i);
+
+    expect(() =>
+      parseLandingCopySectionForSave("footer", {
+        ...DEFAULT_LANDING_COPY.footer,
+        columns: DEFAULT_LANDING_COPY.footer.columns.map((column, index) =>
+          index === 0
+            ? {
+                ...column,
+                links: column.links.map((link, linkIndex) =>
+                  linkIndex === 0
+                    ? { ...link, href: "http://kalanara.com/promo" }
+                    : link
+                ),
+              }
+            : column
+        ),
+      })
+    ).toThrow(/https:\/\//i);
   });
 
   it("serializes a validated section as JSON", () => {

@@ -25,7 +25,7 @@ import {
   serializeLandingCopySection,
   type LandingCopy,
   type LandingCopySection,
-} from "@/lib/landing-copy";
+} from "@/lib/landingCopy";
 import {
   VOUCHER_DEFAULT_EXPIRATION_DAYS_KEY,
   normalizeVoucherExpirationDaysInput,
