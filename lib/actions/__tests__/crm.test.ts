@@ -29,7 +29,9 @@ import {
   createTestimonial,
   deleteSiteSetting,
   deleteTestimonial,
+  getLandingCopy,
   getSiteSetting,
+  updateLandingCopySection,
   updateSiteSetting,
   updateTestimonial,
 } from "@/lib/actions/crm";
@@ -38,6 +40,7 @@ import {
   ANNOUNCEMENT_SETTINGS_CACHE_TAG,
   LANDING_CMS_CACHE_TAG,
 } from "@/lib/cache-tags";
+import { DEFAULT_LANDING_COPY } from "@/lib/landing-copy";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -424,5 +427,102 @@ describe("crm actions", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/", "layout");
     expect(revalidatePathMock).toHaveBeenCalledWith("/", "page");
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/crm", "page");
+  });
+
+  it("loads landing copy JSON with defaults for missing sections", async () => {
+    const inMock = vi.fn().mockResolvedValue({
+      data: [
+        {
+          key: "landing_hero",
+          value: JSON.stringify({
+            ...DEFAULT_LANDING_COPY.hero,
+            titleLine1: "Hadiah Baru",
+          }),
+        },
+      ],
+      error: null,
+    });
+    createClientMock.mockResolvedValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({ in: inMock })),
+      })),
+    });
+
+    const copy = await getLandingCopy();
+
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(
+      AdminPermission.CRM_MANAGE
+    );
+    expect(inMock).toHaveBeenCalledWith("key", [
+      "landing_hero",
+      "landing_me_time",
+      "landing_services",
+      "landing_testimonials",
+      "landing_trust",
+      "landing_footer",
+    ]);
+    expect(copy.hero.titleLine1).toBe("Hadiah Baru");
+    expect(copy.services).toEqual(DEFAULT_LANDING_COPY.services);
+  });
+
+  it("saves a landing copy section and invalidates landing CMS data", async () => {
+    const savedHero = {
+      ...DEFAULT_LANDING_COPY.hero,
+      titleLine1: "Hadiah Baru",
+    };
+    const singleMock = vi.fn().mockResolvedValue({
+      data: { value: JSON.stringify(savedHero) },
+      error: null,
+    });
+    const selectMock = vi.fn(() => ({ single: singleMock }));
+    const upsertMock = vi.fn(() => ({ select: selectMock }));
+    createClientMock.mockResolvedValue({
+      from: vi.fn(() => ({ upsert: upsertMock })),
+    });
+
+    const result = await updateLandingCopySection("hero", savedHero);
+
+    expect(upsertMock).toHaveBeenCalledWith(
+      {
+        key: "landing_hero",
+        value: JSON.stringify(savedHero),
+        description: "JSON copy for the landing hero section",
+        updated_at: expect.any(String),
+      },
+      { onConflict: "key" }
+    );
+    expect(result).toMatchObject({ titleLine1: "Hadiah Baru" });
+    expect(updateTagMock).toHaveBeenCalledWith(LANDING_CMS_CACHE_TAG);
+    expect(updateTagMock).not.toHaveBeenCalledWith(
+      ANNOUNCEMENT_SETTINGS_CACHE_TAG
+    );
+    expect(revalidatePathMock).toHaveBeenCalledWith("/", "layout");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/", "page");
+  });
+
+  it("rejects unknown landing copy sections before writing", async () => {
+    await expect(
+      updateLandingCopySection("unknown", DEFAULT_LANDING_COPY.hero)
+    ).rejects.toThrow("Unsupported landing copy section.");
+    expect(createClientMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid footer URLs before writing", async () => {
+    await expect(
+      updateLandingCopySection("footer", {
+        ...DEFAULT_LANDING_COPY.footer,
+        columns: DEFAULT_LANDING_COPY.footer.columns.map((column, index) =>
+          index === 0
+            ? {
+                ...column,
+                links: column.links.map((link, linkIndex) =>
+                  linkIndex === 0 ? { ...link, href: "notaurl" } : link
+                ),
+              }
+            : column
+        ),
+      })
+    ).rejects.toThrow();
+    expect(createClientMock).not.toHaveBeenCalled();
   });
 });

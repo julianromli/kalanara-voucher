@@ -19,6 +19,7 @@ import {
   LANDING_CMS_CACHE_TAG,
   PUBLIC_SERVICES_CACHE_TAG,
 } from "@/lib/cache-tags";
+import { DEFAULT_LANDING_COPY } from "@/lib/landing-copy";
 import { getPublicLandingData } from "@/lib/publicLandingData";
 
 beforeEach(() => {
@@ -60,7 +61,7 @@ describe("getPublicLandingData", () => {
     ],
     categoryResult = { data: [category], error: null },
     heroResult = {
-      data: { value: "https://example.com/hero.webp" },
+      data: [{ key: "hero_image_url", value: "https://example.com/hero.webp" }],
       error: null,
     },
     testimonialResult = { data: testimonials, error: null },
@@ -92,9 +93,7 @@ describe("getPublicLandingData", () => {
       if (table === "site_settings") {
         return {
           select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              maybeSingle: vi.fn().mockResolvedValue(heroResult),
-            })),
+            in: vi.fn().mockResolvedValue(heroResult),
           })),
         };
       }
@@ -119,6 +118,7 @@ describe("getPublicLandingData", () => {
       services: [{ ...service, category_relation: category }],
       heroImageUrl: "https://example.com/hero.webp",
       testimonials,
+      landingCopy: DEFAULT_LANDING_COPY,
     });
 
     expect(cacheLifeMock).toHaveBeenCalledWith("hours");
@@ -129,6 +129,25 @@ describe("getPublicLandingData", () => {
     expect(fromMock).toHaveBeenCalledWith("services");
     expect(fromMock).toHaveBeenCalledWith("site_settings");
     expect(fromMock).toHaveBeenCalledWith("testimonials");
+  });
+
+  it("falls back to default landing copy when stored JSON is invalid", async () => {
+    mockLandingReads({
+      heroResult: {
+        data: [
+          { key: "hero_image_url", value: "https://example.com/hero.webp" },
+          { key: "landing_hero", value: "{bad-json" },
+        ],
+        error: null,
+      },
+    });
+
+    await expect(getPublicLandingData()).resolves.toEqual(
+      expect.objectContaining({
+        heroImageUrl: "https://example.com/hero.webp",
+        landingCopy: DEFAULT_LANDING_COPY,
+      })
+    );
   });
 
   it("stitches categories when the joined service relation is unavailable", async () => {
@@ -181,14 +200,14 @@ describe("getPublicLandingData", () => {
       "category read failed",
     ],
     [
-      "hero",
+      "settings",
       {
         heroResult: {
           data: null,
-          error: { message: "hero read failed" },
+          error: { message: "settings read failed" },
         },
       },
-      "hero read failed",
+      "settings read failed",
     ],
     [
       "testimonial",

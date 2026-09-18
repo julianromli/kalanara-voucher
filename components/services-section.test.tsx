@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { ServicesSection } from "./services-section";
 import type { Service } from "@/lib/types";
+import { DEFAULT_LANDING_COPY } from "@/lib/landing-copy";
 import { getDefaultServiceImageUrl } from "@/lib/utils/serviceImages";
 import { ToastProvider } from "@/context/ToastContext";
 
@@ -34,7 +35,10 @@ window.IntersectionObserver = MockIntersectionObserver as unknown as typeof Inte
 function renderServices(services: Service[]) {
   return render(
     <ToastProvider>
-      <ServicesSection services={services} />
+      <ServicesSection
+        services={services}
+        copy={DEFAULT_LANDING_COPY.services}
+      />
     </ToastProvider>
   );
 }
