@@ -811,3 +811,40 @@ export function serializeLandingCopySection<T extends LandingCopySection>(
 export function cloneLandingCopy<T>(value: T): T {
   return structuredClone(value);
 }
+
+export function mergeLandingCopyPreservingDirty(
+  incoming: LandingCopy,
+  current: LandingCopy,
+  dirtySections: Iterable<LandingCopySection>
+): LandingCopy {
+  const next = cloneLandingCopy(incoming);
+
+  for (const section of dirtySections) {
+    switch (section) {
+      case "hero":
+        next.hero = current.hero;
+        break;
+      case "meTime":
+        next.meTime = current.meTime;
+        break;
+      case "services":
+        next.services = current.services;
+        break;
+      case "testimonials":
+        next.testimonials = current.testimonials;
+        break;
+      case "trust":
+        next.trust = current.trust;
+        break;
+      case "footer":
+        next.footer = current.footer;
+        break;
+      default: {
+        const exhaustive: never = section;
+        throw new Error(`Unsupported landing copy section: ${exhaustive}`);
+      }
+    }
+  }
+
+  return next;
+}

@@ -3,6 +3,7 @@ import {
   DEFAULT_LANDING_COPY,
   isValidFooterHref,
   isValidSocialHref,
+  mergeLandingCopyPreservingDirty,
   parseLandingCopyFromSettings,
   parseLandingCopySection,
   parseLandingCopySectionForSave,
@@ -114,5 +115,29 @@ describe("landing copy save validation", () => {
     expect(JSON.parse(serializeLandingCopySection("services", saved))).toEqual(
       DEFAULT_LANDING_COPY.services
     );
+  });
+});
+
+describe("mergeLandingCopyPreservingDirty", () => {
+  it("keeps dirty section edits when incoming props refresh", () => {
+    const current = {
+      ...DEFAULT_LANDING_COPY,
+      hero: {
+        ...DEFAULT_LANDING_COPY.hero,
+        titleLine1: "Draft lokal",
+      },
+    };
+    const incoming = {
+      ...DEFAULT_LANDING_COPY,
+      services: {
+        ...DEFAULT_LANDING_COPY.services,
+        title: "Paket dari server",
+      },
+    };
+
+    const merged = mergeLandingCopyPreservingDirty(incoming, current, ["hero"]);
+
+    expect(merged.hero.titleLine1).toBe("Draft lokal");
+    expect(merged.services.title).toBe("Paket dari server");
   });
 });

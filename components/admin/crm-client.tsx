@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ClientUploadedFileData } from "uploadthing/types";
 import {
@@ -30,6 +30,7 @@ import { type Testimonial, type TestimonialInsert } from "@/lib/database.types";
 import {
   cloneLandingCopy,
   DEFAULT_LANDING_COPY,
+  mergeLandingCopyPreservingDirty,
   type LandingCopy,
   type LandingCopySection,
 } from "@/lib/landing-copy";
@@ -142,6 +143,7 @@ export function CRMClient({
   const [savingSection, setSavingSection] = useState<LandingCopySection | null>(
     null
   );
+  const dirtyLandingSectionsRef = useRef(new Set<LandingCopySection>());
   const [testimonialItems, setTestimonialItems] = useState<Testimonial[]>(() =>
     sortTestimonials(testimonials)
   );
@@ -175,12 +177,33 @@ export function CRMClient({
   }, [initialHeroImage]);
 
   useEffect(() => {
-    setLandingCopy(cloneLandingCopy(initialLandingCopy));
+    setLandingCopy((current) =>
+      mergeLandingCopyPreservingDirty(
+        initialLandingCopy,
+        current,
+        dirtyLandingSectionsRef.current
+      )
+    );
   }, [initialLandingCopy]);
 
   useEffect(() => {
     setTestimonialItems(sortTestimonials(testimonials));
   }, [testimonials]);
+
+  function applyLandingCopyEdit<T extends LandingCopySection>(
+    section: T,
+    copy: LandingCopy[T]
+  ) {
+    dirtyLandingSectionsRef.current.add(section);
+    setLandingCopy((current) => ({
+      ...current,
+      [section]: copy,
+    }));
+  }
+
+  function markLandingSectionClean(section: LandingCopySection) {
+    dirtyLandingSectionsRef.current.delete(section);
+  }
 
   const handleSaveAnnouncement = async () => {
     try {
@@ -240,6 +263,7 @@ export function CRMClient({
     try {
       setSavingSection(section);
       const saved = await updateLandingCopySection(section, landingCopy[section]);
+      markLandingSectionClean(section);
       setLandingCopy((current) => ({
         ...current,
         [section]: saved,
@@ -267,14 +291,11 @@ export function CRMClient({
     }
 
     const defaults = cloneLandingCopy(DEFAULT_LANDING_COPY[section]);
-    setLandingCopy((current) => ({
-      ...current,
-      [section]: defaults,
-    }));
 
     try {
       setSavingSection(section);
       const saved = await updateLandingCopySection(section, defaults);
+      markLandingSectionClean(section);
       setLandingCopy((current) => ({
         ...current,
         [section]: saved,
@@ -550,9 +571,7 @@ export function CRMClient({
                   <CardContent className="space-y-6">
                     <HeroCopyFields
                       copy={landingCopy.hero}
-                      onChange={(copy) =>
-                        setLandingCopy((current) => ({ ...current, hero: copy }))
-                      }
+                      onChange={(copy) => applyLandingCopyEdit("hero", copy)}
                       disabled={isSavingCopy}
                     />
                     {renderSectionActions("hero", activeNav.previewHref)}
@@ -572,9 +591,7 @@ export function CRMClient({
                 <CardContent className="space-y-6">
                   <MeTimeCopyFields
                     copy={landingCopy.meTime}
-                    onChange={(copy) =>
-                      setLandingCopy((current) => ({ ...current, meTime: copy }))
-                    }
+                      onChange={(copy) => applyLandingCopyEdit("meTime", copy)}
                     disabled={isSavingCopy}
                   />
                   {renderSectionActions("meTime", activeNav.previewHref)}
@@ -593,12 +610,7 @@ export function CRMClient({
                 <CardContent className="space-y-6">
                   <ServicesCopyFields
                     copy={landingCopy.services}
-                    onChange={(copy) =>
-                      setLandingCopy((current) => ({
-                        ...current,
-                        services: copy,
-                      }))
-                    }
+                      onChange={(copy) => applyLandingCopyEdit("services", copy)}
                     disabled={isSavingCopy}
                   />
                   {renderSectionActions("services", activeNav.previewHref)}
@@ -619,10 +631,7 @@ export function CRMClient({
                     <TestimonialsCopyFields
                       copy={landingCopy.testimonials}
                       onChange={(copy) =>
-                        setLandingCopy((current) => ({
-                          ...current,
-                          testimonials: copy,
-                        }))
+                        applyLandingCopyEdit("testimonials", copy)
                       }
                       disabled={isSavingCopy}
                     />
@@ -707,9 +716,7 @@ export function CRMClient({
                 <CardContent className="space-y-6">
                   <TrustCopyFields
                     copy={landingCopy.trust}
-                    onChange={(copy) =>
-                      setLandingCopy((current) => ({ ...current, trust: copy }))
-                    }
+                      onChange={(copy) => applyLandingCopyEdit("trust", copy)}
                     disabled={isSavingCopy}
                   />
                   {renderSectionActions("trust", activeNav.previewHref)}
@@ -728,9 +735,7 @@ export function CRMClient({
                 <CardContent className="space-y-6">
                   <FooterCopyFields
                     copy={landingCopy.footer}
-                    onChange={(copy) =>
-                      setLandingCopy((current) => ({ ...current, footer: copy }))
-                    }
+                      onChange={(copy) => applyLandingCopyEdit("footer", copy)}
                     disabled={isSavingCopy}
                   />
                   {renderSectionActions("footer", activeNav.previewHref)}
