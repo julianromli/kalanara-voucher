@@ -14,6 +14,18 @@ import type {
   TestimonialInsert,
   TestimonialUpdate,
 } from "@/lib/database.types";
+import {
+  LANDING_COPY_SETTING_DESCRIPTIONS,
+  LANDING_COPY_SETTING_KEY,
+  LANDING_COPY_SETTING_KEYS,
+  isLandingCopySection,
+  parseLandingCopyFromSettings,
+  parseLandingCopySection,
+  parseLandingCopySectionForSave,
+  serializeLandingCopySection,
+  type LandingCopy,
+  type LandingCopySection,
+} from "@/lib/landing-copy";
 
 const SITE_SETTING_DEFAULTS = {
   announcement_text: {
@@ -184,6 +196,62 @@ export async function deleteSiteSetting(key: string): Promise<boolean> {
     announcementChanged: isAnnouncementSettingKey(normalizedKey),
   });
   return true;
+}
+
+export async function getLandingCopy(): Promise<LandingCopy> {
+  await requireAdminPermission(AdminPermission.CRM_MANAGE);
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("site_settings")
+    .select("key, value")
+    .in("key", [...LANDING_COPY_SETTING_KEYS]);
+
+  if (error) {
+    throw error;
+  }
+
+  return parseLandingCopyFromSettings(data || []);
+}
+
+export async function updateLandingCopySection(
+  section: string,
+  payload: unknown
+): Promise<LandingCopy[LandingCopySection]> {
+  await requireAdminPermission(AdminPermission.CRM_MANAGE);
+
+  if (!isLandingCopySection(section)) {
+    throw new Error("Unsupported landing copy section.");
+  }
+
+  const normalized = parseLandingCopySectionForSave(section, payload);
+  const key = LANDING_COPY_SETTING_KEY[section];
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("site_settings")
+    .upsert(
+      {
+        key,
+        value: serializeLandingCopySection(section, normalized),
+        description: LANDING_COPY_SETTING_DESCRIPTIONS[key],
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "key" }
+    )
+    .select("value")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error("Failed to save landing copy.");
+  }
+
+  revalidateCmsPaths();
+  return parseLandingCopySection(section, data.value);
 }
 
 export async function getActiveTestimonials(): Promise<Testimonial[]> {
