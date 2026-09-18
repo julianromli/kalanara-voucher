@@ -33,7 +33,7 @@ import {
   mergeLandingCopyPreservingDirty,
   type LandingCopy,
   type LandingCopySection,
-} from "@/lib/landing-copy";
+} from "@/lib/landingCopy";
 import {
   FooterCopyFields,
   HeroCopyFields,
@@ -425,7 +425,8 @@ export function CRMClient({
         <AdminPageIntro description="Ubah teks halaman utama. Setiap bagian disimpan terpisah, jadi kamu bisa kerja satu bagian dulu." />
 
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <nav
+          <div
+            role="tablist"
             aria-label="Bagian halaman utama"
             className="flex gap-2 overflow-x-auto pb-1 lg:w-56 lg:shrink-0 lg:flex-col"
           >
@@ -433,6 +434,10 @@ export function CRMClient({
               <Button
                 key={item.id}
                 type="button"
+                id={`crm-tab-${item.id}`}
+                role="tab"
+                aria-selected={activeSection === item.id}
+                aria-controls="crm-panel"
                 variant={activeSection === item.id ? "default" : "outline"}
                 className={cn(
                   "justify-start whitespace-nowrap",
@@ -443,9 +448,14 @@ export function CRMClient({
                 {item.label}
               </Button>
             ))}
-          </nav>
+          </div>
 
-          <div className="min-w-0 flex-1 space-y-6">
+          <div
+            id="crm-panel"
+            role="tabpanel"
+            aria-labelledby={`crm-tab-${activeSection}`}
+            className="min-w-0 flex-1 space-y-6"
+          >
             {activeSection === "announcement" ? (
               <Card>
                 <CardHeader>

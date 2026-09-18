@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { ServicesSection } from "./services-section";
 import type { Service } from "@/lib/types";
-import { DEFAULT_LANDING_COPY } from "@/lib/landing-copy";
+import { DEFAULT_LANDING_COPY } from "@/lib/landingCopy";
 import { getDefaultServiceImageUrl } from "@/lib/utils/serviceImages";
 import { ToastProvider } from "@/context/ToastContext";
 

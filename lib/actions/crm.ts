@@ -25,7 +25,7 @@ import {
   serializeLandingCopySection,
   type LandingCopy,
   type LandingCopySection,
-} from "@/lib/landing-copy";
+} from "@/lib/landingCopy";
 
 const SITE_SETTING_DEFAULTS = {
   announcement_text: {

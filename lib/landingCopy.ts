@@ -309,7 +309,7 @@ export function isInternalSitePath(value: string): boolean {
 export function isHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
+    return url.protocol === "https:";
   } catch {
     return false;
   }
@@ -338,24 +338,31 @@ export function isValidSocialHref(value: string): boolean {
 }
 
 function requiredText(max: number) {
-  return z.string().trim().min(1, "This field is required.").max(max);
+  return z
+    .string()
+    .trim()
+    .min(1, { error: "Kolom ini wajib diisi." })
+    .max(max, { error: `Maksimal ${max} karakter.` });
 }
 
 function optionalUrlText() {
   return z
     .string()
     .trim()
-    .max(LANDING_COPY_LIMITS.url)
+    .max(LANDING_COPY_LIMITS.url, {
+      error: `Maksimal ${LANDING_COPY_LIMITS.url} karakter.`,
+    })
     .refine(isValidSocialHref, {
-      message: "Enter a full website address, or leave this blank to hide it.",
+      error:
+        "Masukkan alamat website lengkap yang dimulai dengan https://, atau biarkan kosong untuk menyembunyikan tautan ini.",
     });
 }
 
 const footerHrefSchema = requiredText(LANDING_COPY_LIMITS.url).refine(
   isValidFooterHref,
   {
-    message:
-      "Enter a page path such as /verify, or a full website address starting with https://.",
+    error:
+      "Masukkan path halaman seperti /verify, atau alamat website lengkap yang dimulai dengan https://.",
   }
 );
 
@@ -782,7 +789,7 @@ export function parseLandingCopyFromSettings(
 function firstZodIssueMessage(error: z.ZodError): string {
   const issue = error.issues[0];
   if (!issue) {
-    return "Landing copy is invalid.";
+    return "Teks landing tidak valid.";
   }
 
   const path = issue.path.length > 0 ? `${issue.path.join(".")}: ` : "";

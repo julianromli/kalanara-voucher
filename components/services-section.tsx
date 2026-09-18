@@ -9,7 +9,7 @@ import { AddToCartButton } from "@/components/add-to-cart-button";
 import { formatCurrency } from "@/lib/constants";
 import type { Service } from "@/lib/types";
 import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
-import type { ServicesCopy } from "@/lib/landing-copy";
+import type { ServicesCopy } from "@/lib/landingCopy";
 
 interface ServicesSectionProps {
   services: Service[];

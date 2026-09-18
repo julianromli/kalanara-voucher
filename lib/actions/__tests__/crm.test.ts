@@ -39,7 +39,7 @@ import {
   ANNOUNCEMENT_SETTINGS_CACHE_TAG,
   LANDING_CMS_CACHE_TAG,
 } from "@/lib/cache-tags";
-import { DEFAULT_LANDING_COPY } from "@/lib/landing-copy";
+import { DEFAULT_LANDING_COPY } from "@/lib/landingCopy";
 
 beforeEach(() => {
   vi.clearAllMocks();

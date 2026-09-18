@@ -3,9 +3,15 @@
 import { Zap, CalendarCheck, ShieldCheck, LucideIcon } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
 import { SiteContainer } from "@/components/site-container";
-import type { TrustCopy } from "@/lib/landing-copy";
+import type { TrustCopy } from "@/lib/landingCopy";
+import { cn } from "@/lib/utils";
 
 const TRUST_ICONS: LucideIcon[] = [Zap, CalendarCheck, ShieldCheck];
+const TRUST_STAGGER_CLASSES = [
+  "animate-stagger-1",
+  "animate-stagger-2",
+  "animate-stagger-3",
+] as const;
 
 interface TrustFeaturesProps {
   copy: TrustCopy;
@@ -42,13 +48,14 @@ const TrustFeatures = ({ copy }: TrustFeaturesProps) => {
             return (
               <div
                 key={`${feature.title}-${index}`}
-                className={`group bg-primary-foreground/5 backdrop-blur-sm rounded-2xl p-8 border border-primary-foreground/10 hover:bg-primary-foreground/10 transition-all duration-300 text-center card-hover-lift ${
-                  isInView ? "animate-fade-slide-up" : "opacity-0"
-                }`}
-                style={{ animationDelay: isInView ? `${(index + 1) * 100}ms` : "0ms" }}
+                className={cn(
+                  "group bg-primary-foreground/5 backdrop-blur-sm rounded-2xl p-8 border border-primary-foreground/10 hover:bg-primary-foreground/10 transition-[background-color,transform,box-shadow] duration-300 text-center card-hover-lift",
+                  isInView ? "animate-fade-slide-up" : "opacity-0",
+                  TRUST_STAGGER_CLASSES[index]
+                )}
               >
-                <div className="w-20 h-20 mx-auto bg-primary-foreground/10 rounded-2xl flex items-center justify-center mb-6 text-primary-foreground/80 group-hover:scale-110 group-hover:bg-accent group-hover:text-accent-foreground transition-all duration-300 shadow-lg shadow-primary-foreground/5">
-                  <Icon size={36} />
+                <div className="size-20 mx-auto bg-primary-foreground/10 rounded-2xl flex items-center justify-center mb-6 text-primary-foreground/80 group-hover:scale-110 group-hover:bg-accent group-hover:text-accent-foreground transition-[transform,background-color,color] duration-300 shadow-lg shadow-primary-foreground/5">
+                  <Icon className="size-9" />
                 </div>
                 <h3 className="font-sans font-semibold text-xl mb-3 group-hover:text-accent transition-colors">
                   {feature.title}

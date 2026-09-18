@@ -13,9 +13,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useInView } from "@/hooks/useInView";
-import type { FooterCopy } from "@/lib/landing-copy";
+import type { FooterCopy } from "@/lib/landingCopy";
+import { cn } from "@/lib/utils";
 
 const SOCIAL_ICONS: LucideIcon[] = [Facebook, Twitter, Linkedin, Instagram];
+const SOCIAL_STAGGER_CLASSES = [
+  "animate-stagger-950",
+  "animate-stagger-1000",
+  "animate-stagger-1050",
+  "animate-stagger-1100",
+] as const;
 
 interface Footer13Props {
   copy: FooterCopy;
@@ -147,15 +154,13 @@ const Footer13 = ({ copy }: Footer13Props) => {
                       aria-label={link.label}
                       key={`${link.label}-${link.href}`}
                       href={link.href}
-                      className={`text-muted-foreground hover:text-primary transition-all ${
-                        isInView ? "animate-scale-in" : "opacity-0"
-                      }`}
-                      style={{ animationDelay: isInView ? `${950 + index * 50}ms` : "0ms" }}
+                      className={cn(
+                        "text-muted-foreground hover:text-primary transition-colors",
+                        isInView ? "animate-scale-in" : "opacity-0",
+                        SOCIAL_STAGGER_CLASSES[index]
+                      )}
                     >
-                      <link.icon
-                        size={20}
-                        className="transition-transform hover:scale-125"
-                      />
+                      <link.icon className="size-5 transition-transform hover:scale-125" />
                     </a>
                   ))}
                 </div>
