@@ -10,6 +10,7 @@ import type {
   Voucher,
 } from "@/lib/database.types";
 import { updateOrderItemVoucherId, updateOrderVoucherId } from "@/lib/payment/order-writes";
+import { calculateExpiryDate } from "@/lib/payment/voucher-expiry";
 
 function generateVoucherCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -19,12 +20,6 @@ function generateVoucherCode(): string {
     (_, index) => chars[randomBytes[index] % chars.length]
   ).join("");
   return `KSP-${new Date().getFullYear()}-${randomPart}`;
-}
-
-function calculateExpiryDate(): string {
-  const expiryDate = new Date();
-  expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-  return expiryDate.toISOString();
 }
 
 async function getVoucherBy(

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 
 const {
@@ -49,6 +49,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 describe("voucher destructive actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
 
     requireAdminPermissionMock.mockResolvedValue({
       userId: "super-admin-id",
@@ -104,6 +105,10 @@ describe("voucher destructive actions", () => {
         }),
       })),
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   test("deleteVoucher calls transactional RPC, revalidates surfaces, and audits success", async () => {
@@ -236,6 +241,9 @@ describe("voucher destructive actions", () => {
       data: { id: "voucher-1", code: "KSP-2026-ABCDEFGH" },
       error: null,
     });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-15T08:00:00.000Z"));
+
     const { createVoucherForPaidOrderItem } = await import(
       "@/lib/payment/voucher-writes"
     );
@@ -260,6 +268,7 @@ describe("voucher destructive actions", () => {
         service_id: "service-1",
         amount: 405000,
         is_redeemed: false,
+        expiry_date: "2026-09-15T08:00:00.000Z",
       })
     );
   });

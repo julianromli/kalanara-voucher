@@ -142,7 +142,7 @@ export default async function VoucherDetailPage({ params }: PageProps) {
                   <div>
                     <p className="text-xs text-muted-foreground">Masa Berlaku</p>
                     <p className="font-semibold text-foreground">
-                      {APP_CONFIG.voucherValidity} hari
+                      {APP_CONFIG.voucherValidityMonths} bulan
                     </p>
                   </div>
                 </div>
