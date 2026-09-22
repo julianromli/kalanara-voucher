@@ -148,6 +148,54 @@ describe("crm actions", () => {
     );
   });
 
+  it("upserts voucher default expiration days and revalidates settings", async () => {
+    const singleMock = vi.fn().mockResolvedValue({
+      data: {
+        key: "voucher_default_expiration_days",
+        value: "120",
+        description:
+          "Default number of days a newly created voucher remains valid",
+        updated_at: "2026-09-22T08:00:00.000Z",
+      },
+      error: null,
+    });
+    const selectMock = vi.fn(() => ({ single: singleMock }));
+    const upsertMock = vi.fn(() => ({ select: selectMock }));
+
+    createClientMock.mockResolvedValue({
+      from: vi.fn(() => ({ upsert: upsertMock })),
+    });
+
+    const result = await updateSiteSetting(
+      "voucher_default_expiration_days",
+      " 120 "
+    );
+
+    expect(upsertMock).toHaveBeenCalledWith(
+      {
+        key: "voucher_default_expiration_days",
+        value: "120",
+        description:
+          "Default number of days a newly created voucher remains valid",
+        updated_at: expect.any(String),
+      },
+      { onConflict: "key" }
+    );
+    expect(result.value).toBe("120");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/settings", "page");
+  });
+
+  it("rejects voucher expiration days outside 1-365", async () => {
+    await expect(
+      updateSiteSetting("voucher_default_expiration_days", "0")
+    ).rejects.toThrow(/whole number between 1 and 365/i);
+    await expect(
+      updateSiteSetting("voucher_default_expiration_days", "366")
+    ).rejects.toThrow(/whole number between 1 and 365/i);
+
+    expect(createClientMock).not.toHaveBeenCalled();
+  });
+
   it("invalidates only landing CMS data for hero setting deletion", async () => {
     const eqMock = vi.fn().mockResolvedValue({ error: null });
     const deleteMock = vi.fn(() => ({ eq: eqMock }));

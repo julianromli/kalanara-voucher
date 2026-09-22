@@ -13,6 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ClockIcon, MailIcon, CreditCardIcon, TicketIcon } from "@hugeicons/core-free-icons";
+import { updateSiteSetting } from "@/lib/actions/crm";
+import {
+  VOUCHER_DEFAULT_EXPIRATION_DAYS_KEY,
+  VOUCHER_EXPIRATION_DAYS_MAX,
+  VOUCHER_EXPIRATION_DAYS_MIN,
+  normalizeVoucherExpirationDaysInput,
+} from "@/lib/payment/voucher-expiry";
 
 interface SettingsClientProps {
   initialSettings: {
@@ -37,15 +44,29 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
     }
   }, [authLoading, isAuthenticated, router]);
 
+  useEffect(() => {
+    setSettings(initialSettings);
+  }, [initialSettings]);
+
   const handleSave = async () => {
     setIsSaving(true);
-    
+
     try {
-      // TODO: Implement actual settings save to backend
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
-      showToast("Settings saved successfully", "success");
+      const days = normalizeVoucherExpirationDaysInput(
+        settings.voucherExpiration
+      );
+      await updateSiteSetting(
+        VOUCHER_DEFAULT_EXPIRATION_DAYS_KEY,
+        String(days)
+      );
+      setSettings((current) => ({
+        ...current,
+        voucherExpiration: days,
+      }));
+      router.refresh();
+      showToast("Voucher expiration saved successfully.", "success");
     } catch {
-      showToast("Failed to save settings", "error");
+      showToast("Failed to save voucher expiration.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -92,6 +113,8 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
+                role="tab"
+                aria-selected={activeTab === "email"}
               >
                 Email Templates
               </button>
@@ -103,6 +126,8 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
+                role="tab"
+                aria-selected={activeTab === "vouchers"}
               >
                 Vouchers
               </button>
@@ -114,6 +139,8 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
+                role="tab"
+                aria-selected={activeTab === "payments"}
               >
                 Payment Methods
               </button>
@@ -199,14 +226,33 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                       <Input
                         id="expiration-days"
                         type="number"
-                        min="1"
-                        max="365"
-                        value={settings.voucherExpiration}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          voucherExpiration: parseInt(e.target.value)
-                        })}
+                        inputMode="numeric"
+                        min={VOUCHER_EXPIRATION_DAYS_MIN}
+                        max={VOUCHER_EXPIRATION_DAYS_MAX}
+                        aria-describedby="expiration-days-help"
+                        value={
+                          Number.isFinite(settings.voucherExpiration)
+                            ? settings.voucherExpiration
+                            : ""
+                        }
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            voucherExpiration:
+                              e.target.value === ""
+                                ? Number.NaN
+                                : Number.parseInt(e.target.value, 10),
+                          })
+                        }
                       />
+                      <p
+                        id="expiration-days-help"
+                        className="mt-2 text-sm text-muted-foreground"
+                      >
+                        New vouchers expire this many days after payment. Use a
+                        whole number from {VOUCHER_EXPIRATION_DAYS_MIN} to{" "}
+                        {VOUCHER_EXPIRATION_DAYS_MAX}.
+                      </p>
                     </div>
                   </CardContent>
                 </Card>

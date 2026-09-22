@@ -14,6 +14,10 @@ import type {
   TestimonialInsert,
   TestimonialUpdate,
 } from "@/lib/database.types";
+import {
+  VOUCHER_DEFAULT_EXPIRATION_DAYS_KEY,
+  normalizeVoucherExpirationDaysInput,
+} from "@/lib/payment/voucher-expiry";
 
 const SITE_SETTING_DEFAULTS = {
   announcement_text: {
@@ -27,6 +31,9 @@ const SITE_SETTING_DEFAULTS = {
   },
   hero_image_url: {
     description: "Background image for the hero section",
+  },
+  [VOUCHER_DEFAULT_EXPIRATION_DAYS_KEY]: {
+    description: "Default number of days a newly created voucher remains valid",
   },
 } as const;
 
@@ -131,9 +138,15 @@ export async function updateSiteSetting(
     throw new Error("Unsupported site setting key.");
   }
 
-  const normalizedValue = value.trim();
+  let normalizedValue = value.trim();
   if (!normalizedValue) {
     throw new Error("Site setting value cannot be blank.");
+  }
+
+  if (normalizedKey === VOUCHER_DEFAULT_EXPIRATION_DAYS_KEY) {
+    normalizedValue = String(
+      normalizeVoucherExpirationDaysInput(normalizedValue)
+    );
   }
 
   const supabase = await createClient();
@@ -159,6 +172,9 @@ export async function updateSiteSetting(
   revalidateCmsPaths({
     announcementChanged: isAnnouncementSettingKey(normalizedKey),
   });
+  if (normalizedKey === VOUCHER_DEFAULT_EXPIRATION_DAYS_KEY) {
+    revalidatePath("/admin/settings", "page");
+  }
   return data;
 }
 
