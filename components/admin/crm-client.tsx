@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ClientUploadedFileData } from "uploadthing/types";
 import {
   createTestimonial,
   deleteSiteSetting,
   deleteTestimonial,
+  updateLandingCopySection,
   updateSiteSetting,
   updateTestimonial,
 } from "@/lib/actions/crm";
@@ -22,10 +23,27 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/context/ToastContext";
 import { UploadDropzone } from "@/lib/uploadthing-client";
 import { type Testimonial, type TestimonialInsert } from "@/lib/database.types";
-import { Edit2, Plus, Trash2 } from "lucide-react";
+import {
+  cloneLandingCopy,
+  DEFAULT_LANDING_COPY,
+  isLandingCopySection,
+  mergeLandingCopyPreservingDirty,
+  type LandingCopy,
+  type LandingCopySection,
+} from "@/lib/landingCopy";
+import {
+  FooterCopyFields,
+  HeroCopyFields,
+  MeTimeCopyFields,
+  ServicesCopyFields,
+  TestimonialsCopyFields,
+  TrustCopyFields,
+} from "@/components/admin/crm-landing-panels";
+import { ExternalLink, Edit2, Plus, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -33,12 +51,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 interface CRMClientProps {
   initialAnnouncement: string;
   initialCountdownEndAt: string;
   initialCountdownEnabled: boolean;
   initialHeroImage: string;
+  initialLandingCopy: LandingCopy;
   testimonials: Testimonial[];
 }
 
@@ -47,6 +67,22 @@ type HeroImageUploadData = {
   imageUrl: string;
   fileKey: string;
 };
+
+type CrmNavSection = "announcement" | LandingCopySection;
+
+const CRM_NAV: Array<{
+  id: CrmNavSection;
+  label: string;
+  previewHref: string;
+}> = [
+  { id: "announcement", label: "Pengumuman", previewHref: "/" },
+  { id: "hero", label: "Hero", previewHref: "/" },
+  { id: "meTime", label: "Cerita Me-Time", previewHref: "/#me-time-gift" },
+  { id: "services", label: "Paket Voucher", previewHref: "/#services" },
+  { id: "testimonials", label: "Testimoni", previewHref: "/#testimonials" },
+  { id: "trust", label: "Kenapa Pilih Kami", previewHref: "/#trust" },
+  { id: "footer", label: "Footer", previewHref: "/#footer" },
+];
 
 function sortTestimonials(items: Testimonial[]) {
   return [...items].sort((left, right) => {
@@ -68,7 +104,7 @@ function buildTestimonialPayload(
   const location = form.location?.trim() ?? "";
 
   if (!forText || !quote || !initials || !name || !location) {
-    throw new Error("Please complete all testimonial fields.");
+    throw new Error("Lengkapi semua kolom testimoni.");
   }
 
   return {
@@ -89,17 +125,26 @@ export function CRMClient({
   initialCountdownEndAt,
   initialCountdownEnabled,
   initialHeroImage,
+  initialLandingCopy,
   testimonials,
 }: CRMClientProps) {
   const router = useRouter();
   const { showToast } = useToast();
 
+  const [activeSection, setActiveSection] = useState<CrmNavSection>("announcement");
   const [announcement, setAnnouncement] = useState(initialAnnouncement);
   const [countdownEndAt, setCountdownEndAt] = useState(initialCountdownEndAt);
   const [countdownEnabled, setCountdownEnabled] = useState(initialCountdownEnabled);
   const [isSavingAnnouncement, setIsSavingAnnouncement] = useState(false);
   const [heroImage, setHeroImage] = useState(initialHeroImage);
   const [isUploadingHero, setIsUploadingHero] = useState(false);
+  const [landingCopy, setLandingCopy] = useState<LandingCopy>(() =>
+    cloneLandingCopy(initialLandingCopy)
+  );
+  const [savingSections, setSavingSections] = useState(
+    () => new Set<LandingCopySection>()
+  );
+  const dirtyLandingSectionsRef = useRef(new Set<LandingCopySection>());
   const [testimonialItems, setTestimonialItems] = useState<Testimonial[]>(() =>
     sortTestimonials(testimonials)
   );
@@ -133,8 +178,49 @@ export function CRMClient({
   }, [initialHeroImage]);
 
   useEffect(() => {
+    setLandingCopy((current) =>
+      mergeLandingCopyPreservingDirty(
+        initialLandingCopy,
+        current,
+        dirtyLandingSectionsRef.current
+      )
+    );
+  }, [initialLandingCopy]);
+
+  useEffect(() => {
     setTestimonialItems(sortTestimonials(testimonials));
   }, [testimonials]);
+
+  function applyLandingCopyEdit<T extends LandingCopySection>(
+    section: T,
+    copy: LandingCopy[T]
+  ) {
+    dirtyLandingSectionsRef.current.add(section);
+    setLandingCopy((current) => ({
+      ...current,
+      [section]: copy,
+    }));
+  }
+
+  function markLandingSectionClean(section: LandingCopySection) {
+    dirtyLandingSectionsRef.current.delete(section);
+  }
+
+  function beginSavingSection(section: LandingCopySection) {
+    setSavingSections((current) => {
+      const next = new Set(current);
+      next.add(section);
+      return next;
+    });
+  }
+
+  function endSavingSection(section: LandingCopySection) {
+    setSavingSections((current) => {
+      const next = new Set(current);
+      next.delete(section);
+      return next;
+    });
+  }
 
   const handleSaveAnnouncement = async () => {
     try {
@@ -169,10 +255,10 @@ export function CRMClient({
       setAnnouncement(trimmedAnnouncement);
       setCountdownEndAt(normalizedCountdownEndAt);
       router.refresh();
-      showToast("Announcement saved successfully.", "success");
+      showToast("Pengumuman berhasil disimpan.", "success");
     } catch (error) {
       console.error(error);
-      showToast("Failed to save announcement.", "error");
+      showToast("Gagal menyimpan pengumuman.", "error");
     } finally {
       setIsSavingAnnouncement(false);
     }
@@ -183,10 +269,64 @@ export function CRMClient({
       await updateSiteSetting("hero_image_url", url);
       setHeroImage(url);
       router.refresh();
-      showToast("Hero image updated successfully.", "success");
+      showToast("Gambar hero berhasil diperbarui.", "success");
     } catch (error) {
       console.error(error);
-      showToast("Failed to update hero image.", "error");
+      showToast("Gagal memperbarui gambar hero.", "error");
+    }
+  };
+
+  const handleSaveLandingSection = async (section: LandingCopySection) => {
+    try {
+      beginSavingSection(section);
+      const saved = await updateLandingCopySection(section, landingCopy[section]);
+      markLandingSectionClean(section);
+      setLandingCopy((current) => ({
+        ...current,
+        [section]: saved,
+      }));
+      router.refresh();
+      showToast("Teks berhasil disimpan.", "success");
+    } catch (error) {
+      console.error(error);
+      showToast(
+        error instanceof Error ? error.message : "Gagal menyimpan teks.",
+        "error"
+      );
+    } finally {
+      endSavingSection(section);
+    }
+  };
+
+  const handleResetLandingSection = async (section: LandingCopySection) => {
+    if (
+      !confirm(
+        "Kembalikan teks bagian ini ke teks awal? Perubahan yang belum disimpan akan hilang."
+      )
+    ) {
+      return;
+    }
+
+    const defaults = cloneLandingCopy(DEFAULT_LANDING_COPY[section]);
+
+    try {
+      beginSavingSection(section);
+      const saved = await updateLandingCopySection(section, defaults);
+      markLandingSectionClean(section);
+      setLandingCopy((current) => ({
+        ...current,
+        [section]: saved,
+      }));
+      router.refresh();
+      showToast("Teks awal berhasil dikembalikan.", "success");
+    } catch (error) {
+      console.error(error);
+      showToast(
+        error instanceof Error ? error.message : "Gagal mengembalikan teks awal.",
+        "error"
+      );
+    } finally {
+      endSavingSection(section);
     }
   };
 
@@ -230,11 +370,11 @@ export function CRMClient({
             current.map((item) => (item.id === updated.id ? updated : item))
           )
         );
-        showToast("Testimonial updated successfully.", "success");
+        showToast("Testimoni berhasil diperbarui.", "success");
       } else {
         const created = await createTestimonial(payload);
         setTestimonialItems((current) => sortTestimonials([...current, created]));
-        showToast("Testimonial created successfully.", "success");
+        showToast("Testimoni berhasil ditambahkan.", "success");
       }
 
       setIsTestimonialModalOpen(false);
@@ -243,7 +383,7 @@ export function CRMClient({
     } catch (error) {
       console.error(error);
       showToast(
-        error instanceof Error ? error.message : "Failed to save testimonial.",
+        error instanceof Error ? error.message : "Gagal menyimpan testimoni.",
         "error"
       );
     } finally {
@@ -252,7 +392,7 @@ export function CRMClient({
   };
 
   const handleDeleteTestimonial = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this testimonial?")) {
+    if (!confirm("Hapus testimoni ini dari halaman utama?")) {
       return;
     }
 
@@ -260,312 +400,507 @@ export function CRMClient({
       await deleteTestimonial(id);
       setTestimonialItems((current) => current.filter((item) => item.id !== id));
       router.refresh();
-      showToast("Testimonial deleted successfully.", "success");
+      showToast("Testimoni berhasil dihapus.", "success");
     } catch (error) {
       console.error(error);
-      showToast("Failed to delete testimonial.", "error");
+      showToast("Gagal menghapus testimoni.", "error");
     }
   };
+
+  const activeNav = CRM_NAV.find((item) => item.id === activeSection) ?? CRM_NAV[0];
+  const isSavingCopy =
+    isLandingCopySection(activeSection) && savingSections.has(activeSection);
+
+  const renderSectionActions = (section: LandingCopySection, previewHref: string) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        onClick={() => void handleSaveLandingSection(section)}
+        disabled={savingSections.has(section)}
+      >
+        {savingSections.has(section) ? "Menyimpan..." : "Simpan"}
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() => void handleResetLandingSection(section)}
+        disabled={savingSections.has(section)}
+      >
+        Kembalikan teks awal
+      </Button>
+      <Button variant="ghost" asChild>
+        <a href={previewHref} target="_blank" rel="noreferrer">
+          Lihat di website
+          <ExternalLink className="size-4" aria-hidden="true" />
+        </a>
+      </Button>
+    </div>
+  );
 
   return (
     <>
       <DashboardHeader title="CRM" showActions={false} />
       <AdminPageBody>
-        <AdminPageIntro description="Manage website content and settings." />
+        <AdminPageIntro description="Ubah teks halaman utama. Setiap bagian disimpan terpisah, jadi kamu bisa kerja satu bagian dulu." />
 
-        <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Announcement Bar</CardTitle>
-            <CardDescription>
-              Update the text shown at the very top of the website.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-3">
-              <Input
-                value={announcement}
-                onChange={(event) => setAnnouncement(event.target.value)}
-                placeholder="E.g. FLASH SALE 5.5 ...... BERAKHIR DALAM"
-                disabled={isSavingAnnouncement}
-              />
-              <div className="flex items-start gap-3 rounded-lg border p-3">
-                <Checkbox
-                  id="announcement-countdown-enabled"
-                  checked={countdownEnabled}
-                  disabled={isSavingAnnouncement}
-                  onCheckedChange={(checked) =>
-                    setCountdownEnabled(checked === true)
-                  }
-                />
-                <div className="grid gap-1">
-                  <label
-                    htmlFor="announcement-countdown-enabled"
-                    className="text-sm font-medium cursor-pointer"
-                  >
-                    Show countdown timer
-                  </label>
-                  <p className="text-xs text-muted-foreground">
-                    When this is on, the public site shows remaining time next
-                    to the announcement text. You can still set the end date
-                    when this is off.
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  type="datetime-local"
-                  value={countdownEndAt ? countdownEndAt.slice(0, 16) : ""}
-                  onChange={(event) => setCountdownEndAt(event.target.value)}
-                  aria-label="Countdown end date and time"
-                  className="flex-1"
-                  disabled={isSavingAnnouncement}
-                />
-                <Button onClick={handleSaveAnnouncement} disabled={isSavingAnnouncement}>
-                  {isSavingAnnouncement ? "Saving..." : "Save"}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Hero Section Image</CardTitle>
-            <CardDescription>
-              Update the background image for the main landing area.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {heroImage ? (
-                <div className="relative aspect-video rounded-lg overflow-hidden border bg-muted flex items-center justify-center">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={heroImage}
-                    alt="Hero Preview"
-                    className="object-cover w-full h-full opacity-50"
-                  />
-                </div>
-              ) : null}
-
-              <UploadDropzone
-                endpoint="heroImageUploader"
-                onUploadBegin={() => setIsUploadingHero(true)}
-                onClientUploadComplete={(
-                  uploads: ClientUploadedFileData<HeroImageUploadData>[]
-                ) => {
-                  setIsUploadingHero(false);
-                  const uploadedUrl =
-                    uploads[0]?.serverData?.imageUrl ?? uploads[0]?.url;
-
-                  if (uploadedUrl) {
-                    void handleSaveHeroImage(uploadedUrl);
-                  }
-                }}
-                onUploadError={(error: Error) => {
-                  setIsUploadingHero(false);
-                  showToast(`Upload failed: ${error.message}`, "error");
-                }}
-              />
-              {isUploadingHero ? (
-                <p className="text-sm text-muted-foreground">
-                  Uploading hero image...
-                </p>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Testimonials</CardTitle>
-            <CardDescription>
-              Manage the customer reviews shown on the landing page.
-            </CardDescription>
-          </div>
-          <Button onClick={() => handleOpenTestimonialModal()} size="sm">
-            <Plus className="size-4 mr-2" /> Add Testimonial
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {testimonialItems.map((testimonial) => (
-              <div
-                key={testimonial.id}
-                className="flex items-center justify-between p-4 border rounded-lg"
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <div
+            role="tablist"
+            aria-label="Bagian halaman utama"
+            className="flex gap-2 overflow-x-auto pb-1 lg:w-56 lg:shrink-0 lg:flex-col"
+          >
+            {CRM_NAV.map((item) => (
+              <Button
+                key={item.id}
+                type="button"
+                id={`crm-tab-${item.id}`}
+                role="tab"
+                aria-selected={activeSection === item.id}
+                aria-controls="crm-panel"
+                variant={activeSection === item.id ? "default" : "outline"}
+                className={cn(
+                  "justify-start whitespace-nowrap",
+                  activeSection === item.id && "shadow-sm"
+                )}
+                onClick={() => setActiveSection(item.id)}
               >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold">{testimonial.name}</span>
-                    <span className="text-sm text-muted-foreground">
-                      ({testimonial.location})
-                    </span>
-                    {!testimonial.is_active ? (
-                      <span className="text-xs bg-muted px-2 py-1 rounded-md">
-                        Inactive
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="text-sm italic">&quot;{testimonial.quote}&quot;</p>
-                  <p className="text-xs text-primary font-medium uppercase tracking-wider">
-                    {testimonial.for_text}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    aria-label={`Edit ${testimonial.name}`}
-                    onClick={() => handleOpenTestimonialModal(testimonial)}
-                  >
-                    <Edit2 className="size-4" />
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    aria-label={`Delete ${testimonial.name}`}
-                    onClick={() => handleDeleteTestimonial(testimonial.id)}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
-              </div>
+                {item.label}
+              </Button>
             ))}
-            {testimonialItems.length === 0 ? (
-              <p className="text-center text-muted-foreground py-4">
-                No testimonials found.
-              </p>
+          </div>
+
+          <div
+            id="crm-panel"
+            role="tabpanel"
+            aria-labelledby={`crm-tab-${activeSection}`}
+            className="min-w-0 flex-1 space-y-6"
+          >
+            {activeSection === "announcement" ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pengumuman</CardTitle>
+                  <CardDescription>
+                    Teks di pita paling atas situs, termasuk timer jika aktif.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="announcement-text">Teks pengumuman</Label>
+                    <Input
+                      id="announcement-text"
+                      value={announcement}
+                      onChange={(event) => setAnnouncement(event.target.value)}
+                      placeholder="Contoh: FLASH SALE 5.5 ...... BERAKHIR DALAM"
+                      disabled={isSavingAnnouncement}
+                    />
+                  </div>
+                  <div className="flex items-start gap-3 rounded-lg border p-3">
+                    <Checkbox
+                      id="announcement-countdown-enabled"
+                      checked={countdownEnabled}
+                      disabled={isSavingAnnouncement}
+                      onCheckedChange={(checked) =>
+                        setCountdownEnabled(checked === true)
+                      }
+                    />
+                    <div className="grid gap-1">
+                      <label
+                        htmlFor="announcement-countdown-enabled"
+                        className="text-sm font-medium cursor-pointer"
+                      >
+                        Tampilkan hitungan mundur
+                      </label>
+                      <p className="text-xs text-muted-foreground">
+                        Jika aktif, sisa waktu tampil di samping teks pengumuman.
+                        Tanggal akhir tetap bisa diisi meski timer mati.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="announcement-countdown">Tanggal dan jam berakhir</Label>
+                    <Input
+                      id="announcement-countdown"
+                      type="datetime-local"
+                      value={countdownEndAt ? countdownEndAt.slice(0, 16) : ""}
+                      onChange={(event) => setCountdownEndAt(event.target.value)}
+                      disabled={isSavingAnnouncement}
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      onClick={() => void handleSaveAnnouncement()}
+                      disabled={isSavingAnnouncement}
+                    >
+                      {isSavingAnnouncement ? "Menyimpan..." : "Simpan"}
+                    </Button>
+                    <Button variant="ghost" asChild>
+                      <a href="/" target="_blank" rel="noreferrer">
+                        Lihat di website
+                        <ExternalLink className="size-4" aria-hidden="true" />
+                      </a>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {activeSection === "hero" ? (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Gambar Hero</CardTitle>
+                    <CardDescription>
+                      Gambar latar bagian paling atas halaman utama.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {heroImage ? (
+                      <div className="relative aspect-video overflow-hidden rounded-lg border bg-muted">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={heroImage}
+                          alt="Pratinjau gambar hero"
+                          className="h-full w-full object-cover opacity-50"
+                        />
+                      </div>
+                    ) : null}
+                    <UploadDropzone
+                      endpoint="heroImageUploader"
+                      onUploadBegin={() => setIsUploadingHero(true)}
+                      onClientUploadComplete={(
+                        uploads: ClientUploadedFileData<HeroImageUploadData>[]
+                      ) => {
+                        setIsUploadingHero(false);
+                        const uploadedUrl =
+                          uploads[0]?.serverData?.imageUrl ?? uploads[0]?.url;
+
+                        if (uploadedUrl) {
+                          void handleSaveHeroImage(uploadedUrl);
+                        }
+                      }}
+                      onUploadError={(error: Error) => {
+                        setIsUploadingHero(false);
+                        showToast(`Unggah gagal: ${error.message}`, "error");
+                      }}
+                    />
+                    {isUploadingHero ? (
+                      <p className="text-sm text-muted-foreground">
+                        Mengunggah gambar hero...
+                      </p>
+                    ) : null}
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Teks Hero</CardTitle>
+                    <CardDescription>
+                      Judul, deskripsi, dan tombol di bagian paling atas.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <HeroCopyFields
+                      copy={landingCopy.hero}
+                      onChange={(copy) => applyLandingCopyEdit("hero", copy)}
+                      disabled={isSavingCopy}
+                    />
+                    {renderSectionActions("hero", activeNav.previewHref)}
+                  </CardContent>
+                </Card>
+              </>
+            ) : null}
+
+            {activeSection === "meTime" ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Cerita Me-Time</CardTitle>
+                  <CardDescription>
+                    Bagian cerita dan empat kartu di bawah hero.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <MeTimeCopyFields
+                    copy={landingCopy.meTime}
+                      onChange={(copy) => applyLandingCopyEdit("meTime", copy)}
+                    disabled={isSavingCopy}
+                  />
+                  {renderSectionActions("meTime", activeNav.previewHref)}
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {activeSection === "services" ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Paket Voucher</CardTitle>
+                  <CardDescription>
+                    Judul bagian katalog. Isi paket tetap diatur di menu Services.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <ServicesCopyFields
+                    copy={landingCopy.services}
+                      onChange={(copy) => applyLandingCopyEdit("services", copy)}
+                    disabled={isSavingCopy}
+                  />
+                  {renderSectionActions("services", activeNav.previewHref)}
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {activeSection === "testimonials" ? (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Judul Testimoni</CardTitle>
+                    <CardDescription>
+                      Teks di atas daftar ulasan pelanggan.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <TestimonialsCopyFields
+                      copy={landingCopy.testimonials}
+                      onChange={(copy) =>
+                        applyLandingCopyEdit("testimonials", copy)
+                      }
+                      disabled={isSavingCopy}
+                    />
+                    {renderSectionActions("testimonials", activeNav.previewHref)}
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Daftar testimoni</CardTitle>
+                      <CardDescription>
+                        Ulasan yang tampil di halaman utama.
+                      </CardDescription>
+                    </div>
+                    <Button onClick={() => handleOpenTestimonialModal()} size="sm">
+                      <Plus className="size-4 mr-2" /> Tambah testimoni
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {testimonialItems.map((testimonial) => (
+                        <div
+                          key={testimonial.id}
+                          className="flex items-center justify-between gap-3 rounded-lg border p-4"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-bold">{testimonial.name}</span>
+                              <span className="text-sm text-muted-foreground">
+                                ({testimonial.location})
+                              </span>
+                              {!testimonial.is_active ? (
+                                <span className="text-xs bg-muted px-2 py-1 rounded-md">
+                                  Disembunyikan
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="text-sm italic">&quot;{testimonial.quote}&quot;</p>
+                            <p className="text-xs text-primary font-medium uppercase tracking-wider">
+                              {testimonial.for_text}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              aria-label={`Ubah ${testimonial.name}`}
+                              onClick={() => handleOpenTestimonialModal(testimonial)}
+                            >
+                              <Edit2 className="size-4" />
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              aria-label={`Hapus ${testimonial.name}`}
+                              onClick={() => void handleDeleteTestimonial(testimonial.id)}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      {testimonialItems.length === 0 ? (
+                        <p className="py-4 text-center text-muted-foreground">
+                          Belum ada testimoni.
+                        </p>
+                      ) : null}
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            ) : null}
+
+            {activeSection === "trust" ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Kenapa Pilih Kami</CardTitle>
+                  <CardDescription>
+                    Tiga kartu alasan di dekat bagian bawah halaman.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <TrustCopyFields
+                    copy={landingCopy.trust}
+                      onChange={(copy) => applyLandingCopyEdit("trust", copy)}
+                    disabled={isSavingCopy}
+                  />
+                  {renderSectionActions("trust", activeNav.previewHref)}
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {activeSection === "footer" ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Footer</CardTitle>
+                  <CardDescription>
+                    Ajakan, langganan email, tautan, dan media sosial.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <FooterCopyFields
+                    copy={landingCopy.footer}
+                      onChange={(copy) => applyLandingCopyEdit("footer", copy)}
+                    disabled={isSavingCopy}
+                  />
+                  {renderSectionActions("footer", activeNav.previewHref)}
+                </CardContent>
+              </Card>
             ) : null}
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-          <Dialog open={isTestimonialModalOpen} onOpenChange={setIsTestimonialModalOpen}>
-            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>
-              {editingTestimonial ? "Edit Testimonial" : "Add Testimonial"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Tag / For Text</label>
-              <Input
-                value={testimonialForm.for_text}
-                onChange={(event) =>
-                  setTestimonialForm((current) => ({
-                    ...current,
-                    for_text: event.target.value,
-                  }))
-                }
-                placeholder="e.g. untuk mama"
-              />
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Quote</label>
-              <Input
-                value={testimonialForm.quote}
-                onChange={(event) =>
-                  setTestimonialForm((current) => ({
-                    ...current,
-                    quote: event.target.value,
-                  }))
-                }
-                placeholder="The actual testimonial text"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+        <Dialog open={isTestimonialModalOpen} onOpenChange={setIsTestimonialModalOpen}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>
+                {editingTestimonial ? "Ubah testimoni" : "Tambah testimoni"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Initials</label>
+                <Label htmlFor="testimonial-for-text">Tag</Label>
                 <Input
-                  value={testimonialForm.initials}
+                  id="testimonial-for-text"
+                  value={testimonialForm.for_text}
                   onChange={(event) =>
                     setTestimonialForm((current) => ({
                       ...current,
-                      initials: event.target.value,
+                      for_text: event.target.value,
                     }))
                   }
-                  placeholder="e.g. AR"
-                  maxLength={2}
+                  placeholder="Contoh: untuk mama"
                 />
               </div>
               <div className="grid gap-2">
-                <label className="text-sm font-medium">Name</label>
+                <Label htmlFor="testimonial-quote">Kutipan</Label>
                 <Input
-                  value={testimonialForm.name}
+                  id="testimonial-quote"
+                  value={testimonialForm.quote}
                   onChange={(event) =>
                     setTestimonialForm((current) => ({
                       ...current,
-                      name: event.target.value,
+                      quote: event.target.value,
                     }))
                   }
-                  placeholder="e.g. Arika R."
+                  placeholder="Teks ulasan pelanggan"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="testimonial-initials">Inisial</Label>
+                  <Input
+                    id="testimonial-initials"
+                    value={testimonialForm.initials}
+                    onChange={(event) =>
+                      setTestimonialForm((current) => ({
+                        ...current,
+                        initials: event.target.value,
+                      }))
+                    }
+                    placeholder="Contoh: AR"
+                    maxLength={2}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="testimonial-name">Nama</Label>
+                  <Input
+                    id="testimonial-name"
+                    value={testimonialForm.name}
+                    onChange={(event) =>
+                      setTestimonialForm((current) => ({
+                        ...current,
+                        name: event.target.value,
+                      }))
+                    }
+                    placeholder="Contoh: Arika R."
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="testimonial-location">Lokasi</Label>
+                  <Input
+                    id="testimonial-location"
+                    value={testimonialForm.location}
+                    onChange={(event) =>
+                      setTestimonialForm((current) => ({
+                        ...current,
+                        location: event.target.value,
+                      }))
+                    }
+                    placeholder="Contoh: Jakarta Selatan"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="testimonial-sort">Urutan</Label>
+                  <Input
+                    id="testimonial-sort"
+                    type="number"
+                    value={testimonialForm.sort_order ?? 0}
+                    onChange={(event) =>
+                      setTestimonialForm((current) => ({
+                        ...current,
+                        sort_order: Number.parseInt(event.target.value, 10) || 0,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-lg border p-3">
+                <Checkbox
+                  id="testimonial-active"
+                  checked={testimonialForm.is_active ?? true}
+                  onCheckedChange={(checked) =>
+                    setTestimonialForm((current) => ({
+                      ...current,
+                      is_active: checked === true,
+                    }))
+                  }
+                />
+                <label
+                  htmlFor="testimonial-active"
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  Tampilkan testimoni ini di halaman utama
+                </label>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Location</label>
-                <Input
-                  value={testimonialForm.location}
-                  onChange={(event) =>
-                    setTestimonialForm((current) => ({
-                      ...current,
-                      location: event.target.value,
-                    }))
-                  }
-                  placeholder="e.g. Jakarta Selatan"
-                />
-              </div>
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Sort Order</label>
-                <Input
-                  type="number"
-                  value={testimonialForm.sort_order ?? 0}
-                  onChange={(event) =>
-                    setTestimonialForm((current) => ({
-                      ...current,
-                      sort_order: Number.parseInt(event.target.value, 10) || 0,
-                    }))
-                  }
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-lg border p-3">
-              <Checkbox
-                id="testimonial-active"
-                checked={testimonialForm.is_active ?? true}
-                onCheckedChange={(checked) =>
-                  setTestimonialForm((current) => ({
-                    ...current,
-                    is_active: checked === true,
-                  }))
-                }
-              />
-              <label
-                htmlFor="testimonial-active"
-                className="text-sm font-medium cursor-pointer"
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsTestimonialModalOpen(false)}
               >
-                Show this testimonial on the landing page
-              </label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsTestimonialModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleSaveTestimonial} disabled={isSavingTestimonial}>
-              {isSavingTestimonial ? "Saving..." : "Save"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-          </Dialog>
+                Batal
+              </Button>
+              <Button onClick={() => void handleSaveTestimonial()} disabled={isSavingTestimonial}>
+                {isSavingTestimonial ? "Menyimpan..." : "Simpan"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </AdminPageBody>
     </>
   );

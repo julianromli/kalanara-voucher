@@ -7,6 +7,11 @@ import {
 } from "@/lib/cache-tags";
 import type { Database } from "@/lib/database.types";
 import {
+  parseLandingCopyFromSettings,
+  PUBLIC_LANDING_SETTING_KEYS,
+  type LandingCopy,
+} from "@/lib/landingCopy";
+import {
   loadActivePublicServices,
   type ServiceCategoryRelation,
   type ServiceWithCategory,
@@ -20,6 +25,7 @@ export interface PublicLandingData {
   services: PublicServiceWithCategory[];
   heroImageUrl?: string;
   testimonials: Database["public"]["Tables"]["testimonials"]["Row"][];
+  landingCopy: LandingCopy;
 }
 
 export async function getPublicLandingData(): Promise<PublicLandingData> {
@@ -28,13 +34,12 @@ export async function getPublicLandingData(): Promise<PublicLandingData> {
   cacheTag(PUBLIC_SERVICES_CACHE_TAG, LANDING_CMS_CACHE_TAG);
 
   const supabase = getAdminClient();
-  const [services, heroResult, testimonialResult] = await Promise.all([
+  const [services, settingsResult, testimonialResult] = await Promise.all([
     loadActivePublicServices(supabase),
     supabase
       .from("site_settings")
-      .select("value")
-      .eq("key", "hero_image_url")
-      .maybeSingle(),
+      .select("key, value")
+      .in("key", [...PUBLIC_LANDING_SETTING_KEYS]),
     supabase
       .from("testimonials")
       .select("*")
@@ -43,16 +48,22 @@ export async function getPublicLandingData(): Promise<PublicLandingData> {
       .order("created_at", { ascending: false }),
   ]);
 
-  if (heroResult.error) {
-    throw heroResult.error;
+  if (settingsResult.error) {
+    throw settingsResult.error;
   }
   if (testimonialResult.error) {
     throw testimonialResult.error;
   }
 
+  const settingRows = settingsResult.data || [];
+  const heroImageUrl = settingRows.find(
+    (row) => row.key === "hero_image_url"
+  )?.value;
+
   return {
     services,
-    heroImageUrl: heroResult.data?.value,
+    heroImageUrl,
     testimonials: testimonialResult.data || [],
+    landingCopy: parseLandingCopyFromSettings(settingRows),
   };
 }

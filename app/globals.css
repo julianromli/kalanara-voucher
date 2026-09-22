@@ -556,6 +556,10 @@
 
     .animate-stagger-7 { animation-delay: 700ms; }
     .animate-stagger-8 { animation-delay: 800ms; }
+    .animate-stagger-950 { animation-delay: 950ms; }
+    .animate-stagger-1000 { animation-delay: 1000ms; }
+    .animate-stagger-1050 { animation-delay: 1050ms; }
+    .animate-stagger-1100 { animation-delay: 1100ms; }
 }
 
 /*

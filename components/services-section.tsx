@@ -9,12 +9,14 @@ import { AddToCartButton } from "@/components/add-to-cart-button";
 import { formatCurrency } from "@/lib/constants";
 import type { Service } from "@/lib/types";
 import { resolveServiceImageUrl } from "@/lib/utils/serviceImages";
+import type { ServicesCopy } from "@/lib/landingCopy";
 
 interface ServicesSectionProps {
   services: Service[];
+  copy: ServicesCopy;
 }
 
-export function ServicesSection({ services }: ServicesSectionProps) {
+export function ServicesSection({ services, copy }: ServicesSectionProps) {
   const [servicesRef, servicesInView] = useInView<HTMLElement>({ threshold: 0.1 });
 
   return (
@@ -33,11 +35,11 @@ export function ServicesSection({ services }: ServicesSectionProps) {
       <SiteContainer className="relative z-10">
         <div className={`text-center mb-16 ${servicesInView ? "animate-fade-slide-up" : "opacity-0"}`}>
           <h2 className="font-sans font-semibold text-3xl sm:text-4xl text-foreground mb-4 sm:mb-6 leading-tight text-balance">
-            Pilihan Paket Voucher
+            {copy.title}
           </h2>
           <div className="h-1 w-20 bg-accent mx-auto rounded-full"></div>
           <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-pretty">
-            Pilih voucher spa untuk diri sendiri atau hadiah spesial untuk orang tersayang.
+            {copy.description}
           </p>
         </div>
 
@@ -113,7 +115,7 @@ export function ServicesSection({ services }: ServicesSectionProps) {
             })
           ) : (
             <div className="col-span-1 py-12 text-center text-muted-foreground sm:col-span-2 lg:col-span-3">
-              Belum ada paket tersedia saat ini.
+              {copy.emptyState}
             </div>
           )}
         </div>

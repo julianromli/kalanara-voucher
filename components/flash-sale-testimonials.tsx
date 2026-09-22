@@ -4,14 +4,27 @@ import { Quote } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
 import { SiteContainer } from "@/components/site-container";
 import type { Testimonial } from "@/lib/database.types";
+import type { TestimonialsCopy } from "@/lib/landingCopy";
 
-export function FlashSaleTestimonials({ testimonials }: { testimonials: Testimonial[] }) {
+interface FlashSaleTestimonialsProps {
+  testimonials: Testimonial[];
+  copy: TestimonialsCopy;
+}
+
+export function FlashSaleTestimonials({
+  testimonials,
+  copy,
+}: FlashSaleTestimonialsProps) {
   const [sectionRef, isInView] = useInView<HTMLElement>({ threshold: 0.1 });
 
   if (!testimonials || testimonials.length === 0) return null;
 
   return (
-    <section ref={sectionRef} className="bg-card py-24 relative overflow-hidden">
+    <section
+      id="testimonials"
+      ref={sectionRef}
+      className="bg-card py-24 relative overflow-hidden scroll-mt-36"
+    >
       <SiteContainer className="relative z-10">
         <div
           className={`text-center mb-16 max-w-3xl mx-auto ${
@@ -19,11 +32,12 @@ export function FlashSaleTestimonials({ testimonials }: { testimonials: Testimon
           }`}
         >
           <h2 className="font-sans font-semibold text-3xl sm:text-4xl text-foreground mb-4 sm:mb-6 leading-tight">
-            500+ Perempuan sudah merasakannya. <i className="font-normal text-primary">Kamu bisa juga.</i>
+            {copy.titleBefore}{" "}
+            <i className="font-normal text-primary">{copy.titleEmphasis}</i>
           </h2>
           <div className="h-1 w-20 bg-accent mx-auto rounded-full mb-6"></div>
           <p className="mt-4 text-muted-foreground text-lg leading-relaxed">
-            Hadiah yang paling diingat adalah yang terasa paling personal — bukan yang paling mahal.
+            {copy.description}
           </p>
         </div>
 
