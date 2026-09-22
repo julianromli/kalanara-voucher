@@ -57,6 +57,14 @@ function isAnnouncementSettingKey(key: SiteSettingKey): boolean {
   return key.startsWith("announcement_");
 }
 
+function requiredPermissionForSiteSettingKey(
+  key: SiteSettingKey | null
+): AdminPermission {
+  return key === VOUCHER_DEFAULT_EXPIRATION_DAYS_KEY
+    ? AdminPermission.SETTINGS_MANAGE_SENSITIVE
+    : AdminPermission.CRM_MANAGE;
+}
+
 function normalizeSiteSettingKey(key: string): SiteSettingKey | null {
   return Object.prototype.hasOwnProperty.call(SITE_SETTING_DEFAULTS, key)
     ? (key as SiteSettingKey)
@@ -121,7 +129,7 @@ export async function getSiteSetting(key: string): Promise<SiteSetting | null> {
 
   if (error) {
     console.error("Error fetching site setting:", error);
-    return null;
+    throw new Error("Failed to load site setting.");
   }
 
   return data;
@@ -131,9 +139,11 @@ export async function updateSiteSetting(
   key: string,
   value: string
 ): Promise<SiteSetting> {
-  await requireAdminPermission(AdminPermission.CRM_MANAGE);
-
   const normalizedKey = normalizeSiteSettingKey(key);
+  await requireAdminPermission(
+    requiredPermissionForSiteSettingKey(normalizedKey)
+  );
+
   if (!normalizedKey) {
     throw new Error("Unsupported site setting key.");
   }
@@ -179,9 +189,11 @@ export async function updateSiteSetting(
 }
 
 export async function deleteSiteSetting(key: string): Promise<boolean> {
-  await requireAdminPermission(AdminPermission.CRM_MANAGE);
-
   const normalizedKey = normalizeSiteSettingKey(key);
+  await requireAdminPermission(
+    requiredPermissionForSiteSettingKey(normalizedKey)
+  );
+
   if (!normalizedKey) {
     throw new Error("Unsupported site setting key.");
   }

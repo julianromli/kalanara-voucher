@@ -7,6 +7,7 @@ import {
   calculateExpiryDate,
   normalizeVoucherExpirationDaysInput,
   parseVoucherExpirationDays,
+  resolveLoadedVoucherExpirationDays,
 } from "@/lib/payment/voucher-expiry";
 
 describe("voucher expiration days", () => {
@@ -56,9 +57,27 @@ describe("voucher expiration days", () => {
     expect(() => normalizeVoucherExpirationDaysInput("90days")).toThrow(
       /whole number between 1 and 365/i
     );
+    expect(() => normalizeVoucherExpirationDaysInput(90.5)).toThrow(
+      /whole number between 1 and 365/i
+    );
     expect(() => normalizeVoucherExpirationDaysInput(Number.NaN)).toThrow(
       /whole number between 1 and 365/i
     );
+  });
+
+  test("does not treat a failed settings read as a 90-day value", () => {
+    expect(resolveLoadedVoucherExpirationDays("30", false)).toEqual({
+      days: 30,
+      loadError: false,
+    });
+    expect(resolveLoadedVoucherExpirationDays(null, false)).toEqual({
+      days: 90,
+      loadError: false,
+    });
+    expect(resolveLoadedVoucherExpirationDays("30", true).loadError).toBe(true);
+    expect(
+      Number.isNaN(resolveLoadedVoucherExpirationDays("30", true).days)
+    ).toBe(true);
   });
 
   test("adds the configured day count from the creation time", () => {

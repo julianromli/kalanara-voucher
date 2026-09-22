@@ -29,6 +29,7 @@ import {
   createTestimonial,
   deleteSiteSetting,
   deleteTestimonial,
+  getSiteSetting,
   updateSiteSetting,
   updateTestimonial,
 } from "@/lib/actions/crm";
@@ -182,7 +183,64 @@ describe("crm actions", () => {
       { onConflict: "key" }
     );
     expect(result.value).toBe("120");
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(
+      AdminPermission.SETTINGS_MANAGE_SENSITIVE
+    );
+    expect(requireAdminPermissionMock).not.toHaveBeenCalledWith(
+      AdminPermission.CRM_MANAGE
+    );
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/settings", "page");
+  });
+
+  it("rejects voucher expiration writes without SETTINGS_MANAGE_SENSITIVE", async () => {
+    requireAdminPermissionMock.mockImplementation(async (permission) => {
+      if (permission === AdminPermission.SETTINGS_MANAGE_SENSITIVE) {
+        throw new Error("Forbidden");
+      }
+
+      return {
+        userId: "manager-1",
+        email: "manager@kalanaraspa.com",
+        role: "MANAGER",
+      };
+    });
+
+    await expect(
+      updateSiteSetting("voucher_default_expiration_days", "90")
+    ).rejects.toThrow("Forbidden");
+    expect(createClientMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a missing site setting as null", async () => {
+    const maybeSingleMock = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const eqMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
+    const selectMock = vi.fn(() => ({ eq: eqMock }));
+    createClientMock.mockResolvedValue({
+      from: vi.fn(() => ({ select: selectMock })),
+    });
+
+    await expect(
+      getSiteSetting("voucher_default_expiration_days")
+    ).resolves.toBeNull();
+  });
+
+  it("throws when a site setting read fails instead of returning null", async () => {
+    const maybeSingleMock = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: "database unavailable" },
+    });
+    const eqMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
+    const selectMock = vi.fn(() => ({ eq: eqMock }));
+    createClientMock.mockResolvedValue({
+      from: vi.fn(() => ({ select: selectMock })),
+    });
+
+    await expect(
+      getSiteSetting("voucher_default_expiration_days")
+    ).rejects.toThrow("Failed to load site setting.");
   });
 
   it("rejects voucher expiration days outside 1-365", async () => {

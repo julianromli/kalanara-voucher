@@ -28,9 +28,13 @@ interface SettingsClientProps {
     voucherExpiration: number;
     paymentMethods: string[];
   };
+  voucherExpirationLoadError?: boolean;
 }
 
-export function SettingsClient({ initialSettings }: SettingsClientProps) {
+export function SettingsClient({
+  initialSettings,
+  voucherExpirationLoadError = false,
+}: SettingsClientProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
@@ -49,6 +53,14 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
   }, [initialSettings]);
 
   const handleSave = async () => {
+    if (voucherExpirationLoadError) {
+      showToast(
+        "Gagal memuat masa berlaku voucher. Penyimpanan dinonaktifkan agar nilai tersimpan tidak tertimpa.",
+        "error"
+      );
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -64,9 +76,9 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
         voucherExpiration: days,
       }));
       router.refresh();
-      showToast("Voucher expiration saved successfully.", "success");
+      showToast("Masa berlaku voucher berhasil disimpan.", "success");
     } catch {
-      showToast("Failed to save voucher expiration.", "error");
+      showToast("Gagal menyimpan masa berlaku voucher.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -85,10 +97,19 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
             <p className="text-sm text-muted-foreground">
               Configure your spa business settings
             </p>
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button
+              onClick={handleSave}
+              disabled={isSaving || voucherExpirationLoadError}
+            >
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
           </div>
+          {voucherExpirationLoadError ? (
+            <p className="text-sm text-destructive" role="alert">
+              Gagal memuat masa berlaku voucher. Penyimpanan dinonaktifkan agar
+              nilai tersimpan tidak tertimpa.
+            </p>
+          ) : null}
 
           <div className="w-full">
             <div role="tablist" aria-label="Settings sections" className="flex gap-1 overflow-x-auto border-b border-border">
@@ -238,10 +259,10 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                         onChange={(e) =>
                           setSettings({
                             ...settings,
-                            voucherExpiration:
+            voucherExpiration:
                               e.target.value === ""
                                 ? Number.NaN
-                                : Number.parseInt(e.target.value, 10),
+                                : Number(e.target.value),
                           })
                         }
                       />
@@ -249,8 +270,9 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                         id="expiration-days-help"
                         className="mt-2 text-sm text-muted-foreground"
                       >
-                        New vouchers expire this many days after payment. Use a
-                        whole number from {VOUCHER_EXPIRATION_DAYS_MIN} to{" "}
+                        Voucher baru kedaluwarsa setelah jumlah hari ini dari
+                        pembayaran. Gunakan bilangan bulat dari{" "}
+                        {VOUCHER_EXPIRATION_DAYS_MIN} sampai{" "}
                         {VOUCHER_EXPIRATION_DAYS_MAX}.
                       </p>
                     </div>

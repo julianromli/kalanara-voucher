@@ -4,15 +4,16 @@ import { ToastProvider } from "@/context/ToastContext";
 import { SettingsClient } from "@/components/admin/settings-client";
 import { VOUCHER_DEFAULT_EXPIRATION_DAYS_KEY } from "@/lib/payment/voucher-expiry";
 
-const refresh = vi.fn();
 const {
+  refreshMock,
   updateSiteSettingMock,
 } = vi.hoisted(() => ({
+  refreshMock: vi.fn(),
   updateSiteSettingMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh }),
+  useRouter: () => ({ push: vi.fn(), refresh: refreshMock }),
 }));
 
 vi.mock("@/context/AuthContext", () => ({
@@ -38,10 +39,15 @@ const initialSettings = {
   paymentMethods: ["BANK_TRANSFER", "E_WALLET"],
 };
 
-function renderSettings() {
+function renderSettings(
+  props?: Partial<Parameters<typeof SettingsClient>[0]>
+) {
   return render(
     <ToastProvider>
-      <SettingsClient initialSettings={initialSettings} />
+      <SettingsClient
+        initialSettings={initialSettings}
+        {...props}
+      />
     </ToastProvider>
   );
 }
@@ -61,6 +67,9 @@ describe("SettingsClient voucher expiration", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Vouchers" }));
 
     expect(screen.getByLabelText("Default Expiration (Days)")).toHaveValue(90);
+    expect(
+      screen.getByText(/Voucher baru kedaluwarsa setelah jumlah hari ini/)
+    ).toBeInTheDocument();
   });
 
   test("saves voucher expiration through updateSiteSetting", async () => {
@@ -78,9 +87,9 @@ describe("SettingsClient voucher expiration", () => {
         "60"
       );
     });
-    expect(refresh).toHaveBeenCalled();
+    expect(refreshMock).toHaveBeenCalled();
     expect(
-      await screen.findByText("Voucher expiration saved successfully.")
+      await screen.findByText("Masa berlaku voucher berhasil disimpan.")
     ).toBeInTheDocument();
   });
 
@@ -95,9 +104,41 @@ describe("SettingsClient voucher expiration", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("Failed to save voucher expiration.")
+        screen.getByText("Gagal menyimpan masa berlaku voucher.")
       ).toBeInTheDocument();
     });
+    expect(updateSiteSettingMock).not.toHaveBeenCalled();
+  });
+
+  test("rejects fractional expiration days instead of truncating them", async () => {
+    renderSettings();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Vouchers" }));
+    fireEvent.change(screen.getByLabelText("Default Expiration (Days)"), {
+      target: { value: "90.5" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Gagal menyimpan masa berlaku voucher.")
+      ).toBeInTheDocument();
+    });
+    expect(updateSiteSettingMock).not.toHaveBeenCalled();
+  });
+
+  test("disables save when the expiration setting failed to load", () => {
+    renderSettings({ voucherExpirationLoadError: true });
+
+    const saveButton = screen.getByRole("button", { name: "Save Changes" });
+    expect(saveButton).toBeDisabled();
+    expect(
+      screen.getByRole("alert")
+    ).toHaveTextContent(
+      "Gagal memuat masa berlaku voucher. Penyimpanan dinonaktifkan agar nilai tersimpan tidak tertimpa."
+    );
+
+    fireEvent.click(saveButton);
     expect(updateSiteSettingMock).not.toHaveBeenCalled();
   });
 });

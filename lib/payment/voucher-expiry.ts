@@ -1,6 +1,7 @@
 export const VOUCHER_DEFAULT_EXPIRATION_DAYS_KEY =
   "voucher_default_expiration_days" as const;
 
+/** Product default after the 1-year → ~3-month change. */
 export const DEFAULT_VOUCHER_EXPIRATION_DAYS = 90;
 export const VOUCHER_EXPIRATION_DAYS_MIN = 1;
 export const VOUCHER_EXPIRATION_DAYS_MAX = 365;
@@ -64,6 +65,20 @@ export function normalizeVoucherExpirationDaysInput(
   }
 
   return normalizeVoucherExpirationDaysInput(Number.parseInt(trimmed, 10));
+}
+
+export function resolveLoadedVoucherExpirationDays(
+  value: string | null | undefined,
+  loadFailed: boolean
+): { days: number; loadError: boolean } {
+  if (loadFailed) {
+    return { days: Number.NaN, loadError: true };
+  }
+
+  return {
+    days: parseVoucherExpirationDays(value),
+    loadError: false,
+  };
 }
 
 export function calculateExpiryDate(
