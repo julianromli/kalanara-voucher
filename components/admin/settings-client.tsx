@@ -13,6 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ClockIcon, MailIcon, CreditCardIcon, TicketIcon } from "@hugeicons/core-free-icons";
+import { updateSiteSetting } from "@/lib/actions/crm";
+import {
+  VOUCHER_DEFAULT_EXPIRATION_DAYS_KEY,
+  VOUCHER_EXPIRATION_DAYS_MAX,
+  VOUCHER_EXPIRATION_DAYS_MIN,
+  normalizeVoucherExpirationDaysInput,
+} from "@/lib/payment/voucher-expiry";
 
 interface SettingsClientProps {
   initialSettings: {
@@ -21,9 +28,13 @@ interface SettingsClientProps {
     voucherExpiration: number;
     paymentMethods: string[];
   };
+  voucherExpirationLoadError?: boolean;
 }
 
-export function SettingsClient({ initialSettings }: SettingsClientProps) {
+export function SettingsClient({
+  initialSettings,
+  voucherExpirationLoadError = false,
+}: SettingsClientProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
@@ -37,15 +48,37 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
     }
   }, [authLoading, isAuthenticated, router]);
 
+  useEffect(() => {
+    setSettings(initialSettings);
+  }, [initialSettings]);
+
   const handleSave = async () => {
+    if (voucherExpirationLoadError) {
+      showToast(
+        "Gagal memuat masa berlaku voucher. Penyimpanan dinonaktifkan agar nilai tersimpan tidak tertimpa.",
+        "error"
+      );
+      return;
+    }
+
     setIsSaving(true);
-    
+
     try {
-      // TODO: Implement actual settings save to backend
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
-      showToast("Settings saved successfully", "success");
+      const days = normalizeVoucherExpirationDaysInput(
+        settings.voucherExpiration
+      );
+      await updateSiteSetting(
+        VOUCHER_DEFAULT_EXPIRATION_DAYS_KEY,
+        String(days)
+      );
+      setSettings((current) => ({
+        ...current,
+        voucherExpiration: days,
+      }));
+      router.refresh();
+      showToast("Masa berlaku voucher berhasil disimpan.", "success");
     } catch {
-      showToast("Failed to save settings", "error");
+      showToast("Gagal menyimpan masa berlaku voucher.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -64,10 +97,19 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
             <p className="text-sm text-muted-foreground">
               Configure your spa business settings
             </p>
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button
+              onClick={handleSave}
+              disabled={isSaving || voucherExpirationLoadError}
+            >
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
           </div>
+          {voucherExpirationLoadError ? (
+            <p className="text-sm text-destructive" role="alert">
+              Gagal memuat masa berlaku voucher. Penyimpanan dinonaktifkan agar
+              nilai tersimpan tidak tertimpa.
+            </p>
+          ) : null}
 
           <div className="w-full">
             <div role="tablist" aria-label="Settings sections" className="flex gap-1 overflow-x-auto border-b border-border">
@@ -92,6 +134,8 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
+                role="tab"
+                aria-selected={activeTab === "email"}
               >
                 Email Templates
               </button>
@@ -103,6 +147,8 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
+                role="tab"
+                aria-selected={activeTab === "vouchers"}
               >
                 Vouchers
               </button>
@@ -114,6 +160,8 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
+                role="tab"
+                aria-selected={activeTab === "payments"}
               >
                 Payment Methods
               </button>
@@ -199,14 +247,34 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                       <Input
                         id="expiration-days"
                         type="number"
-                        min="1"
-                        max="365"
-                        value={settings.voucherExpiration}
-                        onChange={(e) => setSettings({
-                          ...settings,
-                          voucherExpiration: parseInt(e.target.value)
-                        })}
+                        inputMode="numeric"
+                        min={VOUCHER_EXPIRATION_DAYS_MIN}
+                        max={VOUCHER_EXPIRATION_DAYS_MAX}
+                        aria-describedby="expiration-days-help"
+                        value={
+                          Number.isFinite(settings.voucherExpiration)
+                            ? settings.voucherExpiration
+                            : ""
+                        }
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+            voucherExpiration:
+                              e.target.value === ""
+                                ? Number.NaN
+                                : Number(e.target.value),
+                          })
+                        }
                       />
+                      <p
+                        id="expiration-days-help"
+                        className="mt-2 text-sm text-muted-foreground"
+                      >
+                        Voucher baru kedaluwarsa setelah jumlah hari ini dari
+                        pembayaran. Gunakan bilangan bulat dari{" "}
+                        {VOUCHER_EXPIRATION_DAYS_MIN} sampai{" "}
+                        {VOUCHER_EXPIRATION_DAYS_MAX}.
+                      </p>
                     </div>
                   </CardContent>
                 </Card>

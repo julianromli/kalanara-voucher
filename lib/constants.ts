@@ -6,6 +6,7 @@ import {
   PaymentStatus,
   AdminRole,
 } from "./types";
+import { DEFAULT_VOUCHER_VALIDITY_MONTHS } from "@/lib/payment/voucher-expiry";
 
 // ============================================================================
 // App Configuration
@@ -26,7 +27,7 @@ export const APP_CONFIG = {
     facebook: "https://facebook.com/kalanaraspa",
     whatsapp: "https://wa.me/62361234567",
   },
-  voucherValidity: 365, // days
+  voucherValidityMonths: DEFAULT_VOUCHER_VALIDITY_MONTHS,
   currency: "IDR",
   currencySymbol: "Rp",
   defaultAvatarUrl: "https://github.com/haydenbleasel.png",

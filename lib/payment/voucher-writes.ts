@@ -10,6 +10,8 @@ import type {
   Voucher,
 } from "@/lib/database.types";
 import { updateOrderItemVoucherId, updateOrderVoucherId } from "@/lib/payment/order-writes";
+import { calculateExpiryDate } from "@/lib/payment/voucher-expiry";
+import { getVoucherDefaultExpirationDays } from "@/lib/payment/voucher-expiry-settings";
 
 function generateVoucherCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -21,10 +23,11 @@ function generateVoucherCode(): string {
   return `KSP-${new Date().getFullYear()}-${randomPart}`;
 }
 
-function calculateExpiryDate(): string {
-  const expiryDate = new Date();
-  expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-  return expiryDate.toISOString();
+async function resolveVoucherExpiryDate(): Promise<string> {
+  return calculateExpiryDate(
+    new Date(),
+    await getVoucherDefaultExpirationDays()
+  );
 }
 
 async function getVoucherBy(
@@ -168,7 +171,7 @@ export async function createVoucherForPaidOrderItem(
     recipient_email: recipientEmail,
     sender_name: order.customer_name,
     sender_message: item.sender_message,
-    expiry_date: calculateExpiryDate(),
+    expiry_date: await resolveVoucherExpiryDate(),
     amount: item.unit_price,
     is_redeemed: false,
   });
@@ -220,7 +223,7 @@ export async function createVoucherForPaidOrder(
     recipient_email: recipientEmail,
     sender_name: order.customer_name,
     sender_message: order.sender_message,
-    expiry_date: calculateExpiryDate(),
+    expiry_date: await resolveVoucherExpiryDate(),
     amount: order.total_amount,
     is_redeemed: false,
   });

@@ -29,6 +29,7 @@ import {
   createTestimonial,
   deleteSiteSetting,
   deleteTestimonial,
+  getSiteSetting,
   updateSiteSetting,
   updateTestimonial,
 } from "@/lib/actions/crm";
@@ -146,6 +147,111 @@ describe("crm actions", () => {
     expect(updateTagMock).not.toHaveBeenCalledWith(
       ANNOUNCEMENT_SETTINGS_CACHE_TAG
     );
+  });
+
+  it("upserts voucher default expiration days and revalidates settings", async () => {
+    const singleMock = vi.fn().mockResolvedValue({
+      data: {
+        key: "voucher_default_expiration_days",
+        value: "120",
+        description:
+          "Default number of days a newly created voucher remains valid",
+        updated_at: "2026-09-22T08:00:00.000Z",
+      },
+      error: null,
+    });
+    const selectMock = vi.fn(() => ({ single: singleMock }));
+    const upsertMock = vi.fn(() => ({ select: selectMock }));
+
+    createClientMock.mockResolvedValue({
+      from: vi.fn(() => ({ upsert: upsertMock })),
+    });
+
+    const result = await updateSiteSetting(
+      "voucher_default_expiration_days",
+      " 120 "
+    );
+
+    expect(upsertMock).toHaveBeenCalledWith(
+      {
+        key: "voucher_default_expiration_days",
+        value: "120",
+        description:
+          "Default number of days a newly created voucher remains valid",
+        updated_at: expect.any(String),
+      },
+      { onConflict: "key" }
+    );
+    expect(result.value).toBe("120");
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(
+      AdminPermission.SETTINGS_MANAGE_SENSITIVE
+    );
+    expect(requireAdminPermissionMock).not.toHaveBeenCalledWith(
+      AdminPermission.CRM_MANAGE
+    );
+    expect(revalidatePathMock).toHaveBeenCalledWith("/admin/settings", "page");
+  });
+
+  it("rejects voucher expiration writes without SETTINGS_MANAGE_SENSITIVE", async () => {
+    requireAdminPermissionMock.mockImplementation(async (permission) => {
+      if (permission === AdminPermission.SETTINGS_MANAGE_SENSITIVE) {
+        throw new Error("Forbidden");
+      }
+
+      return {
+        userId: "manager-1",
+        email: "manager@kalanaraspa.com",
+        role: "MANAGER",
+      };
+    });
+
+    await expect(
+      updateSiteSetting("voucher_default_expiration_days", "90")
+    ).rejects.toThrow("Forbidden");
+    expect(createClientMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a missing site setting as null", async () => {
+    const maybeSingleMock = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const eqMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
+    const selectMock = vi.fn(() => ({ eq: eqMock }));
+    createClientMock.mockResolvedValue({
+      from: vi.fn(() => ({ select: selectMock })),
+    });
+
+    await expect(
+      getSiteSetting("voucher_default_expiration_days")
+    ).resolves.toBeNull();
+  });
+
+  it("throws when a site setting read fails instead of returning null", async () => {
+    const maybeSingleMock = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: "database unavailable" },
+    });
+    const eqMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
+    const selectMock = vi.fn(() => ({ eq: eqMock }));
+    createClientMock.mockResolvedValue({
+      from: vi.fn(() => ({ select: selectMock })),
+    });
+
+    await expect(
+      getSiteSetting("voucher_default_expiration_days")
+    ).rejects.toThrow("Failed to load site setting.");
+  });
+
+  it("rejects voucher expiration days outside 1-365", async () => {
+    await expect(
+      updateSiteSetting("voucher_default_expiration_days", "0")
+    ).rejects.toThrow(/whole number between 1 and 365/i);
+    await expect(
+      updateSiteSetting("voucher_default_expiration_days", "366")
+    ).rejects.toThrow(/whole number between 1 and 365/i);
+
+    expect(createClientMock).not.toHaveBeenCalled();
   });
 
   it("invalidates only landing CMS data for hero setting deletion", async () => {

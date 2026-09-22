@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 
 const {
@@ -14,6 +14,7 @@ const {
   voucherInsertMock,
   voucherInsertSingleMock,
   linkEqMock,
+  getVoucherDefaultExpirationDaysMock,
 } = vi.hoisted(() => ({
   requireAdminPermissionMock: vi.fn(),
   logAdminAuditMock: vi.fn(),
@@ -27,6 +28,7 @@ const {
   voucherInsertMock: vi.fn(),
   voucherInsertSingleMock: vi.fn(),
   linkEqMock: vi.fn(),
+  getVoucherDefaultExpirationDaysMock: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({
@@ -46,9 +48,15 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
+vi.mock("@/lib/payment/voucher-expiry-settings", () => ({
+  getVoucherDefaultExpirationDays: getVoucherDefaultExpirationDaysMock,
+}));
+
 describe("voucher destructive actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
+    getVoucherDefaultExpirationDaysMock.mockResolvedValue(90);
 
     requireAdminPermissionMock.mockResolvedValue({
       userId: "super-admin-id",
@@ -104,6 +112,10 @@ describe("voucher destructive actions", () => {
         }),
       })),
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   test("deleteVoucher calls transactional RPC, revalidates surfaces, and audits success", async () => {
@@ -236,6 +248,9 @@ describe("voucher destructive actions", () => {
       data: { id: "voucher-1", code: "KSP-2026-ABCDEFGH" },
       error: null,
     });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-15T08:00:00.000Z"));
+
     const { createVoucherForPaidOrderItem } = await import(
       "@/lib/payment/voucher-writes"
     );
@@ -260,6 +275,58 @@ describe("voucher destructive actions", () => {
         service_id: "service-1",
         amount: 405000,
         is_redeemed: false,
+        expiry_date: "2026-09-13T08:00:00.000Z",
+      })
+    );
+  });
+
+  test("uses the configured voucher expiration days for new paid-item vouchers", async () => {
+    orderSingleMock.mockResolvedValue({
+      data: {
+        id: "order-1",
+        payment_status: "COMPLETED",
+        customer_name: "Faiz",
+        customer_email: "buyer@example.com",
+      },
+      error: null,
+    });
+    orderItemSingleMock.mockResolvedValue({
+      data: {
+        id: "item-1",
+        order_id: "order-1",
+        service_id: "service-1",
+        recipient_name: "Ayu",
+        recipient_email: "ayu@example.com",
+        sender_message: "Selamat menikmati",
+        unit_price: 405000,
+        voucher_id: null,
+      },
+      error: null,
+    });
+    existingVoucherSingleMock.mockResolvedValue({
+      data: null,
+      error: { code: "PGRST116", message: "not found" },
+    });
+    voucherInsertSingleMock.mockResolvedValue({
+      data: { id: "voucher-1", code: "KSP-2026-ABCDEFGH" },
+      error: null,
+    });
+    getVoucherDefaultExpirationDaysMock.mockResolvedValue(45);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-15T08:00:00.000Z"));
+
+    const { createVoucherForPaidOrderItem } = await import(
+      "@/lib/payment/voucher-writes"
+    );
+    await Reflect.apply(createVoucherForPaidOrderItem, null, [
+      "order-1",
+      "item-1",
+    ]);
+
+    expect(getVoucherDefaultExpirationDaysMock).toHaveBeenCalledOnce();
+    expect(voucherInsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expiry_date: "2026-07-30T08:00:00.000Z",
       })
     );
   });

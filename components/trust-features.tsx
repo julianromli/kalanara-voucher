@@ -3,6 +3,7 @@
 import { Zap, CalendarCheck, ShieldCheck, LucideIcon } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
 import { SiteContainer } from "@/components/site-container";
+import { APP_CONFIG } from "@/lib/constants";
 
 interface FeatureItem {
   icon: LucideIcon;
@@ -19,7 +20,7 @@ const features: FeatureItem[] = [
   },
   {
     icon: CalendarCheck,
-    title: "Berlaku 12 Bulan",
+    title: `Berlaku ${APP_CONFIG.voucherValidityMonths} Bulan`,
     description: "Fleksibel digunakan kapan saja sesuai jadwal kamu.",
   },
   {
