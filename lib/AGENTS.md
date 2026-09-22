@@ -181,3 +181,4 @@ rg -n "export function" lib/utils/
   ```
 - Test files with mock data must also be updated when column names change
 - Migrations stored in `lib/supabase/migrations/` - run manually via Supabase SQL Editor
+- Data-only CMS updates cannot purge Next.js `LANDING_CMS_CACHE_TAG`. After a footer seed rewrite, redeploy or save Footer in `/admin/crm` so `updateLandingCopySection()` calls `updateTag()`.
