@@ -123,4 +123,32 @@ describe("POST /api/email/send-voucher", () => {
     const secondKey = resendSendMock.mock.calls[1][1].idempotencyKey;
     expect(secondKey).not.toBe(firstKey);
   });
+
+  test("uses RESEND_FROM when set and falls back to the default address when unset", async () => {
+    const { POST } = await import("@/app/api/email/send-voucher/route");
+    const makeRequest = () =>
+      new Request("http://localhost/api/email/send-voucher", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-forwarded-for": "203.0.113.44",
+        },
+        body: JSON.stringify({
+          orderId: "server-order-1",
+          token: "server-token",
+        }),
+      }) as never;
+
+    vi.stubEnv("RESEND_FROM", "Kalanara Ops <ops@voucher.kalanaraspa.com>");
+    await POST(makeRequest());
+    vi.unstubAllEnvs();
+    await POST(makeRequest());
+
+    expect(resendSendMock.mock.calls[0][0].from).toBe(
+      "Kalanara Ops <ops@voucher.kalanaraspa.com>"
+    );
+    expect(resendSendMock.mock.calls[1][0].from).toBe(
+      "Kalanara Spa <noreply@voucher.kalanaraspa.com>"
+    );
+  });
 });

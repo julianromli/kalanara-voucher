@@ -7,6 +7,7 @@ import {
 } from "@/lib/payment/public-voucher-delivery";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+const defaultResendFrom = "Kalanara Spa <noreply@voucher.kalanaraspa.com>";
 
 // Simple in-memory rate limiter (for production, consider Redis/Upstash)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -220,7 +221,7 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await resend.emails.send(
       {
-        from: "Kalanara Spa <noreply@voucher.kalanaraspa.com>",
+        from: process.env.RESEND_FROM?.trim() || defaultResendFrom,
         to: [delivery.recipientEmail],
         subject: `🎁 ${sanitizeHeaderValue(delivery.senderName)} sent you a gift from Kalanara Spa!`,
         html: emailHtml,

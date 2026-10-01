@@ -55,6 +55,7 @@ bunx tsc --noEmit    # TypeScript check (use this, NOT bun run build)
 - NEVER commit `.env.local` or expose keys in client code
 - Supabase keys: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (client-safe)
 - Server-only: `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`
+- Resend: `RESEND_API_KEY` must come from the Resend account where `voucher.kalanaraspa.com` is verified; restricted "Sending Access" keys work (401 `restricted_api_key` on `/domains` or `/emails` queries is expected)
 - Use `lib/supabase/server.ts` for server-side operations with service role
 
 ## JIT Index
@@ -98,7 +99,8 @@ rg -n "useContext|createContext" context/
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-RESEND_API_KEY=
+RESEND_API_KEY=  # From the Resend account where voucher.kalanaraspa.com is verified
+RESEND_FROM=     # Optional voucher email sender; default "Kalanara Spa <noreply@voucher.kalanaraspa.com>"
 NEXT_PUBLIC_APP_URL=  # For email/WhatsApp links
 
 # Scalev Payment Gateway
