@@ -119,6 +119,22 @@ export async function reconcilePublicOrderStatusByInternalOrderId(
 
   if (
     existingPublicOrder.payment_status === "COMPLETED" &&
+    existingPublicOrder.payment_provider === "complimentary"
+  ) {
+    const redemptionMarked = await markDiscountRedemptionSucceeded(
+      existingPublicOrder.id
+    );
+    if (!redemptionMarked) {
+      throw new Error(
+        "Failed to synchronize discount redemption after complimentary checkout."
+      );
+    }
+    await createVoucherOnPaymentSuccess(order);
+    return loadCurrentPublicStatus(internalOrderId);
+  }
+
+  if (
+    existingPublicOrder.payment_status === "COMPLETED" &&
     (existingOrderWithItems?.order_items.some((item) => item.vouchers) ||
       (existingPublicOrder.voucher_id && existingPublicOrder.vouchers))
   ) {

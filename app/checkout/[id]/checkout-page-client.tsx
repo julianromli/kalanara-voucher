@@ -123,11 +123,17 @@ export function CheckoutPageClient({
     });
 
   const onSubmit = async (data: CheckoutForm) => {
-    if (!payment.paymentMethod) {
+    const payableTotal = discount.appliedDiscount?.totalAmount ?? service.price;
+    const isComplimentary = payableTotal === 0;
+    if (!isComplimentary && !payment.paymentMethod) {
       showToast("Pilih metode pembayaran terlebih dahulu.", "error");
       return;
     }
-    if (payment.paymentMethod === "va" && !payment.subPaymentMethod) {
+    if (
+      !isComplimentary &&
+      payment.paymentMethod === "va" &&
+      !payment.subPaymentMethod
+    ) {
       showToast("Pilih bank virtual account.", "error");
       return;
     }
@@ -142,9 +148,11 @@ export function CheckoutPageClient({
       customerEmail: data.customerEmail.trim(),
       customerPhone: normalizePhoneInput(data.customerPhone),
       discountCode: discount.appliedDiscount?.code,
-      paymentMethod: payment.paymentMethod,
+      paymentMethod: isComplimentary
+        ? undefined
+        : payment.paymentMethod ?? undefined,
       subPaymentMethod:
-        payment.paymentMethod === "va"
+        !isComplimentary && payment.paymentMethod === "va"
           ? (payment.subPaymentMethod as ScalevVABankCode)
           : undefined,
     };
@@ -179,11 +187,13 @@ export function CheckoutPageClient({
   const summarySubtotal =
     discount.appliedDiscount?.subtotalAmount ?? service.price;
   const summaryTotal = discount.appliedDiscount?.totalAmount ?? service.price;
+  const isComplimentaryCheckout = summaryTotal === 0;
   const submitDisabled =
     isProcessing ||
-    !payment.paymentMethod ||
-    payment.isPaymentConfigLoading ||
-    Boolean(payment.paymentError);
+    (!isComplimentaryCheckout &&
+      (!payment.paymentMethod ||
+        payment.isPaymentConfigLoading ||
+        Boolean(payment.paymentError)));
 
   return (
     <div className="min-h-screen bg-background pb-28 pt-8 md:pb-8">
@@ -497,6 +507,7 @@ export function CheckoutPageClient({
                   phone: errors.customerPhone,
                 }}
               />
+              {isComplimentaryCheckout ? null : (
               <PaymentSelector
                 idPrefix="checkout"
                 className="animate-fade-slide-up animate-stagger-4"
@@ -511,6 +522,7 @@ export function CheckoutPageClient({
                 onSubPaymentMethodChange={payment.setSubPaymentMethod}
                 onRetry={payment.retryPaymentOptions}
               />
+              )}
             </div>
             <PricingSummary
               subtotal={summarySubtotal}

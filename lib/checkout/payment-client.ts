@@ -42,18 +42,29 @@ export async function submitCheckoutPayment({
     if (
       !response.ok ||
       !result.success ||
-      !result.paymentLink ||
       !result.paymentOrderId ||
-      !result.statusSessionId
+      !result.statusSessionId ||
+      (!result.complimentary && !result.paymentLink)
     ) {
       throw new Error(result.error || "Gagal membuat pembayaran.");
     }
 
-    const shouldOpenPaymentWindow = !isScalevHostedPublicOrderUrl(
-      result.paymentLink
-    );
+    if (result.complimentary) {
+      paymentWindow?.close();
+      return {
+        paymentOrderId: result.paymentOrderId,
+        statusSessionId: result.statusSessionId,
+      };
+    }
+
+    const paymentLink = result.paymentLink;
+    if (!paymentLink) {
+      throw new Error(result.error || "Gagal membuat pembayaran.");
+    }
+
+    const shouldOpenPaymentWindow = !isScalevHostedPublicOrderUrl(paymentLink);
     if (paymentWindow && shouldOpenPaymentWindow) {
-      paymentWindow.location.href = result.paymentLink;
+      paymentWindow.location.href = paymentLink;
     } else if (paymentWindow) {
       paymentWindow.close();
     } else if (shouldOpenPaymentWindow) {

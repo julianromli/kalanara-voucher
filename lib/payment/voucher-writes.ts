@@ -12,6 +12,7 @@ import type {
 import { updateOrderItemVoucherId, updateOrderVoucherId } from "@/lib/payment/order-writes";
 import { calculateExpiryDate } from "@/lib/payment/voucher-expiry";
 import { getVoucherDefaultExpirationDays } from "@/lib/payment/voucher-expiry-settings";
+import { voucherFaceValue } from "@/lib/payment/voucher-face-value";
 
 function generateVoucherCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -172,7 +173,7 @@ export async function createVoucherForPaidOrderItem(
     sender_name: order.customer_name,
     sender_message: item.sender_message,
     expiry_date: await resolveVoucherExpiryDate(),
-    amount: item.unit_price,
+    amount: voucherFaceValue(item),
     is_redeemed: false,
   });
 

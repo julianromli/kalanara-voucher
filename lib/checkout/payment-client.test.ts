@@ -104,6 +104,34 @@ describe("submitCheckoutPayment", () => {
     expect(POPUP_BLOCKED_MESSAGE).toMatch(/Popup pembayaran diblokir/);
   });
 
+  test("closes the popup and skips the payment page for a free order", async () => {
+    const popup = createPopup();
+    const onPopupBlocked = vi.fn();
+    vi.stubGlobal("open", vi.fn(() => popup as never));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: true,
+          complimentary: true,
+          paymentOrderId: "KSP-123",
+          statusSessionId: "status-1",
+        }),
+      })
+    );
+
+    await expect(
+      submitCheckoutPayment({ request, onPopupBlocked })
+    ).resolves.toEqual({
+      paymentOrderId: "KSP-123",
+      statusSessionId: "status-1",
+    });
+    expect(popup.close).toHaveBeenCalledOnce();
+    expect(popup.location.href).toBe("");
+    expect(onPopupBlocked).not.toHaveBeenCalled();
+  });
+
   test("closes the popup when payment creation fails", async () => {
     const popup = createPopup();
     vi.stubGlobal("open", vi.fn(() => popup as never));
