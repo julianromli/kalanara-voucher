@@ -83,7 +83,7 @@ Berlaku sampai: ${formattedExpiry}
 
 ━━━ *Siap untuk relaksasi?* ━━━
 
-📞 Reservasi: +62 361 123 4567
+📞 Reservasi: +62 896 9696 1000
 📍 Tunjukkan kode saat tiba
 🔗 Verifikasi: ${data.verifyUrl}
 

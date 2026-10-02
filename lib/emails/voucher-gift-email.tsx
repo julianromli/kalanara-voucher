@@ -50,7 +50,7 @@ export interface VoucherGiftEmailProps {
 }
 
 const redeemSteps = [
-  "Call us at +62 361 123 4567 to book your appointment",
+  "Call or WhatsApp us at +62 896 9696 1000 to book your appointment",
   "Present this voucher code when you arrive",
   "Enjoy your spa experience!",
 ];
@@ -178,9 +178,9 @@ export function VoucherGiftEmail({
             <Section style={styles.ctaSection} data-skip-in-text="true">
               <Button
                 style={styles.ctaButton}
-                href="tel:+623611234567"
+                href="https://wa.me/6289696961000"
               >
-                Book Your Appointment
+                Book via WhatsApp
               </Button>
             </Section>
           </Section>
@@ -191,14 +191,16 @@ export function VoucherGiftEmail({
             <Text style={styles.footerBrand}>KALANARA SPA</Text>
             <Text style={styles.footerText}>
               <Link
-                href="https://maps.google.com/?q=Jl.+Raya+Ubud+No.+88,+Ubud,+Bali+80571"
+                href="https://maps.google.com/?q=Ruko%20Grand%20Galaxy%20City%2C%20Jl.%20Boulevard%20Raya%20RSK%201%20No.28%2C%20RT.001%2FRW.002%2C%20Jaka%20Setia%2C%20Kec.%20Bekasi%20Sel.%2C%20Kota%20Bks%2C%20Jawa%20Barat%2017147"
                 style={styles.footerLink}
               >
-                Jl. Raya Ubud No. 88, Ubud, Bali 80571
+                Ruko Grand Galaxy City, Jl. Boulevard Raya RSK 1 No.28,
+                RT.001/RW.002, Jaka Setia, Kec. Bekasi Sel., Kota Bks, Jawa
+                Barat 17147
               </Link>
             </Text>
             <Text style={styles.footerText}>
-              +62 361 123 4567 |{" "}
+              +62 896 9696 1000 |{" "}
               <Link href="mailto:hello@kalanaraspa.com" style={styles.footerLink}>
                 hello@kalanaraspa.com
               </Link>

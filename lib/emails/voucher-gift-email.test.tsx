@@ -31,6 +31,7 @@ describe("VoucherGiftEmail", () => {
     expect(html).toContain("Rp 10.000");
     expect(html).toContain("March 30, 2027");
     expect(html).toContain("How to Redeem");
+    expect(html).toContain("+62 896 9696 1000");
   });
 
   test("renders the personal message when provided", async () => {

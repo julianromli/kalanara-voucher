@@ -18,14 +18,15 @@ export const APP_CONFIG = {
   description:
     "Experience the art of relaxation at Kalanara Spa. Gift wellness and serenity with our exclusive spa vouchers.",
   contact: {
-    phone: "+62 361 123 4567",
+    phone: "+62 896 9696 1000",
     email: "hello@kalanaraspa.com",
-    address: "Jl. Raya Ubud No. 88, Ubud, Bali 80571, Indonesia",
+    address:
+      "Ruko Grand Galaxy City, Jl. Boulevard Raya RSK 1 No.28, RT.001/RW.002, Jaka Setia, Kec. Bekasi Sel., Kota Bks, Jawa Barat 17147, Indonesia",
   },
   social: {
     instagram: "https://instagram.com/kalanaraspa",
     facebook: "https://facebook.com/kalanaraspa",
-    whatsapp: "https://wa.me/62361234567",
+    whatsapp: "https://wa.me/6289696961000",
   },
   voucherValidityMonths: DEFAULT_VOUCHER_VALIDITY_MONTHS,
   currency: "IDR",
