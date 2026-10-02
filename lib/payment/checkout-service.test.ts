@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => ({
   createScalevOrder: vi.fn(),
   createPaymentIntent: vi.fn(),
   createStatusSession: vi.fn(),
+  markDiscountSucceeded: vi.fn(),
+  getOrderForStatus: vi.fn(),
+  createVouchers: vi.fn(),
 }));
 
 vi.mock("@/lib/payment/order-writes", () => ({
@@ -33,6 +36,7 @@ vi.mock("@/lib/discounts/service", () => ({
   validateDiscountForCheckout: mocks.validateDiscount,
   createPendingDiscountRedemption: mocks.reserveDiscount,
   markDiscountRedemptionVoid: mocks.voidDiscount,
+  markDiscountRedemptionSucceeded: mocks.markDiscountSucceeded,
 }));
 
 vi.mock("@/lib/actions/services", () => ({
@@ -55,6 +59,14 @@ vi.mock("@/lib/scalev/config", () => ({
 
 vi.mock("@/lib/payment/order-status-sessions", () => ({
   createOrderStatusSession: mocks.createStatusSession,
+}));
+
+vi.mock("@/lib/payment/order-status-reads", () => ({
+  getOrderForStatusById: mocks.getOrderForStatus,
+}));
+
+vi.mock("@/lib/payment/voucher-service", () => ({
+  createVoucherOnPaymentSuccess: mocks.createVouchers,
 }));
 
 const validCheckout = {
@@ -132,6 +144,9 @@ describe("createScalevCheckout", () => {
     });
     mocks.markOrderFailed.mockResolvedValue(true);
     mocks.voidDiscount.mockResolvedValue(true);
+    mocks.markDiscountSucceeded.mockResolvedValue(true);
+    mocks.getOrderForStatus.mockResolvedValue({ id: "order-1" });
+    mocks.createVouchers.mockResolvedValue({ success: true, voucherCount: 1 });
   });
 
   test("validates delivery targets before performing checkout work", async () => {
@@ -183,7 +198,7 @@ describe("createScalevCheckout", () => {
     ]);
   });
 
-  test("rejects a stale provider payment method before loading services", async () => {
+  test("rejects a stale provider payment method before creating an order", async () => {
     const { createScalevCheckout } = await import(
       "@/lib/payment/checkout-service"
     );
@@ -204,7 +219,7 @@ describe("createScalevCheckout", () => {
       },
     });
     expect(mocks.getAvailability).toHaveBeenCalledOnce();
-    expect(mocks.getServiceById).not.toHaveBeenCalled();
+    expect(mocks.getServiceById).toHaveBeenCalledOnce();
     expect(mocks.createPendingOrder).not.toHaveBeenCalled();
     expect(mocks.createScalevOrder).not.toHaveBeenCalled();
   });
@@ -614,5 +629,87 @@ describe("createScalevCheckout", () => {
       },
     });
     expect(mocks.markOrderFailed).toHaveBeenCalledOnce();
+  });
+
+  test("issues vouchers for a zero total without calling Scalev", async () => {
+    const { createScalevCheckout } = await import(
+      "@/lib/payment/checkout-service"
+    );
+    mocks.validateDiscount.mockResolvedValue({
+      valid: true,
+      quote: {
+        ...discountQuote,
+        discountValue: 100,
+        discountAmount: 450000,
+        totalAmount: 0,
+      },
+    });
+
+    const result = await createScalevCheckout({
+      ...validCheckout,
+      paymentMethod: undefined,
+      discountCode: "DEVELOP",
+    });
+
+    expect(result).toEqual({
+      success: true,
+      body: {
+        success: true,
+        complimentary: true,
+        orderId: "KSP-123",
+        paymentOrderId: "KSP-123",
+        statusSessionId: "status-session-1",
+      },
+      statusSession: {
+        id: "status-session-1",
+        rawToken: "secret",
+      },
+    });
+    expect(mocks.ensureMapping).not.toHaveBeenCalled();
+    expect(mocks.createScalevOrder).not.toHaveBeenCalled();
+    expect(mocks.transitionOrderPaymentState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: "order-1",
+        targetStatus: "COMPLETED",
+        provider: "complimentary",
+      })
+    );
+    expect(mocks.markDiscountSucceeded).toHaveBeenCalledWith("order-1");
+    expect(mocks.createVouchers).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "order-1" })
+    );
+    expect(mocks.voidDiscount).not.toHaveBeenCalled();
+  });
+
+  test("rejects a payable remainder below the Scalev minimum", async () => {
+    const { createScalevCheckout } = await import(
+      "@/lib/payment/checkout-service"
+    );
+    mocks.validateDiscount.mockResolvedValue({
+      valid: true,
+      quote: {
+        ...discountQuote,
+        discountAmount: 445000,
+        totalAmount: 5000,
+      },
+    });
+
+    const result = await createScalevCheckout({
+      ...validCheckout,
+      discountCode: "KECIL",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      status: 400,
+      body: {
+        success: false,
+        error:
+          "Sisa pembayaran harus Rp 0 atau minimal Rp 10.000. Ubah kode diskon, lalu coba lagi.",
+        errorCode: "DISCOUNT_PAYABLE_AMOUNT_UNSUPPORTED",
+      },
+    });
+    expect(mocks.createPendingOrder).not.toHaveBeenCalled();
+    expect(mocks.createScalevOrder).not.toHaveBeenCalled();
   });
 });

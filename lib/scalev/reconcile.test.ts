@@ -88,6 +88,31 @@ describe("reconcilePublicOrderStatusByInternalOrderId", () => {
     buildPublicOrderStatusWithItemsMock.mockReturnValue({ status: "completed", vouchers: [] });
   });
 
+  test("fulfills a complimentary order without calling Scalev", async () => {
+    const { reconcilePublicOrderStatusByInternalOrderId } = await import(
+      "@/lib/scalev/reconcile"
+    );
+    getOrderForStatusByIdMock.mockResolvedValue({ id: "order-1" });
+    getOrderStatusDetailsWithItemsByIdMock.mockResolvedValue({
+      order_items: [],
+    });
+    getOrderStatusDetailsByIdMock.mockResolvedValue({
+      id: "order-1",
+      payment_status: "COMPLETED",
+      payment_provider: "complimentary",
+    });
+    buildPublicOrderStatusMock.mockReturnValue({ status: "completed" });
+
+    await expect(
+      reconcilePublicOrderStatusByInternalOrderId("order-1")
+    ).resolves.toEqual({ status: "completed" });
+    expect(markDiscountRedemptionSucceededMock).toHaveBeenCalledWith("order-1");
+    expect(createVoucherOnPaymentSuccessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "order-1" })
+    );
+    expect(checkScalevPaymentStatusMock).not.toHaveBeenCalled();
+  });
+
   test("re-enters delivery for completed linked vouchers without re-checking Scalev", async () => {
     const { reconcilePublicOrderStatusByInternalOrderId } = await import("@/lib/scalev/reconcile");
 

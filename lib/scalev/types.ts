@@ -62,11 +62,13 @@ export interface ScalevCheckoutLineItem {
   sendTo: SendTo;
 }
 
-interface ScalevCheckoutBaseRequest extends ScalevPaymentSelection {
+interface ScalevCheckoutBaseRequest {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
   discountCode?: string;
+  paymentMethod?: ScalevPaymentMethod;
+  subPaymentMethod?: ScalevVABankCode;
 }
 
 export interface ScalevLegacyCheckoutRequest extends ScalevCheckoutBaseRequest {
@@ -100,6 +102,7 @@ export type ScalevCreatePaymentErrorCode =
   | "SERVICE_UNAVAILABLE"
   | "PAYMENT_METHOD_UNAVAILABLE"
   | "DISCOUNT_CODE_INVALID"
+  | "DISCOUNT_PAYABLE_AMOUNT_UNSUPPORTED"
   | "DISCOUNT_GATEWAY_REJECTED"
   | "LOCAL_ORDER_FAILED"
   | "SCALEV_PAYMENT_FAILED"
@@ -109,6 +112,7 @@ export type ScalevCreatePaymentErrorCode =
 export interface ScalevCreatePaymentResponse {
   success: boolean;
   paymentLink?: string;
+  complimentary?: boolean;
   orderId?: string;
   paymentOrderId?: string;
   statusSessionId?: string;

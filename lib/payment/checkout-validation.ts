@@ -19,7 +19,7 @@ export interface ValidatedCheckoutRequest {
   customerEmail: string;
   customerPhone: string;
   discountCode?: string;
-  paymentMethod: ScalevPaymentMethod;
+  paymentMethod?: ScalevPaymentMethod;
   subPaymentMethod?: ScalevVABankCode;
   lineItems: ValidatedCheckoutLineItem[];
 }
@@ -110,17 +110,17 @@ export function validateCheckoutRequest(
   const customerName = getOptionalString(data.customerName);
   const customerEmail = getOptionalString(data.customerEmail);
   const customerPhone = getOptionalString(data.customerPhone);
-  const paymentMethod =
-    typeof data.paymentMethod === "string" ? data.paymentMethod : "";
-
+  const paymentMethodValue = getOptionalString(data.paymentMethod);
   if (
     !customerName ||
     !customerEmail ||
     !customerPhone ||
-    !isScalevPaymentMethod(paymentMethod)
+    (paymentMethodValue !== undefined &&
+      !isScalevPaymentMethod(paymentMethodValue))
   ) {
     return null;
   }
+  const paymentMethod = paymentMethodValue as ScalevPaymentMethod | undefined;
 
   const customer = {
     customerName,

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Edit2, Loader2, Plus, TicketPercent } from "lucide-react";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
+import { DiscountCheckoutLimitNotice } from "@/components/admin/discount-checkout-limit-notice";
 import { AdminPageBody, AdminPageIntro, AdminSurface } from "@/components/admin/admin-page";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -297,6 +298,7 @@ export function DiscountCodesClient({
             Tambah Promo
           </Button>
         </AdminPageIntro>
+        <DiscountCheckoutLimitNotice />
 
         <AdminSurface className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
           <Input
@@ -416,6 +418,7 @@ export function DiscountCodesClient({
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            <DiscountCheckoutLimitNotice />
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">
                 Kode

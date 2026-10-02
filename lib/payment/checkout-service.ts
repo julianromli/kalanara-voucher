@@ -2,7 +2,13 @@ import "server-only";
 
 import { getServiceById } from "@/lib/actions/services";
 import {
+  DISCOUNT_PAYABLE_AMOUNT_MESSAGE,
+  isComplimentaryCheckoutTotal,
+  isSupportedCheckoutTotal,
+} from "@/lib/discounts/checkout-limits";
+import {
   createPendingDiscountRedemption,
+  markDiscountRedemptionSucceeded,
   markDiscountRedemptionVoid,
   validateDiscountForCheckout,
   type DiscountQuote,
@@ -13,7 +19,9 @@ import {
   markOrderFailedFromGateway,
 } from "@/lib/payment/order-writes";
 import { createOrderStatusSession } from "@/lib/payment/order-status-sessions";
+import { getOrderForStatusById } from "@/lib/payment/order-status-reads";
 import { transitionOrderPaymentState } from "@/lib/payment/payment-state";
+import { createVoucherOnPaymentSuccess } from "@/lib/payment/voucher-service";
 import {
   createScalevOrder,
   createScalevPaymentIntent,
@@ -275,6 +283,19 @@ async function runCheckoutAttempt(input: {
       );
     }
 
+    if (isComplimentaryCheckoutTotal(totalAmount)) {
+      return await completeComplimentaryCheckout(context, order.id);
+    }
+
+    if (!checkout.paymentMethod) {
+      context.markOrderFailed = true;
+      return failure(
+        "Pilih metode pembayaran terlebih dahulu.",
+        "PAYMENT_METHOD_UNAVAILABLE",
+        400
+      );
+    }
+
     try {
       const scalevOrder = await createScalevOrder({
         customer_name: checkout.customerName,
@@ -421,6 +442,72 @@ async function runCheckoutAttempt(input: {
   }
 }
 
+async function completeComplimentaryCheckout(
+  context: CheckoutAttemptContext,
+  orderId: string
+): Promise<CheckoutServiceResult> {
+  const completedAt = new Date().toISOString();
+  const gatewayTransition = await transitionOrderPaymentState({
+    orderId,
+    targetStatus: "COMPLETED",
+    provider: "complimentary",
+    providerEventAt: completedAt,
+    gatewayUpdate: {
+      paymentProvider: "complimentary",
+      paymentType: "complimentary",
+      transactionTime: completedAt,
+    },
+  });
+
+  if (!gatewayTransition.accepted) {
+    context.markOrderFailed = true;
+    return failure(
+      "Pesanan gratis belum bisa diselesaikan. Silakan coba lagi.",
+      "LOCAL_ORDER_FAILED",
+      500
+    );
+  }
+
+  context.completed = true;
+  const redemptionMarked = await markDiscountRedemptionSucceeded(orderId);
+  if (!redemptionMarked) {
+    console.error("[Checkout] Failed to mark complimentary discount redemption", {
+      orderId,
+    });
+  }
+
+  try {
+    const latestOrder = await getOrderForStatusById(orderId);
+    if (latestOrder) {
+      const vouchers = await createVoucherOnPaymentSuccess(latestOrder);
+      if (!vouchers.success) {
+        console.error("[Checkout] Complimentary voucher creation needs a retry", {
+          orderId,
+        });
+      }
+    }
+  } catch (error) {
+    console.error("[Checkout] Complimentary voucher creation failed", {
+      orderId,
+      error,
+    });
+  }
+
+  const statusSession = await createOrderStatusSession({ orderId });
+  const paymentOrderId = context.order?.payment_order_id ?? undefined;
+  return {
+    success: true,
+    body: {
+      success: true,
+      complimentary: true,
+      orderId: paymentOrderId,
+      paymentOrderId,
+      statusSessionId: statusSession.id,
+    },
+    statusSession,
+  };
+}
+
 export async function createScalevCheckout(
   body: unknown
 ): Promise<CheckoutServiceResult> {
@@ -430,23 +517,6 @@ export async function createScalevCheckout(
       return failure(
         "Data checkout tidak valid.",
         "INVALID_CHECKOUT_DATA",
-        400
-      );
-    }
-
-    const availability = await getScalevCheckoutAvailability();
-    const methodAllowed = availability.paymentMethods.includes(
-      checkout.paymentMethod
-    );
-    const subMethodAllowed =
-      checkout.paymentMethod !== "va" ||
-      availability.subPaymentMethods.includes(
-        checkout.subPaymentMethod as ScalevVABankCode
-      );
-    if (!methodAllowed || !subMethodAllowed) {
-      return failure(
-        "Metode pembayaran tidak tersedia.",
-        "PAYMENT_METHOD_UNAVAILABLE",
         400
       );
     }
@@ -487,21 +557,57 @@ export async function createScalevCheckout(
     const discountQuote =
       discountValidation?.valid ? discountValidation.quote : null;
     const totalAmount = discountQuote?.totalAmount ?? subtotalAmount;
-    let mappings: Awaited<ReturnType<typeof ensureScalevServiceMapping>>[];
-    try {
-      mappings = await Promise.all(
-        services.map((service) => ensureScalevServiceMapping(service))
-      );
-    } catch (error) {
-      console.error(
-        "[Scalev] Catalog synchronization failed before checkout:",
-        error
-      );
+    if (!isSupportedCheckoutTotal(totalAmount)) {
       return failure(
-        "Gagal menyiapkan layanan untuk pembayaran. Silakan coba lagi.",
-        "SCALEV_PAYMENT_FAILED",
-        502
+        DISCOUNT_PAYABLE_AMOUNT_MESSAGE,
+        "DISCOUNT_PAYABLE_AMOUNT_UNSUPPORTED",
+        400
       );
+    }
+
+    const complimentary = isComplimentaryCheckoutTotal(totalAmount);
+    let mappings: Awaited<ReturnType<typeof ensureScalevServiceMapping>>[] = [];
+    if (!complimentary) {
+      if (!checkout.paymentMethod) {
+        return failure(
+          "Pilih metode pembayaran terlebih dahulu.",
+          "PAYMENT_METHOD_UNAVAILABLE",
+          400
+        );
+      }
+
+      const availability = await getScalevCheckoutAvailability();
+      const methodAllowed = availability.paymentMethods.includes(
+        checkout.paymentMethod
+      );
+      const subMethodAllowed =
+        checkout.paymentMethod !== "va" ||
+        availability.subPaymentMethods.includes(
+          checkout.subPaymentMethod as ScalevVABankCode
+        );
+      if (!methodAllowed || !subMethodAllowed) {
+        return failure(
+          "Metode pembayaran tidak tersedia.",
+          "PAYMENT_METHOD_UNAVAILABLE",
+          400
+        );
+      }
+
+      try {
+        mappings = await Promise.all(
+          services.map((service) => ensureScalevServiceMapping(service))
+        );
+      } catch (error) {
+        console.error(
+          "[Scalev] Catalog synchronization failed before checkout:",
+          error
+        );
+        return failure(
+          "Gagal menyiapkan layanan untuk pembayaran. Silakan coba lagi.",
+          "SCALEV_PAYMENT_FAILED",
+          502
+        );
+      }
     }
 
     return await runCheckoutAttempt({

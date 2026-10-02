@@ -16,6 +16,7 @@ import type {
   OrderWithVoucher,
 } from "@/lib/database.types";
 import { sortOrderItems } from "@/lib/orderItems";
+import { voucherFaceValue } from "@/lib/payment/voucher-face-value";
 import { DeliveryMethod, SendTo } from "@/lib/types";
 import {
   buildScalevPublicOrderUrl,
@@ -172,7 +173,7 @@ function buildVoucherPayloadFromOrderItem(
     senderMessage: item.sender_message,
     serviceName: item.services?.name || "Layanan Spa",
     serviceDuration: item.services?.duration || 60,
-    amount: item.unit_price,
+    amount: voucherFaceValue(item),
     expiryDate: voucher.expiry_date,
     deliveryMethod: item.delivery_method as DeliveryMethod,
     sendTo: item.send_to as SendTo,

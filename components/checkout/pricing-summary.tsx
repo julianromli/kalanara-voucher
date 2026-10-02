@@ -28,10 +28,12 @@ export function CheckoutSubmitButton({
   isProcessing,
   disabled,
   className,
+  label = "Lanjut ke Pembayaran",
 }: {
   isProcessing: boolean;
   disabled: boolean;
   className: string;
+  label?: string;
 }) {
   return (
     <Button
@@ -46,7 +48,7 @@ export function CheckoutSubmitButton({
           Memproses...
         </>
       ) : (
-        "Lanjut ke Pembayaran"
+        label
       )}
     </Button>
   );
@@ -62,6 +64,10 @@ export function PricingSummary({
   children,
 }: PricingSummaryProps) {
   const discountAmount = discount.appliedDiscount?.discountAmount ?? 0;
+  const isComplimentary = total === 0;
+  const submitLabel = isComplimentary
+    ? "Selesaikan Pesanan Gratis"
+    : "Lanjut ke Pembayaran";
   return (
     <aside className="lg:sticky lg:top-24 lg:h-fit">
       <div className="animate-scale-in rounded-2xl border border-border bg-card p-4 sm:p-6">
@@ -147,10 +153,13 @@ export function PricingSummary({
         <CheckoutSubmitButton
           isProcessing={isProcessing}
           disabled={isSubmitDisabled}
+          label={submitLabel}
           className="btn-hover-lift mt-6 hidden min-h-14 w-full bg-primary text-base text-primary-foreground hover:bg-primary/90 md:flex"
         />
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          Pembayaran diproses aman melalui Scalev.
+          {isComplimentary
+            ? "Pesanan gratis. Voucher langsung diterbitkan tanpa pembayaran."
+            : "Pembayaran diproses aman melalui Scalev."}
         </p>
       </div>
     </aside>
@@ -180,6 +189,7 @@ export function MobileCheckoutCta({
         <CheckoutSubmitButton
           isProcessing={isProcessing}
           disabled={disabled}
+          label={total === 0 ? "Selesaikan Pesanan Gratis" : "Lanjut ke Pembayaran"}
           className="min-h-12 flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
         />
       </div>

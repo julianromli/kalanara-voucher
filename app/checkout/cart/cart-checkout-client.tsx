@@ -204,12 +204,14 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
       return;
     }
 
-    if (!paymentMethod) {
+    const payableTotal = discount.appliedDiscount?.totalAmount ?? totalAmount;
+    const isComplimentary = payableTotal === 0;
+    if (!isComplimentary && !paymentMethod) {
       showToast("Pilih metode pembayaran terlebih dahulu.", "error");
       return;
     }
 
-    if (paymentMethod === "va" && !subPaymentMethod) {
+    if (!isComplimentary && paymentMethod === "va" && !subPaymentMethod) {
       showToast("Pilih bank virtual account.", "error");
       return;
     }
@@ -221,8 +223,11 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
         customerEmail: data.customerEmail.trim(),
         customerPhone: normalizePhoneInput(data.customerPhone),
         discountCode: discount.appliedDiscount?.code,
-        paymentMethod,
-        subPaymentMethod: paymentMethod === "va" ? (subPaymentMethod as ScalevVABankCode) : undefined,
+        paymentMethod: isComplimentary ? undefined : paymentMethod ?? undefined,
+        subPaymentMethod:
+          !isComplimentary && paymentMethod === "va"
+            ? (subPaymentMethod as ScalevVABankCode)
+            : undefined,
         lineItems: data.lineItems.map(buildCheckoutLineItem),
       };
       const result = await submitCheckoutPayment({
@@ -283,7 +288,11 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
 
   const summarySubtotal = discount.appliedDiscount?.subtotalAmount ?? totalAmount;
   const summaryTotal = discount.appliedDiscount?.totalAmount ?? totalAmount;
-  const submitDisabled = isProcessing || !paymentMethod || isPaymentConfigLoading || Boolean(paymentError);
+  const isComplimentaryCheckout = summaryTotal === 0;
+  const submitDisabled =
+    isProcessing ||
+    (!isComplimentaryCheckout &&
+      (!paymentMethod || isPaymentConfigLoading || Boolean(paymentError)));
 
   return (
     <div className="min-h-screen bg-background pb-28 pt-8 md:pb-8">
@@ -681,6 +690,7 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
                 </div>
               </section>
 
+              {isComplimentaryCheckout ? null : (
               <PaymentSelector
                 idPrefix="cart"
                 paymentConfig={paymentConfig}
@@ -694,6 +704,7 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
                 onSubPaymentMethodChange={setSubPaymentMethod}
                 onRetry={retryPaymentOptions}
               />
+              )}
             </div>
 
             <PricingSummary
