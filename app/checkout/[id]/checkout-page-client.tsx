@@ -66,7 +66,6 @@ export function CheckoutPageClient({
     register,
     handleSubmit,
     watch,
-    trigger,
     clearErrors,
     setFocus,
     setValue,
@@ -104,8 +103,7 @@ export function CheckoutPageClient({
   useEffect(() => {
     clearErrors(["recipientPhone", "recipientEmail"]);
     announce(buildConditionalFieldAnnouncement(sendTo, deliveryMethod));
-    void trigger(["recipientPhone", "recipientEmail"]);
-  }, [announce, clearErrors, deliveryMethod, sendTo, trigger]);
+  }, [announce, clearErrors, deliveryMethod, sendTo]);
 
   const registerPhone = (
     fieldName: "customerPhone" | "recipientPhone",

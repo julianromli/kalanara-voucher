@@ -1,5 +1,8 @@
 import { AlertCircle, CreditCard } from "lucide-react";
-import { PaymentMethodMark } from "@/components/checkout/payment-method-mark";
+import {
+  getPaymentMark,
+  PaymentMethodMark,
+} from "@/components/checkout/payment-method-mark";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getPaymentMethodDescription } from "@/lib/checkout/client";
@@ -89,6 +92,7 @@ export function PaymentSelector(props: PaymentSelectorProps) {
             {paymentOptions.map((option) => {
               const radioId = `${idPrefix}-payment-${option.code}`;
               const selected = paymentMethod === option.code;
+              const mark = getPaymentMark(option.code);
               return (
                 <label
                   key={option.code}
@@ -109,7 +113,15 @@ export function PaymentSelector(props: PaymentSelectorProps) {
                     className="sr-only"
                   />
                   <PaymentMethodMark code={option.code} />
-                  <span className="font-medium text-foreground">{option.label}</span>
+                  <span
+                    className={
+                      mark?.wordmark
+                        ? "sr-only"
+                        : "font-medium text-foreground"
+                    }
+                  >
+                    {option.label}
+                  </span>
                   {option.code === "qris" ? (
                     <span className="ml-auto rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                       Paling mudah
