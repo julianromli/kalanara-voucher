@@ -3,6 +3,8 @@
  * @description Generates WhatsApp Web URLs for sending voucher messages
  */
 
+import { APP_CONFIG } from "@/lib/constants";
+
 export interface WhatsAppVoucherData {
   recipientPhone: string;
   recipientName: string;
@@ -83,7 +85,7 @@ Berlaku sampai: ${formattedExpiry}
 
 ━━━ *Siap untuk relaksasi?* ━━━
 
-📞 Reservasi: +62 361 123 4567
+📞 Reservasi: ${APP_CONFIG.contact.phone}
 📍 Tunjukkan kode saat tiba
 🔗 Verifikasi: ${data.verifyUrl}
 

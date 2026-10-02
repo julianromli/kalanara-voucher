@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { APP_CONFIG } from "@/lib/constants";
 import {
   getAuthorizedVoucherDelivery,
   type AuthorizedVoucherDelivery,
@@ -194,7 +195,7 @@ export async function POST(request: NextRequest) {
             <td style="padding: 0 40px 40px;">
               <h3 style="margin: 0 0 16px; color: #343f2c; font-size: 18px;">How to Redeem</h3>
               <ol style="margin: 0; padding: 0 0 0 20px; color: #5d4a3b; font-size: 14px; line-height: 1.8;">
-                <li>Call us at +62 361 123 4567 to book your appointment</li>
+                <li>Call us at ${APP_CONFIG.contact.phone} to book your appointment</li>
                 <li>Present this voucher code when you arrive</li>
                 <li>Enjoy your spa experience!</li>
               </ol>
@@ -206,7 +207,7 @@ export async function POST(request: NextRequest) {
             <td style="background-color: #f6f7f4; padding: 32px 40px; text-align: center;">
               <p style="margin: 0 0 8px; color: #343f2c; font-size: 16px; font-weight: 600;">KALANARA SPA</p>
               <p style="margin: 0 0 4px; color: #5d4a3b; font-size: 13px;">Jl. Raya Ubud No. 88, Ubud, Bali 80571</p>
-              <p style="margin: 0; color: #5d4a3b; font-size: 13px;">+62 361 123 4567 | hello@kalanaraspa.com</p>
+              <p style="margin: 0; color: #5d4a3b; font-size: 13px;">${APP_CONFIG.contact.phone} | hello@kalanaraspa.com</p>
             </td>
           </tr>
           
