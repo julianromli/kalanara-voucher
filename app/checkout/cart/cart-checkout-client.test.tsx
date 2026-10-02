@@ -188,12 +188,13 @@ describe("CartCheckoutClient", () => {
     expect(await screen.findByText("QRIS")).toBeInTheDocument();
     expect(screen.getAllByPlaceholderText("Nama penerima voucher")).toHaveLength(2);
 
-    fireEvent.click(screen.getByLabelText("Gunakan penerima yang sama"));
+    fireEvent.click(screen.getByLabelText("Pakai data yang sama untuk semua voucher"));
 
     expect(screen.getAllByPlaceholderText("Nama penerima voucher")).toHaveLength(1);
-    expect(screen.getByText("Semua voucher di bawah mengikuti Voucher 1.")).toBeInTheDocument();
+    expect(screen.getByText("Semua voucher mengikuti voucher pertama.")).toBeInTheDocument();
     expect(screen.getByText("Data utama penerima")).toBeInTheDocument();
     expect(screen.getAllByText("Mengikuti Voucher 1").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("radio", { name: "Untuk orang lain" }));
 
     fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {
       target: { value: "Penerima Utama" },
@@ -209,7 +210,7 @@ describe("CartCheckoutClient", () => {
       expect(screen.getByText("0812 9999 0000")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText("Gunakan penerima yang sama"));
+    fireEvent.click(screen.getByLabelText("Pakai data yang sama untuk semua voucher"));
 
     expect(screen.getAllByPlaceholderText("Nama penerima voucher")).toHaveLength(2);
     expect(screen.getAllByDisplayValue("Penerima Utama")).toHaveLength(2);
@@ -243,9 +244,16 @@ describe("CartCheckoutClient", () => {
       "cart-customer-phone"
     );
 
-    const recipientNames = screen.getAllByLabelText("Nama Penerima");
-    const senderMessages = screen.getAllByLabelText("Pesan untuk Penerima");
-    const recipientPhones = screen.getAllByLabelText("WhatsApp Penerima");
+    const otherRecipientRadios = screen.getAllByRole("radio", { name: "Untuk orang lain" });
+    fireEvent.click(otherRecipientRadios[0]);
+    fireEvent.click(otherRecipientRadios[1]);
+    const messageButtons = screen.getAllByRole("button", { name: "Tambah ucapan" });
+    fireEvent.click(messageButtons[0]);
+    fireEvent.click(messageButtons[1]);
+
+    const recipientNames = screen.getAllByLabelText("Nama penerima");
+    const senderMessages = screen.getAllByLabelText("Pesan untuk penerima");
+    const recipientPhones = screen.getAllByLabelText("WhatsApp penerima");
     expect(recipientNames).toHaveLength(2);
     expect(senderMessages).toHaveLength(2);
     expect(recipientPhones).toHaveLength(2);
@@ -274,7 +282,7 @@ describe("CartCheckoutClient", () => {
       );
     }
 
-    const secondRecipientRadio = screen.getAllByRole("radio", { name: "Saya" })[1];
+    const secondRecipientRadio = screen.getAllByRole("radio", { name: "Untuk saya" })[1];
     const secondRecipientCard = secondRecipientRadio.closest("label");
     expect(secondRecipientCard).toHaveAttribute("for", secondRecipientRadio.id);
     expect(secondRecipientCard?.className).toMatch(
@@ -285,11 +293,13 @@ describe("CartCheckoutClient", () => {
     await user.keyboard("[Space]");
     expect(secondRecipientRadio).toBeChecked();
 
-    const firstEmailDelivery = screen.getAllByRole("radio", { name: "Email" })[0];
-    firstEmailDelivery.focus();
+    const firstIncludeEmail = screen.getAllByRole("checkbox", {
+      name: "Kirim juga lewat email",
+    })[0];
+    firstIncludeEmail.focus();
     await user.keyboard("[Space]");
-    expect(firstEmailDelivery).toBeChecked();
-    expect(await screen.findAllByLabelText("Email Penerima")).toHaveLength(1);
+    expect(firstIncludeEmail).toBeChecked();
+    expect(await screen.findAllByLabelText("Email penerima")).toHaveLength(1);
 
     const vaPayment = screen.getByRole("radio", { name: /^Virtual Account/ });
     expect(vaPayment).toHaveAttribute("id", "cart-payment-va");
@@ -307,7 +317,7 @@ describe("CartCheckoutClient", () => {
     );
     expect(firstRecipientName).toHaveAttribute(
       "aria-describedby",
-      `${firstRecipientName.id}-error`
+      `${firstRecipientName.id}-help ${firstRecipientName.id}-error`
     );
     expect(document.getElementById(`${firstRecipientName.id}-error`)).toHaveTextContent(
       "Nama penerima wajib diisi"
@@ -345,7 +355,8 @@ describe("CartCheckoutClient", () => {
 
     expect(await screen.findByText("QRIS")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText("Gunakan penerima yang sama"));
+    fireEvent.click(screen.getByLabelText("Pakai data yang sama untuk semua voucher"));
+    fireEvent.click(screen.getByRole("radio", { name: "Untuk orang lain" }));
     expect(screen.getAllByText("Mengikuti Voucher 1").length).toBeGreaterThan(0);
 
     fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {

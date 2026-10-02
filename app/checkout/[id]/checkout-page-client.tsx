@@ -4,14 +4,14 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { type SubmitErrorHandler, useForm } from "react-hook-form";
-import { ChevronLeft, Gift, Mail, MessageCircle, Send } from "lucide-react";
+import { ChevronLeft, Gift } from "lucide-react";
 import { CustomerFields } from "@/components/checkout/customer-fields";
 import { PaymentSelector } from "@/components/checkout/payment-selector";
+import { VoucherDeliveryFields } from "@/components/checkout/voucher-delivery-fields";
 import {
   MobileCheckoutCta,
   PricingSummary,
 } from "@/components/checkout/pricing-summary";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/context/ToastContext";
 import { useCheckoutDiscount } from "@/hooks/use-checkout-discount";
 import { usePaymentOptions } from "@/hooks/usePaymentOptions";
@@ -20,9 +20,9 @@ import {
   buildCheckoutLineItem,
   buildConditionalFieldAnnouncement,
   getContactVisibility,
-  getDeliveryPreview,
   normalizePhoneInput,
   PHONE_PATTERN,
+  resolveCheckoutRecipientName,
 } from "@/lib/checkout/client";
 import {
   getPaymentStatusPath,
@@ -66,13 +66,13 @@ export function CheckoutPageClient({
     register,
     handleSubmit,
     watch,
-    trigger,
     clearErrors,
     setFocus,
+    setValue,
     formState: { errors },
   } = useForm<CheckoutForm>({
     defaultValues: {
-      sendTo: SendTo.RECIPIENT,
+      sendTo: SendTo.PURCHASER,
       deliveryMethod: DeliveryMethod.WHATSAPP,
       recipientName: "",
       recipientPhone: "",
@@ -103,8 +103,7 @@ export function CheckoutPageClient({
   useEffect(() => {
     clearErrors(["recipientPhone", "recipientEmail"]);
     announce(buildConditionalFieldAnnouncement(sendTo, deliveryMethod));
-    void trigger(["recipientPhone", "recipientEmail"]);
-  }, [announce, clearErrors, deliveryMethod, sendTo, trigger]);
+  }, [announce, clearErrors, deliveryMethod, sendTo]);
 
   const registerPhone = (
     fieldName: "customerPhone" | "recipientPhone",
@@ -141,6 +140,11 @@ export function CheckoutPageClient({
     const lineItem = buildCheckoutLineItem({
       serviceId: service.id,
       ...data,
+      recipientName: resolveCheckoutRecipientName(
+        data.recipientName,
+        data.customerName,
+        data.sendTo
+      ),
     });
     const request: ScalevCheckoutRequest = {
       ...lineItem,
@@ -223,7 +227,7 @@ export function CheckoutPageClient({
             Selesaikan Pembelian
           </h1>
           <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-            Isi data penerima, pilih cara kirim, lalu lanjut ke pembayaran.
+            Isi data kamu, lalu lanjut ke pembayaran.
           </p>
         </div>
         <form
@@ -235,249 +239,49 @@ export function CheckoutPageClient({
             <div className="space-y-6">
               <section className="animate-fade-slide-up animate-stagger-1 rounded-2xl border border-border bg-card p-4 sm:p-6">
                 <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-                  <Gift size={20} aria-hidden="true" /> Untuk siapa voucher ini?
+                  <Gift size={20} aria-hidden="true" /> Voucher
                 </h2>
-                <div className="space-y-4">
-                  <div>
-                    <label
-                      htmlFor="checkout-recipient-name"
-                      className="mb-2 block text-sm font-medium text-muted-foreground"
-                    >
-                      Nama Penerima
-                    </label>
-                    <Input
-                      id="checkout-recipient-name"
-                      {...register("recipientName", {
-                        required: "Nama penerima wajib diisi",
-                      })}
-                      placeholder="Nama penerima voucher"
-                      className={errors.recipientName ? "border-destructive" : ""}
-                      aria-invalid={Boolean(errors.recipientName)}
-                      aria-describedby={[
-                        "checkout-recipient-name-help",
-                        errors.recipientName
-                          ? "checkout-recipient-name-error"
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                    />
-                    <p
-                      id="checkout-recipient-name-help"
-                      className="mt-1 text-xs text-muted-foreground"
-                    >
-                      Nama ini akan tercetak di voucher.
-                    </p>
-                    {errors.recipientName ? (
-                      <p
-                        id="checkout-recipient-name-error"
-                        className="mt-1 text-xs text-destructive"
-                        role="alert"
-                      >
-                        {errors.recipientName.message}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="checkout-sender-message"
-                      className="mb-2 block text-sm font-medium text-muted-foreground"
-                    >
-                      Pesan untuk Penerima
-                    </label>
-                    <textarea
-                      id="checkout-sender-message"
-                      {...register("senderMessage")}
-                      rows={3}
-                      placeholder="Tulis pesan singkat jika mau"
-                      className="min-h-24 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
-                      aria-invalid={false}
-                    />
-                  </div>
-                  <div>
-                    <p className="mb-2 block text-sm font-medium text-muted-foreground">
-                      Kirim Voucher Ke
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        {
-                          value: SendTo.RECIPIENT,
-                          label: "Langsung ke Penerima",
-                        },
-                        { value: SendTo.PURCHASER, label: "Kirim ke Saya" },
-                      ].map((option) => {
-                        const id = `checkout-send-to-${option.value}`;
-                        return (
-                          <label
-                            key={option.value}
-                            htmlFor={id}
-                            className={`flex min-h-14 cursor-pointer items-center justify-center rounded-xl border p-3 text-center text-sm transition-[color,background-color,border-color,box-shadow] focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 sm:text-base ${sendTo === option.value ? "border-primary bg-muted font-medium text-foreground" : "border-border text-muted-foreground hover:border-muted-foreground"}`}
-                          >
-                            <input
-                              id={id}
-                              type="radio"
-                              value={option.value}
-                              {...register("sendTo", { required: true })}
-                              className="sr-only"
-                            />
-                            {option.label}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </section>
-              <section className="animate-fade-slide-up animate-stagger-2 rounded-2xl border border-border bg-card p-4 sm:p-6">
-                <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-                  <Send size={20} aria-hidden="true" /> Cara kirim voucher
-                </h2>
-                <div className="space-y-5">
-                  <div className="space-y-3">
-                    {[
-                      {
-                        value: DeliveryMethod.WHATSAPP,
-                        label: "WhatsApp",
-                        icon: MessageCircle,
-                      },
-                      {
-                        value: DeliveryMethod.EMAIL,
-                        label: "Email",
-                        icon: Mail,
-                      },
-                      {
-                        value: DeliveryMethod.BOTH,
-                        label: "Email & WhatsApp",
-                        icon: Send,
-                      },
-                    ].map((method) => {
-                      const id = `checkout-delivery-${method.value}`;
-                      return (
-                        <label
-                          key={method.value}
-                          htmlFor={id}
-                          className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border p-4 transition-[background-color,border-color,box-shadow] focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${deliveryMethod === method.value ? "border-primary bg-muted" : "border-border hover:border-muted-foreground"}`}
-                        >
-                          <input
-                            id={id}
-                            type="radio"
-                            value={method.value}
-                            {...register("deliveryMethod", { required: true })}
-                            className="sr-only"
-                          />
-                          <method.icon
-                            size={20}
-                            className="text-muted-foreground"
-                          />
-                          <span className="text-sm text-foreground sm:text-base">
-                            {method.label}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <div className="rounded-2xl border border-border bg-background p-4">
-                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                      Delivery Preview
-                    </p>
-                    <p className="mt-2 text-sm text-foreground">
-                      {getDeliveryPreview(sendTo, deliveryMethod)}
-                    </p>
-                  </div>
-                  {sendTo === SendTo.PURCHASER ? (
-                    <div className="rounded-2xl border border-border bg-muted/50 p-4 text-sm text-muted-foreground">
-                      Voucher tetap memakai nama penerima di voucher, tetapi
-                      pengiriman akan dikirim ke kontak kamu.
-                    </div>
-                  ) : null}
-                  {showRecipientPhone ? (
-                    <div>
-                      <label
-                        htmlFor="checkout-recipient-phone"
-                        className="mb-2 block text-sm font-medium text-muted-foreground"
-                      >
-                        WhatsApp Penerima
-                      </label>
-                      <Input
-                        id="checkout-recipient-phone"
-                        {...registerPhone(
-                          "recipientPhone",
-                          "Nomor WhatsApp penerima wajib diisi"
-                        )}
-                        placeholder="+62 812 3456 7890"
-                        className={
-                          errors.recipientPhone ? "border-destructive" : ""
+                <VoucherDeliveryFields
+                  idPrefix="checkout"
+                  sendTo={sendTo}
+                  deliveryMethod={deliveryMethod}
+                  senderMessage={watch("senderMessage")}
+                  registerSendTo={() => register("sendTo", { required: true })}
+                  recipientNameRegistration={register("recipientName", {
+                    validate: (value) =>
+                      sendTo === SendTo.RECIPIENT && !String(value ?? "").trim()
+                        ? "Nama penerima wajib diisi"
+                        : true,
+                  })}
+                  recipientNameError={errors.recipientName}
+                  senderMessageRegistration={register("senderMessage")}
+                  recipientPhoneRegistration={registerPhone(
+                    "recipientPhone",
+                    showRecipientPhone ? "Nomor WhatsApp penerima wajib diisi" : false
+                  )}
+                  recipientPhoneError={errors.recipientPhone}
+                  recipientEmailRegistration={register("recipientEmail", {
+                    required: showRecipientEmail ? "Email penerima wajib diisi" : false,
+                    pattern: showRecipientEmail
+                      ? {
+                          value: /^\S+@\S+$/i,
+                          message: "Format email tidak valid",
                         }
-                        aria-invalid={Boolean(errors.recipientPhone)}
-                        aria-describedby={[
-                          "checkout-recipient-phone-help",
-                          errors.recipientPhone
-                            ? "checkout-recipient-phone-error"
-                            : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                      />
-                      <p
-                        id="checkout-recipient-phone-help"
-                        className="mt-1 text-xs text-muted-foreground"
-                      >
-                        Gunakan format 08xxxxxxxx atau +62xxxxxxxx
-                      </p>
-                      {errors.recipientPhone ? (
-                        <p
-                          id="checkout-recipient-phone-error"
-                          className="mt-1 text-xs text-destructive"
-                          role="alert"
-                        >
-                          {errors.recipientPhone.message}
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {showRecipientEmail ? (
-                    <div>
-                      <label
-                        htmlFor="checkout-recipient-email"
-                        className="mb-2 block text-sm font-medium text-muted-foreground"
-                      >
-                        Email Penerima
-                      </label>
-                      <Input
-                        id="checkout-recipient-email"
-                        {...register("recipientEmail", {
-                          required: "Email penerima wajib diisi",
-                          pattern: {
-                            value: /^\S+@\S+$/i,
-                            message: "Format email tidak valid",
-                          },
-                          setValueAs: (value: unknown) =>
-                            typeof value === "string" ? value.trim() : value,
-                        })}
-                        type="email"
-                        placeholder="penerima@email.com"
-                        className={
-                          errors.recipientEmail ? "border-destructive" : ""
-                        }
-                        aria-invalid={Boolean(errors.recipientEmail)}
-                        aria-describedby={
-                          errors.recipientEmail
-                            ? "checkout-recipient-email-error"
-                            : undefined
-                        }
-                      />
-                      {errors.recipientEmail ? (
-                        <p
-                          id="checkout-recipient-email-error"
-                          className="mt-1 text-xs text-destructive"
-                          role="alert"
-                        >
-                          {errors.recipientEmail.message}
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
+                      : undefined,
+                    setValueAs: (value: unknown) =>
+                      typeof value === "string" ? value.trim() : value,
+                  })}
+                  recipientEmailError={errors.recipientEmail}
+                  showRecipientPhone={showRecipientPhone}
+                  showRecipientEmail={showRecipientEmail}
+                  onIncludeEmailChange={(includeEmail) =>
+                    setValue(
+                      "deliveryMethod",
+                      includeEmail ? DeliveryMethod.BOTH : DeliveryMethod.WHATSAPP,
+                      { shouldValidate: true }
+                    )
+                  }
+                />
               </section>
               <CustomerFields
                 idPrefix="checkout"

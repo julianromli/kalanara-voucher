@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { preferredPaymentMethod, sortPaymentOptions } from "@/lib/scalev/payment-order";
 import type {
   ScalevCheckoutConfig,
   ScalevPaymentMethod,
@@ -15,8 +16,9 @@ const PAYMENT_OPTIONS_UNAVAILABLE =
 
 export function usePaymentOptions(initialPaymentConfig: ScalevCheckoutConfig) {
   const retryInFlightRef = useRef(false);
-  const initialPaymentMethod =
-    initialPaymentConfig.paymentOptions[0]?.code ?? null;
+  const initialPaymentMethod = preferredPaymentMethod(
+    initialPaymentConfig.paymentOptions
+  );
   const [paymentConfig, setPaymentConfig] =
     useState<ScalevCheckoutConfig | null>(initialPaymentConfig);
   const [paymentError, setPaymentError] = useState<string | null>(
@@ -29,7 +31,7 @@ export function usePaymentOptions(initialPaymentConfig: ScalevCheckoutConfig) {
     useState<ScalevVABankCode | "">("");
 
   const paymentOptions = useMemo(
-    () => paymentConfig?.paymentOptions ?? [],
+    () => sortPaymentOptions(paymentConfig?.paymentOptions ?? []),
     [paymentConfig]
   );
   const selectedPaymentOption = useMemo(
@@ -65,7 +67,7 @@ export function usePaymentOptions(initialPaymentConfig: ScalevCheckoutConfig) {
         throw new Error(PAYMENT_OPTIONS_ERROR);
       }
 
-      const nextMethod = result.config.paymentOptions[0]?.code ?? null;
+      const nextMethod = preferredPaymentMethod(result.config.paymentOptions);
       setPaymentConfig(result.config);
       setPaymentMethod((current) =>
         current &&

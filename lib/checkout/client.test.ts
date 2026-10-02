@@ -6,6 +6,7 @@ import {
   getDeliveryPreview,
   getPaymentMethodDescription,
   normalizePhoneInput,
+  resolveCheckoutRecipientName,
 } from "@/lib/checkout/client";
 import { DeliveryMethod, SendTo } from "@/lib/types";
 
@@ -55,8 +56,20 @@ describe("checkout client helpers", () => {
   });
 
   test("keeps payment descriptions stable", () => {
-    expect(getPaymentMethodDescription("qris")).toMatch(/scan QRIS/);
+    expect(getPaymentMethodDescription("qris")).toMatch(/Scan QR/);
     expect(getPaymentMethodDescription("va")).toMatch(/virtual account/);
-    expect(getPaymentMethodDescription("gopay")).toMatch(/instruksi wallet/);
+    expect(getPaymentMethodDescription("gopay")).toMatch(/aplikasi dompet/);
+  });
+
+  test("uses the buyer name when a self voucher name is blank", () => {
+    expect(
+      resolveCheckoutRecipientName("", "  Sari ", SendTo.PURCHASER)
+    ).toBe("Sari");
+    expect(
+      resolveCheckoutRecipientName("Ibu Ani", "Sari", SendTo.PURCHASER)
+    ).toBe("Ibu Ani");
+    expect(
+      resolveCheckoutRecipientName("  ", "Sari", SendTo.RECIPIENT)
+    ).toBe("");
   });
 });

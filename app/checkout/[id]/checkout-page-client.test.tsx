@@ -167,33 +167,29 @@ describe("CheckoutPageClient", () => {
     renderCheckout();
 
     expect(screen.getByText("QRIS")).toBeInTheDocument();
-    expect(screen.getByText("WhatsApp Penerima")).toBeInTheDocument();
-    expect(screen.queryByText("Email Penerima")).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Untuk saya" })).toBeChecked();
+    expect(screen.queryByText("WhatsApp penerima")).not.toBeInTheDocument();
+    expect(screen.queryByText("Email penerima")).not.toBeInTheDocument();
+    expect(document.querySelector('img[src="/payment/qris.svg"]')).not.toBeNull();
 
-    const emailDeliveryRadio = screen
-      .getAllByRole("radio")
-      .find((element) => (element as HTMLInputElement).value === "EMAIL");
-    fireEvent.click(emailDeliveryRadio!);
+    fireEvent.click(screen.getByRole("radio", { name: "Untuk orang lain" }));
 
-    expect(await screen.findByText("Email Penerima")).toBeInTheDocument();
-    expect(screen.queryByText("WhatsApp Penerima")).not.toBeInTheDocument();
+    expect(await screen.findByText("WhatsApp penerima")).toBeInTheDocument();
+    expect(screen.queryByText("Email penerima")).not.toBeInTheDocument();
 
-    const bothDeliveryRadio = screen
-      .getAllByRole("radio")
-      .find((element) => (element as HTMLInputElement).value === "BOTH");
-    fireEvent.click(bothDeliveryRadio!);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Kirim juga lewat email" }));
 
-    expect(await screen.findByText("Email Penerima")).toBeInTheDocument();
-    expect(screen.getByText("WhatsApp Penerima")).toBeInTheDocument();
+    expect(await screen.findByText("Email penerima")).toBeInTheDocument();
+    expect(screen.getByText("WhatsApp penerima")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("radio", { name: "Kirim ke Saya" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Untuk saya" }));
 
     await waitFor(() => {
-      expect(screen.queryByText("Email Penerima")).not.toBeInTheDocument();
-      expect(screen.queryByText("WhatsApp Penerima")).not.toBeInTheDocument();
+      expect(screen.queryByText("Email penerima")).not.toBeInTheDocument();
+      expect(screen.queryByText("WhatsApp penerima")).not.toBeInTheDocument();
       expect(
         screen.getByText(
-          "Voucher tetap memakai nama penerima di voucher, tetapi pengiriman akan dikirim ke kontak kamu."
+          "Voucher akan dikirim ke email dan WhatsApp kamu setelah pembayaran berhasil."
         )
       ).toBeInTheDocument();
     });
@@ -212,15 +208,17 @@ describe("CheckoutPageClient", () => {
       ],
     });
 
-    expect(screen.getByLabelText("Nama Penerima")).toHaveAttribute(
+    expect(screen.getByLabelText("Nama di voucher")).toHaveAttribute(
       "id",
       "checkout-recipient-name"
     );
-    expect(screen.getByLabelText("Pesan untuk Penerima")).toHaveAttribute(
+    fireEvent.click(screen.getByRole("button", { name: "Tambah ucapan" }));
+    expect(screen.getByLabelText("Pesan untuk penerima")).toHaveAttribute(
       "id",
       "checkout-sender-message"
     );
-    expect(screen.getByLabelText("WhatsApp Penerima")).toHaveAttribute(
+    fireEvent.click(screen.getByRole("radio", { name: "Untuk orang lain" }));
+    expect(screen.getByLabelText("WhatsApp penerima")).toHaveAttribute(
       "id",
       "checkout-recipient-phone"
     );
@@ -237,7 +235,7 @@ describe("CheckoutPageClient", () => {
       "checkout-customer-phone"
     );
 
-    const recipientName = screen.getByLabelText("Nama Penerima");
+    const recipientName = screen.getByLabelText("Nama penerima");
     expect(recipientName).toHaveAttribute(
       "aria-describedby",
       "checkout-recipient-name-help"
@@ -262,7 +260,7 @@ describe("CheckoutPageClient", () => {
       );
     }
 
-    const sendToPurchaser = screen.getByRole("radio", { name: "Kirim ke Saya" });
+    const sendToPurchaser = screen.getByRole("radio", { name: "Untuk saya" });
     const sendToCard = sendToPurchaser.closest("label");
     expect(sendToPurchaser).toHaveAttribute("id", "checkout-send-to-PURCHASER");
     expect(sendToCard).toHaveAttribute("for", "checkout-send-to-PURCHASER");
@@ -273,17 +271,19 @@ describe("CheckoutPageClient", () => {
     expect(sendToPurchaser).toBeChecked();
 
     const sendToRecipient = screen.getByRole("radio", {
-      name: "Langsung ke Penerima",
+      name: "Untuk orang lain",
     });
     sendToRecipient.focus();
     await user.keyboard("[Space]");
     expect(sendToRecipient).toBeChecked();
 
-    const emailDelivery = screen.getByRole("radio", { name: "Email" });
-    emailDelivery.focus();
+    const includeEmail = screen.getByRole("checkbox", {
+      name: "Kirim juga lewat email",
+    });
+    includeEmail.focus();
     await user.keyboard("[Space]");
-    expect(emailDelivery).toBeChecked();
-    expect(await screen.findByLabelText("Email Penerima")).toHaveAttribute(
+    expect(includeEmail).toBeChecked();
+    expect(await screen.findByLabelText("Email penerima")).toHaveAttribute(
       "id",
       "checkout-recipient-email"
     );
@@ -339,11 +339,8 @@ describe("CheckoutPageClient", () => {
     renderCheckout();
 
     expect(screen.getByText("QRIS")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /^QRIS/ })).toBeChecked();
 
-    fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {
-      target: { value: "Penerima" },
-    });
-    fireEvent.click(screen.getByRole("radio", { name: "Kirim ke Saya" }));
     fireEvent.change(screen.getByPlaceholderText("Nama kamu"), {
       target: { value: "Faiz" },
     });
@@ -367,6 +364,7 @@ describe("CheckoutPageClient", () => {
         sendTo: "PURCHASER",
         deliveryMethod: "WHATSAPP",
         customerPhone: "0812 3456 7890",
+        recipientName: "Faiz",
       })
     );
     expect(JSON.parse(createPaymentCall?.[1]?.body as string)).not.toHaveProperty(
@@ -406,21 +404,14 @@ describe("CheckoutPageClient", () => {
 
     expect(screen.getByText("QRIS")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {
-      target: { value: "Penerima" },
-    });
     fireEvent.change(screen.getByPlaceholderText("Nama kamu"), {
       target: { value: "Faiz" },
     });
     fireEvent.change(screen.getByPlaceholderText("nama@email.com"), {
       target: { value: "faiz@example.com" },
     });
-    const phoneInputs = screen.getAllByPlaceholderText("+62 812 3456 7890");
-    fireEvent.change(phoneInputs[0], {
+    fireEvent.change(screen.getByPlaceholderText("+62 812 3456 7890"), {
       target: { value: "0812-3456 7000" },
-    });
-    fireEvent.change(phoneInputs[1], {
-      target: { value: "0812-3456 7890" },
     });
 
     const discountInput = screen.getByPlaceholderText("Masukkan kode promo");
