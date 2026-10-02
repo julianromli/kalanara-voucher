@@ -1,5 +1,6 @@
 import "server-only";
 
+import { sortPaymentOptions } from "@/lib/scalev/payment-order";
 import {
   SCALEV_PAYMENT_METHODS,
   SCALEV_VA_BANK_CODES,
@@ -138,11 +139,13 @@ export function buildCheckoutConfig(
   disabledPaymentMethods: ScalevPaymentMethod[] = [],
   source: ScalevCheckoutAvailabilitySource = "provider"
 ): ScalevCheckoutConfig {
-  const options: ScalevPaymentOption[] = paymentMethods.map((method) => ({
-    code: method,
-    label: labelForMethod(method),
-    subMethods: method === "va" ? subPaymentMethods : undefined,
-  }));
+  const options: ScalevPaymentOption[] = sortPaymentOptions(
+    paymentMethods.map((method) => ({
+      code: method,
+      label: labelForMethod(method),
+      subMethods: method === "va" ? subPaymentMethods : undefined,
+    }))
+  );
   const hasDisabledMethods = disabledPaymentMethods.length > 0;
 
   return {

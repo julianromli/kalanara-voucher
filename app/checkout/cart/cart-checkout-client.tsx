@@ -8,9 +8,9 @@ import { useFieldArray, useForm, type SubmitErrorHandler } from "react-hook-form
 import { ChevronLeft, Loader2, ShoppingBag, Trash2 } from "lucide-react";
 import { CustomerFields } from "@/components/checkout/customer-fields";
 import { PaymentSelector } from "@/components/checkout/payment-selector";
+import { VoucherDeliveryFields } from "@/components/checkout/voucher-delivery-fields";
 import { MobileCheckoutCta, PricingSummary } from "@/components/checkout/pricing-summary";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/context/ToastContext";
 import { useCheckoutDiscount } from "@/hooks/use-checkout-discount";
 import { usePaymentOptions } from "@/hooks/usePaymentOptions";
@@ -24,6 +24,7 @@ import {
   getSendToSummary,
   normalizePhoneInput,
   PHONE_PATTERN,
+  resolveCheckoutRecipientName,
 } from "@/lib/checkout/client";
 import { getPaymentStatusPath, POPUP_BLOCKED_MESSAGE, submitCheckoutPayment } from "@/lib/checkout/payment-client";
 import { DeliveryMethod, SendTo } from "@/lib/types";
@@ -117,7 +118,7 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
           recipientEmail: existing?.recipientEmail ?? "",
           recipientPhone: existing?.recipientPhone ?? "",
           senderMessage: existing?.senderMessage ?? "",
-          sendTo: existing?.sendTo ?? SendTo.RECIPIENT,
+          sendTo: existing?.sendTo ?? SendTo.PURCHASER,
           deliveryMethod: existing?.deliveryMethod ?? DeliveryMethod.WHATSAPP,
         };
       }),
@@ -228,7 +229,16 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
           !isComplimentary && paymentMethod === "va"
             ? (subPaymentMethod as ScalevVABankCode)
             : undefined,
-        lineItems: data.lineItems.map(buildCheckoutLineItem),
+        lineItems: data.lineItems.map((item) =>
+          buildCheckoutLineItem({
+            ...item,
+            recipientName: resolveCheckoutRecipientName(
+              item.recipientName,
+              data.customerName,
+              item.sendTo,
+            ),
+          }),
+        ),
       };
       const result = await submitCheckoutPayment({
         request: requestBody,
@@ -314,7 +324,7 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
             Checkout Keranjang
           </h1>
           <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-            Atur penerima untuk setiap voucher, lalu lanjutkan pembayaran sekali.
+            Isi data kamu, lalu bayar sekali untuk semua voucher.
           </p>
         </div>
 
@@ -353,21 +363,20 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
                     <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
                       <ShoppingBag size={20} aria-hidden="true" /> Detail voucher
                     </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">Tiap item akan menjadi voucher terpisah.</p>
-                  </div>
+                    </div>
                   <label
                     htmlFor="cart-same-recipient"
                     className="flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm text-foreground"
                   >
                     <input id="cart-same-recipient" type="checkbox" {...register("sameRecipient")} />
-                    Gunakan penerima yang sama
+                    Pakai data yang sama untuk semua voucher
                   </label>
                 </div>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  {sameRecipient
-                    ? "Semua voucher di bawah mengikuti Voucher 1."
-                    : "Aktifkan jika semua voucher ditujukan ke penerima yang sama."}
-                </p>
+                {sameRecipient ? (
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Semua voucher mengikuti voucher pertama.
+                  </p>
+                ) : null}
 
                 <div className="mt-6 space-y-5">
                   {fields.map((field, index) => {
@@ -384,10 +393,6 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
 
                     const isFollowingPrimary = sameRecipient && index > 0;
                     const fieldIdPrefix = `cart-voucher-${field.id}`;
-                    const recipientNameId = `${fieldIdPrefix}-recipient-name`;
-                    const senderMessageId = `${fieldIdPrefix}-sender-message`;
-                    const recipientPhoneId = `${fieldIdPrefix}-recipient-phone`;
-                    const recipientEmailId = `${fieldIdPrefix}-recipient-email`;
 
                     return (
                       <div
@@ -481,207 +486,50 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
                             ) : null}
                           </div>
                         ) : (
-                          <div className="mt-5 grid gap-4">
-                            <div>
-                              <label
-                                htmlFor={recipientNameId}
-                                className="mb-2 block text-sm font-medium text-muted-foreground"
-                              >
-                                Nama Penerima
-                              </label>
-                              <Input
-                                id={recipientNameId}
-                                {...register(`lineItems.${index}.recipientName`, {
-                                  required: "Nama penerima wajib diisi",
-                                })}
-                                placeholder="Nama penerima voucher"
-                                className={itemErrors?.recipientName ? "border-destructive" : ""}
-                                aria-invalid={Boolean(itemErrors?.recipientName)}
-                                aria-describedby={itemErrors?.recipientName ? `${recipientNameId}-error` : undefined}
-                              />
-                              {itemErrors?.recipientName ? (
-                                <p
-                                  id={`${recipientNameId}-error`}
-                                  className="mt-1 text-xs text-destructive"
-                                  role="alert"
-                                >
-                                  {itemErrors.recipientName.message}
-                                </p>
-                              ) : null}
-                            </div>
-
-                            <div>
-                              <label
-                                htmlFor={senderMessageId}
-                                className="mb-2 block text-sm font-medium text-muted-foreground"
-                              >
-                                Pesan untuk Penerima
-                              </label>
-                              <textarea
-                                id={senderMessageId}
-                                {...register(`lineItems.${index}.senderMessage`)}
-                                rows={2}
-                                placeholder="Tulis pesan singkat jika mau"
-                                className="min-h-20 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
-                                aria-invalid={false}
-                              />
-                            </div>
-
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              <div>
-                                <p className="mb-2 text-sm font-medium text-muted-foreground">Kirim Voucher Ke</p>
-                                <div className="grid gap-2">
-                                  {[
-                                    {
-                                      value: SendTo.RECIPIENT,
-                                      label: "Penerima",
-                                    },
-                                    { value: SendTo.PURCHASER, label: "Saya" },
-                                  ].map((option) => {
-                                    const radioId = `${fieldIdPrefix}-send-to-${option.value}`;
-
-                                    return (
-                                      <label
-                                        key={option.value}
-                                        htmlFor={radioId}
-                                        className={`flex cursor-pointer items-center justify-center rounded-xl border p-3 text-center text-sm transition-[color,background-color,border-color,box-shadow] focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${
-                                          sendTo === option.value
-                                            ? "border-primary bg-muted font-medium text-foreground"
-                                            : "border-border text-muted-foreground hover:border-muted-foreground"
-                                        }`}
-                                      >
-                                        <input
-                                          id={radioId}
-                                          type="radio"
-                                          value={option.value}
-                                          {...register(`lineItems.${index}.sendTo`, {
-                                            required: true,
-                                          })}
-                                          className="sr-only"
-                                        />
-                                        {option.label}
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-
-                              <div>
-                                <p className="mb-2 text-sm font-medium text-muted-foreground">Cara kirim</p>
-                                <div className="grid gap-2">
-                                  {[
-                                    {
-                                      value: DeliveryMethod.WHATSAPP,
-                                      label: "WhatsApp",
-                                    },
-                                    {
-                                      value: DeliveryMethod.EMAIL,
-                                      label: "Email",
-                                    },
-                                    {
-                                      value: DeliveryMethod.BOTH,
-                                      label: "Email & WhatsApp",
-                                    },
-                                  ].map((method) => {
-                                    const radioId = `${fieldIdPrefix}-delivery-${method.value}`;
-
-                                    return (
-                                      <label
-                                        key={method.value}
-                                        htmlFor={radioId}
-                                        className={`flex cursor-pointer items-center justify-center rounded-xl border p-3 text-center text-sm transition-[color,background-color,border-color,box-shadow] focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${
-                                          deliveryMethod === method.value
-                                            ? "border-primary bg-muted font-medium text-foreground"
-                                            : "border-border text-muted-foreground hover:border-muted-foreground"
-                                        }`}
-                                      >
-                                        <input
-                                          id={radioId}
-                                          type="radio"
-                                          value={method.value}
-                                          {...register(`lineItems.${index}.deliveryMethod`, {
-                                            required: true,
-                                          })}
-                                          className="sr-only"
-                                        />
-                                        {method.label}
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-
-                            {showRecipientPhone ? (
-                              <div>
-                                <label
-                                  htmlFor={recipientPhoneId}
-                                  className="mb-2 block text-sm font-medium text-muted-foreground"
-                                >
-                                  WhatsApp Penerima
-                                </label>
-                                <Input
-                                  id={recipientPhoneId}
-                                  {...registerPhoneField(
-                                    `lineItems.${index}.recipientPhone`,
-                                    "Nomor WhatsApp penerima wajib diisi",
-                                  )}
-                                  placeholder="+62 812 3456 7890"
-                                  className={itemErrors?.recipientPhone ? "border-destructive" : ""}
-                                  aria-invalid={Boolean(itemErrors?.recipientPhone)}
-                                  aria-describedby={
-                                    itemErrors?.recipientPhone ? `${recipientPhoneId}-error` : undefined
-                                  }
-                                />
-                                {itemErrors?.recipientPhone ? (
-                                  <p
-                                    id={`${recipientPhoneId}-error`}
-                                    className="mt-1 text-xs text-destructive"
-                                    role="alert"
-                                  >
-                                    {itemErrors.recipientPhone.message}
-                                  </p>
-                                ) : null}
-                              </div>
-                            ) : null}
-
-                            {showRecipientEmail ? (
-                              <div>
-                                <label
-                                  htmlFor={recipientEmailId}
-                                  className="mb-2 block text-sm font-medium text-muted-foreground"
-                                >
-                                  Email Penerima
-                                </label>
-                                <Input
-                                  id={recipientEmailId}
-                                  {...register(`lineItems.${index}.recipientEmail`, {
-                                    required: "Email penerima wajib diisi",
-                                    pattern: {
+                          <div className="mt-5">
+                            <VoucherDeliveryFields
+                              idPrefix={fieldIdPrefix}
+                              sendTo={sendTo}
+                              deliveryMethod={deliveryMethod}
+                              senderMessage={currentLineItem.senderMessage}
+                              registerSendTo={() =>
+                                register(`lineItems.${index}.sendTo`, { required: true })
+                              }
+                              recipientNameRegistration={register(`lineItems.${index}.recipientName`, {
+                                validate: (value) =>
+                                  sendTo === SendTo.RECIPIENT && !String(value ?? "").trim()
+                                    ? "Nama penerima wajib diisi"
+                                    : true,
+                              })}
+                              recipientNameError={itemErrors?.recipientName}
+                              senderMessageRegistration={register(`lineItems.${index}.senderMessage`)}
+                              recipientPhoneRegistration={registerPhoneField(
+                                `lineItems.${index}.recipientPhone`,
+                                showRecipientPhone ? "Nomor WhatsApp penerima wajib diisi" : false,
+                              )}
+                              recipientPhoneError={itemErrors?.recipientPhone}
+                              recipientEmailRegistration={register(`lineItems.${index}.recipientEmail`, {
+                                required: showRecipientEmail ? "Email penerima wajib diisi" : false,
+                                pattern: showRecipientEmail
+                                  ? {
                                       value: /^\S+@\S+$/i,
                                       message: "Format email tidak valid",
-                                    },
-                                    setValueAs: (value: unknown) => (typeof value === "string" ? value.trim() : value),
-                                  })}
-                                  type="email"
-                                  placeholder="penerima@email.com"
-                                  className={itemErrors?.recipientEmail ? "border-destructive" : ""}
-                                  aria-invalid={Boolean(itemErrors?.recipientEmail)}
-                                  aria-describedby={
-                                    itemErrors?.recipientEmail ? `${recipientEmailId}-error` : undefined
-                                  }
-                                />
-                                {itemErrors?.recipientEmail ? (
-                                  <p
-                                    id={`${recipientEmailId}-error`}
-                                    className="mt-1 text-xs text-destructive"
-                                    role="alert"
-                                  >
-                                    {itemErrors.recipientEmail.message}
-                                  </p>
-                                ) : null}
-                              </div>
-                            ) : null}
+                                    }
+                                  : undefined,
+                                setValueAs: (value: unknown) =>
+                                  typeof value === "string" ? value.trim() : value,
+                              })}
+                              recipientEmailError={itemErrors?.recipientEmail}
+                              showRecipientPhone={showRecipientPhone}
+                              showRecipientEmail={showRecipientEmail}
+                              onIncludeEmailChange={(includeEmail) =>
+                                setValue(
+                                  `lineItems.${index}.deliveryMethod`,
+                                  includeEmail ? DeliveryMethod.BOTH : DeliveryMethod.WHATSAPP,
+                                  { shouldValidate: true },
+                                )
+                              }
+                            />
                           </div>
                         )}
                       </div>

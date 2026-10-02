@@ -28,6 +28,25 @@ describe("usePaymentOptions", () => {
     vi.restoreAllMocks();
   });
 
+  it("selects QRIS when the provider lists it after wallets", () => {
+    const walletFirst: ScalevCheckoutConfig = {
+      ...initialConfig,
+      paymentOptions: [
+        { code: "dana", label: "DANA" },
+        { code: "ovo", label: "OVO" },
+        { code: "qris", label: "QRIS" },
+      ],
+    };
+    const { result } = renderHook(() => usePaymentOptions(walletFirst));
+
+    expect(result.current.paymentMethod).toBe("qris");
+    expect(result.current.paymentOptions.map((option) => option.code)).toEqual([
+      "qris",
+      "dana",
+      "ovo",
+    ]);
+  });
+
   it("selects the first initial payment option", () => {
     const { result } = renderHook(() => usePaymentOptions(initialConfig));
 

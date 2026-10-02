@@ -1,4 +1,5 @@
 import { AlertCircle, CreditCard } from "lucide-react";
+import { PaymentMethodMark } from "@/components/checkout/payment-method-mark";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getPaymentMethodDescription } from "@/lib/checkout/client";
@@ -87,12 +88,13 @@ export function PaymentSelector(props: PaymentSelectorProps) {
           <div className="space-y-3">
             {paymentOptions.map((option) => {
               const radioId = `${idPrefix}-payment-${option.code}`;
+              const selected = paymentMethod === option.code;
               return (
                 <label
                   key={option.code}
                   htmlFor={radioId}
-                  className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-[background-color,border-color] ${
-                    paymentMethod === option.code
+                  className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-[background-color,border-color] focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${
+                    selected
                       ? "border-primary bg-muted"
                       : "border-border hover:border-muted-foreground"
                   }`}
@@ -102,20 +104,26 @@ export function PaymentSelector(props: PaymentSelectorProps) {
                     type="radio"
                     name="paymentMethod"
                     value={option.code}
-                    checked={paymentMethod === option.code}
+                    checked={selected}
                     onChange={() => onPaymentMethodChange(option.code)}
-                    className="mt-1"
+                    className="sr-only"
                   />
-                  <div className="space-y-1">
-                    <p className="font-medium text-foreground">{option.label}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {getPaymentMethodDescription(option.code)}
-                    </p>
-                  </div>
+                  <PaymentMethodMark code={option.code} />
+                  <span className="font-medium text-foreground">{option.label}</span>
+                  {option.code === "qris" ? (
+                    <span className="ml-auto rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                      Paling mudah
+                    </span>
+                  ) : null}
                 </label>
               );
             })}
           </div>
+          {paymentMethod ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              {getPaymentMethodDescription(paymentMethod)}
+            </p>
+          ) : null}
           {paymentMethod === "va" &&
           selectedPaymentOption?.subMethods?.length ? (
             <div className="mt-4 space-y-2">

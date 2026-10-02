@@ -91,6 +91,25 @@ describe("getScalevCheckoutConfig", () => {
     ]);
   });
 
+  test("puts QRIS first when the provider lists wallets earlier", async () => {
+    getScalevCheckoutAvailabilityMock.mockResolvedValue({
+      source: "provider",
+      paymentMethods: ["dana", "ovo", "qris"],
+      subPaymentMethods: [],
+    });
+    const { getScalevCheckoutConfig } = await import(
+      "@/lib/scalev/checkout-config"
+    );
+
+    const config = await getScalevCheckoutConfig();
+
+    expect(config.paymentOptions.map((option) => option.code)).toEqual([
+      "qris",
+      "dana",
+      "ovo",
+    ]);
+  });
+
   test("surfaces configured fallback options distinctly", async () => {
     getScalevCheckoutAvailabilityMock.mockResolvedValue({
       source: "fallback",

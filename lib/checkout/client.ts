@@ -18,17 +18,17 @@ export function cleanOptionalText(value?: string) {
 export function getPaymentMethodDescription(code: ScalevPaymentMethod) {
   switch (code) {
     case "qris":
-      return "Bayar dengan scan QRIS. Kode QR akan ditampilkan setelah pesanan dibuat.";
+      return "Scan QR setelah pesanan dibuat.";
     case "va":
-      return "Dapatkan nomor virtual account. Pilih bank setelah memilih metode ini.";
+      return "Pilih bank, lalu bayar ke nomor virtual account.";
     case "invoice":
-      return "Lanjut ke halaman pembayaran untuk menyelesaikan transaksi.";
+      return "Lanjut ke halaman pembayaran.";
     case "gopay":
     case "ovo":
     case "dana":
     case "shopeepay":
     case "linkaja":
-      return "Kamu akan diarahkan ke halaman pembayaran / instruksi wallet.";
+      return "Kamu diarahkan ke aplikasi dompet.";
     default:
       return "Pembayaran diproses melalui Scalev.";
   }
@@ -83,7 +83,22 @@ export function buildConditionalFieldAnnouncement(
 }
 
 export function getSendToSummary(sendTo: SendTo) {
-  return sendTo === SendTo.RECIPIENT ? "Penerima" : "Saya";
+  return sendTo === SendTo.RECIPIENT ? "Untuk orang lain" : "Untuk saya";
+}
+
+export function resolveCheckoutRecipientName(
+  recipientName: string,
+  customerName: string,
+  sendTo: SendTo
+) {
+  const printedName = recipientName.trim();
+  if (printedName) {
+    return printedName;
+  }
+  if (sendTo === SendTo.PURCHASER) {
+    return customerName.trim();
+  }
+  return printedName;
 }
 
 export function getDeliveryMethodSummary(deliveryMethod: DeliveryMethod) {
