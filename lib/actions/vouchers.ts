@@ -169,9 +169,28 @@ export async function getVouchersPage(
 
   if (normalized.query) {
     const pattern = `"%${escapePostgrestLike(normalized.query)}%"`;
-    request = request.or(
-      `code.ilike.${pattern},recipient_name.ilike.${pattern},recipient_email.ilike.${pattern}`,
-    );
+    const serviceNamePattern = `%${normalized.query.replace(/[\\%_]/g, "\\$&")}%`;
+    const { data: matchingServices, error: serviceSearchError } = await supabase
+      .from("services")
+      .select("id")
+      .ilike("name", serviceNamePattern);
+
+    if (serviceSearchError) {
+      throw serviceSearchError;
+    }
+
+    const serviceIds = (matchingServices ?? [])
+      .map((service) => service.id)
+      .filter((id): id is string => Boolean(id));
+    const filters = [
+      `code.ilike.${pattern}`,
+      `recipient_name.ilike.${pattern}`,
+      `recipient_email.ilike.${pattern}`,
+    ];
+    if (serviceIds.length > 0) {
+      filters.push(`service_id.in.(${serviceIds.join(",")})`);
+    }
+    request = request.or(filters.join(","));
   }
 
   try {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -25,6 +25,15 @@ import { deleteServiceImageByUrl } from "@/lib/actions/service-images";
 import { useUploadThing } from "@/lib/uploadthing-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -137,9 +146,11 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
   // Category form state
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [isCatDialogOpen, setIsCatDialogOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [catName, setCatName] = useState("");
   const [isCatBusy, setIsCatBusy] = useState(false);
+  const categoryDeleteInFlightRef = useRef(false);
 
   // Layout & sync state
   const [optimisticIds, setOptimisticIds] = useState<Set<string>>(new Set());
@@ -583,16 +594,23 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
     }
   };
 
-  const handleDeleteCategory = async (id: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus kategori ini?")) return;
-    
+  const handleDeleteCategory = async () => {
+    if (!categoryToDelete || categoryDeleteInFlightRef.current) return;
+    const id = categoryToDelete;
+    categoryDeleteInFlightRef.current = true;
+    setIsCatBusy(true);
+
     try {
       await deleteServiceCategory(id);
       setCategories((prev) => prev.filter((c) => c.id !== id));
       if (categoryFilter === id) setCategoryFilter("ALL");
+      setCategoryToDelete(null);
       showToast("Kategori berhasil dihapus", "success");
     } catch (error: unknown) {
       showToast(error instanceof Error ? error.message : "Gagal menghapus kategori", "error");
+    } finally {
+      categoryDeleteInFlightRef.current = false;
+      setIsCatBusy(false);
     }
   };
 
@@ -743,7 +761,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
-                                onClick={() => handleDeleteCategory(cat.id)}
+                                onClick={() => setCategoryToDelete(cat.id)}
                                 title="Hapus Kategori"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -1222,6 +1240,30 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(categoryToDelete)}
+        onOpenChange={(open) => !open && setCategoryToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus kategori?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Kategori yang masih dipakai layanan tidak bisa dihapus.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCatBusy}>Batal</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={() => void handleDeleteCategory()}
+              disabled={isCatBusy}
+            >
+              Hapus kategori
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

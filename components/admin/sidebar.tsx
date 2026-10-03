@@ -45,26 +45,38 @@ const navItems = [
     requiredPermission: AdminPermission.DASHBOARD_VIEW_OPERATIONAL,
   },
   {
-    icon: SparklesIcon,
-    label: "Services",
-    href: "/admin/services",
-    requiredPermission: AdminPermission.SERVICES_MANAGE,
+    icon: Ticket01Icon,
+    label: "Voucher",
+    href: "/admin/vouchers",
+    requiredPermission: AdminPermission.VOUCHERS_MANAGE,
   },
   {
     icon: ShoppingBag01Icon,
-    label: "Purchases",
+    label: "Penjualan",
     href: "/admin/purchases",
     requiredPermission: AdminPermission.ORDERS_VIEW,
   },
   {
+    icon: UserGroupIcon,
+    label: "Pembeli",
+    href: "/admin/buyers",
+    requiredPermission: AdminPermission.ORDERS_VIEW,
+  },
+  {
+    icon: SparklesIcon,
+    label: "Layanan",
+    href: "/admin/services",
+    requiredPermission: AdminPermission.SERVICES_MANAGE,
+  },
+  {
     icon: Tag01Icon,
-    label: "Promo Codes",
+    label: "Kode Promo",
     href: "/admin/discount-codes",
     requiredPermission: AdminPermission.DISCOUNT_CODES_MANAGE,
   },
   {
     icon: StarIcon,
-    label: "Reviews",
+    label: "Ulasan",
     href: "/admin/reviews",
     requiredPermission: AdminPermission.REVIEWS_MANAGE,
   },
@@ -75,14 +87,8 @@ const navItems = [
     requiredPermission: AdminPermission.CRM_MANAGE,
   },
   {
-    icon: Ticket01Icon,
-    label: "Vouchers",
-    href: "/admin/vouchers",
-    requiredPermission: AdminPermission.VOUCHERS_MANAGE,
-  },
-  {
     icon: UserGroupIcon,
-    label: "Users",
+    label: "Pengguna",
     href: "/admin/users",
     requiredPermission: AdminPermission.USERS_MANAGE,
   },
@@ -163,7 +169,7 @@ export function AdminSidebar({
 
           <div className="relative mt-4">
             <label htmlFor="admin-nav-search" className="sr-only">
-              Search navigation
+              Cari halaman
             </label>
             <HugeiconsIcon
               icon={Search01Icon}
@@ -176,7 +182,7 @@ export function AdminSidebar({
               type="search"
               value={navQuery}
               onChange={(event) => setNavQuery(event.target.value)}
-              placeholder="Search pages..."
+              placeholder="Cari halaman"
               className="h-8 bg-background pr-12 pl-8 text-sm placeholder:text-muted-foreground"
             />
             <div className="pointer-events-none absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-0.5 rounded border border-border bg-sidebar px-1.5 py-0.5">
@@ -199,7 +205,7 @@ export function AdminSidebar({
             <SidebarMenu>
               {filteredNavItems.length === 0 ? (
                 <p className="px-2 py-2 text-xs text-muted-foreground">
-                  No matching pages
+                  Tidak ada halaman
                 </p>
               ) : (
                 filteredNavItems.map((item) => {
@@ -250,7 +256,7 @@ export function AdminSidebar({
                       }
                     >
                       <HugeiconsIcon icon={Settings02Icon} size={16} />
-                      <span>Settings</span>
+                      <span>Pengaturan</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -269,7 +275,7 @@ export function AdminSidebar({
                     onClick={() => activateRouteOptimistically("/admin/help")}
                   >
                     <HugeiconsIcon icon={HelpCircleIcon} size={16} />
-                    <span>Help Center</span>
+                    <span>Bantuan</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -298,7 +304,7 @@ export function AdminSidebar({
           className="w-full justify-start gap-2 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
         >
           <HugeiconsIcon icon={Logout01Icon} size={16} />
-          Logout
+          Keluar
         </Button>
       </SidebarFooter>
     </Sidebar>
