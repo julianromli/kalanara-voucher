@@ -188,6 +188,18 @@ function AdminEmbeddedTableSkeleton({
   );
 }
 
+export function AdminBuyersSkeleton() {
+  return (
+    <AdminPageSkeletonShell label="Memuat pembeli" name="buyers">
+      <AdminIntroSkeleton />
+      <AdminSurface>
+        <AdminFilterFieldsSkeleton />
+      </AdminSurface>
+      <AdminEmbeddedTableSkeleton columns={5} rows={6} />
+    </AdminPageSkeletonShell>
+  );
+}
+
 export function AdminPurchasesSkeleton() {
   return (
     <AdminPageSkeletonShell label="Memuat pembelian" name="purchases">

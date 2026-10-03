@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -60,6 +61,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { buyerPath, formatBuyerPhone } from "@/lib/admin/buyer-phone";
 import { cn } from "@/lib/utils";
 import type { OrderWithVoucherItems } from "@/lib/database.types";
 
@@ -68,6 +70,7 @@ interface PurchasesClientProps {
   initialTotalCount: number;
   canUpdatePaymentStatus: boolean;
   canDeletePurchases: boolean;
+  focusedOrder?: OrderWithVoucherItems | null;
 }
 
 type DeleteMode = "single" | "all" | null;
@@ -138,6 +141,7 @@ export function PurchasesClient({
   initialTotalCount,
   canUpdatePaymentStatus,
   canDeletePurchases,
+  focusedOrder = null,
 }: PurchasesClientProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -162,12 +166,20 @@ export function PurchasesClient({
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [isDeletingOrder, setIsDeletingOrder] = useState<string | null>(null);
   const [isClearingAll, setIsClearingAll] = useState(false);
+  const [pendingCompleteOrder, setPendingCompleteOrder] =
+    useState<OrderWithVoucherItems | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push("/admin/login");
     }
   }, [authLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (focusedOrder) {
+      setSelectedOrder(focusedOrder);
+    }
+  }, [focusedOrder]);
 
   useEffect(() => {
     setOrders(initialPage.rows);
@@ -211,7 +223,7 @@ export function PurchasesClient({
         throw new Error("Failed to update status");
       }
 
-      showToast("Payment status updated successfully.", "success");
+      showToast("Status pembayaran diperbarui.", "success");
       if (
         statusFilter === "PENDING" &&
         orders.length === 1 &&
@@ -224,7 +236,7 @@ export function PurchasesClient({
     } catch (error) {
       setOrders(previousOrders);
       console.error("Failed to update order status:", error);
-      showToast("Failed to update payment status.", "error");
+      showToast("Gagal memperbarui status pembayaran.", "error");
     } finally {
       setIsUpdatingStatus(null);
     }
@@ -307,38 +319,14 @@ export function PurchasesClient({
 
   return (
     <>
-      <DashboardHeader title="Purchases Management" showActions={false} />
+      <DashboardHeader title="Penjualan" showActions={false} />
       <AdminPageBody>
-        <AdminPageIntro description="Manage customer voucher purchases and payment status.">
-          {canDeletePurchases ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setPendingDeleteOrder(null);
-                setDeleteMode("all");
-              }}
-              disabled={
-                initialTotalCount === 0 ||
-                isDeleteBusy ||
-                Boolean(isUpdatingStatus)
-              }
-              className="border-destructive/20 text-destructive shadow-none hover:bg-destructive/10 hover:text-destructive"
-            >
-              {isClearingAll ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Trash2 className="size-4" />
-              )}
-              Clear All Purchases
-            </Button>
-          ) : null}
-        </AdminPageIntro>
+        <AdminPageIntro description="Pantau pembelian voucher dan status pembayaran." />
 
         <AdminSurface>
           <AdminFilterBar className="mb-4">
             <Input
-              placeholder="Search purchases..."
+              placeholder="Cari nama, WhatsApp, email, atau kode voucher"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className="flex-1"
@@ -348,29 +336,61 @@ export function PurchasesClient({
               onValueChange={setStatusFilter}
             >
               <SelectTrigger className="w-full md:w-44">
-                <SelectValue placeholder="All Status" />
+                <SelectValue placeholder="Semua status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">All Status</SelectItem>
-                <SelectItem value="PENDING">Pending</SelectItem>
-                <SelectItem value="COMPLETED">Completed</SelectItem>
-                <SelectItem value="FAILED">Failed</SelectItem>
-                <SelectItem value="REFUNDED">Refunded</SelectItem>
+                <SelectItem value="ALL">Semua status</SelectItem>
+                <SelectItem value="PENDING">Menunggu</SelectItem>
+                <SelectItem value="COMPLETED">Lunas</SelectItem>
+                <SelectItem value="FAILED">Gagal</SelectItem>
+                <SelectItem value="REFUNDED">Dikembalikan</SelectItem>
               </SelectContent>
             </Select>
           </AdminFilterBar>
 
+            <div className="space-y-3 p-4 md:hidden">
+              {orders.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  Tidak ada penjualan.
+                </p>
+              ) : (
+                orders.map((order) => (
+                  <article key={order.id} className="rounded-xl border border-border p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <Link href={buyerPath(order.customer_phone)} className="font-medium hover:underline">
+                          {order.customer_name}
+                        </Link>
+                        <p className="text-sm text-muted-foreground">
+                          {formatBuyerPhone(order.customer_phone)}
+                        </p>
+                      </div>
+                      <p className="text-sm font-medium tabular-nums">
+                        {formatCurrency(order.total_amount)}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="mt-4 min-h-11 w-full"
+                      onClick={() => setSelectedOrder(order)}
+                    >
+                      Detail
+                    </Button>
+                  </article>
+                ))
+              )}
+            </div>
+            <div className="hidden md:block">
             <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Order ID</TableHead>
-                    <TableHead>Voucher Code</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Provider</TableHead>
-                    <TableHead>Payment</TableHead>
+                    <TableHead>Pembeli</TableHead>
+                    <TableHead>Order</TableHead>
+                    <TableHead>Voucher</TableHead>
+                    <TableHead>Jumlah</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Date</TableHead>
+                    <TableHead>Tanggal</TableHead>
                     <TableHead className="w-12 text-right">
                       <span className="sr-only">Actions</span>
                     </TableHead>
@@ -380,28 +400,33 @@ export function PurchasesClient({
                   {orders.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={9}
+                        colSpan={7}
                         className="py-8 text-center text-sm text-muted-foreground"
                       >
-                        No purchases found.
+                        Tidak ada penjualan.
                       </TableCell>
                     </TableRow>
                   ) : (
                     orders.map((order) => {
                       const isStatusBusy = isUpdatingStatus === order.id;
                       const isRowDeleteBusy = isDeletingOrder === order.id;
+                      const voucherLabel = getOrderVoucherSummary(order);
+                      const voucherQuery = voucherLabel.startsWith("KSP-")
+                        ? voucherLabel
+                        : "";
 
                       return (
                         <TableRow key={order.id} className="border-border/70">
                           <TableCell>
-                            <div>
-                              <p className="font-medium">
-                                {order.customer_name}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                {order.customer_email}
-                              </p>
-                            </div>
+                            <Link
+                              href={buyerPath(order.customer_phone)}
+                              className="font-medium text-foreground hover:underline"
+                            >
+                              {order.customer_name}
+                            </Link>
+                            <p className="text-sm text-muted-foreground">
+                              {formatBuyerPhone(order.customer_phone)}
+                            </p>
                           </TableCell>
                           <TableCell>
                             <p className="font-mono text-xs text-muted-foreground">
@@ -409,25 +434,19 @@ export function PurchasesClient({
                             </p>
                           </TableCell>
                           <TableCell>
-                            <p className="font-mono text-sm">
-                              {getOrderVoucherSummary(order)}
-                            </p>
+                            {voucherQuery ? (
+                              <Link
+                                href={`/admin/vouchers?query=${encodeURIComponent(voucherQuery)}`}
+                                className="font-mono text-sm hover:underline"
+                              >
+                                {voucherLabel}
+                              </Link>
+                            ) : (
+                              <p className="font-mono text-sm">{voucherLabel}</p>
+                            )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="tabular-nums">
                             {formatCurrency(order.total_amount)}
-                          </TableCell>
-                          <TableCell>
-                            <p className="text-sm uppercase">
-                              {order.payment_provider || "-"}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <p className="text-sm capitalize">
-                              {(
-                                order.scalev_payment_method ||
-                                order.payment_type
-                              )?.replace(/_/g, " ") || "-"}
-                            </p>
                           </TableCell>
                           <TableCell>
                             <Badge
@@ -438,51 +457,66 @@ export function PurchasesClient({
                                 order.payment_status,
                               )}
                             >
-                              {order.payment_status}
+                              {order.payment_status === "PENDING"
+                                ? "Menunggu"
+                                : order.payment_status === "COMPLETED"
+                                  ? "Lunas"
+                                  : order.payment_status === "FAILED"
+                                    ? "Gagal"
+                                    : "Dikembalikan"}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {new Date(order.created_at).toLocaleDateString()}
+                            {new Date(order.created_at).toLocaleDateString("id-ID")}
                           </TableCell>
                           <TableCell className="text-right">
-                            <AdminRowOverflowMenu
-                              label={`Open actions for ${order.payment_order_id || order.customer_name}`}
-                              busy={isStatusBusy || isRowDeleteBusy}
-                              disabled={isStatusBusy || isDeleteBusy}
-                            >
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="min-h-11"
+                                onClick={() => setSelectedOrder(order)}
+                              >
+                                Detail
+                              </Button>
+                              <AdminRowOverflowMenu
+                                label={`Buka aksi ${order.payment_order_id || order.customer_name}`}
+                                busy={isStatusBusy || isRowDeleteBusy}
+                                disabled={isStatusBusy || isDeleteBusy}
+                              >
                                 <DropdownMenuItem
-                                    onSelect={() => setSelectedOrder(order)}
+                                  onSelect={() => setSelectedOrder(order)}
+                                >
+                                  <ArrowUpRight />
+                                  Detail
+                                </DropdownMenuItem>
+                                {canUpdatePaymentStatus &&
+                                order.payment_status === "PENDING" ? (
+                                  <DropdownMenuItem
+                                    onSelect={() => setPendingCompleteOrder(order)}
                                   >
-                                    <ArrowUpRight />
-                                    Details
+                                    <CheckCheck />
+                                    Tandai lunas
                                   </DropdownMenuItem>
-                                  {canUpdatePaymentStatus &&
-                                  order.payment_status === "PENDING" ? (
+                                ) : null}
+                                {canDeletePurchases ? (
+                                  <>
+                                    <DropdownMenuSeparator />
                                     <DropdownMenuItem
-                                      onSelect={() =>
-                                        updateOrderStatus(order.id, "COMPLETED")
-                                      }
+                                      variant="destructive"
+                                      onSelect={() => {
+                                        setPendingDeleteOrder(order);
+                                        setDeleteMode("single");
+                                      }}
                                     >
-                                      <CheckCheck />
-                                      Complete
+                                      <Trash2 />
+                                      Hapus
                                     </DropdownMenuItem>
-                                  ) : null}
-                                  {canDeletePurchases ? (
-                                    <>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem
-                                        variant="destructive"
-                                        onSelect={() => {
-                                          setPendingDeleteOrder(order);
-                                          setDeleteMode("single");
-                                        }}
-                                      >
-                                        <Trash2 />
-                                        Delete
-                                      </DropdownMenuItem>
-                                    </>
-                                  ) : null}
-                            </AdminRowOverflowMenu>
+                                  </>
+                                ) : null}
+                              </AdminRowOverflowMenu>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -490,6 +524,32 @@ export function PurchasesClient({
                   )}
                 </TableBody>
               </Table>
+            </div>
+            {canDeletePurchases ? (
+              <div className="border-t border-border px-4 py-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setPendingDeleteOrder(null);
+                    setDeleteMode("all");
+                  }}
+                  disabled={
+                    initialTotalCount === 0 ||
+                    isDeleteBusy ||
+                    Boolean(isUpdatingStatus)
+                  }
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  {isClearingAll ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="size-4" />
+                  )}
+                  Hapus semua penjualan
+                </Button>
+              </div>
+            ) : null}
             <AdminListPagination
               itemLabel="pembelian"
               page={initialPage.page}
@@ -511,10 +571,9 @@ export function PurchasesClient({
       >
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Purchase Details</DialogTitle>
+            <DialogTitle>Detail penjualan</DialogTitle>
             <DialogDescription>
-              Review customer, voucher, and payment information for this
-              purchase.
+              Pembeli, voucher, dan pembayaran untuk transaksi ini.
             </DialogDescription>
           </DialogHeader>
 
@@ -522,36 +581,53 @@ export function PurchasesClient({
             <div className="space-y-4">
               <div className="rounded-xl bg-muted/50 p-4">
                 <h4 className="mb-2 text-sm font-medium text-muted-foreground">
-                  Customer
+                  Pembeli
                 </h4>
-                <p className="font-medium">{selectedOrder.customer_name}</p>
+                <Link
+                  href={buyerPath(selectedOrder.customer_phone)}
+                  className="font-medium hover:underline"
+                >
+                  {selectedOrder.customer_name}
+                </Link>
                 <p className="text-sm text-muted-foreground">
                   {selectedOrder.customer_email}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {selectedOrder.customer_phone}
+                  {formatBuyerPhone(selectedOrder.customer_phone)}
                 </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 min-h-11"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(selectedOrder.customer_phone);
+                    showToast("Nomor WhatsApp disalin.", "success");
+                  }}
+                >
+                  Salin WhatsApp
+                </Button>
               </div>
 
               <div className="rounded-xl bg-muted/50 p-4">
                 <h4 className="mb-2 text-sm font-medium text-muted-foreground">
-                  Order
+                  Pesanan
                 </h4>
                 <div className="space-y-2">
                   <div className="flex justify-between gap-3">
-                    <span className="text-muted-foreground">Service</span>
+                    <span className="text-muted-foreground">Layanan</span>
                     <span className="text-right font-medium">
                       {getOrderServiceSummary(selectedOrder)}
                     </span>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <span className="text-muted-foreground">Items</span>
+                    <span className="text-muted-foreground">Item</span>
                     <span className="font-medium">
                       {selectedOrder.order_items.length || 1}
                     </span>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <span className="text-muted-foreground">Amount</span>
+                    <span className="text-muted-foreground">Jumlah</span>
                     <span className="font-medium">
                       {formatCurrency(selectedOrder.total_amount)}
                     </span>
@@ -573,7 +649,7 @@ export function PurchasesClient({
                     </Badge>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <span className="text-muted-foreground">Voucher Code</span>
+                    <span className="text-muted-foreground">Kode voucher</span>
                     <span className="font-mono text-sm">
                       {getOrderVoucherSummary(selectedOrder)}
                     </span>
@@ -622,11 +698,12 @@ export function PurchasesClient({
                 </div>
               </div>
 
-              <div className="rounded-xl bg-muted/50 p-4">
-                <h4 className="mb-2 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <details className="rounded-xl bg-muted/50 p-4">
+                <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-muted-foreground">
                   <CreditCard className="size-4" />
-                  Payment Transaction
-                </h4>
+                  Detail pembayaran
+                </summary>
+                <div className="mt-3">
                 <div className="space-y-2">
                   <div className="flex items-start justify-between gap-3">
                     <span className="flex items-center gap-1 text-muted-foreground">
@@ -690,11 +767,12 @@ export function PurchasesClient({
                     </span>
                   </div>
                 </div>
-              </div>
+                </div>
+              </details>
 
               <div className="text-xs text-muted-foreground">
                 <p>
-                  Created:{" "}
+                  Dibuat:{" "}
                   {new Date(selectedOrder.created_at).toLocaleString("id-ID")}
                 </p>
               </div>
@@ -704,11 +782,41 @@ export function PurchasesClient({
                   variant="outline"
                   onClick={() => setSelectedOrder(null)}
                 >
-                  Close
+                  Tutup
                 </Button>
               </DialogFooter>
             </div>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(pendingCompleteOrder)}
+        onOpenChange={(open) => !open && setPendingCompleteOrder(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tandai lunas?</DialogTitle>
+            <DialogDescription>
+              Status pembayaran {pendingCompleteOrder?.customer_name} menjadi lunas.
+              Lakukan ini hanya jika pembayaran sudah diterima.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingCompleteOrder(null)}>
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                if (!pendingCompleteOrder) return;
+                const orderId = pendingCompleteOrder.id;
+                setPendingCompleteOrder(null);
+                void updateOrderStatus(orderId, "COMPLETED");
+              }}
+            >
+              Ya, tandai lunas
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -725,13 +833,13 @@ export function PurchasesClient({
               <div className="space-y-1 text-left">
                 <DialogTitle>
                   {deleteMode === "all"
-                    ? "Clear all purchases?"
-                    : "Delete purchase permanently?"}
+                    ? "Hapus semua penjualan?"
+                    : "Hapus penjualan permanen?"}
                 </DialogTitle>
                 <DialogDescription className="text-left">
                   {deleteMode === "all"
-                    ? "This will permanently delete every purchase along with related vouchers, reviews, and webhook history. This action cannot be undone."
-                    : "This will permanently delete the selected purchase and any related voucher, review, and webhook history. This action cannot be undone."}
+                    ? "Semua penjualan, voucher terkait, ulasan, dan riwayat webhook akan terhapus. Tindakan ini tidak bisa dibatalkan."
+                    : "Penjualan ini beserta voucher, ulasan, dan riwayat webhook terkait akan terhapus. Tindakan ini tidak bisa dibatalkan."}
                 </DialogDescription>
               </div>
             </div>
@@ -756,10 +864,7 @@ export function PurchasesClient({
 
           {deleteMode === "all" ? (
             <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-muted-foreground">
-              {initialTotalCount} purchase
-              {initialTotalCount === 1 ? "" : "s"} will be
-              removed from the admin view after the server confirms the hard
-              delete.
+              {initialTotalCount} pembelian akan dihapus permanen.
             </div>
           ) : null}
 
@@ -769,7 +874,7 @@ export function PurchasesClient({
               onClick={closeDeleteDialog}
               disabled={isDeleteBusy}
             >
-              Cancel
+              Batal
             </Button>
             <Button
               variant="destructive"
@@ -787,8 +892,8 @@ export function PurchasesClient({
                 <Trash2 className="size-4" />
               )}
               {deleteMode === "all"
-                ? "Clear All Permanently"
-                : "Delete Permanently"}
+                ? "Hapus semua permanen"
+                : "Hapus permanen"}
             </Button>
           </DialogFooter>
         </DialogContent>

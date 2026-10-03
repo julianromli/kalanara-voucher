@@ -165,6 +165,28 @@ export async function getOrdersPage(
   }
 }
 
+export async function getAdminOrderById(
+  id: string,
+): Promise<OrderWithVoucherItems | null> {
+  await requireAdminPermission(AdminPermission.ORDERS_VIEW);
+  if (!id.trim()) {
+    return null;
+  }
+
+  const { data, error } = await getAdminClient()
+    .from("orders")
+    .select(ORDER_ADMIN_LIST_SELECT)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching admin order:", error);
+    return null;
+  }
+
+  return (data as OrderWithVoucherItems | null) ?? null;
+}
+
 export async function getOrdersTotalCount(): Promise<number> {
   await requireAdminPermission(AdminPermission.ORDERS_VIEW);
 

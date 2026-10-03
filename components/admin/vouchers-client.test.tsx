@@ -167,20 +167,20 @@ describe("VouchersClient", () => {
     );
 
     expect(
-      screen.getByRole("menuitem", { name: "Redeem" }),
+      screen.getByRole("menuitem", { name: "Tukarkan" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("menuitem", { name: "Delete" }),
+      screen.getByRole("menuitem", { name: "Hapus" }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("menuitem", { name: "Delete" }));
+    await user.click(screen.getByRole("menuitem", { name: "Hapus" }));
 
     expect(
-      screen.getByRole("alertdialog", { name: "Delete voucher permanently?" }),
+      screen.getByRole("alertdialog", { name: "Hapus voucher permanen?" }),
     ).toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: "Delete Permanently" }),
+      screen.getByRole("button", { name: "Hapus permanen" }),
     );
 
     await waitFor(() => {
@@ -214,9 +214,9 @@ describe("VouchersClient", () => {
         name: "Open actions for KSP-2026-ACTIVE01",
       }),
     );
-    await user.click(screen.getByRole("menuitem", { name: "Delete" }));
+    await user.click(screen.getByRole("menuitem", { name: "Hapus" }));
     await user.click(
-      screen.getByRole("button", { name: "Delete Permanently" }),
+      screen.getByRole("button", { name: "Hapus permanen" }),
     );
 
     await waitFor(() => {

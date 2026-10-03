@@ -2,7 +2,7 @@ import { PurchasesClient } from "@/components/admin/purchases-client";
 import {
   normalizeAdminListParams,
 } from "@/lib/actions/admin-pagination";
-import { getOrdersPage, getOrdersTotalCount } from "@/lib/actions/orders";
+import { getAdminOrderById, getOrdersPage, getOrdersTotalCount } from "@/lib/actions/orders";
 import {
   AdminPermission,
   hasPermissionForRole,
@@ -14,6 +14,7 @@ interface AdminPurchasesPageProps {
     page?: string | string[];
     query?: string | string[];
     status?: string | string[];
+    order?: string | string[];
   }>;
 }
 
@@ -38,15 +39,18 @@ export default async function AdminPurchasesPage({
     },
     PURCHASE_FILTERS,
   );
-  const [ordersPage, ordersTotalCount] = await Promise.all([
+  const orderId = Array.isArray(raw.order) ? raw.order[0] : raw.order;
+  const [ordersPage, ordersTotalCount, focusedOrder] = await Promise.all([
     getOrdersPage(params),
     getOrdersTotalCount(),
+    orderId ? getAdminOrderById(orderId) : Promise.resolve(null),
   ]);
 
   return (
       <PurchasesClient
         initialPage={ordersPage}
         initialTotalCount={ordersTotalCount}
+        focusedOrder={focusedOrder}
         canUpdatePaymentStatus={hasPermissionForRole(
           access.role,
           AdminPermission.ORDERS_UPDATE_PAYMENT_STATUS

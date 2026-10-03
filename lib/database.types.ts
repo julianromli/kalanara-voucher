@@ -889,6 +889,26 @@ export type Database = {
         };
         Returns: Database["public"]["Tables"]["orders"]["Row"][];
       };
+      list_admin_buyers: {
+        Args: {
+          search_query: string;
+        };
+        Returns: {
+          phone: string;
+          customer_name: string;
+          customer_email: string;
+          order_count: number;
+          voucher_count: number;
+          last_order_at: string;
+          other_names: string[];
+        }[];
+      };
+      list_admin_buyer_orders: {
+        Args: {
+          buyer_phone: string;
+        };
+        Returns: Database["public"]["Tables"]["orders"]["Row"][];
+      };
       generate_voucher_code: {
         Args: Record<PropertyKey, never>;
         Returns: string;

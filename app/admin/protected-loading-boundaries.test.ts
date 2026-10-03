@@ -13,6 +13,7 @@ const PAGE_SKELETONS = [
   ["dashboard", "AdminDashboardSkeleton"],
   ["services", "AdminServicesSkeleton"],
   ["purchases", "AdminPurchasesSkeleton"],
+  ["buyers", "AdminBuyersSkeleton"],
   ["reviews", "AdminReviewsSkeleton"],
   ["vouchers", "AdminVouchersSkeleton"],
   ["users", "AdminUsersSkeleton"],

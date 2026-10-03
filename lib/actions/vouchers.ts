@@ -170,7 +170,7 @@ export async function getVouchersPage(
   if (normalized.query) {
     const pattern = `"%${escapePostgrestLike(normalized.query)}%"`;
     request = request.or(
-      `code.ilike.${pattern},recipient_name.ilike.${pattern},recipient_email.ilike.${pattern}`,
+      `code.ilike.${pattern},recipient_name.ilike.${pattern},recipient_email.ilike.${pattern},services.name.ilike.${pattern}`,
     );
   }
 

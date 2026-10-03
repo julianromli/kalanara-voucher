@@ -287,8 +287,6 @@ describe("ServicesClient", () => {
 
   it("handles delete rejection for referenced category", async () => {
     const user = userEvent.setup();
-    window.confirm = vi.fn().mockReturnValue(true);
-    
     renderComponent();
 
     const manageCatBtn = screen.getByRole("button", { name: /Buka atau tutup kategori/i });
@@ -298,7 +296,8 @@ describe("ServicesClient", () => {
     
     vi.mocked(deleteServiceCategory).mockRejectedValue(new Error("Kategori ini sedang digunakan oleh 1 layanan"));
     
-    await user.click(deleteBtns[1]); 
+    await user.click(deleteBtns[1]);
+    await user.click(screen.getByRole("button", { name: "Hapus kategori" }));
 
     await waitFor(() => {
       expect(deleteServiceCategory).toHaveBeenCalledWith("cat-2");

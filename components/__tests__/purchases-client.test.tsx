@@ -68,13 +68,13 @@ describe("PurchasesClient", () => {
     );
 
     const clearAll = screen.getByRole("button", {
-      name: "Clear All Purchases",
+      name: "Hapus semua penjualan",
     });
     expect(clearAll).toBeEnabled();
 
     await user.click(clearAll);
 
-    expect(screen.getByText(/41 purchases will be removed/)).toBeInTheDocument();
+    expect(screen.getByText(/41 pembelian akan dihapus/)).toBeInTheDocument();
     expect(screen.getByText("0 pembelian")).toBeInTheDocument();
   });
 
@@ -125,9 +125,10 @@ describe("PurchasesClient", () => {
     );
 
     await user.click(
-      screen.getByRole("button", { name: "Open actions for PAY-1" }),
+      screen.getByRole("button", { name: "Buka aksi PAY-1" }),
     );
-    await user.click(screen.getByRole("menuitem", { name: "Complete" }));
+    await user.click(screen.getByRole("menuitem", { name: "Tandai lunas" }));
+    await user.click(screen.getByRole("button", { name: "Ya, tandai lunas" }));
 
     expect(screen.getByRole("button", { name: "Sebelumnya" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Berikutnya" })).toBeDisabled();

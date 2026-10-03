@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import {
@@ -72,8 +73,8 @@ import {
   AdminFilterBar,
   AdminPageBody,
   AdminPageIntro,
+  AdminStatButton,
   AdminSurface,
-  ADMIN_SURFACE_CLASS,
 } from "@/components/admin/admin-page";
 import { AdminRowOverflowMenu } from "@/components/admin/admin-row-overflow-menu";
 import type { AdminPage } from "@/lib/actions/admin-pagination";
@@ -95,17 +96,17 @@ const STATUS_CONFIG: Record<
   { label: string; color: string; icon: IconSvgElement }
 > = {
   active: {
-    label: "Active",
+    label: "Aktif",
     color: "bg-primary/10 text-primary",
     icon: Clock01Icon,
   },
   redeemed: {
-    label: "Redeemed",
+    label: "Terpakai",
     color: "bg-primary/10 text-primary",
     icon: Tick02Icon,
   },
   expired: {
-    label: "Expired",
+    label: "Kedaluwarsa",
     color: "bg-destructive/10 text-destructive",
     icon: CancelCircleIcon,
   },
@@ -343,41 +344,36 @@ export function VouchersClient({
 
   return (
     <>
-      <DashboardHeader title="Voucher Management" showActions={false} />
+      <DashboardHeader title="Voucher" showActions={false} />
       <AdminPageBody>
-        <AdminPageIntro description="Track voucher status, extend expiry, and redeem or void codes." />
+        <AdminPageIntro description="Pantau status, perpanjang masa berlaku, tukarkan, atau batalkan voucher." />
 
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <div className={cn(ADMIN_SURFACE_CLASS, "p-4")}>
-            <p className="text-sm text-muted-foreground">Total</p>
-            <p className="font-sans text-2xl font-semibold text-foreground tabular-nums">
-              {stats.total}
-            </p>
-          </div>
-          <div className={cn(ADMIN_SURFACE_CLASS, "p-4")}>
-            <p className="flex items-center gap-1 text-sm text-primary">
-              <HugeiconsIcon icon={Clock01Icon} size={14} /> Active
-            </p>
-            <p className="font-sans text-2xl font-semibold text-foreground tabular-nums">
-              {stats.active}
-            </p>
-          </div>
-          <div className={cn(ADMIN_SURFACE_CLASS, "p-4")}>
-            <p className="flex items-center gap-1 text-sm text-primary">
-              <HugeiconsIcon icon={Tick02Icon} size={14} /> Redeemed
-            </p>
-            <p className="font-sans text-2xl font-semibold text-foreground tabular-nums">
-              {stats.redeemed}
-            </p>
-          </div>
-          <div className={cn(ADMIN_SURFACE_CLASS, "p-4")}>
-            <p className="flex items-center gap-1 text-sm text-destructive">
-              <HugeiconsIcon icon={CancelCircleIcon} size={14} /> Expired
-            </p>
-            <p className="font-sans text-2xl font-semibold text-foreground tabular-nums">
-              {stats.expired}
-            </p>
-          </div>
+          <AdminStatButton
+            label="Total"
+            value={stats.total}
+            active={statusFilter === "ALL"}
+            onClick={() => setStatusFilter("ALL")}
+          />
+          <AdminStatButton
+            label="Aktif"
+            value={stats.active}
+            active={statusFilter === "ACTIVE"}
+            onClick={() => setStatusFilter("ACTIVE")}
+          />
+          <AdminStatButton
+            label="Terpakai"
+            value={stats.redeemed}
+            active={statusFilter === "REDEEMED"}
+            onClick={() => setStatusFilter("REDEEMED")}
+          />
+          <AdminStatButton
+            label="Kedaluwarsa"
+            value={stats.expired}
+            active={statusFilter === "EXPIRED"}
+            onClick={() => setStatusFilter("EXPIRED")}
+            tone="danger"
+          />
         </div>
 
         <AdminSurface>
@@ -389,7 +385,7 @@ export function VouchersClient({
                 className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
               />
               <Input
-                placeholder="Search by code, recipient..."
+                placeholder="Cari kode, penerima, email, atau layanan"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -401,13 +397,13 @@ export function VouchersClient({
             >
               <SelectTrigger className="w-full md:w-[180px]">
                 <HugeiconsIcon icon={FilterIcon} size={16} className="mr-2" />
-                <SelectValue placeholder="All Status" />
+                <SelectValue placeholder="Semua status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">All Status</SelectItem>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="REDEEMED">Redeemed</SelectItem>
-                <SelectItem value="EXPIRED">Expired</SelectItem>
+                <SelectItem value="ALL">Semua status</SelectItem>
+                <SelectItem value="ACTIVE">Aktif</SelectItem>
+                <SelectItem value="REDEEMED">Terpakai</SelectItem>
+                <SelectItem value="EXPIRED">Kedaluwarsa</SelectItem>
               </SelectContent>
             </Select>
           </AdminFilterBar>
@@ -417,11 +413,11 @@ export function VouchersClient({
           <AdminSurface padded={false}>
             <AdminEmptyState
               icon={<HugeiconsIcon icon={Ticket01Icon} size={22} />}
-              title="No vouchers found"
+              title="Tidak ada voucher"
               description={
                 searchQuery || statusFilter !== "ALL"
-                  ? "Try adjusting your filters"
-                  : "Vouchers will appear here when customers make purchases"
+                  ? "Coba kata atau status lain."
+                  : "Voucher muncul setelah ada pembelian."
               }
             />
             <AdminListPagination
@@ -434,30 +430,62 @@ export function VouchersClient({
           </AdminSurface>
         ) : (
           <AdminSurface padded={false}>
-            <div className="overflow-x-auto">
+            <div className="space-y-3 p-4 md:hidden">
+              {vouchers.map((voucher) => {
+                const status = getVoucherStatus(voucher);
+                return (
+                  <article key={voucher.id} className="rounded-xl border border-border p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <Link
+                          href={`/admin/purchases?query=${encodeURIComponent(voucher.code)}`}
+                          className="font-mono text-sm font-medium text-foreground hover:underline"
+                        >
+                          {voucher.code}
+                        </Link>
+                        <p className="mt-1 font-medium">{voucher.services?.name || "Layanan"}</p>
+                        <p className="text-sm text-muted-foreground">{voucher.recipient_name}</p>
+                      </div>
+                      <span className={`inline-flex rounded-full px-2 py-1 text-xs ${STATUS_CONFIG[status].color}`}>
+                        {STATUS_CONFIG[status].label}
+                      </span>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium tabular-nums">{formatCurrency(voucher.amount)}</p>
+                      {status === "active" ? (
+                        <Button type="button" size="sm" className="min-h-11" onClick={() => openActionDialog(voucher, "redeem")}>
+                          Tukarkan
+                        </Button>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                      Code
+                      Kode
                     </th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                      Service
+                      Layanan
                     </th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                      Recipient
+                      Penerima
                     </th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                      Value
+                      Nilai
                     </th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                      Expiry
+                      Berlaku
                     </th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">
                       Status
                     </th>
                     <th className="text-right p-4 text-sm font-medium text-muted-foreground">
-                      Actions
+                      Aksi
                     </th>
                   </tr>
                 </thead>
@@ -482,9 +510,12 @@ export function VouchersClient({
                       >
                         <td className="p-4">
                           <div className="flex items-center gap-2">
-                            <code className="font-mono text-sm text-foreground bg-muted px-2 py-1 rounded">
+                            <Link
+                              href={`/admin/purchases?query=${encodeURIComponent(voucher.code)}`}
+                              className="rounded bg-muted px-2 py-1 font-mono text-sm text-foreground hover:underline"
+                            >
                               {voucher.code}
-                            </code>
+                            </Link>
                             <button
                               type="button"
                               onClick={() => handleCopyCode(voucher.code)}
@@ -508,7 +539,7 @@ export function VouchersClient({
                             {voucher.services?.name || "Unknown"}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {voucher.services?.duration || 0} mins
+                            {voucher.services?.duration || 0} menit
                           </p>
                         </td>
                         <td className="p-4">
@@ -524,7 +555,22 @@ export function VouchersClient({
                         </td>
                         <td className="p-4">
                           <p className="text-muted-foreground">
-                            {new Date(voucher.expiry_date).toLocaleDateString()}
+                            {new Date(voucher.expiry_date).toLocaleDateString("id-ID", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                            <span className="mt-1 block text-xs text-muted-foreground">
+                              {(() => {
+                                const days = Math.ceil(
+                                  (new Date(voucher.expiry_date).getTime() - Date.now()) /
+                                    86_400_000,
+                                );
+                                if (days < 0) return "Sudah lewat";
+                                if (days === 0) return "Hari ini";
+                                return `${days} hari lagi`;
+                              })()}
+                            </span>
                           </p>
                         </td>
                         <td className="p-4">
@@ -541,7 +587,7 @@ export function VouchersClient({
                                 size={12}
                                 className="animate-spin"
                               />
-                              Syncing
+                              Menyinkronkan
                             </span>
                           )}
                         </td>
@@ -560,7 +606,7 @@ export function VouchersClient({
                                         }
                                       >
                                         <QrCode />
-                                        Redeem
+                                        Tukarkan
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
                                         onSelect={() =>
@@ -568,7 +614,7 @@ export function VouchersClient({
                                         }
                                       >
                                         <CalendarPlus />
-                                        Extend
+                                        Perpanjang
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
                                         variant="destructive"
@@ -577,7 +623,7 @@ export function VouchersClient({
                                         }
                                       >
                                         <Ban />
-                                        Void
+                                        Batalkan
                                       </DropdownMenuItem>
                                       <DropdownMenuSeparator />
                                     </>
@@ -589,7 +635,7 @@ export function VouchersClient({
                                     }
                                   >
                                     <Trash2 />
-                                    Delete
+                                    Hapus
                                   </DropdownMenuItem>
                             </AdminRowOverflowMenu>
                           </div>
@@ -623,7 +669,7 @@ export function VouchersClient({
                     size={20}
                     className="text-primary"
                   />
-                  Redeem Voucher
+                  Tukarkan voucher
                 </>
               )}
               {actionType === "extend" && (
@@ -633,7 +679,7 @@ export function VouchersClient({
                     size={20}
                     className="text-primary"
                   />
-                  Extend Voucher
+                  Perpanjang voucher
                 </>
               )}
               {actionType === "void" && (
@@ -643,17 +689,17 @@ export function VouchersClient({
                     size={20}
                     className="text-destructive"
                   />
-                  Void Voucher
+                  Batalkan voucher
                 </>
               )}
             </DialogTitle>
             <DialogDescription>
               {actionType === "redeem" &&
-                "Mark this voucher as redeemed. This action cannot be undone."}
+                "Tandai voucher ini sudah dipakai. Tindakan ini tidak bisa dibatalkan."}
               {actionType === "extend" &&
-                "Extend the expiry date of this voucher."}
+                "Perpanjang tanggal berlaku voucher ini."}
               {actionType === "void" &&
-                "Void this voucher. This will immediately expire it and cannot be undone."}
+                "Batalkan voucher ini. Voucher langsung kedaluwarsa dan tidak bisa dipakai."}
             </DialogDescription>
           </DialogHeader>
 
@@ -680,7 +726,7 @@ export function VouchersClient({
                     htmlFor={EXTEND_DAYS_SELECT_ID}
                     className="block text-sm text-muted-foreground"
                   >
-                    Extend by (days)
+                    Tambah hari berlaku
                   </label>
                   <Select
                     value={String(extendDays)}
@@ -690,19 +736,19 @@ export function VouchersClient({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="7">7 days</SelectItem>
-                      <SelectItem value="14">14 days</SelectItem>
-                      <SelectItem value="30">30 days</SelectItem>
-                      <SelectItem value="60">60 days</SelectItem>
-                      <SelectItem value="90">90 days</SelectItem>
+                      <SelectItem value="7">7 hari</SelectItem>
+                      <SelectItem value="14">14 hari</SelectItem>
+                      <SelectItem value="30">30 hari</SelectItem>
+                      <SelectItem value="60">60 hari</SelectItem>
+                      <SelectItem value="90">90 hari</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    New expiry:{" "}
+                    Berlaku sampai:{" "}
                     {new Date(
                       new Date(selectedVoucher.expiry_date).getTime() +
                         extendDays * 24 * 60 * 60 * 1000,
-                    ).toLocaleDateString()}
+                    ).toLocaleDateString("id-ID")}
                   </p>
                 </div>
               )}
@@ -715,8 +761,7 @@ export function VouchersClient({
                     className="text-destructive shrink-0 mt-0.5"
                   />
                   <p className="text-sm text-destructive">
-                    Warning: This action is irreversible. The voucher will be
-                    immediately marked as expired and cannot be used.
+                    Tindakan ini tidak bisa dibatalkan. Voucher langsung kedaluwarsa.
                   </p>
                 </div>
               )}
@@ -729,7 +774,7 @@ export function VouchersClient({
               onClick={closeActionDialog}
               disabled={isProcessing}
             >
-              Cancel
+              Batal
             </Button>
             <Button
               onClick={handleAction}
@@ -747,9 +792,9 @@ export function VouchersClient({
                   className="mr-1 animate-spin"
                 />
               ) : null}
-              {actionType === "redeem" && "Confirm Redemption"}
-              {actionType === "extend" && "Extend Voucher"}
-              {actionType === "void" && "Void Voucher"}
+              {actionType === "redeem" && "Ya, tukarkan"}
+              {actionType === "extend" && "Perpanjang"}
+              {actionType === "void" && "Batalkan voucher"}
             </Button>
           </div>
         </DialogContent>
@@ -764,11 +809,10 @@ export function VouchersClient({
             <AlertDialogMedia className="bg-destructive/10 text-destructive">
               <AlertTriangle />
             </AlertDialogMedia>
-            <AlertDialogTitle>Delete voucher permanently?</AlertDialogTitle>
+            <AlertDialogTitle>Hapus voucher permanen?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the voucher, remove any related
-              review, and detach it from existing purchases. Purchases will
-              remain in admin history without voucher details.
+              Voucher dan ulasan terkait akan terhapus. Pembelian tetap ada,
+              tanpa detail voucher.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -789,7 +833,7 @@ export function VouchersClient({
 
           <AlertDialogFooter>
             <AlertDialogCancel disabled={Boolean(isDeletingVoucher)}>
-              Cancel
+              Batal
             </AlertDialogCancel>
             <Button
               variant="destructive"
@@ -805,7 +849,7 @@ export function VouchersClient({
               ) : (
                 <Trash2 />
               )}
-              Delete Permanently
+              Hapus permanen
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

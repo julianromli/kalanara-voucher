@@ -50,6 +50,7 @@ const ROLE_PERMISSIONS: Record<CanonicalAdminRole, readonly AdminPermission[]> =
 export const ADMIN_ROUTE_PERMISSIONS = {
   "/admin/dashboard": AdminPermission.DASHBOARD_VIEW_OPERATIONAL,
   "/admin/purchases": AdminPermission.ORDERS_VIEW,
+  "/admin/buyers": AdminPermission.ORDERS_VIEW,
   "/admin/discount-codes": AdminPermission.DISCOUNT_CODES_MANAGE,
   "/admin/vouchers": AdminPermission.VOUCHERS_MANAGE,
   "/admin/services": AdminPermission.SERVICES_MANAGE,

@@ -141,6 +141,47 @@ interface AdminFilterBarProps {
   className?: string;
 }
 
+interface AdminStatButtonProps {
+  label: string;
+  value: number;
+  active: boolean;
+  onClick: () => void;
+  tone?: "default" | "danger";
+}
+
+export function AdminStatButton({
+  label,
+  value,
+  active,
+  onClick,
+  tone = "default",
+}: AdminStatButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        ADMIN_SURFACE_CLASS,
+        "min-h-20 p-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        active && "ring-2 ring-primary",
+      )}
+    >
+      <p
+        className={cn(
+          "text-sm",
+          tone === "danger" ? "text-destructive" : "text-muted-foreground",
+        )}
+      >
+        {label}
+      </p>
+      <p className="font-sans text-2xl font-semibold text-foreground tabular-nums">
+        {value}
+      </p>
+    </button>
+  );
+}
+
 export function AdminFilterBar({ children, className }: AdminFilterBarProps) {
   return (
     <div
