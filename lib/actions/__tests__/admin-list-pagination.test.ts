@@ -172,6 +172,39 @@ describe("paginated admin list actions", () => {
     expect(calls.range).toHaveBeenCalledWith(0, 24);
   });
 
+  test("voucher search matches service names without an embedded OR filter", async () => {
+    const calls = createQueryResult([{ id: "voucher-1" }], 1);
+    const serviceQuery = {
+      select: vi.fn(),
+      ilike: vi.fn(),
+    };
+    serviceQuery.select.mockReturnValue(serviceQuery);
+    serviceQuery.ilike.mockResolvedValue({
+      data: [{ id: "service-1" }],
+      error: null,
+    });
+    const from = vi.fn((table: string) =>
+      table === "services" ? serviceQuery : calls.builder,
+    );
+    getAdminClientMock.mockReturnValue({ from });
+
+    const { getVouchersPage } = await import("@/lib/actions/vouchers");
+    await getVouchersPage({
+      page: 1,
+      query: "Hot_Stone%",
+      filter: "ALL",
+    });
+
+    expect(from).toHaveBeenCalledWith("services");
+    expect(serviceQuery.ilike).toHaveBeenCalledWith("name", "%Hot\\_Stone\\%%");
+    expect(calls.or).toHaveBeenCalledWith(
+      expect.stringContaining("service_id.in.(service-1)"),
+    );
+    expect(calls.or).toHaveBeenCalledWith(
+      expect.not.stringContaining("services.name"),
+    );
+  });
+
   test("voucher summary uses three global exact head counts without row payloads", async () => {
     const active = createHeadCountResult(31);
     const redeemed = createHeadCountResult(17);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -150,6 +150,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [catName, setCatName] = useState("");
   const [isCatBusy, setIsCatBusy] = useState(false);
+  const categoryDeleteInFlightRef = useRef(false);
 
   // Layout & sync state
   const [optimisticIds, setOptimisticIds] = useState<Set<string>>(new Set());
@@ -594,8 +595,10 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
   };
 
   const handleDeleteCategory = async () => {
-    if (!categoryToDelete) return;
+    if (!categoryToDelete || categoryDeleteInFlightRef.current) return;
     const id = categoryToDelete;
+    categoryDeleteInFlightRef.current = true;
+    setIsCatBusy(true);
 
     try {
       await deleteServiceCategory(id);
@@ -605,6 +608,9 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
       showToast("Kategori berhasil dihapus", "success");
     } catch (error: unknown) {
       showToast(error instanceof Error ? error.message : "Gagal menghapus kategori", "error");
+    } finally {
+      categoryDeleteInFlightRef.current = false;
+      setIsCatBusy(false);
     }
   };
 
