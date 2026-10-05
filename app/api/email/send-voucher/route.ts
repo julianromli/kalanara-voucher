@@ -256,7 +256,6 @@ export async function POST(request: NextRequest) {
           <tr>
             <td style="background-color: #f6f7f4; padding: 32px 40px; text-align: center;">
               <p style="margin: 0 0 8px; color: #343f2c; font-size: 16px; font-weight: 600;">KALANARA SPA</p>
-              <p style="margin: 0 0 4px; color: #5d4a3b; font-size: 13px;">Jl. Raya Ubud No. 88, Ubud, Bali 80571</p>
               <p style="margin: 0; color: #5d4a3b; font-size: 13px;">${APP_CONFIG.contact.phone} | hello@kalanaraspa.com</p>
             </td>
           </tr>
