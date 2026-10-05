@@ -168,6 +168,7 @@ describe("POST /api/email/send-voucher", () => {
 
     const payload = resendSendMock.mock.calls[0][0];
     expect(payload.html).toContain("Your voucher PDF is attached to this email.");
+    expect(payload.html).not.toContain("Jl. Raya Ubud");
     expect(payload.attachments).toEqual([
       {
         filename: "kalanara-voucher-KSPV-001.pdf",
