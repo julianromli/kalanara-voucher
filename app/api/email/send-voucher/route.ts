@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { APP_CONFIG } from "@/lib/constants";
+import { generateVoucherPDF } from "@/lib/pdf";
 import {
   getAuthorizedVoucherDelivery,
   type AuthorizedVoucherDelivery,
@@ -45,11 +46,51 @@ function sanitizeHeaderValue(value: string): string {
   return value.replace(/[\r\n]+/g, " ").trim();
 }
 
+const PDF_HEADER = Buffer.from("%PDF");
+
+interface VoucherPdfAttachment {
+  filename: string;
+  content: string;
+  contentType: "application/pdf";
+}
+
+function voucherPdfFilename(voucherCode: string): string {
+  const safeCode = voucherCode.replace(/[^A-Za-z0-9-]/g, "");
+  return `kalanara-voucher-${safeCode || "voucher"}.pdf`;
+}
+
+async function createVoucherPdfAttachment(
+  delivery: AuthorizedVoucherDelivery
+): Promise<VoucherPdfAttachment> {
+  const blob = await generateVoucherPDF({
+    code: delivery.voucherCode,
+    serviceName: delivery.serviceName,
+    recipientName: delivery.recipientName,
+    senderName: delivery.senderName,
+    senderMessage: delivery.senderMessage || undefined,
+    expiryDate: delivery.expiryDate,
+  });
+  const bytes = Buffer.from(await blob.arrayBuffer());
+  if (
+    bytes.length < PDF_HEADER.length ||
+    !bytes.subarray(0, PDF_HEADER.length).equals(PDF_HEADER)
+  ) {
+    throw new Error("Generated voucher PDF is empty or invalid");
+  }
+
+  return {
+    filename: voucherPdfFilename(delivery.voucherCode),
+    content: bytes.toString("base64"),
+    contentType: "application/pdf",
+  };
+}
+
 function getEmailIdempotencyKey(
   delivery: AuthorizedVoucherDelivery
 ): string {
   const deliveryIdentity = JSON.stringify({
     channel: "EMAIL",
+    attachment: "voucher-pdf-v1",
     orderId: delivery.orderId,
     voucherCode: delivery.voucherCode,
     recipientEmail: delivery.recipientEmail?.trim().toLowerCase() ?? "",
@@ -190,6 +231,15 @@ export async function POST(request: NextRequest) {
             </td>
           </tr>
           
+          <!-- Attachment note -->
+          <tr>
+            <td style="padding: 0 40px 24px;">
+              <p style="margin: 0; color: #5d4a3b; font-size: 14px; line-height: 1.6;">
+                Your voucher PDF is attached to this email.
+              </p>
+            </td>
+          </tr>
+
           <!-- How to Redeem -->
           <tr>
             <td style="padding: 0 40px 40px;">
@@ -219,12 +269,24 @@ export async function POST(request: NextRequest) {
 </html>
     `;
 
+    let pdfAttachment: VoucherPdfAttachment;
+    try {
+      pdfAttachment = await createVoucherPdfAttachment(delivery);
+    } catch (pdfError) {
+      console.error("Failed to generate voucher PDF:", pdfError);
+      return NextResponse.json(
+        { error: "Failed to generate voucher PDF" },
+        { status: 500 }
+      );
+    }
+
     const { data, error } = await resend.emails.send(
       {
         from: "Kalanara Spa <noreply@voucher.kalanaraspa.com>",
         to: [delivery.recipientEmail],
         subject: `🎁 ${sanitizeHeaderValue(delivery.senderName)} sent you a gift from Kalanara Spa!`,
         html: emailHtml,
+        attachments: [pdfAttachment],
       },
       { idempotencyKey: getEmailIdempotencyKey(delivery) }
     );

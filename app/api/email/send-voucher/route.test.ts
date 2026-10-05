@@ -1,9 +1,19 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-const { getAuthorizedVoucherDeliveryMock, resendSendMock } = vi.hoisted(() => ({
+const { getAuthorizedVoucherDeliveryMock, resendSendMock, generateVoucherPdfMock } = vi.hoisted(() => ({
   getAuthorizedVoucherDeliveryMock: vi.fn(),
   resendSendMock: vi.fn(),
+  generateVoucherPdfMock: vi.fn(),
 }));
+
+const voucherPdfBytes = Buffer.from("%PDF-1.3 voucher");
+
+function pdfFile(contents: Buffer) {
+  const bytes = Uint8Array.from(contents);
+  return {
+    arrayBuffer: async () => bytes.buffer,
+  };
+}
 
 vi.mock("resend", () => ({
   Resend: class {
@@ -13,6 +23,10 @@ vi.mock("resend", () => ({
 
 vi.mock("@/lib/payment/public-voucher-delivery", () => ({
   getAuthorizedVoucherDelivery: getAuthorizedVoucherDeliveryMock,
+}));
+
+vi.mock("@/lib/pdf", () => ({
+  generateVoucherPDF: generateVoucherPdfMock,
 }));
 
 describe("POST /api/email/send-voucher", () => {
@@ -35,6 +49,7 @@ describe("POST /api/email/send-voucher", () => {
       data: { id: "email-1" },
       error: null,
     });
+    generateVoucherPdfMock.mockResolvedValue(pdfFile(voucherPdfBytes));
   });
 
   test("returns 400 for malformed JSON", async () => {
@@ -122,5 +137,68 @@ describe("POST /api/email/send-voucher", () => {
     const firstKey = resendSendMock.mock.calls[0][1].idempotencyKey;
     const secondKey = resendSendMock.mock.calls[1][1].idempotencyKey;
     expect(secondKey).not.toBe(firstKey);
+  });
+
+  test("attaches the same voucher PDF that the buyer can download", async () => {
+    const { POST } = await import("@/app/api/email/send-voucher/route");
+
+    const response = await POST(
+      new Request("http://localhost/api/email/send-voucher", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-forwarded-for": "203.0.113.44",
+        },
+        body: JSON.stringify({
+          orderId: "server-order-1",
+          token: "server-token",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(200);
+    expect(generateVoucherPdfMock).toHaveBeenCalledWith({
+      code: "KSPV-001",
+      serviceName: "Balinese Massage",
+      recipientName: "Penerima",
+      senderName: "Pengirim",
+      senderMessage: undefined,
+      expiryDate: "2027-01-01T00:00:00.000Z",
+    });
+
+    const payload = resendSendMock.mock.calls[0][0];
+    expect(payload.html).toContain("Your voucher PDF is attached to this email.");
+    expect(payload.attachments).toEqual([
+      {
+        filename: "kalanara-voucher-KSPV-001.pdf",
+        content: voucherPdfBytes.toString("base64"),
+        contentType: "application/pdf",
+      },
+    ]);
+  });
+
+  test("does not send the email when the voucher PDF is invalid", async () => {
+    generateVoucherPdfMock.mockResolvedValueOnce(pdfFile(Buffer.from("not-a-pdf")));
+    const { POST } = await import("@/app/api/email/send-voucher/route");
+
+    const response = await POST(
+      new Request("http://localhost/api/email/send-voucher", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-forwarded-for": "203.0.113.45",
+        },
+        body: JSON.stringify({
+          orderId: "server-order-1",
+          token: "server-token",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "Failed to generate voucher PDF",
+    });
+    expect(resendSendMock).not.toHaveBeenCalled();
   });
 });
