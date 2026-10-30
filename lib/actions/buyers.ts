@@ -5,7 +5,6 @@ import { requireAdminPermission } from "@/lib/auth/admin-rbac-server";
 import {
   ADMIN_PAGE_SIZE,
   buildAdminPage,
-  normalizeAdminListParams,
   type AdminListParams,
   type AdminPage,
 } from "@/lib/actions/admin-pagination";
@@ -103,11 +102,4 @@ export async function getBuyerOrders(
   return ((data as unknown as OrderWithVoucherItems[] | null) ?? []).sort(
     (left, right) => right.created_at.localeCompare(left.created_at),
   );
-}
-
-export function normalizeBuyerListParams(input: {
-  page?: string | string[];
-  query?: string | string[];
-}) {
-  return normalizeAdminListParams(input, ["ALL"]);
 }
