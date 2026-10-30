@@ -271,28 +271,6 @@ export async function POST(request: NextRequest) {
               : ""
           }
 
-          <!-- Attachment note -->
-          <tr>
-            <td style="padding: ${senderMessage ? "0" : "48px"} 40px 48px;">
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fbfbfb; border: 1px solid #dbdbdb; border-radius: 12px;">
-                <tr>
-                  <td width="36" style="padding: 16px 0 16px 20px;">
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0">
-                      <tr>
-                        <td width="36" height="36" style="background-color: #243a3e; border-radius: 18px; text-align: center;">
-                          <img src="${emailAsset("icon-paperclip-gold-light.png")}" width="16" height="16" alt="" style="display: inline-block; vertical-align: middle; border: 0;">
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                  <td style="padding: 16px 20px 16px 12px; color: #243a3e; font-size: 14px; line-height: 1.5;">
-                    Your voucher PDF is attached to this email.
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
           <!-- How to redeem -->
           <tr>
             <td style="background-color: #fbfbfb; border-top: 1px solid #dbdbdb; padding: 44px 40px; text-align: center;">
