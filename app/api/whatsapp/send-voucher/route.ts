@@ -1,23 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateWhatsAppUrl, WhatsAppVoucherData } from "@/lib/utils/whatsapp";
 import { getAuthorizedVoucherDelivery } from "@/lib/payment/public-voucher-delivery";
+import { createRateLimiter, getClientIp } from "@/lib/rate-limit";
 
-// Simple in-memory rate limiter (for production, consider Redis/Upstash)
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(ip: string, limit = 10, windowMs = 60000): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  if (!entry || entry.resetAt < now) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-
-  if (entry.count >= limit) return false;
-  entry.count++;
-  return true;
-}
+const checkRateLimit = createRateLimiter({ limit: 10, windowMs: 60000 });
 
 /**
  * Request body for sending voucher via WhatsApp
@@ -67,9 +53,7 @@ export async function POST(
 ): Promise<NextResponse<SendWhatsAppResponse>> {
   try {
     // Rate limiting to prevent abuse
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || 
-               request.headers.get("x-real-ip") || 
-               "unknown";
+    const ip = getClientIp(request);
     if (!checkRateLimit(ip)) {
       return NextResponse.json(
         { success: false, error: "Too many requests. Please try again later." },
