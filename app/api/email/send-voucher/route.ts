@@ -64,15 +64,18 @@ async function createVoucherPdfAttachment(
   };
 }
 
+// Resend rejects a reused key whose payload differs (409) for 24 hours, so the
+// key covers the rendered HTML: a template change, a new app URL or a new
+// download-link secret gives a new key. The PDF bytes are left out because
+// they are not deterministic.
 function getEmailIdempotencyKey(
-  delivery: AuthorizedVoucherDelivery
+  delivery: AuthorizedVoucherDelivery,
+  emailHtml: string
 ): string {
   const deliveryIdentity = JSON.stringify({
     channel: "EMAIL",
     attachment: "voucher-pdf-v1",
-    // Bump when the email HTML changes: Resend rejects a reused key whose
-    // payload differs (409) for 24 hours.
-    template: "voucher-email-v2",
+    html: createHash("sha256").update(emailHtml).digest("hex"),
     orderId: delivery.orderId,
     voucherCode: delivery.voucherCode,
     recipientEmail: delivery.recipientEmail?.trim().toLowerCase() ?? "",
@@ -360,7 +363,7 @@ export async function POST(request: NextRequest) {
         html: emailHtml,
         attachments: [pdfAttachment],
       },
-      { idempotencyKey: getEmailIdempotencyKey(delivery) }
+      { idempotencyKey: getEmailIdempotencyKey(delivery, emailHtml) }
     );
 
     if (error) {

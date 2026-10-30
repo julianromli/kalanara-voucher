@@ -141,6 +141,33 @@ describe("POST /api/email/send-voucher", () => {
     expect(secondKey).not.toBe(firstKey);
   });
 
+  test("uses a new idempotency key when the download link changes", async () => {
+    const { POST } = await import("@/app/api/email/send-voucher/route");
+    const makeRequest = () =>
+      new Request("http://localhost/api/email/send-voucher", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-forwarded-for": "203.0.113.48",
+        },
+        body: JSON.stringify({
+          orderId: "server-order-1",
+          token: "server-token",
+        }),
+      }) as never;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await POST(makeRequest());
+    vi.stubEnv("VOUCHER_PDF_LINK_SECRET", "rotated-link-secret");
+    await POST(makeRequest());
+    vi.stubEnv("VOUCHER_PDF_LINK_SECRET", "");
+    await POST(makeRequest());
+    warn.mockRestore();
+
+    const keys = resendSendMock.mock.calls.map((call) => call[1].idempotencyKey);
+    expect(new Set(keys).size).toBe(3);
+  });
+
   test("attaches the same voucher PDF that the buyer can download", async () => {
     const { POST } = await import("@/app/api/email/send-voucher/route");
 
