@@ -32,6 +32,8 @@ vi.mock("@/lib/pdf", () => ({
 describe("POST /api/email/send-voucher", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://voucher.example.com/");
+    vi.stubEnv("VOUCHER_PDF_LINK_SECRET", "test-link-secret");
     getAuthorizedVoucherDeliveryMock.mockResolvedValue({
       orderId: "server-order-1",
       token: "server-token",
@@ -176,6 +178,62 @@ describe("POST /api/email/send-voucher", () => {
         contentType: "application/pdf",
       },
     ]);
+  });
+
+  test("links the download button to a signed PDF URL for this voucher", async () => {
+    const { POST } = await import("@/app/api/email/send-voucher/route");
+    const { signVoucherPdfCode } = await import("@/lib/payment/voucher-pdf-link");
+
+    const response = await POST(
+      new Request("http://localhost/api/email/send-voucher", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-forwarded-for": "203.0.113.46",
+        },
+        body: JSON.stringify({
+          orderId: "server-order-1",
+          token: "server-token",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(200);
+    const payload = resendSendMock.mock.calls[0][0];
+    const signature = signVoucherPdfCode("KSPV-001");
+    expect(payload.html).toContain(
+      `https://voucher.example.com/api/vouchers/pdf?code=KSPV-001&amp;sig=${signature}`
+    );
+    expect(payload.html).toContain("https://voucher.example.com/email/voucher-hero.jpg");
+    expect(payload.html).not.toContain("server-token");
+  });
+
+  test("still sends the email without a download button when the link secret is missing", async () => {
+    vi.stubEnv("VOUCHER_PDF_LINK_SECRET", "");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { POST } = await import("@/app/api/email/send-voucher/route");
+
+    const response = await POST(
+      new Request("http://localhost/api/email/send-voucher", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-forwarded-for": "203.0.113.47",
+        },
+        body: JSON.stringify({
+          orderId: "server-order-1",
+          token: "server-token",
+        }),
+      }) as never
+    );
+
+    expect(response.status).toBe(200);
+    const payload = resendSendMock.mock.calls[0][0];
+    expect(payload.html).not.toContain("/api/vouchers/pdf");
+    expect(payload.html).toContain("Show on arrival");
+    expect(payload.attachments).toHaveLength(1);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   test("does not send the email when the voucher PDF is invalid", async () => {
