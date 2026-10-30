@@ -1,8 +1,19 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import {
+  VOUCHER_PDF_SERVER_ASSETS,
+  VOUCHER_PDF_SERVER_ROUTES,
+} from "./lib/voucher-pdf-assets";
+
+const voucherPdfTraceFiles = VOUCHER_PDF_SERVER_ASSETS.map(
+  (assetPath) => `./public${assetPath}`
+);
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  outputFileTracingIncludes: Object.fromEntries(
+    VOUCHER_PDF_SERVER_ROUTES.map((route) => [route, voucherPdfTraceFiles])
+  ),
   images: {
     remotePatterns: [
       {

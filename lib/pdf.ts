@@ -1,5 +1,16 @@
 import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
+import {
+  VOUCHER_PDF_BACKGROUND_PATH,
+  VOUCHER_PDF_FONT_PATHS,
+} from "@/lib/voucher-pdf-assets";
+
+export class VoucherPdfAssetError extends Error {
+  constructor(assetPath: string, cause: unknown) {
+    super(`Voucher PDF asset could not be loaded: ${assetPath}`, { cause });
+    this.name = "VoucherPdfAssetError";
+  }
+}
 
 interface VoucherPDFData {
   code: string;
@@ -75,13 +86,13 @@ const FONT_CONFIGS: Record<"primary" | "serif", FontConfig[]> = {
       fileName: "PlusJakartaSans-Regular.ttf",
       fontName: "PlusJakartaSans",
       fontStyle: "normal",
-      localPath: "/fonts/PlusJakartaSans-Regular.ttf",
+      localPath: VOUCHER_PDF_FONT_PATHS.regular,
     },
     {
       fileName: "PlusJakartaSans-Bold.ttf",
       fontName: "PlusJakartaSans",
       fontStyle: "bold",
-      localPath: "/fonts/PlusJakartaSans-Bold.ttf",
+      localPath: VOUCHER_PDF_FONT_PATHS.bold,
     },
   ],
   serif: [],
@@ -102,43 +113,44 @@ function arrayBufferToBinaryString(buffer: ArrayBuffer): string {
   }
 }
 
-// Load and convert image to base64
+// Load an image from `public/` as a data URL. Throws when the image cannot be read.
 async function loadImageAsBase64(imagePath: string): Promise<string> {
-  try {
-    if (typeof window !== "undefined") {
-      // Client-side: Use fetch and FileReader
-      const response = await fetch(imagePath);
-      const blob = await response.blob();
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    } else {
-      // Server-side: Use fs to read from public directory
-      const fs = await import("fs");
-      const path = await import("path");
-
-      // Remove leading slash if present to join correctly
-      const relativePath = imagePath.startsWith("/") ? imagePath.slice(1) : imagePath;
-      const filePath = path.join(process.cwd(), "public", relativePath);
-
-      const buffer = await fs.promises.readFile(filePath);
-      const base64 = buffer.toString("base64");
-
-      const ext = path.extname(filePath).toLowerCase();
-      let mimeType = "image/png";
-      if (ext === ".jpg" || ext === ".jpeg") mimeType = "image/jpeg";
-      if (ext === ".webp") mimeType = "image/webp";
-      if (ext === ".svg") mimeType = "image/svg+xml";
-
-      return `data:${mimeType};base64,${base64}`;
+  if (typeof window !== "undefined") {
+    const response = await fetch(imagePath);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} for ${imagePath}`);
     }
-  } catch (error) {
-    console.error(`Failed to load image ${imagePath}:`, error);
-    return "";
+    const blob = await response.blob();
+    if (!blob.type.startsWith("image/")) {
+      throw new Error(`Unexpected content type "${blob.type}" for ${imagePath}`);
+    }
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   }
+
+  // Server-side: the file must be in the function bundle (see lib/voucher-pdf-assets.ts).
+  const fs = await import("fs");
+  const path = await import("path");
+
+  const relativePath = imagePath.startsWith("/") ? imagePath.slice(1) : imagePath;
+  const filePath = path.join(process.cwd(), "public", relativePath);
+
+  const buffer = await fs.promises.readFile(filePath);
+  if (buffer.length === 0) {
+    throw new Error(`Image file is empty: ${filePath}`);
+  }
+
+  const ext = path.extname(filePath).toLowerCase();
+  let mimeType = "image/png";
+  if (ext === ".jpg" || ext === ".jpeg") mimeType = "image/jpeg";
+  if (ext === ".webp") mimeType = "image/webp";
+  if (ext === ".svg") mimeType = "image/svg+xml";
+
+  return `data:${mimeType};base64,${buffer.toString("base64")}`;
 }
 
 // Format date to Indonesian format
@@ -334,14 +346,18 @@ export async function generateVoucherPDF(data: VoucherPDFData): Promise<Blob> {
   doc.setFillColor(...COLORS.white);
   doc.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, "F");
 
-  // Load background image
+  // The background carries the whole voucher artwork, so a PDF without it is
+  // broken: fail instead of sending a plain white voucher.
   try {
-    const bgImage = await loadImageAsBase64("/voucher/voucher-pdf-bg.webp");
-    if (bgImage) {
-      doc.addImage(bgImage, "WEBP", 0, 0, PAGE_WIDTH, PAGE_HEIGHT);
-    }
+    const bgImage = await loadImageAsBase64(VOUCHER_PDF_BACKGROUND_PATH);
+    doc.addImage(bgImage, "WEBP", 0, 0, PAGE_WIDTH, PAGE_HEIGHT);
   } catch (error) {
-    console.error("Failed to load background image:", error);
+    console.error(
+      `[voucher-pdf] Background image ${VOUCHER_PDF_BACKGROUND_PATH} could not be loaded. ` +
+        "On the server it must be listed in lib/voucher-pdf-assets.ts so it is traced into the function bundle.",
+      error,
+    );
+    throw new VoucherPdfAssetError(VOUCHER_PDF_BACKGROUND_PATH, error);
   }
 
   // =========================================================================
@@ -350,9 +366,7 @@ export async function generateVoucherPDF(data: VoucherPDFData): Promise<Blob> {
   // Figma: x=116, y=62, w=266, h=236
   try {
     const logo = await loadImageAsBase64("/voucher/logo.png");
-    if (logo) {
-      doc.addImage(logo, "PNG", 116, 62, 266, 236);
-    }
+    doc.addImage(logo, "PNG", 116, 62, 266, 236);
   } catch {
     // ignore
   }
