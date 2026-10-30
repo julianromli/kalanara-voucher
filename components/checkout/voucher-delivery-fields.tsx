@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { FieldError, UseFormRegisterReturn } from "react-hook-form";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getDeliveryPreview } from "@/lib/checkout/client";
 import { DeliveryMethod, SendTo } from "@/lib/types";
@@ -136,15 +137,15 @@ export function VoucherDeliveryFields({
       </div>
 
       <div>
-        <button
+        <Button
           type="button"
-          className="min-h-11 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+          className="min-h-11"
           aria-expanded={messageOpen}
           aria-controls={messageOpen ? senderMessageId : undefined}
           onClick={() => setMessageOpen((open) => !open)}
         >
           {messageOpen ? "Tutup ucapan" : "Tambah ucapan"}
-        </button>
+        </Button>
         {messageOpen ? (
           <div className="mt-2">
             <label
