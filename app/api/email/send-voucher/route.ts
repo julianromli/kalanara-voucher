@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { APP_CONFIG } from "@/lib/constants";
+import { createRateLimiter, getClientIp } from "@/lib/rate-limit";
 import { generateVoucherPDF } from "@/lib/pdf";
 import {
   getAuthorizedVoucherDelivery,
@@ -16,22 +17,7 @@ import {
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Simple in-memory rate limiter (for production, consider Redis/Upstash)
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(ip: string, limit = 10, windowMs = 60000): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  if (!entry || entry.resetAt < now) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-
-  if (entry.count >= limit) return false;
-  entry.count++;
-  return true;
-}
+const checkRateLimit = createRateLimiter({ limit: 10, windowMs: 60000 });
 
 interface VoucherEmailRequest {
   orderId: string;
@@ -105,9 +91,7 @@ function getEmailIdempotencyKey(
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting to prevent abuse
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || 
-               request.headers.get("x-real-ip") || 
-               "unknown";
+    const ip = getClientIp(request);
     if (!checkRateLimit(ip)) {
       return NextResponse.json(
         { error: "Too many requests. Please try again later." },

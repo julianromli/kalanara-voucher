@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getVoucherByCode } from "@/lib/actions/vouchers";
 import { generateVoucherPDF } from "@/lib/pdf";
+import { createRateLimiter, getClientIp } from "@/lib/rate-limit";
 import {
   isValidVoucherPdfSignature,
   normalizeVoucherCode,
@@ -8,22 +9,7 @@ import {
   voucherPdfFilename,
 } from "@/lib/payment/voucher-pdf-link";
 
-// Simple in-memory rate limiter (for production, consider Redis/Upstash)
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(ip: string, limit = 20, windowMs = 60000): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  if (!entry || entry.resetAt < now) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-
-  if (entry.count >= limit) return false;
-  entry.count++;
-  return true;
-}
+const checkRateLimit = createRateLimiter({ limit: 20, windowMs: 60000 });
 
 // The link is opened in a browser from an email, so errors are plain text.
 function textResponse(message: string, status: number) {
@@ -42,9 +28,7 @@ function textResponse(message: string, status: number) {
  * Downloads the voucher PDF from the signed link in the voucher email.
  */
 export async function GET(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] ||
-             request.headers.get("x-real-ip") ||
-             "unknown";
+  const ip = getClientIp(request);
   if (!checkRateLimit(ip)) {
     return textResponse("Terlalu banyak permintaan. Silakan coba lagi nanti.", 429);
   }
