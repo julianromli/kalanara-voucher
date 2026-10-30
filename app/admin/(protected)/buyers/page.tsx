@@ -1,5 +1,6 @@
 import { BuyersClient } from "@/components/admin/buyers-client";
-import { getBuyersPage, normalizeBuyerListParams } from "@/lib/actions/buyers";
+import { normalizeAdminListParams } from "@/lib/actions/admin-pagination";
+import { getBuyersPage } from "@/lib/actions/buyers";
 import { requireAdminRouteAccess } from "@/lib/auth/admin-rbac-server";
 
 interface AdminBuyersPageProps {
@@ -14,7 +15,7 @@ export default async function AdminBuyersPage({
 }: AdminBuyersPageProps) {
   await requireAdminRouteAccess("/admin/buyers");
   const raw = await searchParams;
-  const buyersPage = await getBuyersPage(normalizeBuyerListParams(raw));
+  const buyersPage = await getBuyersPage(normalizeAdminListParams(raw, ["ALL"]));
 
   return <BuyersClient initialPage={buyersPage} />;
 }
