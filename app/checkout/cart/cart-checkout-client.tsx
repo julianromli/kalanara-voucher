@@ -119,7 +119,7 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
           recipientPhone: existing?.recipientPhone ?? "",
           senderMessage: existing?.senderMessage ?? "",
           sendTo: existing?.sendTo ?? SendTo.PURCHASER,
-          deliveryMethod: existing?.deliveryMethod ?? DeliveryMethod.WHATSAPP,
+          deliveryMethod: existing?.deliveryMethod ?? DeliveryMethod.EMAIL,
         };
       }),
     );
@@ -387,7 +387,7 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
                     }
 
                     const sendTo = currentLineItem.sendTo;
-                    const deliveryMethod = currentLineItem?.deliveryMethod ?? DeliveryMethod.WHATSAPP;
+                    const deliveryMethod = currentLineItem?.deliveryMethod ?? DeliveryMethod.EMAIL;
                     const { showRecipientPhone, showRecipientEmail } = getContactVisibility(sendTo, deliveryMethod);
                     const itemErrors = errors.lineItems?.[index];
 
@@ -522,10 +522,10 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
                               recipientEmailError={itemErrors?.recipientEmail}
                               showRecipientPhone={showRecipientPhone}
                               showRecipientEmail={showRecipientEmail}
-                              onIncludeEmailChange={(includeEmail) =>
+                              onIncludeWhatsAppChange={(includeWhatsApp) =>
                                 setValue(
                                   `lineItems.${index}.deliveryMethod`,
-                                  includeEmail ? DeliveryMethod.BOTH : DeliveryMethod.WHATSAPP,
+                                  includeWhatsApp ? DeliveryMethod.BOTH : DeliveryMethod.EMAIL,
                                   { shouldValidate: true },
                                 )
                               }

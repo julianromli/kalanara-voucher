@@ -73,7 +73,7 @@ export function CheckoutPageClient({
   } = useForm<CheckoutForm>({
     defaultValues: {
       sendTo: SendTo.PURCHASER,
-      deliveryMethod: DeliveryMethod.WHATSAPP,
+      deliveryMethod: DeliveryMethod.EMAIL,
       recipientName: "",
       recipientPhone: "",
       recipientEmail: "",
@@ -274,10 +274,10 @@ export function CheckoutPageClient({
                   recipientEmailError={errors.recipientEmail}
                   showRecipientPhone={showRecipientPhone}
                   showRecipientEmail={showRecipientEmail}
-                  onIncludeEmailChange={(includeEmail) =>
+                  onIncludeWhatsAppChange={(includeWhatsApp) =>
                     setValue(
                       "deliveryMethod",
-                      includeEmail ? DeliveryMethod.BOTH : DeliveryMethod.WHATSAPP,
+                      includeWhatsApp ? DeliveryMethod.BOTH : DeliveryMethod.EMAIL,
                       { shouldValidate: true }
                     )
                   }
