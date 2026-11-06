@@ -66,6 +66,7 @@ function normalizeLineItem(
     !deliveryMethod ||
     !sendTo ||
     !isDeliveryMethod(deliveryMethod) ||
+    deliveryMethod === DeliveryMethod.WHATSAPP ||
     !isSendTo(sendTo)
   ) {
     return null;

@@ -195,6 +195,9 @@ describe("CartCheckoutClient", () => {
     expect(screen.getByText("Data utama penerima")).toBeInTheDocument();
     expect(screen.getAllByText("Mengikuti Voucher 1").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("radio", { name: "Untuk orang lain" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Kirim juga lewat WhatsApp" })
+    );
 
     fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {
       target: { value: "Penerima Utama" },
@@ -253,15 +256,15 @@ describe("CartCheckoutClient", () => {
 
     const recipientNames = screen.getAllByLabelText("Nama penerima");
     const senderMessages = screen.getAllByLabelText("Pesan untuk penerima");
-    const recipientPhones = screen.getAllByLabelText("WhatsApp penerima");
+    const recipientEmails = screen.getAllByLabelText("Email penerima");
     expect(recipientNames).toHaveLength(2);
     expect(senderMessages).toHaveLength(2);
-    expect(recipientPhones).toHaveLength(2);
+    expect(recipientEmails).toHaveLength(2);
 
     const repeatedIds = [
       ...recipientNames,
       ...senderMessages,
-      ...recipientPhones,
+      ...recipientEmails,
     ].map((control) => control.id);
     expect(new Set(repeatedIds).size).toBe(repeatedIds.length);
     expect(repeatedIds.every((id) => id.startsWith("cart-voucher-"))).toBe(true);
@@ -293,13 +296,13 @@ describe("CartCheckoutClient", () => {
     await user.keyboard("[Space]");
     expect(secondRecipientRadio).toBeChecked();
 
-    const firstIncludeEmail = screen.getAllByRole("checkbox", {
-      name: "Kirim juga lewat email",
+    const firstIncludeWhatsApp = screen.getAllByRole("checkbox", {
+      name: "Kirim juga lewat WhatsApp",
     })[0];
-    firstIncludeEmail.focus();
+    firstIncludeWhatsApp.focus();
     await user.keyboard("[Space]");
-    expect(firstIncludeEmail).toBeChecked();
-    expect(await screen.findAllByLabelText("Email penerima")).toHaveLength(1);
+    expect(firstIncludeWhatsApp).toBeChecked();
+    expect(await screen.findAllByLabelText("WhatsApp penerima")).toHaveLength(1);
 
     const vaPayment = screen.getByRole("radio", { name: /^Virtual Account/ });
     expect(vaPayment).toHaveAttribute("id", "cart-payment-va");
@@ -357,6 +360,9 @@ describe("CartCheckoutClient", () => {
 
     fireEvent.click(screen.getByLabelText("Pakai data yang sama untuk semua voucher"));
     fireEvent.click(screen.getByRole("radio", { name: "Untuk orang lain" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Kirim juga lewat WhatsApp" })
+    );
     expect(screen.getAllByText("Mengikuti Voucher 1").length).toBeGreaterThan(0);
 
     fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {
@@ -366,6 +372,9 @@ describe("CartCheckoutClient", () => {
     const phoneInput = screen.getAllByPlaceholderText("+62 812 3456 7890")[1];
     fireEvent.change(phoneInput, {
       target: { value: "0812 3456 7890" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("penerima@email.com"), {
+      target: { value: "penerima@example.com" },
     });
 
     await waitFor(() => {
@@ -391,17 +400,26 @@ describe("CartCheckoutClient", () => {
 
     const createPaymentCall = fetchMock.mock.calls[0];
     const requestBody = JSON.parse(createPaymentCall?.[1]?.body as string) as {
-      lineItems: Array<{ recipientName: string; recipientPhone?: string }>;
+      lineItems: Array<{
+        recipientName: string;
+        recipientEmail?: string;
+        recipientPhone?: string;
+        deliveryMethod: string;
+      }>;
     };
 
     expect(requestBody.lineItems).toEqual([
       expect.objectContaining({
         recipientName: "Penerima Utama",
+        recipientEmail: "penerima@example.com",
         recipientPhone: "0812 3456 7890",
+        deliveryMethod: "BOTH",
       }),
       expect.objectContaining({
         recipientName: "Penerima Utama",
+        recipientEmail: "penerima@example.com",
         recipientPhone: "0812 3456 7890",
+        deliveryMethod: "BOTH",
       }),
     ]);
 

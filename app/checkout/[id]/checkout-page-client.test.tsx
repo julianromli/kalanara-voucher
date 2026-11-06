@@ -172,15 +172,26 @@ describe("CheckoutPageClient", () => {
     expect(screen.queryByText("Email penerima")).not.toBeInTheDocument();
     expect(document.querySelector('img[src="/payment/qris.svg"]')).not.toBeNull();
 
+    expect(
+      screen.getByRole("checkbox", { name: "Kirim juga lewat WhatsApp" })
+    ).not.toBeChecked();
+    expect(
+      screen.getByText(
+        "Voucher akan dikirim ke email kamu setelah pembayaran berhasil."
+      )
+    ).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("radio", { name: "Untuk orang lain" }));
 
-    expect(await screen.findByText("WhatsApp penerima")).toBeInTheDocument();
-    expect(screen.queryByText("Email penerima")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("checkbox", { name: "Kirim juga lewat email" }));
-
     expect(await screen.findByText("Email penerima")).toBeInTheDocument();
-    expect(screen.getByText("WhatsApp penerima")).toBeInTheDocument();
+    expect(screen.queryByText("WhatsApp penerima")).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Kirim juga lewat WhatsApp" })
+    );
+
+    expect(await screen.findByText("WhatsApp penerima")).toBeInTheDocument();
+    expect(screen.getByText("Email penerima")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("radio", { name: "Untuk saya" }));
 
@@ -218,9 +229,9 @@ describe("CheckoutPageClient", () => {
       "checkout-sender-message"
     );
     fireEvent.click(screen.getByRole("radio", { name: "Untuk orang lain" }));
-    expect(screen.getByLabelText("WhatsApp penerima")).toHaveAttribute(
+    expect(screen.getByLabelText("Email penerima")).toHaveAttribute(
       "id",
-      "checkout-recipient-phone"
+      "checkout-recipient-email"
     );
     expect(screen.getByLabelText("Nama Lengkap")).toHaveAttribute(
       "id",
@@ -277,15 +288,15 @@ describe("CheckoutPageClient", () => {
     await user.keyboard("[Space]");
     expect(sendToRecipient).toBeChecked();
 
-    const includeEmail = screen.getByRole("checkbox", {
-      name: "Kirim juga lewat email",
+    const includeWhatsApp = screen.getByRole("checkbox", {
+      name: "Kirim juga lewat WhatsApp",
     });
-    includeEmail.focus();
+    includeWhatsApp.focus();
     await user.keyboard("[Space]");
-    expect(includeEmail).toBeChecked();
-    expect(await screen.findByLabelText("Email penerima")).toHaveAttribute(
+    expect(includeWhatsApp).toBeChecked();
+    expect(await screen.findByLabelText("WhatsApp penerima")).toHaveAttribute(
       "id",
-      "checkout-recipient-email"
+      "checkout-recipient-phone"
     );
 
     const vaPayment = screen.getByRole("radio", { name: /^Virtual Account/ });
@@ -310,7 +321,7 @@ describe("CheckoutPageClient", () => {
     expect(recipientName).toHaveFocus();
   });
 
-  test("submits purchaser WhatsApp checkout without recipient contact and writes popup shell", async () => {
+  test("submits purchaser email checkout without recipient contact and writes popup shell", async () => {
     const popup = {
       close: vi.fn(),
       location: { href: "" },
@@ -362,7 +373,7 @@ describe("CheckoutPageClient", () => {
     expect(JSON.parse(createPaymentCall?.[1]?.body as string)).toEqual(
       expect.objectContaining({
         sendTo: "PURCHASER",
-        deliveryMethod: "WHATSAPP",
+        deliveryMethod: "EMAIL",
         customerPhone: "0812 3456 7890",
         recipientName: "Faiz",
       })

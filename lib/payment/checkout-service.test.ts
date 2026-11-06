@@ -75,8 +75,9 @@ const validCheckout = {
   customerEmail: "faiz@example.com",
   customerPhone: "0812 3456-7890",
   recipientName: "Penerima",
+  recipientEmail: "penerima@example.com",
   recipientPhone: "081234567890",
-  deliveryMethod: DeliveryMethod.WHATSAPP,
+  deliveryMethod: DeliveryMethod.BOTH,
   sendTo: SendTo.RECIPIENT,
   paymentMethod: "qris",
 };
@@ -171,14 +172,38 @@ describe("createScalevCheckout", () => {
     expect(mocks.getAvailability).not.toHaveBeenCalled();
   });
 
-  test("accepts purchaser WhatsApp without recipient phone and persists null", async () => {
+  test("rejects WhatsApp-only delivery because email is the default channel", async () => {
     const { createScalevCheckout } = await import(
       "@/lib/payment/checkout-service"
     );
 
     const result = await createScalevCheckout({
       ...validCheckout,
+      deliveryMethod: DeliveryMethod.WHATSAPP,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      status: 400,
+      body: {
+        success: false,
+        error: "Data checkout tidak valid.",
+        errorCode: "INVALID_CHECKOUT_DATA",
+      },
+    });
+    expect(mocks.getAvailability).not.toHaveBeenCalled();
+  });
+
+  test("accepts purchaser email delivery without recipient contacts and persists null", async () => {
+    const { createScalevCheckout } = await import(
+      "@/lib/payment/checkout-service"
+    );
+
+    const result = await createScalevCheckout({
+      ...validCheckout,
+      recipientEmail: undefined,
       recipientPhone: undefined,
+      deliveryMethod: DeliveryMethod.EMAIL,
       sendTo: SendTo.PURCHASER,
     });
 
@@ -282,8 +307,9 @@ describe("createScalevCheckout", () => {
         {
           serviceId: "service-1",
           recipientName: "A",
+          recipientEmail: "a@example.com",
           recipientPhone: "081234567890",
-          deliveryMethod: DeliveryMethod.WHATSAPP,
+          deliveryMethod: DeliveryMethod.BOTH,
           sendTo: SendTo.RECIPIENT,
         },
         {

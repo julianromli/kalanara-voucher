@@ -22,7 +22,7 @@ interface VoucherDeliveryFieldsProps {
   recipientEmailError?: FieldError;
   showRecipientPhone: boolean;
   showRecipientEmail: boolean;
-  onIncludeEmailChange: (includeEmail: boolean) => void;
+  onIncludeWhatsAppChange: (includeWhatsApp: boolean) => void;
 }
 
 function FieldErrorMessage({ id, error }: { id: string; error?: FieldError }) {
@@ -48,12 +48,12 @@ export function VoucherDeliveryFields({
   recipientEmailError,
   showRecipientPhone,
   showRecipientEmail,
-  onIncludeEmailChange,
+  onIncludeWhatsAppChange,
 }: VoucherDeliveryFieldsProps) {
   const [messageOpen, setMessageOpen] = useState(Boolean(senderMessage.trim()));
   const forSelf = sendTo === SendTo.PURCHASER;
-  const includeEmail =
-    deliveryMethod === DeliveryMethod.EMAIL ||
+  const includeWhatsApp =
+    deliveryMethod === DeliveryMethod.WHATSAPP ||
     deliveryMethod === DeliveryMethod.BOTH;
   const recipientNameId = `${idPrefix}-recipient-name`;
   const recipientNameHelpId = `${recipientNameId}-help`;
@@ -64,7 +64,7 @@ export function VoucherDeliveryFields({
   const recipientEmailId = `${idPrefix}-recipient-email`;
   const recipientEmailErrorId = `${recipientEmailId}-error`;
   const sendToLabelId = `${idPrefix}-send-to-label`;
-  const includeEmailId = `${idPrefix}-include-email`;
+  const includeWhatsAppId = `${idPrefix}-include-whatsapp`;
 
   return (
     <div className="grid gap-4">
@@ -166,16 +166,16 @@ export function VoucherDeliveryFields({
       </div>
 
       <label
-        htmlFor={includeEmailId}
+        htmlFor={includeWhatsAppId}
         className="flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border border-border px-4 text-sm text-foreground"
       >
         <input
-          id={includeEmailId}
+          id={includeWhatsAppId}
           type="checkbox"
-          checked={includeEmail}
-          onChange={(event) => onIncludeEmailChange(event.target.checked)}
+          checked={includeWhatsApp}
+          onChange={(event) => onIncludeWhatsAppChange(event.target.checked)}
         />
-        Kirim juga lewat email
+        Kirim juga lewat WhatsApp
       </label>
 
       <p className="text-sm text-foreground">{getDeliveryPreview(sendTo, deliveryMethod)}</p>
