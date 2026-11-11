@@ -29,6 +29,7 @@ import {
 } from "@/lib/scalev/client";
 import { ensureScalevServiceMapping } from "@/lib/scalev/catalog-sync";
 import { getScalevConfig } from "@/lib/scalev/config";
+import { groupScalevOrderVariants } from "@/lib/scalev/order-variants";
 import type {
   ScalevCreatePaymentErrorCode,
   ScalevCreatePaymentResponse,
@@ -302,10 +303,12 @@ async function runCheckoutAttempt(input: {
         customer_email: checkout.customerEmail,
         customer_phone: checkout.customerPhone,
         store_unique_id: storeUniqueId,
-        ordervariants: mappings.map((mapping) => ({
-          variant_unique_id: mapping.primaryVariant.unique_id,
-          quantity: 1,
-        })),
+        ordervariants: groupScalevOrderVariants(
+          mappings.map((mapping) => ({
+            variant_unique_id: mapping.primaryVariant.unique_id,
+            quantity: 1,
+          }))
+        ),
         productDiscount: discountQuote?.discountAmount,
         paymentMethod: checkout.paymentMethod,
         subPaymentMethod: checkout.subPaymentMethod,
