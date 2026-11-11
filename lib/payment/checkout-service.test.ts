@@ -345,6 +345,138 @@ describe("createScalevCheckout", () => {
     );
   });
 
+  test("groups three identical services into one Scalev line", async () => {
+    const { createScalevCheckout } = await import(
+      "@/lib/payment/checkout-service"
+    );
+    mocks.getServiceById.mockResolvedValue({
+      id: "service-deep-sleep",
+      name: "Deep Sleep",
+      price: 249200,
+      is_active: true,
+    });
+    mocks.ensureMapping.mockResolvedValue({
+      primaryVariant: { unique_id: "variant-deep-sleep" },
+    });
+
+    const lineItem = {
+      serviceId: "service-deep-sleep",
+      recipientEmail: "buyer@example.com",
+      deliveryMethod: DeliveryMethod.EMAIL,
+      sendTo: SendTo.RECIPIENT,
+    };
+    const result = await createScalevCheckout({
+      customerName: "Faiz",
+      customerEmail: "faiz@example.com",
+      customerPhone: "081234567890",
+      paymentMethod: "qris",
+      lineItems: [
+        { ...lineItem, recipientName: "A" },
+        { ...lineItem, recipientName: "B" },
+        { ...lineItem, recipientName: "C" },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+    expect(mocks.createPendingOrderItems).toHaveBeenCalledWith("order-1", [
+      expect.objectContaining({ service_id: "service-deep-sleep", sort_order: 0 }),
+      expect.objectContaining({ service_id: "service-deep-sleep", sort_order: 1 }),
+      expect.objectContaining({ service_id: "service-deep-sleep", sort_order: 2 }),
+    ]);
+    expect(mocks.createScalevOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ordervariants: [
+          { variant_unique_id: "variant-deep-sleep", quantity: 3 },
+        ],
+        metadata: expect.objectContaining({ item_count: 3 }),
+      })
+    );
+  });
+
+  test("groups repeated services into one Scalev line and keeps every local item", async () => {
+    const { createScalevCheckout } = await import(
+      "@/lib/payment/checkout-service"
+    );
+    mocks.getServiceById.mockImplementation(async (id: string) => ({
+      id,
+      name: `Service ${id}`,
+      price: 249200,
+      is_active: true,
+    }));
+    mocks.ensureMapping.mockImplementation(
+      async (service: { id: string }) => ({
+        primaryVariant: {
+          unique_id:
+            service.id === "service-love-birds"
+              ? "variant-love-birds"
+              : "variant-hot-stone",
+        },
+      })
+    );
+
+    const lineItems = [
+      {
+        serviceId: "service-hot-stone",
+        recipientName: "A",
+        recipientEmail: "a@example.com",
+        deliveryMethod: DeliveryMethod.EMAIL,
+        sendTo: SendTo.RECIPIENT,
+      },
+      {
+        serviceId: "service-hot-stone",
+        recipientName: "B",
+        recipientEmail: "b@example.com",
+        deliveryMethod: DeliveryMethod.EMAIL,
+        sendTo: SendTo.RECIPIENT,
+      },
+      {
+        serviceId: "service-love-birds",
+        recipientName: "C",
+        recipientEmail: "c@example.com",
+        deliveryMethod: DeliveryMethod.EMAIL,
+        sendTo: SendTo.RECIPIENT,
+      },
+    ];
+
+    const result = await createScalevCheckout({
+      customerName: "Faiz",
+      customerEmail: "faiz@example.com",
+      customerPhone: "081234567890",
+      paymentMethod: "qris",
+      lineItems,
+    });
+
+    expect(result.success).toBe(true);
+    expect(mocks.createPendingOrderItems).toHaveBeenCalledWith("order-1", [
+      expect.objectContaining({
+        service_id: "service-hot-stone",
+        sort_order: 0,
+      }),
+      expect.objectContaining({
+        service_id: "service-hot-stone",
+        sort_order: 1,
+      }),
+      expect.objectContaining({
+        service_id: "service-love-birds",
+        sort_order: 2,
+      }),
+    ]);
+    expect(mocks.createScalevOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ordervariants: [
+          { variant_unique_id: "variant-hot-stone", quantity: 2 },
+          { variant_unique_id: "variant-love-birds", quantity: 1 },
+        ],
+        metadata: expect.objectContaining({
+          item_count: 3,
+          subtotal_amount: 747600,
+          total_amount: 747600,
+        }),
+        notes: "Kalanara voucher x3 - KSP-123",
+      })
+    );
+  });
+
   test("rejects external provider URLs and never persists them", async () => {
     const { createScalevCheckout } = await import(
       "@/lib/payment/checkout-service"
