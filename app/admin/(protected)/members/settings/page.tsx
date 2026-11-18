@@ -1,16 +1,25 @@
-import { AdminPageBody } from "@/components/admin/admin-page";
-import { DashboardHeader } from "@/components/admin/dashboard-header";
+import { MemberSettingsClient } from "@/components/admin/members/member-settings-client";
+import { getRewards, getSignupQr } from "@/lib/actions/members";
 import { requireAdminRouteAccess } from "@/lib/auth/admin-rbac-server";
 
 export default async function AdminMemberSettingsPage() {
   await requireAdminRouteAccess("/admin/members/settings");
+  const [rewards, signupQr] = await Promise.all([getRewards(), getSignupQr()]);
 
   return (
-    <>
-      <DashboardHeader title="Pengaturan member" showActions={false} />
-      <AdminPageBody>
-        <p className="text-sm text-muted-foreground">Pengaturan member</p>
-      </AdminPageBody>
-    </>
+    <MemberSettingsClient
+      rewards={rewards.status === "ok" ? rewards.rows : []}
+      rewardLoadError={rewards.status !== "ok"}
+      signupQr={
+        signupQr.status === "ok"
+          ? {
+              url: signupQr.url,
+              createdAt: signupQr.createdAt,
+              monthCount: signupQr.monthCount,
+              recent: signupQr.recent,
+            }
+          : null
+      }
+    />
   );
 }
