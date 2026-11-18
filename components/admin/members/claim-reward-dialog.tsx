@@ -97,6 +97,9 @@ export function ClaimRewardDialog({
                     ? "Reward ini udah diklaim."
                     : "Klaim belum tersimpan. Koneksi putus.",
                 );
+              }).catch(() => {
+                setPending(false);
+                setError("Klaim belum tersimpan. Koneksi putus.");
               });
             }}
           >
