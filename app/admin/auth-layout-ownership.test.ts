@@ -41,7 +41,7 @@ describe("admin auth layout ownership", () => {
     )
       .toHaveLength(1);
     expect(layout).toMatch(
-      /<AdminShell\s*>\s*\{children\}\s*<\/AdminShell\s*>/
+      /<AdminShell(?:\s+followUpCount=\{followUpCount\})?\s*>\s*\{children\}\s*<\/AdminShell\s*>/
     );
   });
 });

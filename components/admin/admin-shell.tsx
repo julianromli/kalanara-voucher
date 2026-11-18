@@ -6,12 +6,13 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 
 interface AdminShellProps {
   children: ReactNode;
+  followUpCount?: number;
 }
 
-export function AdminShell({ children }: AdminShellProps) {
+export function AdminShell({ children, followUpCount = 0 }: AdminShellProps) {
   return (
     <SidebarProvider className="bg-sidebar">
-      <AdminSidebar />
+      <AdminSidebar followUpCount={followUpCount} />
       <div className="h-svh w-full overflow-hidden lg:p-2">
         <div className="flex h-full w-full flex-col items-center justify-start overflow-hidden bg-background lg:rounded-xl lg:border">
           {children}
