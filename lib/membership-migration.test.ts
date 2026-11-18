@@ -17,6 +17,28 @@ const tables = [
   "member_signup_qr",
 ];
 
+describe("membership nightly migration contract", () => {
+  test("schedules one replaceable job and caches follow-ups", () => {
+    const sql = readFileSync(
+      join(process.cwd(), "lib/supabase/migrations/034_membership_cron.sql"),
+      "utf8",
+    );
+
+    expect(sql).toMatch(/create table public\.member_followup_due/i);
+    expect(sql).toMatch(
+      /alter table public\.member_followup_due enable row level security/i,
+    );
+    expect(sql).toMatch(/member_nightly_maintenance/i);
+    expect(sql).toMatch(/membership-nightly/);
+    expect(sql).toMatch(/0 19 \* \* \*/);
+    expect(sql).toMatch(/cron\.unschedule/i);
+    expect(sql).toMatch(/delete from public\.member_followup_due/i);
+    expect(sql).toMatch(/set search_path = ''/i);
+    expect(sql).not.toMatch(/security definer/i);
+    expect(sql).not.toMatch(/heartbeat-6hours|keep-alive-edge-function/i);
+  });
+});
+
 describe("membership migration contract", () => {
   test("enables RLS on every new table and keeps service_role access", () => {
     const sql = readFileSync(migrationPath, "utf8");
