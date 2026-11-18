@@ -89,7 +89,7 @@ BEGIN
     FROM public.member_preview_cycle(
       member_row.id,
       origin_cycle,
-      0,
+      0::smallint,
       today
     );
 
