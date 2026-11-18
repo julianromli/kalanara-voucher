@@ -200,15 +200,17 @@ export async function registerMember(input: {
 
   if (error) {
     if (error.code === "23505") {
-      const { data: existing } = await supabase
+      const { data: existing, error: lookupError } = await supabase
         .from("members")
         .select("id, name")
         .eq("phone", phone)
         .maybeSingle();
+      if (lookupError) return failure();
+      if (!existing) return { status: "error" as const };
       return {
         status: "duplicate" as const,
-        memberId: existing?.id ?? "",
-        name: existing?.name ?? "",
+        memberId: existing.id,
+        name: existing.name,
       };
     }
     return failure();
@@ -417,7 +419,8 @@ export async function rotateCardToken(input: { memberId: string }) {
     details: { tokenTail: tokenTail(data) },
   });
   const summary = await loadSummary(input.memberId);
-  return summary ? { status: "ok" as const, summary } : failure();
+  if (!summary) return { status: "rotated" as const, cardToken: data };
+  return { status: "ok" as const, summary };
 }
 
 export async function listFollowups() {
@@ -427,10 +430,13 @@ export async function listFollowups() {
   if (error) return failure();
 
   const today = jakartaToday();
+  const dayStart = new Date(`${today}T00:00:00+07:00`).toISOString();
+  const dayEnd = new Date(`${today}T23:59:59.999+07:00`).toISOString();
   const { data: marked, error: markedError } = await supabase
     .from("member_followups")
     .select("member_id, stage, anchor_date, marked_at")
-    .not("marked_at", "is", null);
+    .gte("marked_at", dayStart)
+    .lte("marked_at", dayEnd);
   if (markedError) return failure();
 
   const sentToday = (marked ?? []).filter(
@@ -443,9 +449,11 @@ export async function listFollowups() {
     (row) => !sentKeys.has(`${row.member_id}:${row.stage}:${row.anchor_date}`),
   );
   const sentIds = [...new Set(sentToday.map((row) => row.member_id))];
-  const { data: people } = sentIds.length
+  const peopleResult = sentIds.length
     ? await supabase.from("members").select("id, name, phone").in("id", sentIds)
-    : { data: [] };
+    : { data: [], error: null };
+  if (peopleResult.error) return failure();
+  const people = peopleResult.data;
   const peopleById = new Map((people ?? []).map((person) => [person.id, person]));
 
   return {
@@ -642,7 +650,11 @@ const rewardRowsSchema = z.object({
         note: z.string().max(80),
       }),
     )
-    .length(6),
+    .length(6)
+    .refine((rows) => {
+      const seen = new Set(rows.map((row) => row.milestone));
+      return seen.size === 6 && milestones.every((milestone) => seen.has(milestone));
+    }),
 });
 
 export async function saveRewards(input: {
@@ -783,9 +795,12 @@ export async function selfSignup(input: {
   if (!phone || !isRealBirthDate(parsed.data.birthDate)) {
     return { status: "invalid" as const };
   }
-  if (!signupPhoneLimiter(phone)) return { status: "rate_limited" as const };
 
   const supabase = getAdminClient();
+  const qrState = await loadPublicSignupQr(parsed.data.qrToken);
+  if (qrState === "error") return failure();
+  if (qrState === "invalid") return { status: "invalid_qr" as const };
+  if (!signupPhoneLimiter(phone)) return { status: "rate_limited" as const };
   const { data, error } = await supabase.rpc("member_self_signup", {
     p_qr_token: parsed.data.qrToken.toLowerCase(),
     p_name: parsed.data.name,
@@ -797,6 +812,7 @@ export async function selfSignup(input: {
   const body = asRecord(data);
   if (body?.status === "duplicate") return { status: "duplicate" as const };
   if (body?.status === "invalid_qr") return { status: "invalid_qr" as const };
+  if (body?.status === "retry") return failure();
   const cardToken = text(body?.card_token);
   if (body?.status !== "ok" || !cardToken) return failure();
   return { status: "ok" as const, cardPath: `/m/${cardToken}?baru=1` };
@@ -811,7 +827,9 @@ export async function loadPublicMember(token: string): Promise<MemberSummary | n
     .eq("card_token", token.toLowerCase())
     .maybeSingle();
   if (error || !data) return null;
-  return loadSummary(data.id);
+  const summary = await loadSummary(data.id);
+  if (!summary || summary.cardToken !== token.toLowerCase()) return null;
+  return summary;
 }
 
 export async function loadPublicSignupQr(

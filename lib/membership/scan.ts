@@ -50,7 +50,8 @@ export function parseMemberScan(
     return { kind: "token", token: value.toLowerCase() };
   }
 
-  const phone = normalizeMemberPhone(value);
+  const phoneShaped = /^[+0-9][0-9\s().+-]{7,24}$/.test(value);
+  const phone = phoneShaped ? normalizeMemberPhone(value) : null;
   if (phone) return { kind: "phone", phone };
 
   const code = value.toUpperCase();

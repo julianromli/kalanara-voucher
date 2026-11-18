@@ -42,7 +42,13 @@ export function ClaimRewardDialog({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (pending) return;
+        onOpenChange(next);
+      }}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
@@ -72,7 +78,7 @@ export function ClaimRewardDialog({
         </p>
         {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
         <AlertDialogFooter>
-          <AlertDialogCancel>Batal</AlertDialogCancel>
+          <AlertDialogCancel disabled={pending}>Batal</AlertDialogCancel>
           <Button
             type="button"
             disabled={pending || !serviceName}

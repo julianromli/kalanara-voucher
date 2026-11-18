@@ -42,6 +42,7 @@ import {
   formatMemberDate,
   formatMemberTime,
   formatMemberWeekday,
+  jakartaDateISO,
   memberInitials,
 } from "@/lib/membership/format";
 import { tierName } from "@/lib/membership/rules";
@@ -99,6 +100,9 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
   }
 
   async function lookup(value: string) {
+    setSummary(null);
+    setConfirm(null);
+    setClaimMilestone(null);
     setScanStatus("loading");
     const result = await findMember({ scan: value, origin: window.location.origin });
     if (result.status === "ok") {
@@ -109,11 +113,21 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
       setScanStatus("rejected");
       return;
     }
-    setScanStatus("not_found");
+    if (result.status === "not_found") {
+      setScanStatus("not_found");
+      return;
+    }
+    if (result.status === "empty") {
+      setScanStatus("idle");
+      return;
+    }
+    setScanStatus("idle");
+    showToast("Pencarian gagal. Coba lagi.", "error");
   }
 
   async function submitStamp(confirmSameDay = false) {
     if (!summary || !serviceId) return;
+    const memberId = summary.id;
     setPending(true);
     setStampError(false);
     const result = await addStamp({
@@ -129,13 +143,18 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
       });
       return;
     }
-    if (result.status === "capped") return;
+    if (result.status === "capped") {
+      const fresh = await getMember(memberId);
+      if (fresh.status === "ok") {
+        setSummary((current) => (current?.id === memberId ? fresh.summary : current));
+      }
+      return;
+    }
     if (result.status !== "ok" || !result.stampId) {
       setStampError(true);
       return;
     }
     const stampId = result.stampId;
-    const memberId = summary.id;
     setConfirm(null);
     setJustAdded(true);
     window.setTimeout(() => setJustAdded(false), 6000);
@@ -216,11 +235,11 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">{member.name}</span>
                           <span className="block truncate text-xs text-muted-foreground">
-                            {recentSubtitle(member)}
+                            {recentActivity(member).subtitle}
                           </span>
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {formatMemberTime(member.last_stamp_at || member.last_claim_at || member.created_at)}
+                          {formatMemberTime(recentActivity(member).at)}
                         </span>
                       </button>
                     </li>
@@ -242,12 +261,10 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
                     });
                   }}
                   onCopyLink={() => {
-                    try {
-                      void navigator.clipboard.writeText(memberCardUrl(summary.cardToken));
-                      showToast("Link tersalin", "success", { duration: 1500 });
-                    } catch {
-                      showToast("Link gagal disalin", "error");
-                    }
+                    void navigator.clipboard
+                      .writeText(memberCardUrl(summary.cardToken))
+                      .then(() => showToast("Link tersalin", "success", { duration: 1500 }))
+                      .catch(() => showToast("Link gagal disalin", "error"));
                   }}
                   onRotateLink={() => setRotateOpen(true)}
                   onOpenSettings={() => router.push("/admin/members/settings")}
@@ -307,7 +324,7 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
                   confirm={confirm ? { ...confirm, memberName: summary.name } : null}
                   error={stampError}
                   pending={pending}
-                  hasStampToday={summary.stamps.some((stamp) => stamp.visitDate === new Date().toISOString().slice(0, 10)) || justAdded}
+                  hasStampToday={summary.stamps.some((stamp) => stamp.visitDate === jakartaDateISO()) || justAdded}
                   onAdd={() => void submitStamp(false)}
                   onConfirm={() => void submitStamp(true)}
                   onCancelConfirm={() => setConfirm(null)}
@@ -332,6 +349,7 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
       </AdminPageBody>
 
       <RegisterMemberDialog
+        key={`${registerOpen ? "open" : "closed"}-${manual}`}
         open={registerOpen}
         onOpenChange={setRegisterOpen}
         initialPhone={scanStatus === "not_found" ? manual : ""}
@@ -395,11 +413,17 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
               type="button"
               onClick={() => {
                 if (!summary) return;
-                void rotateCardToken({ memberId: summary.id }).then((result) => {
+                void rotateCardToken({ memberId: summary.id }).then(async (result) => {
                   setRotateOpen(false);
                   if (result.status === "ok") {
                     setSummary(result.summary);
                     showToast("Link kartu diganti", "success");
+                    return;
+                  }
+                  if (result.status === "rotated") {
+                    const fresh = await getMember(summary.id);
+                    if (fresh.status === "ok") setSummary(fresh.summary);
+                    showToast("Link kartu diganti. Muat ulang kartu kalau salin link masih yang lama.", "success");
                     return;
                   }
                   showToast("Link belum diganti. Koneksi putus.", "error");
@@ -415,15 +439,22 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
   );
 }
 
-function recentSubtitle(member: RecentMember): string {
+function recentActivity(member: RecentMember): { at: string; subtitle: string } {
   const claimIsNewer = Boolean(
     member.last_claim_at &&
       (!member.last_stamp_at || member.last_claim_at > member.last_stamp_at),
   );
-  if (claimIsNewer && member.last_claim_name) {
-    return `Klaim ${member.last_claim_name.toLowerCase()}`;
+  if (claimIsNewer && member.last_claim_at && member.last_claim_name) {
+    return {
+      at: member.last_claim_at,
+      subtitle: `Klaim ${member.last_claim_name.toLowerCase()}`,
+    };
   }
-  if (member.stamp_count > 0) return `Stamp ke-${member.stamp_count}`;
-  if (member.source === "self_signup") return "Member baru · daftar sendiri";
-  return "Member baru";
+  if (member.last_stamp_at && member.stamp_count > 0) {
+    return { at: member.last_stamp_at, subtitle: `Stamp ke-${member.stamp_count}` };
+  }
+  if (member.source === "self_signup") {
+    return { at: member.created_at, subtitle: "Member baru · daftar sendiri" };
+  }
+  return { at: member.created_at, subtitle: "Member baru" };
 }

@@ -116,7 +116,16 @@ describe("member actions", () => {
       data: { status: "duplicate" },
       error: null,
     });
-    mockClient(rpc);
+    const from = vi.fn(() => ({
+      select: () => ({
+        eq: () => ({
+          is: () => ({
+            maybeSingle: async () => ({ data: { id: "qr-1" }, error: null }),
+          }),
+        }),
+      }),
+    }));
+    mockClient(rpc, from);
 
     const result = await selfSignup({
       qrToken: "ab".repeat(16),

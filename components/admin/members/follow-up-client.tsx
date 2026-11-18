@@ -75,12 +75,13 @@ export function FollowUpClient({
   async function send(row: FollowUpRow) {
     const key = rowKey(row);
     if (confirmKey !== key) {
-      setConfirmKey(key);
       const preview = await buildFollowupMessage({
         memberId: row.member_id,
         stage: row.stage as FollowupTemplateStage,
       });
-      if (preview.status === "ok") window.open(preview.url, "_blank", "noopener,noreferrer");
+      if (preview.status !== "ok") return;
+      setConfirmKey(key);
+      window.open(preview.url, "_blank", "noopener,noreferrer");
       return;
     }
     setPendingId(key);

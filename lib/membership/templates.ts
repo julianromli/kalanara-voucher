@@ -41,6 +41,7 @@ export function fillFollowupTemplate(
   };
 
   return template.replace(/\{([a-z0-9_]+)\}/gi, (match, key: string) => {
+    if (!Object.prototype.hasOwnProperty.call(replacements, key)) return match;
     return replacements[key] ?? match;
   });
 }

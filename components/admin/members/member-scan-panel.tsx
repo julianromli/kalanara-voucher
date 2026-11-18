@@ -30,31 +30,56 @@ export function MemberScanPanel({
   const streamRef = useRef<MediaStream | null>(null);
   const frameRef = useRef<number | null>(null);
   const lastCodeRef = useRef("");
+  const lastSeenAtRef = useRef(0);
+  const lastDecodeAtRef = useRef(0);
+  const onScanRef = useRef(onScan);
+  const cameraGeneration = useRef(0);
   const [cameraState, setCameraState] = useState<"starting" | "live" | "blocked">("starting");
+
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
+
+  const stopStream = useCallback((stream: MediaStream | null) => {
+    stream?.getTracks().forEach((track) => track.stop());
+  }, []);
 
   const stopCamera = useCallback(() => {
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    stopStream(streamRef.current);
     streamRef.current = null;
-  }, []);
+  }, [stopStream]);
 
   const startCamera = useCallback(async () => {
+    const generation = cameraGeneration.current + 1;
+    cameraGeneration.current = generation;
     setCameraState("starting");
     stopCamera();
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
       });
+      if (generation !== cameraGeneration.current) {
+        stopStream(stream);
+        return;
+      }
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
+      if (generation !== cameraGeneration.current) {
+        stopStream(stream);
+        if (streamRef.current === stream) streamRef.current = null;
+        return;
+      }
       setCameraState("live");
     } catch {
-      setCameraState("blocked");
+      if (stream && generation === cameraGeneration.current) stopStream(stream);
+      if (generation === cameraGeneration.current) setCameraState("blocked");
     }
-  }, [stopCamera]);
+  }, [stopCamera, stopStream]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -71,22 +96,32 @@ export function MemberScanPanel({
     const scan = () => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      if (video && canvas && video.readyState >= video.HAVE_ENOUGH_DATA) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+      const now = Date.now();
+      if (
+        video &&
+        canvas &&
+        video.readyState >= video.HAVE_ENOUGH_DATA &&
+        now - lastDecodeAtRef.current >= 120
+      ) {
+        const scale = Math.min(1, 480 / Math.max(video.videoWidth, 1));
+        canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
         const context = canvas.getContext("2d", { willReadFrequently: true });
         if (context) {
-          context.drawImage(video, 0, 0);
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
           const image = context.getImageData(0, 0, canvas.width, canvas.height);
           const code = jsQR(image.data, image.width, image.height, {
             inversionAttempts: "dontInvert",
           });
-          if (code?.data && code.data !== lastCodeRef.current) {
-            lastCodeRef.current = code.data;
-            onScan(code.data);
-            window.setTimeout(() => {
-              if (lastCodeRef.current === code.data) lastCodeRef.current = "";
-            }, 2500);
+          lastDecodeAtRef.current = now;
+          if (code?.data) {
+            lastSeenAtRef.current = now;
+            if (code.data !== lastCodeRef.current) {
+              lastCodeRef.current = code.data;
+              onScanRef.current(code.data);
+            }
+          } else if (now - lastSeenAtRef.current > 800) {
+            lastCodeRef.current = "";
           }
         }
       }
@@ -96,7 +131,7 @@ export function MemberScanPanel({
     return () => {
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
     };
-  }, [cameraState, onScan]);
+  }, [cameraState]);
 
   useEffect(() => {
     let buffer = "";
@@ -119,7 +154,7 @@ export function MemberScanPanel({
         });
         if (parsed.kind === "token" || parsed.kind === "phone" || parsed.kind === "code") {
           event.preventDefault();
-          onScan(buffer);
+          onScanRef.current(buffer);
         }
         buffer = "";
         return;
@@ -128,7 +163,7 @@ export function MemberScanPanel({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onScan]);
+  }, []);
 
   return (
     <div className="flex flex-col gap-4">

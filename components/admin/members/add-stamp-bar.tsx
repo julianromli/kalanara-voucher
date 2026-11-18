@@ -79,7 +79,12 @@ export function AddStampBar({
             <Button type="button" size="sm" variant="outline" onClick={onCancelConfirm}>
               Batal
             </Button>
-            <Button type="button" size="sm" onClick={onConfirm} disabled={pending}>
+            <Button
+              type="button"
+              size="sm"
+              onClick={onConfirm}
+              disabled={pending || Boolean(disabledReason) || services.length === 0}
+            >
               Tetap tambah
             </Button>
           </div>

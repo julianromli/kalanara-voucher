@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import QRCode from "react-qr-code";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -36,17 +36,25 @@ export function RegisterMemberDialog({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState(initialPhone);
   const [birthDate, setBirthDate] = useState("");
-  const [waConsent, setWaConsent] = useState(true);
+  const [waConsent, setWaConsent] = useState(false);
+  const mountedRef = useRef(true);
   const [error, setError] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState<{ memberId: string; name: string } | null>(null);
   const [created, setCreated] = useState<MemberSummary | null>(null);
   const [pending, setPending] = useState(false);
 
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   const reset = () => {
     setName("");
     setPhone(initialPhone);
     setBirthDate("");
-    setWaConsent(true);
+    setWaConsent(false);
     setError(null);
     setDuplicate(null);
     setCreated(null);
@@ -130,6 +138,10 @@ export function RegisterMemberDialog({
               setError(null);
               setDuplicate(null);
               void registerMember({ name, phone, birthDate, waConsent }).then((result) => {
+                if (!mountedRef.current) {
+                  if (result.status === "ok") onCreated(result.summary);
+                  return;
+                }
                 setPending(false);
                 if (result.status === "ok") {
                   setCreated(result.summary);

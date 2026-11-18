@@ -11,6 +11,14 @@ describe("member scan and phone", () => {
     expect(normalizeMemberPhone("0812-3456-7890")).toBe("6281234567890");
     expect(normalizeMemberPhone("81234567890")).toBe("6281234567890");
     expect(normalizeMemberPhone("+62 812 3456 7890")).toBe("6281234567890");
+    expect(normalizeMemberPhone("+62 (0) 812 3456 7890")).toBe("6281234567890");
+    expect(normalizeMemberPhone("0062 812 3456 7890")).toBe("6281234567890");
+  });
+
+  test("does not treat a labeled order reference as a phone", () => {
+    expect(parseMemberScan("Order 0812-3456-7890", { appUrl })).toEqual({
+      kind: "rejected",
+    });
   });
 
   test("reads a card URL on the public host or the current origin", () => {

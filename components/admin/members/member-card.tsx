@@ -49,6 +49,9 @@ export function MemberCard({
           {formatMemberDate(summary.resetOn)}
           {benefit ? ` · ${benefit}` : ""}
         </p>
+        {benefit ? (
+          <p className="text-xs text-muted-foreground">* Benefit level masih contoh, belum final.</p>
+        ) : null}
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

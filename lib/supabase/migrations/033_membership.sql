@@ -1350,7 +1350,14 @@ BEGIN
     RETURNING members.card_token INTO card;
   EXCEPTION
     WHEN unique_violation THEN
-      RETURN jsonb_build_object('status', 'duplicate');
+      IF EXISTS (
+        SELECT 1
+        FROM public.members
+        WHERE members.phone = p_phone
+      ) THEN
+        RETURN jsonb_build_object('status', 'duplicate');
+      END IF;
+      RETURN jsonb_build_object('status', 'retry');
   END;
 
   RETURN jsonb_build_object('status', 'ok', 'card_token', card);
