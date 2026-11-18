@@ -1,0 +1,219 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import jsQR from "jsqr";
+import { Camera, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { parseMemberScan } from "@/lib/membership/scan";
+import { tryAppBaseUrl } from "@/lib/membership/urls";
+
+interface MemberScanPanelProps {
+  onScan: (value: string) => void;
+  status: "idle" | "found" | "rejected" | "not_found" | "loading";
+  statusName?: string;
+  manualValue: string;
+  onManualChange: (value: string) => void;
+  onManualSubmit: () => void;
+}
+
+export function MemberScanPanel({
+  onScan,
+  status,
+  statusName,
+  manualValue,
+  onManualChange,
+  onManualSubmit,
+}: MemberScanPanelProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const lastCodeRef = useRef("");
+  const [cameraState, setCameraState] = useState<"starting" | "live" | "blocked">("starting");
+
+  const stopCamera = useCallback(() => {
+    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    setCameraState("starting");
+    stopCamera();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setCameraState("live");
+    } catch {
+      setCameraState("blocked");
+    }
+  }, [stopCamera]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void startCamera();
+    }, 0);
+    return () => {
+      window.clearTimeout(timeout);
+      stopCamera();
+    };
+  }, [startCamera, stopCamera]);
+
+  useEffect(() => {
+    if (cameraState !== "live") return;
+    const scan = () => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (video && canvas && video.readyState >= video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (context) {
+          context.drawImage(video, 0, 0);
+          const image = context.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(image.data, image.width, image.height, {
+            inversionAttempts: "dontInvert",
+          });
+          if (code?.data && code.data !== lastCodeRef.current) {
+            lastCodeRef.current = code.data;
+            onScan(code.data);
+            window.setTimeout(() => {
+              if (lastCodeRef.current === code.data) lastCodeRef.current = "";
+            }, 2500);
+          }
+        }
+      }
+      frameRef.current = requestAnimationFrame(scan);
+    };
+    frameRef.current = requestAnimationFrame(scan);
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [cameraState, onScan]);
+
+  useEffect(() => {
+    let buffer = "";
+    let lastAt = 0;
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      const typing =
+        target instanceof HTMLElement &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+      if (typing) return;
+      const now = Date.now();
+      if (now - lastAt > 80) buffer = "";
+      lastAt = now;
+      if (event.key === "Enter") {
+        const parsed = parseMemberScan(buffer, {
+          appUrl: tryAppBaseUrl() || undefined,
+          origin: window.location.origin,
+        });
+        if (parsed.kind === "token" || parsed.kind === "phone" || parsed.kind === "code") {
+          event.preventDefault();
+          onScan(buffer);
+        }
+        buffer = "";
+        return;
+      }
+      if (event.key.length === 1) buffer += event.key;
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onScan]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="relative aspect-[5/4] overflow-hidden rounded-2xl bg-neutral-950 text-white">
+        <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
+        <canvas ref={canvasRef} className="hidden" />
+        <div className="pointer-events-none absolute inset-6">
+          <span className="absolute top-0 left-0 size-8 rounded-tl-md border-t-2 border-l-2" />
+          <span className="absolute top-0 right-0 size-8 rounded-tr-md border-t-2 border-r-2" />
+          <span className="absolute bottom-0 left-0 size-8 rounded-bl-md border-b-2 border-l-2" />
+          <span className="absolute right-0 bottom-0 size-8 rounded-br-md border-r-2 border-b-2" />
+          <span className="motion-safe:animate-pulse absolute top-1/2 right-2 left-2 h-px -translate-y-1/2 bg-white/70" />
+        </div>
+        {cameraState !== "live" ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
+            <Camera className="size-6 text-white/80" />
+            <p className="text-sm font-medium">
+              {cameraState === "blocked" ? "Kamera belum diizinkan" : "Menyalakan kamera"}
+            </p>
+            {cameraState === "blocked" ? (
+              <>
+                <p className="text-xs text-white/70">
+                  Klik ikon kamera di address bar, pilih Izinkan, terus muat ulang.
+                </p>
+                <Button type="button" size="sm" variant="secondary" onClick={() => void startCamera()}>
+                  <RotateCcw className="size-4" />
+                  Coba lagi
+                </Button>
+              </>
+            ) : null}
+          </div>
+        ) : (
+          <p className="absolute inset-x-0 bottom-3 text-center text-xs text-white/80">
+            Arahkan QR member ke kamera
+          </p>
+        )}
+        {status === "found" && statusName ? (
+          <div className="absolute inset-x-0 top-4 flex justify-center">
+            <p className="rounded-full bg-success px-3 py-1 text-xs font-medium text-success-foreground">
+              {statusName} ketemu
+            </p>
+          </div>
+        ) : null}
+        {status === "rejected" ? (
+          <div className="absolute inset-x-0 top-4 flex justify-center px-4">
+            <p className="rounded-full bg-destructive px-3 py-1 text-center text-xs font-medium text-white">
+              QR ini bukan kartu member Kalanara
+            </p>
+          </div>
+        ) : null}
+      </div>
+
+      <form
+        className="space-y-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onManualSubmit();
+        }}
+      >
+        <label htmlFor="member-phone-search" className="text-sm font-medium">
+          Atau cari pakai nomor HP
+        </label>
+        <div className="flex gap-2">
+          <div className="flex h-9 min-w-0 flex-1 items-center rounded-lg border bg-background">
+            <span className="px-3 text-sm text-muted-foreground">+62</span>
+            <Input
+              id="member-phone-search"
+              value={manualValue}
+              onChange={(event) => onManualChange(event.target.value)}
+              inputMode="numeric"
+              autoComplete="tel-national"
+              className="h-9 border-0 shadow-none focus-visible:ring-0"
+              aria-label="Nomor HP member"
+            />
+          </div>
+          <Button type="submit" variant="outline">
+            Cari
+          </Button>
+        </div>
+        {status === "not_found" ? (
+          <p className="text-sm text-destructive" role="alert">
+            Nomor ini belum terdaftar.
+          </p>
+        ) : null}
+      </form>
+    </div>
+  );
+}

@@ -13,14 +13,26 @@ import { CheckCircle, AlertCircle, Info, X } from 'lucide-react';
 // Types
 // ============================================================================
 
+interface ToastOptions {
+  duration?: number;
+  actionLabel?: string;
+  onAction?: () => void;
+}
+
 interface ToastMessage {
   id: string;
   message: string;
   type: 'success' | 'error' | 'info';
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 interface ToastContextType {
-  showToast: (message: string, type: 'success' | 'error' | 'info') => void;
+  showToast: (
+    message: string,
+    type: 'success' | 'error' | 'info',
+    options?: ToastOptions,
+  ) => void;
 }
 
 interface ToastProviderProps {
@@ -31,7 +43,7 @@ interface ToastProviderProps {
 // Constants
 // ============================================================================
 
-const TOAST_DURATION = 3000; // 3 seconds
+const TOAST_DURATION = 3000;
 
 const TOAST_STYLES: Record<
   ToastMessage['type'],
@@ -102,6 +114,18 @@ function Toast({
       <div className="relative z-10 flex items-center gap-3 px-4 py-3">
         <ToastIcon type={toast.type} />
         <p className="flex-1 text-sm font-medium">{toast.message}</p>
+        {toast.actionLabel && toast.onAction ? (
+          <button
+            type="button"
+            onClick={() => {
+              toast.onAction?.();
+              onDismiss(toast.id);
+            }}
+            className="rounded-full border bg-background px-3 py-1 text-xs font-medium"
+          >
+            {toast.actionLabel}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => onDismiss(toast.id)}
@@ -153,16 +177,21 @@ export function ToastProvider({ children }: ToastProviderProps) {
   }, []);
 
   const showToast = useCallback(
-    (message: string, type: 'success' | 'error' | 'info') => {
+    (message: string, type: 'success' | 'error' | 'info', options?: ToastOptions) => {
       const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      const newToast: ToastMessage = { id, message, type };
+      const newToast: ToastMessage = {
+        id,
+        message,
+        type,
+        actionLabel: options?.actionLabel,
+        onAction: options?.onAction,
+      };
 
       setToasts((prev) => [...prev, newToast]);
 
-      // Auto-dismiss after TOAST_DURATION
       setTimeout(() => {
         dismissToast(id);
-      }, TOAST_DURATION);
+      }, options?.duration ?? TOAST_DURATION);
     },
     [dismissToast]
   );
