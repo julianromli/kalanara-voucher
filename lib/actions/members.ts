@@ -783,7 +783,7 @@ export async function selfSignup(input: {
   website?: string;
 }) {
   const ip = await clientIp();
-  if (!signupIpLimiter(ip)) return { status: "rate_limited" as const };
+  if (!signupIpLimiter(ip)) return { status: "rate_limited" as const, retryAfterMinutes: 15 };
 
   const parsed = selfSignupSchema.safeParse(input);
   if (!parsed.success) return { status: "invalid" as const };
@@ -800,7 +800,7 @@ export async function selfSignup(input: {
   const qrState = await loadPublicSignupQr(parsed.data.qrToken);
   if (qrState === "error") return failure();
   if (qrState === "invalid") return { status: "invalid_qr" as const };
-  if (!signupPhoneLimiter(phone)) return { status: "rate_limited" as const };
+  if (!signupPhoneLimiter(phone)) return { status: "rate_limited" as const, retryAfterMinutes: 60 };
   const { data, error } = await supabase.rpc("member_self_signup", {
     p_qr_token: parsed.data.qrToken.toLowerCase(),
     p_name: parsed.data.name,

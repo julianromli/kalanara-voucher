@@ -157,4 +157,65 @@ describe("member actions", () => {
     expect(result).toEqual({ status: "ok" });
     expect(getAdminClientMock).not.toHaveBeenCalled();
   });
+
+  test("reports a 15 minute wait when the same IP signs up too often", async () => {
+    headerState.ip = "203.0.113.61";
+    const rpc = vi.fn().mockResolvedValue({ data: { status: "retry" }, error: null });
+    const from = vi.fn(() => ({
+      select: () => ({
+        eq: () => ({
+          is: () => ({
+            maybeSingle: async () => ({ data: { id: "qr-1" }, error: null }),
+          }),
+        }),
+      }),
+    }));
+    mockClient(rpc, from);
+
+    let result: Awaited<ReturnType<typeof selfSignup>> = { status: "invalid" };
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      result = await selfSignup({
+        qrToken: "ab".repeat(16),
+        name: "Rina",
+        phone: `08121000000${attempt}`,
+        birthDate: "1994-08-14",
+        waConsent: false,
+        website: "",
+      });
+    }
+
+    expect(result).toEqual({ status: "rate_limited", retryAfterMinutes: 15 });
+  });
+
+  test("reports a one hour wait when the same phone signs up too often", async () => {
+    headerState.ip = "203.0.113.62";
+    const rpc = vi.fn().mockResolvedValue({ data: { status: "retry" }, error: null });
+    const from = vi.fn(() => ({
+      select: () => ({
+        eq: () => ({
+          is: () => ({
+            maybeSingle: async () => ({ data: { id: "qr-1" }, error: null }),
+          }),
+        }),
+      }),
+    }));
+    mockClient(rpc, from);
+    const input = {
+      qrToken: "ef".repeat(16),
+      name: "Rina",
+      phone: "081299900001",
+      birthDate: "1994-08-14",
+      waConsent: false,
+      website: "",
+    };
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await selfSignup(input);
+    }
+
+    await expect(selfSignup(input)).resolves.toEqual({
+      status: "rate_limited",
+      retryAfterMinutes: 60,
+    });
+  });
 });

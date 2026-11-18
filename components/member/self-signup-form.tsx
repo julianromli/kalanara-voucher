@@ -14,6 +14,13 @@ import { MemberShell } from "@/components/member/member-shell";
 import { APP_CONFIG } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
+function retryCopy(minutes: number | null): string {
+  if (minutes === 60) return "Coba lagi 1 jam lagi.";
+  if (minutes === 15) return "Coba lagi 15 menit lagi.";
+  if (minutes && minutes > 0) return `Coba lagi ${minutes} menit lagi.`;
+  return "Coba lagi nanti.";
+}
+
 interface SelfSignupFormProps {
   qrToken: string;
   qrState: "active" | "invalid" | "error";
@@ -30,6 +37,8 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
   const [errors, setErrors] = useState<{ phone?: string; birthDate?: string; form?: string }>({});
   const [duplicatePhone, setDuplicatePhone] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
+  const [retryAfterMinutes, setRetryAfterMinutes] = useState<number | null>(null);
+  const [qrRevoked, setQrRevoked] = useState(false);
 
   if (qrState === "error") {
     return (
@@ -45,7 +54,7 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
     );
   }
 
-  if (qrState === "invalid") {
+  if (qrState === "invalid" || qrRevoked) {
     return (
       <MemberShell title="Daftar member" subtitle="QR ini udah nggak dipakai">
         <section className="rounded-2xl bg-background px-6 py-12 text-center shadow-sm">
@@ -121,6 +130,11 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
             }
             if (result.status === "rate_limited") {
               setBlocked(true);
+              setRetryAfterMinutes(result.retryAfterMinutes);
+              return;
+            }
+            if (result.status === "invalid_qr") {
+              setQrRevoked(true);
               return;
             }
             if (result.status === "invalid") {
@@ -199,7 +213,7 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
         {errors.form ? <p className="mt-3 text-sm text-destructive">{errors.form}</p> : null}
         {blocked ? (
           <p className="mt-3 text-sm text-muted-foreground">
-            Terlalu banyak percobaan dari HP ini. Coba lagi 15 menit lagi.
+            Terlalu banyak percobaan dari HP ini. {retryCopy(retryAfterMinutes)}
           </p>
         ) : null}
         <Button type="submit" disabled={pending || blocked} className="mt-4 h-11 w-full bg-foreground text-base text-background">
