@@ -12,6 +12,7 @@ import { maskMemberPhone } from "@/lib/membership/format";
 import { normalizeMemberPhone } from "@/lib/membership/phone";
 import { MemberShell } from "@/components/member/member-shell";
 import { APP_CONFIG } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 interface SelfSignupFormProps {
   qrToken: string;
@@ -143,7 +144,7 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
         </div>
         <div className="mt-4 space-y-1.5">
           <Label htmlFor="signup-phone">Nomor WhatsApp</Label>
-          <div className={`flex h-11 items-center rounded-lg border bg-background ${errors.phone ? "border-destructive" : ""}`}>
+          <div className={cn("flex h-11 items-center rounded-lg border bg-background", errors.phone && "border-destructive")}>
             <span className="px-3 text-base text-muted-foreground">+62</span>
             <Input
               id="signup-phone"
@@ -167,7 +168,7 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
             value={birthDate}
             onChange={(event) => setBirthDate(event.target.value)}
             onBlur={validate}
-            className={`h-11 text-base ${errors.birthDate ? "border-destructive" : ""}`}
+            className={cn("h-11 text-base", errors.birthDate && "border-destructive")}
             aria-invalid={Boolean(errors.birthDate)}
             required
           />
