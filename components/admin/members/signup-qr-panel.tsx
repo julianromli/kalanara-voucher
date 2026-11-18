@@ -48,7 +48,12 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
               variant="outline"
               className="mt-2"
               onClick={() => {
-                void navigator.clipboard.writeText(current.url).catch(() => {
+                const write = navigator.clipboard?.writeText.bind(navigator.clipboard);
+                if (!write) {
+                  window.prompt("Salin link ini:", current.url);
+                  return;
+                }
+                void write(current.url).catch(() => {
                   window.prompt("Salin link ini:", current.url);
                 });
               }}
@@ -143,6 +148,16 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
                         monthCount: result.monthCount,
                         recent: result.recent,
                       });
+                      setError(null);
+                      setOpen(false);
+                      return;
+                    }
+                    if (result.status === "rotated") {
+                      setCurrent((current) => ({
+                        ...current,
+                        url: result.url,
+                        createdAt: result.createdAt,
+                      }));
                       setError(null);
                       setOpen(false);
                       return;

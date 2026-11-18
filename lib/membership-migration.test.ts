@@ -101,7 +101,8 @@ describe("membership migration contract", () => {
   test("keeps functions invoker-only with an empty search path", () => {
     const applied = readMigration(migrationPath);
     const fixes = readMigration(fixesPath);
-    for (const sql of [applied, fixes]) {
+    const cron = readMigration(cronPath);
+    for (const sql of [applied, fixes, cron]) {
       const bodies = functionBodies(sql);
       expect(bodies.size).toBeGreaterThan(0);
       for (const [name, body] of bodies) {

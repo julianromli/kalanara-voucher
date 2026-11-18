@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, UserRound } from "lucide-react";
 import { AddStampBar, cappedReason } from "@/components/admin/members/add-stamp-bar";
@@ -84,10 +84,24 @@ export function MembersClient({ initialRecent, services, servicesError = false }
   const [claimMilestone, setClaimMilestone] = useState<number | null>(null);
   const [rotateOpen, setRotateOpen] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
+  const recentRequest = useRef(0);
+  const selectedIdRef = useRef<string | null>(null);
   const canManage = hasPermission(AdminPermission.MEMBERS_SETTINGS);
   const progress = summary ? progressCopy(summary) : null;
   const resetNote = summary ? resetBanner(summary) : null;
   const today = useMemo(() => formatMemberWeekday(), []);
+
+  useEffect(() => {
+    selectedIdRef.current = summary?.id ?? null;
+  }, [summary?.id]);
+
+  async function refreshRecent() {
+    const requestId = recentRequest.current + 1;
+    recentRequest.current = requestId;
+    const listed = await listRecentMembers();
+    if (requestId !== recentRequest.current) return;
+    if (listed.status === "ok") setRecent(listed.members);
+  }
 
   async function openMember(next: MemberSummary) {
     setSummary(next);
@@ -98,8 +112,7 @@ export function MembersClient({ initialRecent, services, servicesError = false }
     setStampError(false);
     setJustAdded(false);
     setBanner(resetBanner(next));
-    const listed = await listRecentMembers();
-    if (listed.status === "ok") setRecent(listed.members);
+    await refreshRecent();
   }
 
   async function lookup(value: string) {
@@ -158,7 +171,9 @@ export function MembersClient({ initialRecent, services, servicesError = false }
       const fresh = await getMember(memberId);
       if (fresh.status === "ok") {
         setSummary((current) => (current?.id === memberId ? fresh.summary : current));
-        setBanner("Stamp periode ini sudah penuh. Siklus berikutnya mulai setelah reset.");
+        if (selectedIdRef.current === memberId) {
+          setBanner("Stamp periode ini sudah penuh. Siklus berikutnya mulai setelah reset.");
+        }
       }
       return;
     }
@@ -194,8 +209,7 @@ export function MembersClient({ initialRecent, services, servicesError = false }
           if (fresh.status === "ok") {
             setSummary((current) => (current?.id === memberId ? fresh.summary : current));
           }
-          const listed = await listRecentMembers();
-          if (listed.status === "ok") setRecent(listed.members);
+          await refreshRecent();
         }).catch(() => {
           showToast("Stamp nggak bisa dibatalin. Koneksi putus.", "error");
         });
@@ -205,8 +219,7 @@ export function MembersClient({ initialRecent, services, servicesError = false }
     if (fresh.status === "ok") {
       setSummary((current) => (current?.id === memberId ? fresh.summary : current));
     }
-    const listed = await listRecentMembers();
-    if (listed.status === "ok") setRecent(listed.members);
+    await refreshRecent();
   }
 
   const claimRewardRow = summary?.rewards.find((reward) => reward.milestone === claimMilestone);
@@ -432,8 +445,7 @@ export function MembersClient({ initialRecent, services, servicesError = false }
                   if (fresh.status === "ok") {
                     setSummary((current) => (current?.id === memberId ? fresh.summary : current));
                   }
-                  const listed = await listRecentMembers();
-                  if (listed.status === "ok") setRecent(listed.members);
+                  await refreshRecent();
                 }).catch(() => {
                   showToast("Klaim nggak bisa dibatalin. Koneksi putus.", "error");
                 });
@@ -443,8 +455,7 @@ export function MembersClient({ initialRecent, services, servicesError = false }
               if (fresh.status === "ok") {
                 setSummary((current) => (current?.id === memberId ? fresh.summary : current));
               }
-              const listed = await listRecentMembers();
-              if (listed.status === "ok") setRecent(listed.members);
+              await refreshRecent();
             });
           }}
         />

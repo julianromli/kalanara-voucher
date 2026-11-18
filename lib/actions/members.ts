@@ -495,7 +495,20 @@ export async function markFollowupSent(input: {
       row.stage === input.stage &&
       row.anchor_date === input.anchorDate,
   );
-  if (!stillDue) return { status: "not_due" as const };
+  if (!stillDue) {
+    const { data: existing, error: existingError } = await supabase
+      .from("member_followups")
+      .select("marked_at")
+      .eq("member_id", input.memberId)
+      .eq("stage", input.stage)
+      .eq("anchor_date", input.anchorDate)
+      .maybeSingle();
+    if (existingError) return failure();
+    if (existing?.marked_at) {
+      return { status: "already_marked" as const, markedAt: existing.marked_at };
+    }
+    return { status: "not_due" as const };
+  }
   const markedAt = new Date().toISOString();
   const { error } = await supabase.from("member_followups").insert({
     member_id: input.memberId,
@@ -782,11 +795,9 @@ export async function regenerateSignupQr() {
   if (refreshed.status === "ok") return refreshed;
   try {
     return {
-      status: "ok" as const,
+      status: "rotated" as const,
       url: signupPageUrl(data.token),
       createdAt: data.created_at,
-      monthCount: 0,
-      recent: [],
     };
   } catch {
     return failure();

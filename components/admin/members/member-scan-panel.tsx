@@ -155,12 +155,9 @@ export function MemberScanPanel({
           appUrl: tryAppBaseUrl() || undefined,
           origin: window.location.origin,
         });
-        if (
-          statusRef.current !== "loading" &&
-          (parsed.kind === "token" || parsed.kind === "phone" || parsed.kind === "code")
-        ) {
+        if (parsed.kind === "token" || parsed.kind === "phone" || parsed.kind === "code") {
           event.preventDefault();
-          onScanRef.current(buffer);
+          if (statusRef.current !== "loading") onScanRef.current(buffer);
         }
         buffer = "";
         return;

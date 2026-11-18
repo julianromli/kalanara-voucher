@@ -118,6 +118,7 @@ export function FollowUpClient({
       });
       setPendingId(null);
       if (result.status === "ok" || result.status === "already_marked") {
+        setSendError(null);
         if (confirmKeyRef.current === key) {
           setConfirmKey(null);
           setWaUrl(null);
@@ -128,6 +129,29 @@ export function FollowUpClient({
             rowKey(item) === key ? { ...item, markedAt } : item,
           ),
         );
+        return;
+      }
+      if (result.status === "not_due") {
+        setSendError("Follow up ini sudah tidak perlu dikirim. Daftarnya di-refresh.");
+        if (confirmKeyRef.current === key) {
+          setConfirmKey(null);
+          setWaUrl(null);
+        }
+        const listed = await listFollowups();
+        if (listed.status === "ok") {
+          setRows(
+            listed.rows.map((item) => ({
+              member_id: item.member_id,
+              name: item.name,
+              phone: item.phone,
+              stage: item.stage,
+              anchor_date: item.anchor_date,
+              last_service_name: item.last_service_name,
+              stamp_count: item.stamp_count,
+              markedAt: item.markedAt,
+            })),
+          );
+        }
         return;
       }
       setSendError("Tanda terkirim gagal disimpan. Pesan WhatsApp-nya jangan dikirim ulang.");
