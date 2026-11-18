@@ -933,6 +933,35 @@ export type Database = {
           }
         ];
       };
+      member_followup_due: {
+        Row: {
+          member_id: string;
+          stage: "day30" | "day60" | "day90" | "day120" | "birthday";
+          anchor_date: string;
+          computed_on: string;
+        };
+        Insert: {
+          member_id: string;
+          stage: "day30" | "day60" | "day90" | "day120" | "birthday";
+          anchor_date: string;
+          computed_on: string;
+        };
+        Update: {
+          member_id?: string;
+          stage?: "day30" | "day60" | "day90" | "day120" | "birthday";
+          anchor_date?: string;
+          computed_on?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "member_followup_due_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       member_followups: {
         Row: {
           id: string;
@@ -1292,6 +1321,10 @@ export type Database = {
       member_regenerate_signup_qr: {
         Args: { p_admin_id: string };
         Returns: Database["public"]["Tables"]["member_signup_qr"]["Row"];
+      };
+      member_rotate_card_token: {
+        Args: { p_member_id: string; p_admin_id: string };
+        Returns: string;
       };
       member_nightly_maintenance: {
         Args: Record<PropertyKey, never>;

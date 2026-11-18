@@ -1224,6 +1224,32 @@ BEGIN
 END;
 $$;
 
+CREATE FUNCTION public.member_rotate_card_token(p_member_id uuid, p_admin_id uuid)
+RETURNS text
+LANGUAGE plpgsql
+VOLATILE
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+DECLARE
+  new_token text;
+BEGIN
+  UPDATE public.members
+  SET
+    card_token = encode(extensions.gen_random_bytes(24), 'hex'),
+    card_token_rotated_at = now(),
+    updated_at = now()
+  WHERE id = p_member_id
+  RETURNING card_token INTO new_token;
+
+  IF new_token IS NULL THEN
+    RAISE EXCEPTION 'member_not_found';
+  END IF;
+
+  RETURN new_token;
+END;
+$$;
+
 INSERT INTO public.member_rewards (milestone, name)
 VALUES
   (5, 'Totok gratis'),
@@ -1327,3 +1353,6 @@ GRANT EXECUTE ON FUNCTION public.member_reward_reached_counts() TO service_role;
 
 REVOKE ALL ON FUNCTION public.member_regenerate_signup_qr(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.member_regenerate_signup_qr(uuid) TO service_role;
+
+REVOKE ALL ON FUNCTION public.member_rotate_card_token(uuid, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.member_rotate_card_token(uuid, uuid) TO service_role;
