@@ -112,27 +112,11 @@ describe("member actions", () => {
 
   test("hides the card link when the phone is already registered", async () => {
     headerState.ip = "203.0.113.21";
-    const from = vi.fn((table: string) => {
-      if (table === "member_signup_qr") {
-        return {
-          select: () => ({
-            eq: () => ({
-              is: () => ({
-                maybeSingle: async () => ({ data: { id: "qr-1" }, error: null }),
-              }),
-            }),
-          }),
-        };
-      }
-      return {
-        select: () => ({
-          eq: () => ({
-            maybeSingle: async () => ({ data: { id: "member-1" }, error: null }),
-          }),
-        }),
-      };
+    const rpc = vi.fn().mockResolvedValue({
+      data: { status: "duplicate" },
+      error: null,
     });
-    mockClient(vi.fn(), from);
+    mockClient(rpc);
 
     const result = await selfSignup({
       qrToken: "ab".repeat(16),

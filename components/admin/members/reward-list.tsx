@@ -19,7 +19,7 @@ export function RewardList({ summary, onClaim }: RewardListProps) {
             <li key={reward.milestone} className="flex h-11 items-center gap-3 text-sm">
               <span className="w-8 shrink-0 text-muted-foreground">{reward.milestone}×</span>
               <span className="min-w-0 flex-1 truncate">
-                {reward.name || "Belum diatur"}
+                {(reward.claimId ? reward.claimedName : reward.name) || "Belum diatur"}
               </span>
               {label.canClaim ? (
                 <Button type="button" size="sm" variant="outline" onClick={() => onClaim(reward.milestone)}>

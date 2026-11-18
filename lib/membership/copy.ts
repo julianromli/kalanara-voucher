@@ -1,8 +1,10 @@
-import { formatMemberDate, firstName } from "@/lib/membership/format";
+import { formatMemberDate, firstName, jakartaDateISO } from "@/lib/membership/format";
 import {
+  effectiveTier,
   nextOpenMilestone,
   rewardState,
   tierBenefitLabel,
+  tierFromStamps,
   tierName,
   type Tier,
 } from "@/lib/membership/rules";
@@ -27,7 +29,7 @@ export function progressCopy(summary: MemberSummary): { title: string; detail: s
   if (reward?.name) {
     return {
       title: `${remaining} stamp lagi buat ${reward.name.toLowerCase()}`,
-      detail: tierCrossingDetail(next),
+      detail: promotionDetail(summary, next),
     };
   }
 
@@ -37,10 +39,21 @@ export function progressCopy(summary: MemberSummary): { title: string; detail: s
   };
 }
 
-function tierCrossingDetail(milestone: number): string {
-  if (milestone === 10) return "Sekalian naik ke Bronze di 10 stamp.";
-  if (milestone === 20) return "Sekalian naik ke Silver di 20 stamp.";
-  if (milestone === 30) return "Sekalian naik ke Gold di 30 stamp.";
+function promotionDetail(summary: MemberSummary, milestone: number): string {
+  const projected = effectiveTier(milestone, summary.baseTier);
+  if (projected <= summary.effectiveTier) return "";
+  if (tierFromStamps(milestone) === 1) return "Sekalian naik ke Bronze di 10 stamp.";
+  if (tierFromStamps(milestone) === 2) return "Sekalian naik ke Silver di 20 stamp.";
+  if (tierFromStamps(milestone) === 3) return "Sekalian naik ke Gold di 30 stamp.";
+  return "";
+}
+
+function levelNoteFor(summary: MemberSummary, milestone: number): string {
+  const projected = effectiveTier(milestone, summary.baseTier);
+  if (projected <= summary.effectiveTier) return "";
+  if (milestone === 10) return "naik ke Bronze";
+  if (milestone === 20) return `naik ke Silver (${tierBenefitLabel(2)})`;
+  if (milestone === 30) return `naik ke Gold (${tierBenefitLabel(3)})`;
   return "";
 }
 
@@ -78,9 +91,11 @@ export function memberRewardCopy(
     name: reward.name,
     claimed: Boolean(reward.claimId),
   });
-  const title = reward.name || `Reward ${reward.milestone} stamp`;
+  const title = state === "claimed" && reward.claimedName
+    ? reward.claimedName
+    : reward.name || `Reward ${reward.milestone} stamp`;
   const remaining = Math.max(reward.milestone - summary.stampCount, 0);
-  const levelNote = levelNoteFor(reward.milestone);
+  const levelNote = levelNoteFor(summary, reward.milestone);
 
   if (state === "claimed") {
     const currentLevelReward = summary.effectiveTier === tierFromMilestone(reward.milestone);
@@ -122,20 +137,17 @@ function tierFromMilestone(milestone: number): Tier {
   return 0;
 }
 
-function levelNoteFor(milestone: number): string {
-  if (milestone === 10) return "naik ke Bronze";
-  if (milestone === 20) return `naik ke Silver (${tierBenefitLabel(2)})`;
-  if (milestone === 30) return `naik ke Gold (${tierBenefitLabel(3)})`;
-  return "";
-}
-
 export function resetBanner(summary: MemberSummary): string | null {
   if (summary.rolledCycles < 1 || summary.tierBefore == null) return null;
-  const from = tierName(summary.tierBefore);
-  const to = tierName(summary.effectiveTier);
-  const steps =
-    summary.rolledCycles === 1
-      ? "satu tingkat"
-      : `${summary.rolledCycles} tingkat`;
-  return `Periode baru mulai hari ini. Stamp ${firstName(summary.name)} mulai lagi dari 0, dan level turun ${steps} dari ${from} ke ${to}.`;
+  const fromTier = summary.tierBefore;
+  const toTier = summary.effectiveTier;
+  const startLabel =
+    summary.cycleStart === jakartaDateISO()
+      ? "hari ini"
+      : formatMemberDate(summary.cycleStart);
+  const freshStart = `Periode baru mulai ${startLabel}. Stamp ${firstName(summary.name)} mulai lagi dari 0`;
+  const dropped = fromTier - toTier;
+  if (dropped <= 0) return `${freshStart}.`;
+  const steps = dropped === 1 ? "satu tingkat" : `${dropped} tingkat`;
+  return `${freshStart}, dan level turun ${steps} dari ${tierName(fromTier)} ke ${tierName(toTier)}.`;
 }

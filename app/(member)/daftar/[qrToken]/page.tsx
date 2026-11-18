@@ -7,6 +7,6 @@ interface SignupPageProps {
 
 export default async function SelfSignupPage({ params }: SignupPageProps) {
   const { qrToken } = await params;
-  const active = await loadPublicSignupQr(qrToken);
-  return <SelfSignupForm qrToken={qrToken} active={active} />;
+  const qrState = await loadPublicSignupQr(qrToken);
+  return <SelfSignupForm qrToken={qrToken} qrState={qrState} />;
 }

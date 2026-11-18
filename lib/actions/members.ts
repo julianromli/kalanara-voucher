@@ -112,8 +112,11 @@ export async function findMember(input: { scan: string; origin?: string }) {
 export async function searchMembers(input: { q: string }) {
   await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
   const query = input.q.trim();
-  const safeName = query.replace(/[^0-9A-Za-z \u00C0-\u024F]/g, "").slice(0, 40);
+  const safeName = query.replace(/[%_\\]/g, "").slice(0, 40);
   if (query.length < 2) return { status: "ok" as const, members: [] };
+  if (!normalizeMemberPhone(query) && safeName.trim().length < 2) {
+    return { status: "ok" as const, members: [] };
+  }
 
   const supabase = getAdminClient();
   const phone = normalizeMemberPhone(query);
@@ -553,8 +556,15 @@ export async function buildFollowupMessage(input: {
   stage: FollowupTemplateStage;
 }) {
   await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
+  if (!isTemplateStage(input.stage)) return { status: "invalid" as const };
   const summary = await loadSummary(input.memberId);
   if (!summary) return failure();
+  if (input.stage === "birthday" && summary.birthday.redeemed) {
+    const greeting = `Selamat ulang tahun, ${summary.name.split(" ")[0] || summary.name}! Semoga sehat dan bahagia selalu.`;
+    const url = whatsAppLink(summary.phone, greeting);
+    if (!url) return { status: "invalid_phone" as const, text: greeting };
+    return { status: "ok" as const, url, text: greeting };
+  }
   const supabase = getAdminClient();
   const { data: templateRow, error } = await supabase
     .from("site_settings")
@@ -562,7 +572,14 @@ export async function buildFollowupMessage(input: {
     .eq("key", FOLLOWUP_TEMPLATE_KEYS[input.stage])
     .maybeSingle();
   if (error) return failure();
-  const template = templateRow?.value || DEFAULT_FOLLOWUP_TEMPLATES[input.stage];
+  const storedTemplate = templateRow?.value || DEFAULT_FOLLOWUP_TEMPLATES[input.stage];
+  const template =
+    nextOpenMilestone(summary.stampCount) == null
+      ? storedTemplate.replace(
+          /tinggal \{sisa\} lagi buat \{reward_berikutnya\}/g,
+          "stamp periode ini sudah penuh",
+        )
+      : storedTemplate;
   let link = "";
   try {
     link = memberCardUrl(summary.cardToken);
@@ -575,8 +592,10 @@ export async function buildFollowupMessage(input: {
     nama: summary.name.split(" ")[0] || summary.name,
     treatment: summary.lastTreatment?.serviceName || "treatment",
     stamp: String(summary.stampCount),
-    sisa: next == null ? "0" : String(next - summary.stampCount),
-    reward_berikutnya: nextReward?.name || "reward berikutnya",
+    sisa: next == null ? "sudah penuh" : String(next - summary.stampCount),
+    reward_berikutnya: next == null
+      ? "periode berikutnya"
+      : nextReward?.name || "reward berikutnya",
     link_kartu: link,
     tanggal_akhir: summary.birthday.windowEnd,
   });
@@ -633,25 +652,18 @@ export async function saveRewards(input: {
   const parsed = rewardRowsSchema.safeParse(input);
   if (!parsed.success) return { status: "invalid" as const };
   const supabase = getAdminClient();
-  for (const row of parsed.data.rows) {
-    const name = row.name.trim();
-    const note = row.note.trim();
-    const { error } = await supabase
-      .from("member_rewards")
-      .update({
-        name: name.length > 0 ? name : null,
-        note: note.length > 0 ? note : null,
-        updated_by: access.userId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("milestone", row.milestone);
-    if (error) return failure();
-  }
+  const { error } = await supabase.rpc("member_save_rewards", {
+    p_admin_id: access.userId,
+    p_rows: parsed.data.rows,
+  });
+  if (error) return failure();
   logAdminAudit(access, {
     action: "membership.reward_save",
     target: "member_rewards",
   });
-  return getRewards();
+  const saved = await getRewards();
+  if (saved.status !== "ok") return { status: "saved" as const };
+  return saved;
 }
 
 export async function getSignupQr() {
@@ -675,13 +687,15 @@ export async function getSignupQr() {
 
   const recent = (signups ?? []).slice(0, 6);
   const ids = recent.map((member) => member.id);
-  const { data: stamps } = ids.length
+  const stampsResult = ids.length
     ? await supabase
         .from("member_stamps")
         .select("member_id, cycle_start")
         .in("member_id", ids)
         .is("voided_at", null)
-    : { data: [] };
+    : { data: [], error: null };
+  if (stampsResult.error) return failure();
+  const stamps = stampsResult.data;
 
   let url = "";
   try {
@@ -772,42 +786,20 @@ export async function selfSignup(input: {
   if (!signupPhoneLimiter(phone)) return { status: "rate_limited" as const };
 
   const supabase = getAdminClient();
-  const { data: qr, error: qrError } = await supabase
-    .from("member_signup_qr")
-    .select("id")
-    .eq("token", parsed.data.qrToken.toLowerCase())
-    .is("revoked_at", null)
-    .maybeSingle();
-  const { data: existing, error: existingError } = await supabase
-    .from("members")
-    .select("id")
-    .eq("phone", phone)
-    .maybeSingle();
-  if (qrError || existingError) return failure();
-  if (!qr) return { status: "invalid_qr" as const };
-  if (existing) return { status: "duplicate" as const };
-
-  const { data, error } = await supabase
-    .from("members")
-    .insert({
-      name: parsed.data.name,
-      phone,
-      birth_date: parsed.data.birthDate,
-      wa_consent: parsed.data.waConsent,
-      wa_consent_at: parsed.data.waConsent ? new Date().toISOString() : null,
-      source: "self_signup",
-      signup_qr_id: qr.id,
-      created_by: null,
-    })
-    .select("card_token")
-    .single();
-
-  if (error) {
-    if (error.code === "23505") return { status: "duplicate" as const };
-    return failure();
-  }
-
-  return { status: "ok" as const, cardPath: `/m/${data.card_token}?baru=1` };
+  const { data, error } = await supabase.rpc("member_self_signup", {
+    p_qr_token: parsed.data.qrToken.toLowerCase(),
+    p_name: parsed.data.name,
+    p_phone: phone,
+    p_birth_date: parsed.data.birthDate,
+    p_wa_consent: parsed.data.waConsent,
+  });
+  if (error) return failure();
+  const body = asRecord(data);
+  if (body?.status === "duplicate") return { status: "duplicate" as const };
+  if (body?.status === "invalid_qr") return { status: "invalid_qr" as const };
+  const cardToken = text(body?.card_token);
+  if (body?.status !== "ok" || !cardToken) return failure();
+  return { status: "ok" as const, cardPath: `/m/${cardToken}?baru=1` };
 }
 
 export async function loadPublicMember(token: string): Promise<MemberSummary | null> {
@@ -822,8 +814,10 @@ export async function loadPublicMember(token: string): Promise<MemberSummary | n
   return loadSummary(data.id);
 }
 
-export async function loadPublicSignupQr(token: string): Promise<boolean> {
-  if (!/^[0-9a-f]{32}$/i.test(token)) return false;
+export async function loadPublicSignupQr(
+  token: string,
+): Promise<"active" | "invalid" | "error"> {
+  if (!/^[0-9a-f]{32}$/i.test(token)) return "invalid";
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("member_signup_qr")
@@ -831,8 +825,8 @@ export async function loadPublicSignupQr(token: string): Promise<boolean> {
     .eq("token", token.toLowerCase())
     .is("revoked_at", null)
     .maybeSingle();
-  if (error) return false;
-  return Boolean(data);
+  if (error) return "error";
+  return data ? "active" : "invalid";
 }
 
 async function loadSummary(memberId: string): Promise<MemberSummary | null> {
@@ -858,7 +852,7 @@ function numberValue(value: unknown): number | null {
 }
 
 function isTemplateStage(value: string): value is FollowupTemplateStage {
-  return value in FOLLOWUP_TEMPLATE_KEYS;
+  return Object.prototype.hasOwnProperty.call(FOLLOWUP_TEMPLATE_KEYS, value);
 }
 
 function isFollowupKey(input: {

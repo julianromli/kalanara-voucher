@@ -25,8 +25,20 @@ const WEEKDAYS = [
   "Sabtu",
 ] as const;
 
+export function jakartaDateISO(value: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(value);
+}
+
 export function formatMemberDate(value: string): string {
-  const date = parseISODate(value);
+  const calendar = value.includes("T")
+    ? jakartaDateISO(new Date(value))
+    : value.slice(0, 10);
+  const date = parseISODate(calendar);
   return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
 }
 

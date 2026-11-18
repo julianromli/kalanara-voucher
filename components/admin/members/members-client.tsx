@@ -135,6 +135,7 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
       return;
     }
     const stampId = result.stampId;
+    const memberId = summary.id;
     setConfirm(null);
     setJustAdded(true);
     window.setTimeout(() => setJustAdded(false), 6000);
@@ -152,13 +153,17 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
             showToast("Stamp nggak bisa dibatalin. Lewat 5 menit.", "error");
             return;
           }
-          const fresh = await getMember(summary.id);
-          if (fresh.status === "ok") setSummary(fresh.summary);
+          const fresh = await getMember(memberId);
+          if (fresh.status === "ok") {
+            setSummary((current) => (current?.id === memberId ? fresh.summary : current));
+          }
         });
       },
     });
-    const fresh = await getMember(summary.id);
-    if (fresh.status === "ok") setSummary(fresh.summary);
+    const fresh = await getMember(memberId);
+    if (fresh.status === "ok") {
+      setSummary((current) => (current?.id === memberId ? fresh.summary : current));
+    }
   }
 
   const claimRewardRow = summary?.rewards.find((reward) => reward.milestone === claimMilestone);
@@ -351,6 +356,7 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
             if (!open) setClaimMilestone(null);
           }}
           onClaimed={(claimId, rewardName) => {
+            const memberId = summary.id;
             showToast(`${rewardName} diklaim`, "success", {
               duration: 6000,
               actionLabel: "Batalkan",
@@ -360,13 +366,17 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
                     showToast("Klaim nggak bisa dibatalin.", "error");
                     return;
                   }
-                  const fresh = await getMember(summary.id);
-                  if (fresh.status === "ok") setSummary(fresh.summary);
+                  const fresh = await getMember(memberId);
+                  if (fresh.status === "ok") {
+                    setSummary((current) => (current?.id === memberId ? fresh.summary : current));
+                  }
                 });
               },
             });
-            void getMember(summary.id).then((fresh) => {
-              if (fresh.status === "ok") setSummary(fresh.summary);
+            void getMember(memberId).then((fresh) => {
+              if (fresh.status === "ok") {
+                setSummary((current) => (current?.id === memberId ? fresh.summary : current));
+              }
             });
           }}
         />

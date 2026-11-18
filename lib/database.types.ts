@@ -830,6 +830,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "members";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "member_stamps_service_id_fkey";
+            columns: ["service_id"];
+            isOneToOne: false;
+            referencedRelation: "services";
+            referencedColumns: ["id"];
           }
         ];
       };
@@ -1325,6 +1332,20 @@ export type Database = {
       member_rotate_card_token: {
         Args: { p_member_id: string; p_admin_id: string };
         Returns: string;
+      };
+      member_save_rewards: {
+        Args: { p_admin_id: string; p_rows: Json };
+        Returns: undefined;
+      };
+      member_self_signup: {
+        Args: {
+          p_qr_token: string;
+          p_name: string;
+          p_phone: string;
+          p_birth_date: string;
+          p_wa_consent: boolean;
+        };
+        Returns: Json;
       };
       member_nightly_maintenance: {
         Args: Record<PropertyKey, never>;

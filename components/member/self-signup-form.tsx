@@ -15,10 +15,10 @@ import { APP_CONFIG } from "@/lib/constants";
 
 interface SelfSignupFormProps {
   qrToken: string;
-  active: boolean;
+  qrState: "active" | "invalid" | "error";
 }
 
-export function SelfSignupForm({ qrToken, active }: SelfSignupFormProps) {
+export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -30,7 +30,21 @@ export function SelfSignupForm({ qrToken, active }: SelfSignupFormProps) {
   const [duplicatePhone, setDuplicatePhone] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
 
-  if (!active) {
+  if (qrState === "error") {
+    return (
+      <MemberShell title="Daftar member" subtitle="Pendaftaran belum bisa dibuka">
+        <section className="rounded-2xl bg-background px-6 py-12 text-center shadow-sm">
+          <p className="text-lg font-semibold">Belum bisa memuat QR</p>
+          <p className="mt-2 text-sm text-muted-foreground">Koneksi putus. Coba lagi.</p>
+          <Button type="button" className="mt-4" onClick={() => window.location.reload()}>
+            Coba lagi
+          </Button>
+        </section>
+      </MemberShell>
+    );
+  }
+
+  if (qrState === "invalid") {
     return (
       <MemberShell title="Daftar member" subtitle="QR ini udah nggak dipakai">
         <section className="rounded-2xl bg-background px-6 py-12 text-center shadow-sm">

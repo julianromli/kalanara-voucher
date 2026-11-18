@@ -33,6 +33,9 @@ describe("membership nightly migration contract", () => {
     expect(sql).toMatch(/0 19 \* \* \*/);
     expect(sql).toMatch(/cron\.unschedule/i);
     expect(sql).toMatch(/delete from public\.member_followup_due/i);
+    expect(sql).toMatch(
+      /insert into public\.member_followup_due[\s\S]*list_member_followups\(\)/i,
+    );
     expect(sql).toMatch(/set search_path = ''/i);
     expect(sql).not.toMatch(/security definer/i);
     expect(sql).not.toMatch(/heartbeat-6hours|keep-alive-edge-function/i);
