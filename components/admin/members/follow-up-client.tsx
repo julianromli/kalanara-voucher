@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Check, MessageCircle, RotateCcw } from "lucide-react";
 import { FollowUpTemplateSheet } from "@/components/admin/members/follow-up-template-sheet";
 import { AdminPageBody } from "@/components/admin/admin-page";
@@ -67,6 +67,7 @@ export function FollowUpClient({
   const [confirmKey, setConfirmKey] = useState<string | null>(null);
   const [waUrl, setWaUrl] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+  const previewRequest = useRef(0);
   const visible = useMemo(
     () => rows.filter((row) => filter === "all" || row.stage === filter),
     [filter, rows],
@@ -77,6 +78,8 @@ export function FollowUpClient({
   async function send(row: FollowUpRow) {
     const key = rowKey(row);
     if (confirmKey !== key) {
+      const requestId = previewRequest.current + 1;
+      previewRequest.current = requestId;
       setSendError(null);
       let preview: Awaited<ReturnType<typeof buildFollowupMessage>>;
       try {
@@ -85,9 +88,10 @@ export function FollowUpClient({
           stage: row.stage as FollowupTemplateStage,
         });
       } catch {
-        setSendError("Pesan gagal dibuat. Coba lagi.");
+        if (requestId === previewRequest.current) setSendError("Pesan gagal dibuat. Coba lagi.");
         return;
       }
+      if (requestId !== previewRequest.current) return;
       if (preview.status === "no_consent") {
         setSendError("Member ini belum setuju dihubungi lewat WhatsApp.");
         return;

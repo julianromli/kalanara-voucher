@@ -185,6 +185,7 @@ describe("member actions", () => {
     }
 
     expect(result).toEqual({ status: "rate_limited", retryAfterMinutes: 15 });
+    expect(rpc).toHaveBeenCalledTimes(5);
   });
 
   test("reports a one hour wait when the same phone signs up too often", async () => {
@@ -217,5 +218,6 @@ describe("member actions", () => {
       status: "rate_limited",
       retryAfterMinutes: 60,
     });
+    expect(rpc).toHaveBeenCalledTimes(3);
   });
 });

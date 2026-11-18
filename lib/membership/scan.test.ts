@@ -13,6 +13,10 @@ describe("member scan and phone", () => {
     expect(normalizeMemberPhone("+62 812 3456 7890")).toBe("6281234567890");
     expect(normalizeMemberPhone("+62 (0) 812 3456 7890")).toBe("6281234567890");
     expect(normalizeMemberPhone("0062 812 3456 7890")).toBe("6281234567890");
+    expect(parseMemberScan("(0812) 3456-7890", { appUrl })).toEqual({
+      kind: "phone",
+      phone: "6281234567890",
+    });
   });
 
   test("does not treat a labeled order reference as a phone", () => {

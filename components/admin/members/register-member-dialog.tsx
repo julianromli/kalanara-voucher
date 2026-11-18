@@ -38,6 +38,7 @@ export function RegisterMemberDialog({
   const [birthDate, setBirthDate] = useState("");
   const [waConsent, setWaConsent] = useState(false);
   const mountedRef = useRef(true);
+  const requestRef = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState<{ memberId: string; name: string } | null>(null);
   const [created, setCreated] = useState<MemberSummary | null>(null);
@@ -76,7 +77,10 @@ export function RegisterMemberDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next) reset();
+        if (!next) {
+          requestRef.current += 1;
+          reset();
+        }
         onOpenChange(next);
       }}
     >
@@ -144,14 +148,13 @@ export function RegisterMemberDialog({
           <form
             onSubmit={(event) => {
               event.preventDefault();
+              const requestId = requestRef.current + 1;
+              requestRef.current = requestId;
               setPending(true);
               setError(null);
               setDuplicate(null);
               void registerMember({ name, phone, birthDate, waConsent }).then((result) => {
-                if (!mountedRef.current) {
-                  if (result.status === "ok") onCreated(result.summary);
-                  return;
-                }
+                if (!mountedRef.current || requestId !== requestRef.current) return;
                 setPending(false);
                 if (result.status === "ok") {
                   setCreated(result.summary);

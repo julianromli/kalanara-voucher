@@ -68,10 +68,11 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
     }
     setPending(false);
     if (result.status === "saved") {
+      setSaved(rows);
+      setConfirm(null);
       showToast("Reward disimpan. Kasir dan member langsung lihat yang baru.", "success", {
         duration: 6000,
       });
-      window.location.reload();
       return;
     }
     if (result.status !== "ok") {

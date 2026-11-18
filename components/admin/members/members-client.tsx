@@ -440,16 +440,19 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
               type="button"
               onClick={() => {
                 if (!summary) return;
-                void rotateCardToken({ memberId: summary.id }).then(async (result) => {
+                const memberId = summary.id;
+                void rotateCardToken({ memberId }).then(async (result) => {
                   setRotateOpen(false);
                   if (result.status === "ok") {
-                    setSummary(result.summary);
+                    setSummary((current) => (current?.id === memberId ? result.summary : current));
                     showToast("Link kartu diganti", "success");
                     return;
                   }
                   if (result.status === "rotated") {
-                    const fresh = await getMember(summary.id);
-                    if (fresh.status === "ok") setSummary(fresh.summary);
+                    const fresh = await getMember(memberId);
+                    if (fresh.status === "ok") {
+                      setSummary((current) => (current?.id === memberId ? fresh.summary : current));
+                    }
                     showToast("Link kartu diganti. Muat ulang kartu kalau salin link masih yang lama.", "success");
                     return;
                   }
@@ -477,8 +480,11 @@ function recentActivity(member: RecentMember): { at: string; subtitle: string } 
       subtitle: `Klaim ${member.last_claim_name.toLowerCase()}`,
     };
   }
-  if (member.last_stamp_at && member.stamp_count > 0) {
-    return { at: member.last_stamp_at, subtitle: `Stamp ke-${member.stamp_count}` };
+  if (member.last_stamp_at) {
+    return {
+      at: member.last_stamp_at,
+      subtitle: member.stamp_count > 0 ? `Stamp ke-${member.stamp_count}` : "Stamp tercatat",
+    };
   }
   if (member.source === "self_signup") {
     return { at: member.created_at, subtitle: "Member baru · daftar sendiri" };
