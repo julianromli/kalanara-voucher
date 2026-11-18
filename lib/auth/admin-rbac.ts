@@ -20,6 +20,8 @@ export const AdminPermission = {
   USERS_MANAGE: "users.manage",
   SETTINGS_MANAGE_SENSITIVE: "settings.manage_sensitive",
   CRM_MANAGE: "crm.manage",
+  MEMBERS_OPERATE: "members.operate",
+  MEMBERS_SETTINGS: "members.manage_settings",
 } as const;
 
 export type AdminPermission =
@@ -39,16 +41,22 @@ const ROLE_PERMISSIONS: Record<CanonicalAdminRole, readonly AdminPermission[]> =
     AdminPermission.SERVICES_MANAGE,
     AdminPermission.REVIEWS_MANAGE,
     AdminPermission.CRM_MANAGE,
+    AdminPermission.MEMBERS_OPERATE,
+    AdminPermission.MEMBERS_SETTINGS,
   ],
   STAFF: [
     AdminPermission.DASHBOARD_VIEW_OPERATIONAL,
     AdminPermission.ORDERS_VIEW,
     AdminPermission.VOUCHERS_MANAGE,
+    AdminPermission.MEMBERS_OPERATE,
   ],
 };
 
 export const ADMIN_ROUTE_PERMISSIONS = {
   "/admin/dashboard": AdminPermission.DASHBOARD_VIEW_OPERATIONAL,
+  "/admin/members/follow-up": AdminPermission.MEMBERS_OPERATE,
+  "/admin/members/settings": AdminPermission.MEMBERS_SETTINGS,
+  "/admin/members": AdminPermission.MEMBERS_OPERATE,
   "/admin/purchases": AdminPermission.ORDERS_VIEW,
   "/admin/buyers": AdminPermission.ORDERS_VIEW,
   "/admin/discount-codes": AdminPermission.DISCOUNT_CODES_MANAGE,
