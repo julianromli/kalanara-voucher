@@ -13,6 +13,7 @@ export default async function AdminMembersPage() {
     <MembersClient
       initialRecent={recent.status === "ok" ? recent.members : []}
       services={services.status === "ok" ? services.services : []}
+      servicesError={services.status !== "ok"}
     />
   );
 }

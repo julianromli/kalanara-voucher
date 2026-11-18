@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { AdminPageBody } from "@/components/admin/admin-page";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
@@ -27,6 +27,20 @@ export function MemberSettingsClient({
   signupQr,
 }: MemberSettingsClientProps) {
   const [tab, setTab] = useState<"reward" | "qr">("reward");
+  const tabs = [
+    { id: "reward" as const, label: "Reward", panelId: "member-settings-reward" },
+    { id: "qr" as const, label: "QR daftar sendiri", panelId: "member-settings-qr" },
+  ];
+
+  function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+    event.preventDefault();
+    const next = event.key === "ArrowRight"
+      ? (index + 1) % tabs.length
+      : (index - 1 + tabs.length) % tabs.length;
+    setTab(tabs[next].id);
+    document.getElementById(`member-settings-tab-${tabs[next].id}`)?.focus();
+  }
 
   return (
     <>
@@ -38,33 +52,41 @@ export function MemberSettingsClient({
           </Link>
         </p>
         <div role="tablist" aria-label="Pengaturan member" className="flex gap-1 overflow-x-auto border-b border-border">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "reward"}
-            onClick={() => setTab("reward")}
-            className={`shrink-0 border-b-2 px-4 py-2 text-sm font-medium ${
-              tab === "reward" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-            }`}
-          >
-            Reward
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "qr"}
-            onClick={() => setTab("qr")}
-            className={`shrink-0 border-b-2 px-4 py-2 text-sm font-medium ${
-              tab === "qr" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-            }`}
-          >
-            QR daftar sendiri
-          </button>
+          {tabs.map((item, index) => (
+            <button
+              key={item.id}
+              type="button"
+              id={`member-settings-tab-${item.id}`}
+              role="tab"
+              aria-selected={tab === item.id}
+              aria-controls={item.panelId}
+              tabIndex={tab === item.id ? 0 : -1}
+              onClick={() => setTab(item.id)}
+              onKeyDown={(event) => onTabKeyDown(event, index)}
+              className={`shrink-0 border-b-2 px-4 py-2 text-sm font-medium ${
+                tab === item.id ? "border-primary text-primary" : "border-transparent text-muted-foreground"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
-        <div className={tab === "reward" ? undefined : "hidden"}>
+        <div
+          id="member-settings-reward"
+          role="tabpanel"
+          aria-labelledby="member-settings-tab-reward"
+          hidden={tab !== "reward"}
+          className={tab === "reward" ? undefined : "hidden"}
+        >
           <RewardSettingsForm initialRows={rewards} loadError={rewardLoadError} />
         </div>
-        <div className={tab === "qr" ? undefined : "hidden"}>
+        <div
+          id="member-settings-qr"
+          role="tabpanel"
+          aria-labelledby="member-settings-tab-qr"
+          hidden={tab !== "qr"}
+          className={tab === "qr" ? undefined : "hidden"}
+        >
           {signupQr ? (
             <SignupQrPanel {...signupQr} />
           ) : (

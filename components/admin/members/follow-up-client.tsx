@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, MessageCircle, RotateCcw } from "lucide-react";
 import { FollowUpTemplateSheet } from "@/components/admin/members/follow-up-template-sheet";
 import { AdminPageBody } from "@/components/admin/admin-page";
@@ -8,6 +8,7 @@ import { DashboardHeader } from "@/components/admin/dashboard-header";
 import { Button } from "@/components/ui/button";
 import {
   buildFollowupMessage,
+  listFollowups,
   markFollowupSent,
   undoFollowupSent,
 } from "@/lib/actions/members";
@@ -68,6 +69,10 @@ export function FollowUpClient({
   const [waUrl, setWaUrl] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const previewRequest = useRef(0);
+  const confirmKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    confirmKeyRef.current = confirmKey;
+  }, [confirmKey]);
   const visible = useMemo(
     () => rows.filter((row) => filter === "all" || row.stage === filter),
     [filter, rows],
@@ -113,11 +118,14 @@ export function FollowUpClient({
       });
       setPendingId(null);
       if (result.status === "ok" || result.status === "already_marked") {
-        setConfirmKey(null);
-        setWaUrl(null);
+        if (confirmKeyRef.current === key) {
+          setConfirmKey(null);
+          setWaUrl(null);
+        }
+        const markedAt = result.markedAt || new Date().toISOString();
         setRows((current) =>
           current.map((item) =>
-            rowKey(item) === key ? { ...item, markedAt: new Date().toISOString() } : item,
+            rowKey(item) === key ? { ...item, markedAt } : item,
           ),
         );
         return;
@@ -190,7 +198,7 @@ export function FollowUpClient({
               })}
             </div>
             <div className="overflow-x-auto rounded-xl border">
-              <table className="w-full min-w-[760px] text-sm">
+              <table className="w-full min-w-[760px] text-sm" aria-label="Daftar follow up hari ini">
                 <thead className="text-left text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 font-medium">Customer</th>
@@ -234,19 +242,50 @@ export function FollowUpClient({
                                 type="button"
                                 size="sm"
                                 variant="ghost"
+                                disabled={pendingId === `undo:${key}`}
                                 onClick={() => {
+                                  if (!row.markedAt) return;
+                                  setPendingId(`undo:${key}`);
+                                  setSendError(null);
                                   void undoFollowupSent({
                                     memberId: row.member_id,
                                     stage: row.stage,
                                     anchorDate: row.anchor_date,
-                                  }).then((result) => {
-                                    if (result.status === "ok") {
-                                      setRows((current) =>
-                                        current.map((item) =>
-                                          rowKey(item) === key ? { ...item, markedAt: null } : item,
-                                        ),
+                                    markedAt: row.markedAt,
+                                  }).then(async (result) => {
+                                    setPendingId(null);
+                                    if (result.status !== "ok") {
+                                      setSendError(
+                                        result.status === "stale"
+                                          ? "Tanda terkirim sudah berubah. Muat ulang daftar ini."
+                                          : "Tanda belum bisa dibatalin. Coba lagi.",
                                       );
+                                      return;
                                     }
+                                    const listed = await listFollowups();
+                                    if (listed.status === "ok") {
+                                      setRows(
+                                        listed.rows.map((item) => ({
+                                          member_id: item.member_id,
+                                          name: item.name,
+                                          phone: item.phone,
+                                          stage: item.stage,
+                                          anchor_date: item.anchor_date,
+                                          last_service_name: item.last_service_name,
+                                          stamp_count: item.stamp_count,
+                                          markedAt: item.markedAt,
+                                        })),
+                                      );
+                                      return;
+                                    }
+                                    setRows((current) =>
+                                      current.map((item) =>
+                                        rowKey(item) === key ? { ...item, markedAt: null } : item,
+                                      ),
+                                    );
+                                  }).catch(() => {
+                                    setPendingId(null);
+                                    setSendError("Tanda belum bisa dibatalin. Coba lagi.");
                                   });
                                 }}
                               >

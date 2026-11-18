@@ -28,7 +28,7 @@ export function VisitHistory({ summary }: VisitHistoryProps) {
       meta: `${formatMemberDate(redemption.redeemedAt)} · Ulang tahun`,
       aside: "Dipakai",
     })),
-  ].sort((left, right) => right.at.localeCompare(left.at));
+  ].sort((left, right) => (left.at < right.at ? 1 : left.at > right.at ? -1 : 0));
 
   return (
     <section>

@@ -64,9 +64,10 @@ interface RecentMember {
 interface MembersClientProps {
   initialRecent: RecentMember[];
   services: Array<{ id: string; name: string; duration: number }>;
+  servicesError?: boolean;
 }
 
-export function MembersClient({ initialRecent, services }: MembersClientProps) {
+export function MembersClient({ initialRecent, services, servicesError = false }: MembersClientProps) {
   const router = useRouter();
   const { hasPermission } = useAuth();
   const { showToast } = useToast();
@@ -195,6 +196,8 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
           }
           const listed = await listRecentMembers();
           if (listed.status === "ok") setRecent(listed.members);
+        }).catch(() => {
+          showToast("Stamp nggak bisa dibatalin. Koneksi putus.", "error");
         });
       },
     });
@@ -323,6 +326,19 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
                     </Button>
                   </div>
                 ) : null}
+                {servicesError ? (
+                  <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm">
+                    <p className="font-medium">Daftar treatment gagal dimuat.</p>
+                    <p className="mt-1 text-muted-foreground">Stamp dan klaim belum bisa dilanjut sampai daftarnya ke-load.</p>
+                    <Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => window.location.reload()}>
+                      Coba lagi
+                    </Button>
+                  </div>
+                ) : services.length === 0 ? (
+                  <p className="rounded-xl border px-4 py-3 text-sm text-muted-foreground">
+                    Belum ada treatment aktif. Stamp dan klaim belum bisa dilanjut.
+                  </p>
+                ) : null}
                 {banner ? (
                   <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm">
                     <p className="font-medium">{banner}</p>
@@ -397,6 +413,7 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
           rewardName={claimRewardRow.name}
           stampCount={summary.stampCount}
           services={services}
+          servicesError={servicesError}
           onOpenChange={(open) => {
             if (!open) setClaimMilestone(null);
           }}
@@ -415,13 +432,19 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
                   if (fresh.status === "ok") {
                     setSummary((current) => (current?.id === memberId ? fresh.summary : current));
                   }
+                  const listed = await listRecentMembers();
+                  if (listed.status === "ok") setRecent(listed.members);
+                }).catch(() => {
+                  showToast("Klaim nggak bisa dibatalin. Koneksi putus.", "error");
                 });
               },
             });
-            void getMember(memberId).then((fresh) => {
+            void getMember(memberId).then(async (fresh) => {
               if (fresh.status === "ok") {
                 setSummary((current) => (current?.id === memberId ? fresh.summary : current));
               }
+              const listed = await listRecentMembers();
+              if (listed.status === "ok") setRecent(listed.members);
             });
           }}
         />

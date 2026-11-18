@@ -102,13 +102,16 @@ describe("membership migration contract", () => {
     const applied = readMigration(migrationPath);
     const fixes = readMigration(fixesPath);
     for (const sql of [applied, fixes]) {
-      const functionCount = sql.match(/create (?:or replace )?function public\./gi)?.length ?? 0;
-      const searchPathCount = sql.match(/set search_path = ''/gi)?.length ?? 0;
-
-      expect(functionCount).toBeGreaterThan(0);
-      expect(searchPathCount).toBe(functionCount);
-      expect(sql).toMatch(/security invoker/i);
-      expect(sql).not.toMatch(/security definer/i);
+      const bodies = functionBodies(sql);
+      expect(bodies.size).toBeGreaterThan(0);
+      for (const [name, body] of bodies) {
+        const withoutComments = body
+          .replace(/\/\*[\s\S]*?\*\//g, "")
+          .replace(/--.*$/gm, "");
+        expect(withoutComments, name).toMatch(/set search_path = ''/i);
+        expect(withoutComments, name).toMatch(/security invoker/i);
+        expect(withoutComments, name).not.toMatch(/security definer/i);
+      }
       expect(sql).not.toMatch(
         /grant\s+(execute|all|select|insert|update|delete|usage)\b[\s\S]{0,180}\bto\s+(anon|authenticated)\b/i,
       );

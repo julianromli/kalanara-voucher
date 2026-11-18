@@ -142,7 +142,8 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
               return;
             }
             if (result.status === "invalid") {
-              validate();
+              if (!validate()) return;
+              setErrors({ form: "Cek nama, nomor, dan tanggal lahir." });
               return;
             }
             setErrors({ form: "Belum kedaftar. Koneksi putus. Isian kamu masih ada." });

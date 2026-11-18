@@ -223,7 +223,7 @@ export async function registerMember(input: {
   const summary = await loadSummary(data.id);
   return summary
     ? { status: "ok" as const, summary }
-    : failure();
+    : { status: "created" as const, memberId: data.id };
 }
 
 export async function addStamp(input: {
@@ -496,35 +496,49 @@ export async function markFollowupSent(input: {
       row.anchor_date === input.anchorDate,
   );
   if (!stillDue) return { status: "not_due" as const };
+  const markedAt = new Date().toISOString();
   const { error } = await supabase.from("member_followups").insert({
     member_id: input.memberId,
     stage: input.stage,
     anchor_date: input.anchorDate,
     marked_by: access.userId,
-    marked_at: new Date().toISOString(),
+    marked_at: markedAt,
   });
   if (error) {
-    if (error.code === "23505") return { status: "already_marked" as const };
+    if (error.code === "23505") {
+      const { data: existing } = await supabase
+        .from("member_followups")
+        .select("marked_at")
+        .eq("member_id", input.memberId)
+        .eq("stage", input.stage)
+        .eq("anchor_date", input.anchorDate)
+        .maybeSingle();
+      return { status: "already_marked" as const, markedAt: existing?.marked_at ?? null };
+    }
     return failure();
   }
-  return { status: "ok" as const };
+  return { status: "ok" as const, markedAt };
 }
 
 export async function undoFollowupSent(input: {
   memberId: string;
   stage: string;
   anchorDate: string;
+  markedAt: string;
 }) {
   await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
-  if (!isFollowupKey(input)) return { status: "invalid" as const };
+  if (!isFollowupKey(input) || !input.markedAt) return { status: "invalid" as const };
   const supabase = getAdminClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("member_followups")
     .delete()
     .eq("member_id", input.memberId)
     .eq("stage", input.stage)
-    .eq("anchor_date", input.anchorDate);
+    .eq("anchor_date", input.anchorDate)
+    .eq("marked_at", input.markedAt)
+    .select("member_id");
   if (error) return failure();
+  if (!data?.length) return { status: "stale" as const };
   return { status: "ok" as const };
 }
 
@@ -781,16 +795,12 @@ export async function regenerateSignupQr() {
 
 export async function getFollowUpBadgeCount() {
   try {
-    await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
+    const result = await listFollowups();
+    if (result.status !== "ok") return 0;
+    return result.rows.filter((row) => !row.markedAt).length;
   } catch {
     return 0;
   }
-  const supabase = getAdminClient();
-  const { count, error } = await supabase
-    .from("member_followup_due")
-    .select("member_id", { count: "exact", head: true });
-  if (error) return 0;
-  return count ?? 0;
 }
 
 const selfSignupSchema = z.object({
@@ -846,18 +856,24 @@ export async function selfSignup(input: {
   return { status: "ok" as const, cardPath: `/m/${cardToken}?baru=1` };
 }
 
-export async function loadPublicMember(token: string): Promise<MemberSummary | null> {
-  if (!/^[0-9a-f]{48}$/i.test(token)) return null;
+export async function loadPublicMember(
+  token: string,
+): Promise<
+  { status: "ok"; summary: MemberSummary } | { status: "missing" } | { status: "error" }
+> {
+  if (!/^[0-9a-f]{48}$/i.test(token)) return { status: "missing" };
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("members")
     .select("id")
     .eq("card_token", token.toLowerCase())
     .maybeSingle();
-  if (error || !data) return null;
+  if (error) return { status: "error" };
+  if (!data) return { status: "missing" };
   const summary = await loadSummary(data.id);
-  if (!summary || summary.cardToken !== token.toLowerCase()) return null;
-  return summary;
+  if (!summary) return { status: "error" };
+  if (summary.cardToken !== token.toLowerCase()) return { status: "missing" };
+  return { status: "ok", summary };
 }
 
 export async function loadPublicSignupQr(

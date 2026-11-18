@@ -47,16 +47,17 @@ export function MemberScanPanel({
   }, []);
 
   const stopCamera = useCallback(() => {
+    cameraGeneration.current += 1;
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
     stopStream(streamRef.current);
     streamRef.current = null;
   }, [stopStream]);
 
   const startCamera = useCallback(async () => {
+    stopCamera();
     const generation = cameraGeneration.current + 1;
     cameraGeneration.current = generation;
     setCameraState("starting");
-    stopCamera();
     let stream: MediaStream | null = null;
     try {
       stream = await navigator.mediaDevices.getUserMedia({

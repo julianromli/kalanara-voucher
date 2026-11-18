@@ -93,7 +93,13 @@ export function AddStampBar({
       {error ? (
         <div className="mt-3 flex items-center justify-between gap-3 text-sm text-destructive">
           <p>Stamp belum tersimpan. Koneksi putus.</p>
-          <Button type="button" size="sm" variant="outline" onClick={onRetry}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={onRetry}
+            disabled={pending || Boolean(disabledReason) || services.length === 0}
+          >
             <RotateCcw className="size-4" />
             Coba lagi
           </Button>

@@ -41,6 +41,7 @@ export function RegisterMemberDialog({
   const requestRef = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState<{ memberId: string; name: string } | null>(null);
+  const [registeredId, setRegisteredId] = useState<string | null>(null);
   const [created, setCreated] = useState<MemberSummary | null>(null);
   const [pending, setPending] = useState(false);
   const [syncedOpen, setSyncedOpen] = useState(open);
@@ -68,6 +69,7 @@ export function RegisterMemberDialog({
     setWaConsent(false);
     setError(null);
     setDuplicate(null);
+    setRegisteredId(null);
     setCreated(null);
   };
 
@@ -85,8 +87,22 @@ export function RegisterMemberDialog({
       }}
     >
       <DialogContent>
+        <style>{`
+          @media print {
+            body * { visibility: hidden; }
+            .print-member-card, .print-member-card * { visibility: visible; }
+            .print-member-card {
+              position: absolute;
+              inset: 0;
+              background: white;
+              padding: 24px;
+            }
+            .no-print { display: none !important; }
+          }
+        `}</style>
         {created ? (
           <>
+            <div className="print-member-card">
             <DialogHeader>
               <DialogTitle>{created.name.split(" ")[0]} udah jadi member</DialogTitle>
               <DialogDescription>
@@ -100,7 +116,7 @@ export function RegisterMemberDialog({
               <div className="min-w-0 space-y-2">
                 <p className="text-sm font-medium">Link kartu member</p>
                 <p className="truncate text-sm text-muted-foreground">{displayUrl(cardUrl)}</p>
-                <div className="flex gap-2">
+                <div className="no-print flex gap-2">
                   <Button
                     type="button"
                     size="sm"
@@ -121,6 +137,7 @@ export function RegisterMemberDialog({
             <p className="text-xs text-muted-foreground">
               Stamp pertama cuma kalau kunjungan hari ini walk-in.
             </p>
+            </div>
             <div className="flex justify-end gap-2">
               <Button
                 type="button"
@@ -153,11 +170,16 @@ export function RegisterMemberDialog({
               setPending(true);
               setError(null);
               setDuplicate(null);
+              setRegisteredId(null);
               void registerMember({ name, phone, birthDate, waConsent }).then((result) => {
                 if (!mountedRef.current || requestId !== requestRef.current) return;
                 setPending(false);
                 if (result.status === "ok") {
                   setCreated(result.summary);
+                  return;
+                }
+                if (result.status === "created") {
+                  setRegisteredId(result.memberId);
                   return;
                 }
                 if (result.status === "duplicate") {
@@ -170,7 +192,7 @@ export function RegisterMemberDialog({
                 }
                 setError("Belum kedaftar. Koneksi putus.");
               }).catch(() => {
-                if (!mountedRef.current) return;
+                if (!mountedRef.current || requestId !== requestRef.current) return;
                 setPending(false);
                 setError("Belum kedaftar. Koneksi putus.");
               });
@@ -225,6 +247,14 @@ export function RegisterMemberDialog({
                       Buka kartu {duplicate.name.split(" ")[0] || "member"}
                     </Button>
                   ) : null}
+                </div>
+              ) : null}
+              {registeredId ? (
+                <div className="space-y-2 text-sm" role="status">
+                  <p>Member kedaftar, tapi kartunya belum ke-load.</p>
+                  <Button type="button" size="sm" onClick={() => onOpenExisting(registeredId)}>
+                    Buka kartunya
+                  </Button>
                 </div>
               ) : null}
               {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}

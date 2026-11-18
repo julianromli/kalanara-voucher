@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const { requireAdminPermissionMock, logAdminAuditMock, getAdminClientMock, headerState } =
   vi.hoisted(() => ({
@@ -22,6 +22,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 import { addStamp, claimReward, selfSignup, voidStamp } from "@/lib/actions/members";
+import { AdminPermission } from "@/lib/auth/admin-rbac";
 
 const access = {
   userId: "11111111-1111-4111-8111-111111111111",
@@ -38,7 +39,11 @@ describe("member actions", () => {
     vi.clearAllMocks();
     headerState.ip = "203.0.113.20";
     requireAdminPermissionMock.mockResolvedValue(access);
-    process.env.NEXT_PUBLIC_APP_URL = "https://voucher.kalanaraspa.com";
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://voucher.kalanaraspa.com");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   test("returns capped when the stamp count is already 30", async () => {
@@ -56,6 +61,7 @@ describe("member actions", () => {
     expect(result.status).toBe("capped");
     if (result.status !== "capped") return;
     expect(result.resetOn).toBe("2027-06-01");
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(AdminPermission.MEMBERS_OPERATE);
     expect(logAdminAuditMock).not.toHaveBeenCalled();
   });
 
@@ -78,6 +84,26 @@ describe("member actions", () => {
     expect(result.status).toBe("needs_confirm");
     if (result.status !== "needs_confirm") return;
     expect(result.serviceName).toBe("Body Massage 60 menit");
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(AdminPermission.MEMBERS_OPERATE);
+    expect(rpc).toHaveBeenCalledWith(
+      "member_add_stamp",
+      expect.objectContaining({ p_confirm_same_day: false }),
+    );
+
+    rpc.mockResolvedValue({
+      data: { status: "ok", stamp_id: "55555555-5555-4555-8555-555555555555", count: 2 },
+      error: null,
+    });
+    const confirmed = await addStamp({
+      memberId: "22222222-2222-4222-8222-222222222222",
+      serviceId: "33333333-3333-4333-8333-333333333333",
+      confirmSameDay: true,
+    });
+    expect(confirmed.status).toBe("ok");
+    expect(rpc).toHaveBeenLastCalledWith(
+      "member_add_stamp",
+      expect.objectContaining({ p_confirm_same_day: true }),
+    );
   });
 
   test("rejects a void after the server window", async () => {
@@ -92,6 +118,7 @@ describe("member actions", () => {
     });
 
     expect(result.status).toBe("too_late");
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(AdminPermission.MEMBERS_OPERATE);
   });
 
   test("returns already_claimed for a second claim", async () => {
@@ -108,6 +135,7 @@ describe("member actions", () => {
     });
 
     expect(result.status).toBe("already_claimed");
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(AdminPermission.MEMBERS_OPERATE);
   });
 
   test("hides the card link when the phone is already registered", async () => {

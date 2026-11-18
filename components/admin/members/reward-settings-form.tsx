@@ -36,9 +36,8 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<
-    | { kind: "rename" | "clear"; milestone: number; name: string; count: number }
-    | null
-  >(null);
+    Array<{ kind: "rename" | "clear"; milestone: number; name: string; count: number }>
+  >([]);
   const dirty = JSON.stringify(rows.map(({ name, note }) => ({ name, note }))) !==
     JSON.stringify(saved.map(({ name, note }) => ({ name, note })));
   const allEmpty = rows.every((row) => row.name.trim().length === 0);
@@ -69,7 +68,7 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
     setPending(false);
     if (result.status === "saved") {
       setSaved(rows);
-      setConfirm(null);
+      setConfirm([]);
       showToast("Reward disimpan. Kasir dan member langsung lihat yang baru.", "success", {
         duration: 6000,
       });
@@ -81,36 +80,38 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
     }
     setRows(result.rows);
     setSaved(result.rows);
-    setConfirm(null);
+    setConfirm([]);
     showToast("Reward disimpan. Kasir dan member langsung lihat yang baru.", "success", {
       duration: 6000,
     });
   }
 
   function requestSave() {
+    const changes: Array<{ kind: "rename" | "clear"; milestone: number; name: string; count: number }> = [];
     for (const row of rows) {
       const previous = saved.find((item) => item.milestone === row.milestone);
       if (!previous || previous.reachedCount === 0) continue;
       const cleared = previous.name.trim().length > 0 && row.name.trim().length === 0;
       const renamed = previous.name.trim() !== row.name.trim() && row.name.trim().length > 0;
       if (cleared) {
-        setConfirm({
+        changes.push({
           kind: "clear",
           milestone: row.milestone,
           name: previous.name,
           count: previous.reachedCount,
         });
-        return;
-      }
-      if (renamed) {
-        setConfirm({
+      } else if (renamed) {
+        changes.push({
           kind: "rename",
           milestone: row.milestone,
           name: previous.name,
           count: previous.reachedCount,
         });
-        return;
       }
+    }
+    if (changes.length > 0) {
+      setConfirm(changes);
+      return;
     }
     void persist();
   }
@@ -221,29 +222,40 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
       {error ? (
         <p className="mt-3 text-sm text-destructive" role="alert">
           {error}{" "}
-          <button type="button" className="underline" onClick={() => void persist()}>
+          <button type="button" className="underline" onClick={requestSave} disabled={pending}>
             Coba lagi
           </button>
         </p>
       ) : null}
-      <AlertDialog open={confirm != null} onOpenChange={(open) => !open && setConfirm(null)}>
+      <AlertDialog open={confirm.length > 0} onOpenChange={(open) => !open && !pending && setConfirm([])}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirm?.kind === "clear"
-                ? `Kosongin reward ${confirm.milestone} stamp?`
-                : `Ganti reward ${confirm?.milestone} stamp?`}
+              {confirm.length === 1
+                ? confirm[0].kind === "clear"
+                  ? `Kosongin reward ${confirm[0].milestone} stamp?`
+                  : `Ganti reward ${confirm[0].milestone} stamp?`
+                : "Simpan perubahan reward yang sudah tercapai?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {confirm?.kind === "clear"
-                ? `${confirm.count} member udah sampai ${confirm.milestone} stamp. Mereka nggak bisa klaim sampai reward diisi lagi.`
-                : `${confirm?.count ?? 0} member udah bisa klaim ${confirm?.name}. Setelah diganti, mereka dapat reward yang baru.`}
+              {confirm
+                .map((item) =>
+                  item.kind === "clear"
+                    ? `${item.count} member udah sampai ${item.milestone} stamp. Mereka nggak bisa klaim sampai reward diisi lagi.`
+                    : `${item.count} member udah bisa klaim ${item.name}. Setelah diganti, mereka dapat reward yang baru.`,
+                )
+                .join(" ")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <Button type="button" variant={confirm?.kind === "clear" ? "destructive" : "default"} onClick={() => void persist()}>
-              {confirm?.kind === "clear" ? "Ya, kosongin" : "Ya, ganti"}
+            <AlertDialogCancel disabled={pending}>Batal</AlertDialogCancel>
+            <Button
+              type="button"
+              variant={confirm.some((item) => item.kind === "clear") ? "destructive" : "default"}
+              disabled={pending}
+              onClick={() => void persist()}
+            >
+              {pending ? "Menyimpan..." : confirm.some((item) => item.kind === "clear") ? "Ya, simpan" : "Ya, ganti"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

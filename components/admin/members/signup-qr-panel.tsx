@@ -25,6 +25,7 @@ interface SignupQrPanelProps {
 export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPanelProps) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [current, setCurrent] = useState({ url, createdAt, monthCount, recent });
 
   return (
@@ -122,6 +123,7 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
               <li>Ganti poster di meja depan.</li>
             </ol>
           </div>
+          {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <Button
@@ -130,6 +132,7 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
               disabled={pending}
               onClick={() => {
                 setPending(true);
+                setError(null);
                 void regenerateSignupQr()
                   .then((result) => {
                     setPending(false);
@@ -140,12 +143,16 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
                         monthCount: result.monthCount,
                         recent: result.recent,
                       });
+                      setError(null);
                       setOpen(false);
                       return;
                     }
-                    setOpen(false);
+                    setError("QR belum diganti. Coba lagi, atau muat ulang halaman kalau QR lamanya sudah tidak aktif.");
                   })
-                  .catch(() => setPending(false));
+                  .catch(() => {
+                    setPending(false);
+                    setError("QR belum diganti. Koneksi putus. Coba lagi.");
+                  });
               }}
             >
               Ya, ganti QR

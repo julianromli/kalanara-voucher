@@ -21,7 +21,7 @@ export function MemberShell({ title, subtitle, children, footer }: MemberShellPr
         <h1 className="mt-4 text-3xl font-semibold tracking-tight">{title}</h1>
         <p className="mt-1 text-sm text-background/70">{subtitle}</p>
       </header>
-      <main className="-mt-10 space-y-3 px-4 pb-28">{children}</main>
+      <div className="-mt-10 space-y-3 px-4 pb-28">{children}</div>
       {footer ? (
         <div className="fixed inset-x-0 bottom-0 border-t bg-background p-4">{footer}</div>
       ) : null}

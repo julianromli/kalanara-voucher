@@ -18,17 +18,27 @@ interface MemberPageProps {
 export default async function MemberCardPage({ params, searchParams }: MemberPageProps) {
   const { token } = await params;
   const query = await searchParams;
-  const summary = await loadPublicMember(token);
+  const result = await loadPublicMember(token);
 
-  if (!summary) {
+  if (result.status !== "ok") {
+    const failed = result.status === "error";
     return (
-      <MemberShell title="Kartu member" subtitle="Link ini nggak bisa dibuka">
+      <MemberShell title="Kartu member" subtitle={failed ? "Kartu belum bisa dibuka" : "Link ini nggak bisa dibuka"}>
         <section className="rounded-2xl bg-background px-6 py-12 text-center shadow-sm">
           <Link2 className="mx-auto size-6 text-muted-foreground" />
-          <h2 className="mt-4 text-lg font-semibold">Link kartu nggak ketemu</h2>
+          <h2 className="mt-4 text-lg font-semibold">
+            {failed ? "Kartu belum bisa dibuka" : "Link kartu nggak ketemu"}
+          </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Mungkin link-nya kepotong atau udah diganti. Minta link baru ke kasir Kalanara, atau chat kami.
+            {failed
+              ? "Koneksi putus. Coba buka link ini lagi."
+              : "Mungkin link-nya kepotong atau udah diganti. Minta link baru ke kasir Kalanara, atau chat kami."}
           </p>
+          {failed ? (
+            <Button type="button" className="mt-4" asChild>
+              <a href={`/m/${token}`}>Coba lagi</a>
+            </Button>
+          ) : null}
         </section>
         <div className="fixed inset-x-0 bottom-0 border-t bg-background p-4">
           <Button asChild className="h-11 w-full bg-foreground text-background hover:bg-foreground/90">
@@ -38,6 +48,7 @@ export default async function MemberCardPage({ params, searchParams }: MemberPag
       </MemberShell>
     );
   }
+  const summary = result.summary;
 
   let cardUrl = "";
   try {
@@ -103,8 +114,11 @@ export default async function MemberCardPage({ params, searchParams }: MemberPag
           <span>
             Periode stamp
             <span className="mt-1 block text-muted-foreground">
-              Sampai {formatMemberDate(summary.resetOn)}. Setelah itu stamp mulai dari 0, level turun satu tingkat
-              {summary.effectiveTier > 0 ? ` ke ${tierName(summary.effectiveTier - 1)}` : ""}.
+              Sampai {formatMemberDate(summary.resetOn)}. Setelah itu stamp mulai dari 0
+              {summary.effectiveTier > 0
+                ? `, level turun satu tingkat ke ${tierName(summary.effectiveTier - 1)}`
+                : ""}
+              .
             </span>
           </span>
         </p>

@@ -27,6 +27,8 @@ export function MemberHero({ name, memberCode, tier, cardUrl, welcome = false }:
           <p className="mt-1 text-muted-foreground">
             Simpan link kartu ini. Ini satu-satunya cara buka kartu kamu. Nggak perlu login.
           </p>
+          {cardUrl ? (
+            <>
           <p className={cn("mt-2 text-xs", copyFailed ? "break-all text-left select-all" : "truncate")}>
             {copyFailed ? cardUrl : displayUrl(cardUrl)}
           </p>
@@ -54,9 +56,17 @@ export function MemberHero({ name, memberCode, tier, cardUrl, welcome = false }:
           >
             Salin link
           </Button>
+            </>
+          ) : (
+            <p className="mt-2 text-xs text-muted-foreground">Link kartu belum tersedia.</p>
+          )}
         </div>
       ) : null}
-      <MemberQr value={cardUrl} />
+      {cardUrl ? (
+        <MemberQr value={cardUrl} />
+      ) : (
+        <p className="text-sm text-muted-foreground">QR kartu belum tersedia.</p>
+      )}
       <p className="mt-3 font-medium">{name}</p>
       <p className="text-xs text-muted-foreground">{tierName(tier)}</p>
       <p className="mt-1 text-xs text-muted-foreground">
