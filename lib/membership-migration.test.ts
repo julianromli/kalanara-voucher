@@ -8,11 +8,11 @@ const migrationPath = join(migrationDir, "033_membership.sql");
 const cronPath = join(migrationDir, "034_membership_cron.sql");
 const fixesPath = join(migrationDir, "035_membership_fixes.sql");
 
-// Normalized CREATE FUNCTION text after 035 is applied on top of 033.
-// member_void_stamp also refuses an undo that would drop below a claimed milestone.
+// Normalized CREATE FUNCTION text of applied 033 overlaid with applied 035.
+// member_void_stamp refuses an undo below a claimed milestone and passes 0::smallint.
 const endStateFunctionHashes: Record<string, string> = {
   member_void_stamp:
-    "e0686bae9ce9bfa08a7923f2f3ec813a5138e0100301ac0b9e6d99a6cf4c653b",
+    "3d75941afc5acd541e982b931409251d50a5916f5876ac1b0c2007fc263a92a2",
   list_recent_members:
     "e7d9e8b539db28bb8582b009160ab7d6cb957f5ba753d2c3bf019dfff49f65da",
   member_save_rewards:
