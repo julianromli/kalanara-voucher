@@ -46,7 +46,11 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
               size="sm"
               variant="outline"
               className="mt-2"
-              onClick={() => void navigator.clipboard.writeText(current.url)}
+              onClick={() => {
+                void navigator.clipboard.writeText(current.url).catch(() => {
+                  window.prompt("Salin link ini:", current.url);
+                });
+              }}
             >
               Salin link
             </Button>
@@ -126,18 +130,22 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
               disabled={pending}
               onClick={() => {
                 setPending(true);
-                void regenerateSignupQr().then((result) => {
-                  setPending(false);
-                  if (result.status === "ok") {
-                    setCurrent({
-                      url: result.url,
-                      createdAt: result.createdAt,
-                      monthCount: result.monthCount,
-                      recent: result.recent,
-                    });
+                void regenerateSignupQr()
+                  .then((result) => {
+                    setPending(false);
+                    if (result.status === "ok") {
+                      setCurrent({
+                        url: result.url,
+                        createdAt: result.createdAt,
+                        monthCount: result.monthCount,
+                        recent: result.recent,
+                      });
+                      setOpen(false);
+                      return;
+                    }
                     setOpen(false);
-                  }
-                });
+                  })
+                  .catch(() => setPending(false));
               }}
             >
               Ya, ganti QR

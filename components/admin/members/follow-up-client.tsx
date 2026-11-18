@@ -65,6 +65,8 @@ export function FollowUpClient({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [confirmKey, setConfirmKey] = useState<string | null>(null);
+  const [waUrl, setWaUrl] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const visible = useMemo(
     () => rows.filter((row) => filter === "all" || row.stage === filter),
     [filter, rows],
@@ -75,29 +77,51 @@ export function FollowUpClient({
   async function send(row: FollowUpRow) {
     const key = rowKey(row);
     if (confirmKey !== key) {
-      const preview = await buildFollowupMessage({
-        memberId: row.member_id,
-        stage: row.stage as FollowupTemplateStage,
-      });
-      if (preview.status !== "ok") return;
+      setSendError(null);
+      let preview: Awaited<ReturnType<typeof buildFollowupMessage>>;
+      try {
+        preview = await buildFollowupMessage({
+          memberId: row.member_id,
+          stage: row.stage as FollowupTemplateStage,
+        });
+      } catch {
+        setSendError("Pesan gagal dibuat. Coba lagi.");
+        return;
+      }
+      if (preview.status === "no_consent") {
+        setSendError("Member ini belum setuju dihubungi lewat WhatsApp.");
+        return;
+      }
+      if (preview.status !== "ok") {
+        setSendError("Pesan gagal dibuat. Coba lagi.");
+        return;
+      }
+      setWaUrl(preview.url);
       setConfirmKey(key);
-      window.open(preview.url, "_blank", "noopener,noreferrer");
       return;
     }
     setPendingId(key);
-    const result = await markFollowupSent({
-      memberId: row.member_id,
-      stage: row.stage,
-      anchorDate: row.anchor_date,
-    });
-    setPendingId(null);
-    setConfirmKey(null);
-    if (result.status === "ok" || result.status === "already_marked") {
-      setRows((current) =>
-        current.map((item) =>
-          rowKey(item) === key ? { ...item, markedAt: new Date().toISOString() } : item,
-        ),
-      );
+    try {
+      const result = await markFollowupSent({
+        memberId: row.member_id,
+        stage: row.stage,
+        anchorDate: row.anchor_date,
+      });
+      setPendingId(null);
+      if (result.status === "ok" || result.status === "already_marked") {
+        setConfirmKey(null);
+        setWaUrl(null);
+        setRows((current) =>
+          current.map((item) =>
+            rowKey(item) === key ? { ...item, markedAt: new Date().toISOString() } : item,
+          ),
+        );
+        return;
+      }
+      setSendError("Tanda terkirim gagal disimpan. Pesan WhatsApp-nya jangan dikirim ulang.");
+    } catch {
+      setPendingId(null);
+      setSendError("Tanda terkirim gagal disimpan. Pesan WhatsApp-nya jangan dikirim ulang.");
     }
   }
 
@@ -120,12 +144,15 @@ export function FollowUpClient({
                 : "Klik Kirim WA. WhatsApp kebuka dengan pesan yang udah ditulis. Kamu tinggal tekan kirim."}
             </p>
           </div>
-          {canEditTemplates ? (
+          {canEditTemplates && templates.length > 0 ? (
             <Button type="button" variant="outline" onClick={() => setSheetOpen(true)}>
               Template pesan
             </Button>
+          ) : canEditTemplates ? (
+            <p className="text-sm text-destructive">Template gagal dimuat. Muat ulang sebelum mengedit.</p>
           ) : null}
         </div>
+        {sendError ? <p className="text-sm text-destructive">{sendError}</p> : null}
         {loadError ? (
           <Button type="button" variant="outline" onClick={() => window.location.reload()}>
             <RotateCcw className="size-4" />
@@ -228,7 +255,12 @@ export function FollowUpClient({
                             </p>
                           ) : confirmKey === key ? (
                             <div className="flex items-center gap-2">
-                              <p>WhatsApp kebuka di tab baru. Udah kirim?</p>
+                              {waUrl ? (
+                                <a href={waUrl} target="_blank" rel="noopener noreferrer" className="text-sm underline">
+                                  Buka WhatsApp
+                                </a>
+                              ) : null}
+                              <p>Udah kirim?</p>
                               <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmKey(null)}>
                                 Belum
                               </Button>

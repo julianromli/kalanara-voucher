@@ -92,6 +92,8 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
     setSummary(next);
     setScanStatus("found");
     setConfirm(null);
+    setClaimMilestone(null);
+    setRotateOpen(false);
     setStampError(false);
     setJustAdded(false);
     setBanner(resetBanner(next));
@@ -103,6 +105,7 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
     setSummary(null);
     setConfirm(null);
     setClaimMilestone(null);
+    setRotateOpen(false);
     setScanStatus("loading");
     const result = await findMember({ scan: value, origin: window.location.origin });
     if (result.status === "ok") {
@@ -130,11 +133,18 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
     const memberId = summary.id;
     setPending(true);
     setStampError(false);
-    const result = await addStamp({
-      memberId: summary.id,
-      serviceId,
-      confirmSameDay,
-    });
+    let result: Awaited<ReturnType<typeof addStamp>>;
+    try {
+      result = await addStamp({
+        memberId,
+        serviceId,
+        confirmSameDay,
+      });
+    } catch {
+      setPending(false);
+      setStampError(true);
+      return;
+    }
     setPending(false);
     if (result.status === "needs_confirm") {
       setConfirm({
@@ -147,6 +157,7 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
       const fresh = await getMember(memberId);
       if (fresh.status === "ok") {
         setSummary((current) => (current?.id === memberId ? fresh.summary : current));
+        setBanner("Stamp periode ini sudah penuh. Siklus berikutnya mulai setelah reset.");
       }
       return;
     }
@@ -167,15 +178,23 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
       duration: 6000,
       actionLabel: "Batalkan",
       onAction: () => {
+        setJustAdded(false);
         void voidStamp({ stampId }).then(async (voided) => {
           if (voided.status !== "ok") {
-            showToast("Stamp nggak bisa dibatalin. Lewat 5 menit.", "error");
+            showToast(
+              voided.status === "reward_claimed"
+                ? "Stamp nggak bisa dibatalin. Reward-nya udah diklaim."
+                : "Stamp nggak bisa dibatalin. Lewat 5 menit.",
+              "error",
+            );
             return;
           }
           const fresh = await getMember(memberId);
           if (fresh.status === "ok") {
             setSummary((current) => (current?.id === memberId ? fresh.summary : current));
           }
+          const listed = await listRecentMembers();
+          if (listed.status === "ok") setRecent(listed.members);
         });
       },
     });
@@ -183,6 +202,8 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
     if (fresh.status === "ok") {
       setSummary((current) => (current?.id === memberId ? fresh.summary : current));
     }
+    const listed = await listRecentMembers();
+    if (listed.status === "ok") setRecent(listed.members);
   }
 
   const claimRewardRow = summary?.rewards.find((reward) => reward.milestone === claimMilestone);
@@ -256,8 +277,14 @@ export function MembersClient({ initialRecent, services }: MembersClientProps) {
                   summary={summary}
                   canManageSettings={canManage}
                   onSendLink={() => {
+                    const popup = window.open("", "_blank", "noopener,noreferrer");
                     void getMemberWaLink({ memberId: summary.id, kind: "card" }).then((result) => {
-                      if (result.status === "ok") window.open(result.url, "_blank", "noopener,noreferrer");
+                      if (result.status === "ok" && popup) {
+                        popup.location.href = result.url;
+                        return;
+                      }
+                      popup?.close();
+                      showToast("Link WhatsApp gagal dibuka", "error");
                     });
                   }}
                   onCopyLink={() => {

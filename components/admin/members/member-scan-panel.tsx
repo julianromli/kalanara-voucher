@@ -33,12 +33,14 @@ export function MemberScanPanel({
   const lastSeenAtRef = useRef(0);
   const lastDecodeAtRef = useRef(0);
   const onScanRef = useRef(onScan);
+  const statusRef = useRef(status);
   const cameraGeneration = useRef(0);
   const [cameraState, setCameraState] = useState<"starting" | "live" | "blocked">("starting");
 
   useEffect(() => {
     onScanRef.current = onScan;
-  }, [onScan]);
+    statusRef.current = status;
+  }, [onScan, status]);
 
   const stopStream = useCallback((stream: MediaStream | null) => {
     stream?.getTracks().forEach((track) => track.stop());
@@ -116,7 +118,7 @@ export function MemberScanPanel({
           lastDecodeAtRef.current = now;
           if (code?.data) {
             lastSeenAtRef.current = now;
-            if (code.data !== lastCodeRef.current) {
+            if (code.data !== lastCodeRef.current && statusRef.current !== "loading") {
               lastCodeRef.current = code.data;
               onScanRef.current(code.data);
             }
@@ -152,7 +154,10 @@ export function MemberScanPanel({
           appUrl: tryAppBaseUrl() || undefined,
           origin: window.location.origin,
         });
-        if (parsed.kind === "token" || parsed.kind === "phone" || parsed.kind === "code") {
+        if (
+          statusRef.current !== "loading" &&
+          (parsed.kind === "token" || parsed.kind === "phone" || parsed.kind === "code")
+        ) {
           event.preventDefault();
           onScanRef.current(buffer);
         }

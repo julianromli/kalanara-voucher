@@ -38,6 +38,9 @@ export function FollowUpTemplateSheet({
           Lima pesan, beda di tiap tahap biar nggak kerasa spam. Variabel diisi otomatis.
         </p>
         <div className="mt-4 space-y-4">
+          {drafts.length === 0 ? (
+            <p className="text-sm text-destructive">Template gagal dimuat. Tutup sheet ini, lalu muat ulang halaman.</p>
+          ) : null}
           {drafts.map((template) => (
             <label key={template.stage} className="block text-sm">
               <span className="font-medium">{labels[template.stage]}</span>
@@ -62,7 +65,16 @@ export function FollowUpTemplateSheet({
                   void updateFollowupTemplate({
                     stage: template.stage,
                     text: template.text,
-                  }).finally(() => setPending(null));
+                  })
+                    .then((result) => {
+                      if (result.status !== "ok") {
+                        window.alert("Template belum tersimpan. Cek panjangnya, lalu coba lagi.");
+                      }
+                    })
+                    .catch(() => {
+                      window.alert("Template belum tersimpan. Koneksi putus.");
+                    })
+                    .finally(() => setPending((current) => (current === template.stage ? null : current)));
                 }}
               >
                 Simpan

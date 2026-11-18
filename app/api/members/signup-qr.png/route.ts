@@ -17,7 +17,10 @@ export async function GET() {
       .select("token")
       .is("revoked_at", null)
       .maybeSingle();
-    if (error || !data) {
+    if (error) {
+      return new NextResponse("QR gagal dimuat", { status: 500 });
+    }
+    if (!data) {
       return new NextResponse("QR tidak ditemukan", { status: 404 });
     }
 

@@ -6,7 +6,20 @@ import { requireAdminRouteAccess } from "@/lib/auth/admin-rbac-server";
 export default async function MemberPosterPage() {
   await requireAdminRouteAccess("/admin/members/settings/poster");
   const qr = await getSignupQr();
-  const url = qr.status === "ok" ? qr.url : "";
+  if (qr.status !== "ok") {
+    return (
+      <main className="mx-auto max-w-md px-6 py-16 text-center">
+        <h1 className="text-lg font-semibold">Poster belum bisa dicetak</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          QR daftar sendiri gagal dimuat. Muat ulang halaman sebelum mencetak.
+        </p>
+        <a href="/admin/members/settings/poster" className="mt-4 inline-flex h-9 items-center rounded-md border px-3 text-sm">
+          Coba lagi
+        </a>
+      </main>
+    );
+  }
+  const url = qr.url;
 
   return (
     <main className="poster-page mx-auto min-h-svh max-w-[148mm] bg-background text-foreground">

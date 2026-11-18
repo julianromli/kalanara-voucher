@@ -42,6 +42,16 @@ export function RegisterMemberDialog({
   const [duplicate, setDuplicate] = useState<{ memberId: string; name: string } | null>(null);
   const [created, setCreated] = useState<MemberSummary | null>(null);
   const [pending, setPending] = useState(false);
+  const [syncedOpen, setSyncedOpen] = useState(open);
+  const [syncedPhone, setSyncedPhone] = useState(initialPhone);
+  if (open !== syncedOpen || initialPhone !== syncedPhone) {
+    setSyncedOpen(open);
+    setSyncedPhone(initialPhone);
+    if (open) {
+      setPhone(initialPhone);
+      setPending(false);
+    }
+  }
 
   useEffect(() => {
     mountedRef.current = true;
@@ -156,6 +166,10 @@ export function RegisterMemberDialog({
                   return;
                 }
                 setError("Belum kedaftar. Koneksi putus.");
+              }).catch(() => {
+                if (!mountedRef.current) return;
+                setPending(false);
+                setError("Belum kedaftar. Koneksi putus.");
               });
             }}
           >
@@ -213,7 +227,14 @@ export function RegisterMemberDialog({
               {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  reset();
+                  onOpenChange(false);
+                }}
+              >
                 Batal
               </Button>
               <Button type="submit" disabled={pending}>

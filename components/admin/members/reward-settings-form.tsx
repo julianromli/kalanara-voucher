@@ -52,13 +52,20 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
   async function persist() {
     setPending(true);
     setError(null);
-    const result = await saveRewards({
-      rows: rows.map((row) => ({
-        milestone: row.milestone,
-        name: row.name,
-        note: row.note,
-      })),
-    });
+    let result: Awaited<ReturnType<typeof saveRewards>>;
+    try {
+      result = await saveRewards({
+        rows: rows.map((row) => ({
+          milestone: row.milestone,
+          name: row.name,
+          note: row.note,
+        })),
+      });
+    } catch {
+      setPending(false);
+      setError("Perubahan belum tersimpan. Koneksi putus.");
+      return;
+    }
     setPending(false);
     if (result.status === "saved") {
       showToast("Reward disimpan. Kasir dan member langsung lihat yang baru.", "success", {
@@ -184,6 +191,8 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
                       placeholder="Nama reward"
                       onChange={(event) => update(row.milestone, "name", event.target.value)}
                       aria-invalid={row.name.length > 40}
+                      disabled={pending}
+                      aria-label={`Nama reward ${row.milestone} stamp`}
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -192,6 +201,8 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
                       maxLength={80}
                       placeholder="Catatan buat kasir dan member"
                       onChange={(event) => update(row.milestone, "note", event.target.value)}
+                      disabled={pending}
+                      aria-label={`Catatan reward ${row.milestone} stamp`}
                     />
                   </td>
                   <td className="px-3 py-2 text-xs">

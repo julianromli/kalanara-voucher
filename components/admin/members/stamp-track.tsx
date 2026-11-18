@@ -2,8 +2,6 @@ import { Check } from "lucide-react";
 import { MILESTONES } from "@/lib/membership/rules";
 import { cn } from "@/lib/utils";
 
-const labels = ["", "", "", "", "Silver", "", "Gold"];
-
 interface StampTrackProps {
   count: number;
   names: Array<string | null>;
@@ -37,7 +35,7 @@ export function StampTrack({ count, names }: StampTrackProps) {
               </span>
               <p className="mt-1 text-[11px] font-medium">
                 {milestone}
-                {tier ? ` · ${tier}` : labels[index]}
+                {tier ? ` · ${tier}` : ""}
               </p>
               <p className="truncate text-[11px] text-muted-foreground">
                 {names[index] || "Belum diatur"}

@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { selfSignup } from "@/lib/actions/members";
-import { maskMemberPhone } from "@/lib/membership/format";
+import { jakartaDateISO, maskMemberPhone } from "@/lib/membership/format";
 import { normalizeMemberPhone } from "@/lib/membership/phone";
 import { MemberShell } from "@/components/member/member-shell";
 import { APP_CONFIG } from "@/lib/constants";
@@ -101,7 +101,10 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
     if (!normalizeMemberPhone(phone)) {
       next.phone = "Nomor WhatsApp-nya kurang panjang. Contoh: 812 3456 7890.";
     }
-    if (!birthDate) next.birthDate = "Pilih tanggal lahir kamu.";
+    const today = jakartaDateISO();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate) || birthDate > today || Number(birthDate.slice(0, 4)) < 1900) {
+      next.birthDate = "Pilih tanggal lahir kamu.";
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -117,11 +120,11 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
           setBlocked(false);
           setErrors({});
           void selfSignup({ qrToken, name, phone, birthDate, waConsent, website }).then((result) => {
-            setPending(false);
             if (result.status === "ok" && result.cardPath) {
               router.push(result.cardPath);
               return;
             }
+            setPending(false);
             if (result.status === "ok") return;
             if (result.status === "duplicate") {
               const normalized = normalizeMemberPhone(phone);
@@ -131,6 +134,7 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
             if (result.status === "rate_limited") {
               setBlocked(true);
               setRetryAfterMinutes(result.retryAfterMinutes);
+              window.setTimeout(() => setBlocked(false), result.retryAfterMinutes * 60 * 1000);
               return;
             }
             if (result.status === "invalid_qr") {
@@ -141,6 +145,9 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
               validate();
               return;
             }
+            setErrors({ form: "Belum kedaftar. Koneksi putus. Isian kamu masih ada." });
+          }).catch(() => {
+            setPending(false);
             setErrors({ form: "Belum kedaftar. Koneksi putus. Isian kamu masih ada." });
           });
         }}
@@ -158,7 +165,7 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
         </div>
         <div className="mt-4 space-y-1.5">
           <Label htmlFor="signup-phone">Nomor WhatsApp</Label>
-          <div className={cn("flex h-11 items-center rounded-lg border bg-background", errors.phone && "border-destructive")}>
+          <div className={cn("flex h-11 items-center rounded-lg border bg-background focus-within:ring-2 focus-within:ring-ring", errors.phone && "border-destructive")}>
             <span className="px-3 text-base text-muted-foreground">+62</span>
             <Input
               id="signup-phone"

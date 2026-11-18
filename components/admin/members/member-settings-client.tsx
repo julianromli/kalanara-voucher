@@ -61,13 +61,16 @@ export function MemberSettingsClient({
             QR daftar sendiri
           </button>
         </div>
-        {tab === "reward" ? (
+        <div className={tab === "reward" ? undefined : "hidden"}>
           <RewardSettingsForm initialRows={rewards} loadError={rewardLoadError} />
-        ) : signupQr ? (
-          <SignupQrPanel {...signupQr} />
-        ) : (
-          <p className="text-sm text-destructive">QR daftar sendiri gagal dimuat.</p>
-        )}
+        </div>
+        <div className={tab === "qr" ? undefined : "hidden"}>
+          {signupQr ? (
+            <SignupQrPanel {...signupQr} />
+          ) : (
+            <p className="text-sm text-destructive">QR daftar sendiri gagal dimuat.</p>
+          )}
+        </div>
       </AdminPageBody>
     </>
   );

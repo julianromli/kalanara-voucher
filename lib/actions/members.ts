@@ -487,6 +487,15 @@ export async function markFollowupSent(input: {
   const access = await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
   if (!isFollowupKey(input)) return { status: "invalid" as const };
   const supabase = getAdminClient();
+  const { data: dueRows, error: dueError } = await supabase.rpc("list_member_followups");
+  if (dueError) return failure();
+  const stillDue = (dueRows ?? []).some(
+    (row) =>
+      row.member_id === input.memberId &&
+      row.stage === input.stage &&
+      row.anchor_date === input.anchorDate,
+  );
+  if (!stillDue) return { status: "not_due" as const };
   const { error } = await supabase.from("member_followups").insert({
     member_id: input.memberId,
     stage: input.stage,
@@ -567,6 +576,7 @@ export async function buildFollowupMessage(input: {
   if (!isTemplateStage(input.stage)) return { status: "invalid" as const };
   const summary = await loadSummary(input.memberId);
   if (!summary) return failure();
+  if (!summary.waConsent) return { status: "no_consent" as const };
   if (input.stage === "birthday" && summary.birthday.redeemed) {
     const greeting = `Selamat ulang tahun, ${summary.name.split(" ")[0] || summary.name}! Semoga sehat dan bahagia selalu.`;
     const url = whatsAppLink(summary.phone, greeting);
@@ -689,15 +699,22 @@ export async function getSignupQr() {
   if (error || !data) return failure();
 
   const monthStart = `${jakartaToday().slice(0, 7)}-01`;
-  const { data: signups, error: signupError } = await supabase
-    .from("members")
-    .select("id, name, created_at, cycle_start")
-    .eq("source", "self_signup")
-    .order("created_at", { ascending: false })
-    .limit(20);
-  if (signupError) return failure();
+  const [{ data: signups, error: signupError }, monthResult] = await Promise.all([
+    supabase
+      .from("members")
+      .select("id, name, created_at, cycle_start")
+      .eq("source", "self_signup")
+      .order("created_at", { ascending: false })
+      .limit(6),
+    supabase
+      .from("members")
+      .select("id", { count: "exact", head: true })
+      .eq("source", "self_signup")
+      .gte("created_at", `${monthStart}T00:00:00+07:00`),
+  ]);
+  if (signupError || monthResult.error) return failure();
 
-  const recent = (signups ?? []).slice(0, 6);
+  const recent = signups ?? [];
   const ids = recent.map((member) => member.id);
   const stampsResult = ids.length
     ? await supabase
@@ -716,8 +733,7 @@ export async function getSignupQr() {
     return failure();
   }
 
-  const monthCount = (signups ?? []).filter((member) => member.created_at.slice(0, 10) >= monthStart)
-    .length;
+  const monthCount = monthResult.count ?? 0;
 
   return {
     status: "ok" as const,
