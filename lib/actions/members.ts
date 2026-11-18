@@ -726,6 +726,11 @@ export async function regenerateSignupQr() {
 }
 
 export async function getFollowUpBadgeCount() {
+  try {
+    await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
+  } catch {
+    return 0;
+  }
   const supabase = getAdminClient();
   const { count, error } = await supabase
     .from("member_followup_due")
