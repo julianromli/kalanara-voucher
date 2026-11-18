@@ -1271,6 +1271,7 @@ export type Database = {
           p_milestone: number;
           p_service_name: string;
           p_admin_id: string;
+          p_expected_name: string;
         };
         Returns: Json;
       };
@@ -1335,7 +1336,15 @@ export type Database = {
       };
       member_save_rewards: {
         Args: { p_admin_id: string; p_rows: Json };
-        Returns: undefined;
+        Returns: Json;
+      };
+      member_followup_is_due: {
+        Args: { p_member_id: string; p_stage: string; p_anchor_date: string };
+        Returns: boolean;
+      };
+      member_birthday_discount_available: {
+        Args: { p_member_id: string };
+        Returns: boolean;
       };
       member_self_signup: {
         Args: {

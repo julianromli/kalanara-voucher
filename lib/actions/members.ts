@@ -295,13 +295,16 @@ export async function claimReward(input: {
   memberId: string;
   milestone: number;
   serviceName: string;
+  expectedName: string;
 }) {
   const access = await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
   const serviceName = serviceNameSchema.safeParse(input.serviceName);
+  const expectedName = z.string().trim().min(1).max(40).safeParse(input.expectedName);
   if (
     !z.string().uuid().safeParse(input.memberId).success ||
     !milestones.includes(input.milestone as (typeof milestones)[number]) ||
-    !serviceName.success
+    !serviceName.success ||
+    !expectedName.success
   ) {
     return { status: "invalid" as const };
   }
@@ -312,6 +315,7 @@ export async function claimReward(input: {
     p_milestone: input.milestone,
     p_service_name: serviceName.data,
     p_admin_id: access.userId,
+    p_expected_name: expectedName.data,
   });
   if (error) return failure();
   const body = asRecord(data);
@@ -487,14 +491,13 @@ export async function markFollowupSent(input: {
   const access = await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
   if (!isFollowupKey(input)) return { status: "invalid" as const };
   const supabase = getAdminClient();
-  const { data: dueRows, error: dueError } = await supabase.rpc("list_member_followups");
+  const { data: due, error: dueError } = await supabase.rpc("member_followup_is_due", {
+    p_member_id: input.memberId,
+    p_stage: input.stage,
+    p_anchor_date: input.anchorDate,
+  });
   if (dueError) return failure();
-  const stillDue = (dueRows ?? []).some(
-    (row) =>
-      row.member_id === input.memberId &&
-      row.stage === input.stage &&
-      row.anchor_date === input.anchorDate,
-  );
+  const stillDue = due === true;
   if (!stillDue) {
     const { data: existing, error: existingError } = await supabase
       .from("member_followups")
@@ -653,7 +656,7 @@ export async function getRewards() {
   await requireAdminPermission(AdminPermission.MEMBERS_SETTINGS);
   const supabase = getAdminClient();
   const [{ data, error }, counts] = await Promise.all([
-    supabase.from("member_rewards").select("milestone, name, note").order("milestone"),
+    supabase.from("member_rewards").select("milestone, name, note, updated_at").order("milestone"),
     supabase.rpc("member_reward_reached_counts"),
   ]);
   if (error || counts.error) return failure();
@@ -666,6 +669,7 @@ export async function getRewards() {
       milestone: row.milestone,
       name: row.name ?? "",
       note: row.note ?? "",
+      updatedAt: row.updated_at ?? "",
       reachedCount: reached.get(row.milestone) ?? 0,
     })),
   };
@@ -685,27 +689,38 @@ const rewardRowsSchema = z.object({
         ]),
         name: z.string().max(40),
         note: z.string().max(80),
+        updatedAt: z.string().min(1),
       }),
     )
-    .length(6)
-    .refine((rows) => {
-      const seen = new Set(rows.map((row) => row.milestone));
-      return seen.size === 6 && milestones.every((milestone) => seen.has(milestone));
-    }),
+    .min(1)
+    .max(6)
+    .refine((rows) => new Set(rows.map((row) => row.milestone)).size === rows.length),
 });
 
 export async function saveRewards(input: {
-  rows: Array<{ milestone: number; name: string; note: string }>;
+  rows: Array<{ milestone: number; name: string; note: string; updatedAt: string }>;
 }) {
   const access = await requireAdminPermission(AdminPermission.MEMBERS_SETTINGS);
   const parsed = rewardRowsSchema.safeParse(input);
   if (!parsed.success) return { status: "invalid" as const };
   const supabase = getAdminClient();
-  const { error } = await supabase.rpc("member_save_rewards", {
+  const { data, error } = await supabase.rpc("member_save_rewards", {
     p_admin_id: access.userId,
-    p_rows: parsed.data.rows,
+    p_rows: parsed.data.rows.map((row) => ({
+      milestone: row.milestone,
+      name: row.name,
+      note: row.note,
+      updated_at: row.updatedAt,
+    })),
   });
   if (error) return failure();
+  const body = asRecord(data);
+  if (text(body?.status) === "conflict") {
+    const latest = await getRewards();
+    if (latest.status !== "ok") return { status: "conflict" as const };
+    return { status: "conflict" as const, milestone: body?.milestone ?? null, rows: latest.rows };
+  }
+  if (text(body?.status) !== "ok") return { status: "invalid" as const };
   logAdminAudit(access, {
     action: "membership.reward_save",
     target: "member_rewards",

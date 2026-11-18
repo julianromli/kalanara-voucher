@@ -21,7 +21,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   getAdminClient: getAdminClientMock,
 }));
 
-import { addStamp, claimReward, selfSignup, voidStamp } from "@/lib/actions/members";
+import { addStamp, claimReward, markFollowupSent, saveRewards, selfSignup, voidStamp } from "@/lib/actions/members";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 
 const access = {
@@ -132,10 +132,15 @@ describe("member actions", () => {
       memberId: "22222222-2222-4222-8222-222222222222",
       milestone: 10,
       serviceName: "Body Massage 60 menit",
+      expectedName: "Treatment gratis",
     });
 
     expect(result.status).toBe("already_claimed");
     expect(requireAdminPermissionMock).toHaveBeenCalledWith(AdminPermission.MEMBERS_OPERATE);
+    expect(rpc).toHaveBeenCalledWith(
+      "member_claim_reward",
+      expect.objectContaining({ p_expected_name: "Treatment gratis" }),
+    );
   });
 
   test("hides the card link when the phone is already registered", async () => {
@@ -247,5 +252,109 @@ describe("member actions", () => {
       retryAfterMinutes: 60,
     });
     expect(rpc).toHaveBeenCalledTimes(3);
+  });
+
+  test("returns reward_changed when the cashier expected a different reward", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { status: "reward_changed", reward_name: "Totok wajah" },
+      error: null,
+    });
+    mockClient(rpc);
+
+    const result = await claimReward({
+      memberId: "22222222-2222-4222-8222-222222222222",
+      milestone: 5,
+      serviceName: "Body Massage 60 menit",
+      expectedName: "Totok gratis",
+    });
+
+    expect(result).toEqual({
+      status: "reward_changed",
+      claimId: null,
+      rewardName: "Totok wajah",
+    });
+    expect(logAdminAuditMock).not.toHaveBeenCalled();
+  });
+
+  test("returns the latest reward rows when a save hits a stale updated_at", async () => {
+    const rpc = vi.fn((name: string) => {
+      if (name === "member_save_rewards") {
+        return Promise.resolve({
+          data: { status: "conflict", milestone: 5 },
+          error: null,
+        });
+      }
+      return Promise.resolve({
+        data: [{ milestone: 5, reached_count: 2 }],
+        error: null,
+      });
+    });
+    const from = vi.fn(() => ({
+      select: () => ({
+        order: async () => ({
+          data: [
+            {
+              milestone: 5,
+              name: "Totok wajah",
+              note: "",
+              updated_at: "2026-11-18T12:00:00.000Z",
+            },
+          ],
+          error: null,
+        }),
+      }),
+    }));
+    mockClient(rpc, from);
+    requireAdminPermissionMock.mockResolvedValue({ ...access, role: "ADMIN" as const });
+
+    const result = await saveRewards({
+      rows: [
+        {
+          milestone: 5,
+          name: "Totok gratis",
+          note: "",
+          updatedAt: "2026-11-18T11:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(result.status).toBe("conflict");
+    if (result.status !== "conflict") return;
+    expect(result.milestone).toBe(5);
+    expect(result.rows).toEqual([
+      {
+        milestone: 5,
+        name: "Totok wajah",
+        note: "",
+        updatedAt: "2026-11-18T12:00:00.000Z",
+        reachedCount: 2,
+      },
+    ]);
+    expect(logAdminAuditMock).not.toHaveBeenCalled();
+  });
+
+  test("checks one follow-up with member_followup_is_due", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: true, error: null });
+    const from = vi.fn(() => ({
+      insert: async () => ({ error: null }),
+    }));
+    mockClient(rpc, from);
+
+    const result = await markFollowupSent({
+      memberId: "22222222-2222-4222-8222-222222222222",
+      stage: "day30",
+      anchorDate: "2026-10-19",
+    });
+
+    expect(result.status).toBe("ok");
+    expect(rpc).toHaveBeenCalledWith(
+      "member_followup_is_due",
+      expect.objectContaining({
+        p_member_id: "22222222-2222-4222-8222-222222222222",
+        p_stage: "day30",
+        p_anchor_date: "2026-10-19",
+      }),
+    );
+    expect(rpc).not.toHaveBeenCalledWith("list_member_followups");
   });
 });

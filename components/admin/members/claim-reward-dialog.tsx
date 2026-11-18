@@ -42,6 +42,20 @@ export function ClaimRewardDialog({
   const [serviceName, setServiceName] = useState(services[0]?.name ?? "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expectedName, setExpectedName] = useState(rewardName);
+  const [changedName, setChangedName] = useState<string | null>(null);
+  const [syncedOpen, setSyncedOpen] = useState(open);
+  const [syncedReward, setSyncedReward] = useState(rewardName);
+  if (open !== syncedOpen || rewardName !== syncedReward) {
+    setSyncedOpen(open);
+    setSyncedReward(rewardName);
+    if (open) {
+      setExpectedName(rewardName);
+      setChangedName(null);
+      setError(null);
+      setPending(false);
+    }
+  }
 
   return (
     <AlertDialog
@@ -54,10 +68,14 @@ export function ClaimRewardDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            Klaim {rewardName.toLowerCase()} buat {firstName(memberName)}?
+            {changedName
+              ? `Reward-nya ganti jadi ${changedName.toLowerCase()}. Klaim yang ini?`
+              : `Klaim ${expectedName.toLowerCase()} buat ${firstName(memberName)}?`}
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Reward {milestone} stamp. Stamp {firstName(memberName)} tetap {stampCount}, nggak berkurang. Tiap reward cuma bisa diklaim sekali.
+            {changedName
+              ? `Reward ${milestone} stamp sekarang ${changedName}. Stamp ${firstName(memberName)} tetap ${stampCount}, nggak berkurang.`
+              : `Reward ${milestone} stamp. Stamp ${firstName(memberName)} tetap ${stampCount}, nggak berkurang. Tiap reward cuma bisa diklaim sekali.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {servicesError ? (
@@ -97,11 +115,23 @@ export function ClaimRewardDialog({
             onClick={() => {
               setPending(true);
               setError(null);
-              void claimReward({ memberId, milestone, serviceName }).then((result) => {
+              void claimReward({
+                memberId,
+                milestone,
+                serviceName,
+                expectedName,
+              }).then((result) => {
                 setPending(false);
                 if (result.status === "ok" && result.claimId) {
-                  onClaimed(result.claimId, result.rewardName || rewardName);
+                  onClaimed(result.claimId, result.rewardName || expectedName);
+                  setChangedName(null);
                   onOpenChange(false);
+                  return;
+                }
+                if (result.status === "reward_changed" && result.rewardName) {
+                  setChangedName(result.rewardName);
+                  setExpectedName(result.rewardName);
+                  setError(null);
                   return;
                 }
                 setError(
@@ -119,7 +149,7 @@ export function ClaimRewardDialog({
               });
             }}
           >
-            Klaim reward
+            {changedName ? "Ya, klaim yang baru" : "Klaim reward"}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

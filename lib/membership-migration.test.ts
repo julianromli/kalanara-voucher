@@ -7,6 +7,7 @@ const migrationDir = join(process.cwd(), "lib/supabase/migrations");
 const migrationPath = join(migrationDir, "033_membership.sql");
 const cronPath = join(migrationDir, "034_membership_cron.sql");
 const fixesPath = join(migrationDir, "035_membership_fixes.sql");
+const hardeningPath = join(migrationDir, "036_membership_hardening.sql");
 
 // Normalized CREATE FUNCTION text of applied 033 overlaid with applied 035.
 // member_void_stamp refuses an undo below a claimed milestone and passes 0::smallint.
@@ -102,7 +103,8 @@ describe("membership migration contract", () => {
     const applied = readMigration(migrationPath);
     const fixes = readMigration(fixesPath);
     const cron = readMigration(cronPath);
-    for (const sql of [applied, fixes, cron]) {
+    const hardening = readMigration(hardeningPath);
+    for (const sql of [applied, fixes, cron, hardening]) {
       const bodies = functionBodies(sql);
       expect(bodies.size).toBeGreaterThan(0);
       for (const [name, body] of bodies) {
@@ -184,5 +186,69 @@ describe("membership fixes migration contract", () => {
       "member_save_rewards",
       "member_self_signup",
     ]);
+  });
+});
+
+
+const hardeningFunctionHashes: Record<string, string> = {
+  member_void_stamp:
+    "c1f09a6f4c1456f7fe3edefde7b74c2c742e906eefc7fafbd58386cf3ad0e36a",
+  member_claim_reward:
+    "7f1252a57f2f272fffe41d74168e3daeefa9ee38447fc62f4b4ff1c00709d95f",
+  member_save_rewards:
+    "5dbbd11d75e43690492ea1ffdef1addedebd96c3e138e2d41daddd4baf79730f",
+  member_birthday_discount_available:
+    "c646d1bc8cec2ebb7d5103ba493dc08a8caae3c6b6c875377372b4894d34787f",
+  member_followup_is_due:
+    "9f66b70da63adb52ce582709468dbed7d64e6899997d4946d03cb588268df745",
+};
+
+describe("membership hardening migration contract", () => {
+  test("replaces claim, void, and save and adds targeted follow-up checks", () => {
+    const hardening = readMigration(hardeningPath);
+    const delta = functionBodies(hardening);
+
+    expect(hardening).toMatch(
+      /create or replace function public\.member_void_stamp\b/i,
+    );
+    expect(hardening).toMatch(
+      /drop function if exists public\.member_claim_reward\(uuid, smallint, text, uuid\)/i,
+    );
+    expect(hardening).toMatch(
+      /drop function if exists public\.member_save_rewards\(uuid, jsonb\)/i,
+    );
+    expect(hardening).toMatch(/p_expected_name text/i);
+    expect(hardening).toMatch(/status', 'reward_changed'/i);
+    expect(hardening).toMatch(/updated_at timestamptz/i);
+    expect(hardening).toMatch(/status', 'conflict'/i);
+    expect(hardening).toMatch(/create function public\.member_followup_is_due\b/i);
+    expect(hardening).toMatch(
+      /create function public\.member_birthday_discount_available\b/i,
+    );
+
+    expect([...delta.keys()]).toEqual([
+      "member_void_stamp",
+      "member_claim_reward",
+      "member_save_rewards",
+      "member_birthday_discount_available",
+      "member_followup_is_due",
+    ]);
+
+    for (const [name, body] of delta) {
+      const digest = createHash("sha256").update(body).digest("hex");
+      expect(digest).toBe(hardeningFunctionHashes[name]);
+      expect(body).toMatch(/SECURITY INVOKER/);
+      expect(body).toMatch(/SET search_path = ''/);
+      expect(body).not.toMatch(/SECURITY DEFINER/);
+      expect(hardening).toMatch(
+        new RegExp(
+          `revoke all on function public\\.${name}\\([^\\n]*\\) from public, anon, authenticated`,
+          "i",
+        ),
+      );
+      expect(hardening).toMatch(
+        new RegExp(`grant execute on function public\\.${name}\\([^\\n]*\\) to service_role`, "i"),
+      );
+    }
   });
 });

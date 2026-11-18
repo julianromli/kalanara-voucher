@@ -21,6 +21,7 @@ export interface RewardDraft {
   milestone: number;
   name: string;
   note: string;
+  updatedAt: string;
   reachedCount: number;
 }
 
@@ -54,11 +55,17 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
     let result: Awaited<ReturnType<typeof saveRewards>>;
     try {
       result = await saveRewards({
-        rows: rows.map((row) => ({
-          milestone: row.milestone,
-          name: row.name,
-          note: row.note,
-        })),
+        rows: rows
+          .filter((row) => {
+            const previous = saved.find((item) => item.milestone === row.milestone);
+            return !previous || previous.name !== row.name || previous.note !== row.note;
+          })
+          .map((row) => ({
+            milestone: row.milestone,
+            name: row.name,
+            note: row.note,
+            updatedAt: row.updatedAt,
+          })),
       });
     } catch {
       setPending(false);
@@ -66,6 +73,15 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
       return;
     }
     setPending(false);
+    if (result.status === "conflict") {
+      if (result.rows) {
+        setRows(result.rows);
+        setSaved(result.rows);
+      }
+      setConfirm([]);
+      setError("Reward diubah di tempat lain. Cek isian, lalu simpan lagi.");
+      return;
+    }
     if (result.status === "saved") {
       setSaved(rows);
       setConfirm([]);
