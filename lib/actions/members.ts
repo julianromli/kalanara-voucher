@@ -764,7 +764,19 @@ export async function regenerateSignupQr() {
     target: data.id,
     details: { tokenTail: tokenTail(data.token) },
   });
-  return getSignupQr();
+  const refreshed = await getSignupQr();
+  if (refreshed.status === "ok") return refreshed;
+  try {
+    return {
+      status: "ok" as const,
+      url: signupPageUrl(data.token),
+      createdAt: data.created_at,
+      monthCount: 0,
+      recent: [],
+    };
+  } catch {
+    return failure();
+  }
 }
 
 export async function getFollowUpBadgeCount() {

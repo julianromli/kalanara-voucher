@@ -16,7 +16,10 @@ export function RewardLadder({ summary }: RewardLadderProps) {
             <li key={reward.milestone} className="flex items-start justify-between gap-3 py-3 text-sm">
               <div>
                 <p className="font-medium">{copy.title}</p>
-                <p className="text-muted-foreground">{copy.detail}</p>
+                <p className="text-muted-foreground">
+                  {copy.detail}
+                  {reward.note ? ` ${reward.note}` : ""}
+                </p>
               </div>
               {copy.ready ? (
                 <span className="rounded-full bg-success/15 px-2 py-1 text-xs font-medium text-success">
