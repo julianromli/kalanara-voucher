@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Gift, RotateCcw } from "lucide-react";
 import {
   AlertDialog,
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { saveRewards } from "@/lib/actions/members";
 import { tierName } from "@/lib/membership/rules";
 import { useToast } from "@/context/ToastContext";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 
 export interface RewardDraft {
   milestone: number;
@@ -45,6 +46,11 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
   }).length;
   const dirty = changedCount > 0;
   const allEmpty = rows.every((row) => row.name.trim().length === 0);
+  const [started, setStarted] = useState(false);
+  useUnsavedChangesGuard(dirty, "Perubahan reward belum disimpan. Tetap tinggalkan halaman ini?");
+  useEffect(() => {
+    if (started) document.getElementById("reward-name-5")?.focus();
+  }, [started]);
 
   function update(milestone: number, field: "name" | "note", value: string) {
     setRows((current) =>
@@ -147,10 +153,10 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
     );
   }
 
-  if (allEmpty && !dirty) {
+  if (allEmpty && !dirty && !started) {
     return (
       <div className="flex flex-col items-center rounded-xl border px-6 py-12 text-center">
-        <Gift className="size-6 text-muted-foreground" />
+        <Gift className="size-6 text-muted-foreground" aria-hidden="true" />
         <p className="mt-3 font-medium">Belum ada reward</p>
         <p className="mt-1 text-sm text-muted-foreground">
           Isi minimal satu reward biar member punya target.
@@ -158,7 +164,7 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
         <Button
           type="button"
           className="mt-4"
-          onClick={() => update(5, "name", "Totok gratis")}
+          onClick={() => setStarted(true)}
         >
           Isi reward 5 stamp
         </Button>
@@ -174,13 +180,13 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
       }}
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0 flex-1 basis-80">
           <h2 className="text-sm font-medium">Reward tiap kelipatan 5 stamp</h2>
           <p className="text-sm text-muted-foreground">
             Tiap reward kebuka sekali per periode. Yang belum diisi tampil Lagi disiapin di kartu member. Level tetap: Bronze 10, Silver 20, Gold 30.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full items-center justify-between gap-3 md:w-auto md:justify-end">
           <span className="text-sm text-muted-foreground tabular-nums" aria-live="polite">
             {dirty ? `${changedCount} perubahan belum disimpan` : "Semua tersimpan"}
           </span>
@@ -189,55 +195,67 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
           </Button>
         </div>
       </div>
-      <div className="overflow-x-auto rounded-xl border">
-        <table className="w-full min-w-[720px] text-sm">
-          <thead className="text-left text-muted-foreground">
-            <tr>
-              <th className="px-3 py-2 font-medium">Stamp</th>
-              <th className="px-3 py-2 font-medium">Nama reward</th>
-              <th className="px-3 py-2 font-medium">Catatan (opsional)</th>
-              <th className="px-3 py-2 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const tier = row.milestone === 10 || row.milestone === 20 || row.milestone === 30
-                ? tierName(row.milestone / 10)
-                : "";
-              return (
-                <tr key={row.milestone} className="border-t">
-                  <td className="px-3 py-2">
-                    {row.milestone} stamp {tier ? <span className="text-xs text-muted-foreground">{tier}</span> : null}
-                  </td>
-                  <td className="px-3 py-2">
-                    <Input
-                      value={row.name}
-                      maxLength={40}
-                      placeholder="Nama reward"
-                      onChange={(event) => update(row.milestone, "name", event.target.value)}
-                      aria-invalid={row.name.length > 40}
-                      disabled={pending}
-                      aria-label={`Nama reward ${row.milestone} stamp`}
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <Input
-                      value={row.note}
-                      maxLength={80}
-                      placeholder="Catatan buat kasir dan member"
-                      onChange={(event) => update(row.milestone, "note", event.target.value)}
-                      disabled={pending}
-                      aria-label={`Catatan reward ${row.milestone} stamp`}
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-xs">
-                    {rowStatus(row, saved.find((item) => item.milestone === row.milestone))}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {/* One markup: stacked rows under md, a 4-column grid that reads like a table from md up. */}
+      <div className="rounded-xl border text-sm">
+        <div className="hidden grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)_112px] gap-3 px-3 py-2 text-muted-foreground md:grid" aria-hidden="true">
+          <span className="font-medium">Stamp</span>
+          <span className="font-medium">Nama reward</span>
+          <span className="font-medium">Catatan (opsional)</span>
+          <span className="font-medium">Status</span>
+        </div>
+        <ul className="divide-y md:border-t">
+          {rows.map((row) => {
+            const tier = row.milestone === 10 || row.milestone === 20 || row.milestone === 30
+              ? tierName(row.milestone / 10)
+              : "";
+            const nameId = `reward-name-${row.milestone}`;
+            const noteId = `reward-note-${row.milestone}`;
+            return (
+              <li
+                key={row.milestone}
+                className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 px-3 py-3 md:grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)_112px] md:items-center md:py-2"
+              >
+                <p className="font-medium md:font-normal">
+                  {row.milestone} stamp {tier ? <span className="text-xs text-muted-foreground">{tier}</span> : null}
+                </p>
+                <p className="text-right text-xs text-muted-foreground md:order-last md:text-left md:text-foreground">
+                  {rowStatus(row, saved.find((item) => item.milestone === row.milestone))}
+                </p>
+                <div className="col-span-2 space-y-1 md:col-span-1">
+                  <label htmlFor={nameId} className="text-xs text-muted-foreground md:sr-only">
+                    Nama reward {row.milestone} stamp
+                  </label>
+                  <Input
+                    id={nameId}
+                    value={row.name}
+                    maxLength={40}
+                    placeholder={row.milestone === 5 ? "Contoh: Totok gratis" : "Nama reward"}
+                    onChange={(event) => update(row.milestone, "name", event.target.value)}
+                    aria-invalid={row.name.length > 40}
+                    disabled={pending}
+                    autoComplete="off"
+                    // Keep the hint visible while the empty field has focus.
+                    className={row.milestone === 5 ? "focus:placeholder:text-muted-foreground" : undefined}
+                  />
+                </div>
+                <div className="col-span-2 space-y-1 md:col-span-1">
+                  <label htmlFor={noteId} className="text-xs text-muted-foreground md:sr-only">
+                    Catatan reward {row.milestone} stamp (opsional)
+                  </label>
+                  <Input
+                    id={noteId}
+                    value={row.note}
+                    maxLength={80}
+                    placeholder="Catatan buat kasir dan member"
+                    onChange={(event) => update(row.milestone, "note", event.target.value)}
+                    disabled={pending}
+                    autoComplete="off"
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
         Nama reward muncul di layar kasir dan kartu member. Maks 40 karakter. Catatan maks 80 karakter.

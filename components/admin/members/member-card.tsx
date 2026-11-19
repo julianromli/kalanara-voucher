@@ -10,7 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatMemberDate, maskMemberPhone, memberInitials } from "@/lib/membership/format";
-import { tierBenefitLabel, tierName } from "@/lib/membership/rules";
+import { tierBenefitLabel } from "@/lib/membership/rules";
+import { TierPill } from "@/components/member/tier-pill";
 import type { MemberSummary } from "@/lib/membership/summary";
 
 interface MemberCardProps {
@@ -39,7 +40,7 @@ export function MemberCard({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-lg font-semibold">{summary.name}</h2>
-          <Badge variant="secondary">{tierName(summary.effectiveTier)}</Badge>
+          <TierPill tier={summary.effectiveTier} />
           {summary.birthday.eligible ? (
             <Badge variant="outline">Diskon ultah 25% · s/d {formatMemberDate(summary.birthday.windowEnd)}</Badge>
           ) : null}

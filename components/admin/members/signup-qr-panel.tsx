@@ -36,14 +36,14 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
   }, [copied]);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
       <section className="rounded-xl border p-4">
         <h2 className="text-sm font-medium">QR daftar sendiri</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Taruh di meja depan. Customer scan, isi data di HP sendiri, langsung jadi member. Stamp pertama tetap dari kasir.
         </p>
         <div className="mt-4 flex flex-col gap-4 rounded-xl bg-muted/40 p-4 sm:flex-row">
-          <div className="w-40 shrink-0">
+          <div className="w-40 shrink-0 self-center sm:self-start">
             <MemberQr value={current.url} size={140} />
           </div>
           <div className="min-w-0">

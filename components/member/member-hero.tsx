@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MemberQr } from "@/components/member/member-qr";
 import { displayUrl } from "@/lib/membership/format";
-import { tierName } from "@/lib/membership/rules";
+import { TierPill } from "@/components/member/tier-pill";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/context/ToastContext";
 
@@ -82,8 +82,10 @@ export function MemberHero({ name, memberCode, tier, cardUrl, welcome = false }:
       ) : (
         <p className="py-8 text-sm text-muted-foreground">QR kartu belum tersedia. Coba buka link ini lagi.</p>
       )}
-      <p className="mt-3 font-medium">{name}</p>
-      <p className="text-sm text-muted-foreground">{tierName(tier)}</p>
+      <p className="mt-3 flex flex-wrap items-center justify-center gap-2 font-medium">
+        {name}
+        <TierPill tier={tier} />
+      </p>
       <p className="mt-1 text-sm text-muted-foreground">
         ID member {memberCode} · tunjukin QR ini ke kasir
       </p>

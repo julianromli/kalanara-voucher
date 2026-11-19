@@ -48,9 +48,7 @@ export default async function MemberPosterPage() {
         </p>
       </header>
       <div className="-mt-10 px-8">
-        <div className="mx-auto w-56 rounded-xl bg-white p-3 shadow-sm">
-          {url ? <MemberQr value={url} size={200} /> : null}
-        </div>
+        {url ? <MemberQr value={url} size={200} className="shadow-sm" /> : null}
         <ol className="mt-8 space-y-4 text-sm">
           <li className="flex gap-3">
             <span className="flex size-6 shrink-0 items-center justify-center rounded-full border text-xs">1</span>

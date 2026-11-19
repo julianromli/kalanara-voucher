@@ -28,7 +28,7 @@ export function progressCopy(summary: MemberSummary): { title: string; detail: s
   const remaining = next - summary.stampCount;
   if (reward?.name) {
     return {
-      title: `${remaining} stamp lagi buat ${reward.name.toLowerCase()}`,
+      title: `${remaining} stamp lagi buat ${reward.name}`,
       detail: promotionDetail(summary, next),
     };
   }

@@ -80,6 +80,7 @@ export function MembersClient({ initialRecent, services, servicesError = false }
   const [stampError, setStampError] = useState(false);
   const [pending, setPending] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
+  const justAddedTimer = useRef<number | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [claimMilestone, setClaimMilestone] = useState<number | null>(null);
   const [rotateOpen, setRotateOpen] = useState(false);
@@ -99,6 +100,13 @@ export function MembersClient({ initialRecent, services, servicesError = false }
   useEffect(() => {
     selectedIdRef.current = summary?.id ?? null;
   }, [summary?.id]);
+
+  useEffect(
+    () => () => {
+      if (justAddedTimer.current != null) window.clearTimeout(justAddedTimer.current);
+    },
+    [],
+  );
 
   async function refreshRecent() {
     const requestId = recentRequest.current + 1;
@@ -215,7 +223,12 @@ export function MembersClient({ initialRecent, services, servicesError = false }
     }
     setConfirm(null);
     setJustAdded(true);
-    window.setTimeout(() => setJustAdded(false), 6000);
+    // Restart the 6s window on every stamp, so an older timer can't clear it early.
+    if (justAddedTimer.current != null) window.clearTimeout(justAddedTimer.current);
+    justAddedTimer.current = window.setTimeout(() => {
+      justAddedTimer.current = null;
+      setJustAdded(false);
+    }, 6000);
     // The banner shows only what this stamp changed; a plain stamp clears it.
     setBanner(stampBanner(result, memberName));
     showToast(`Stamp ke-${result.count} tercatat`, "success", {
@@ -541,7 +554,7 @@ function recentActivity(member: RecentMember): { at: string; subtitle: string } 
   if (claimIsNewer && member.last_claim_at && member.last_claim_name) {
     return {
       at: member.last_claim_at,
-      subtitle: `Klaim ${member.last_claim_name.toLowerCase()}`,
+      subtitle: `Klaim ${member.last_claim_name}`,
     };
   }
   if (member.last_stamp_at) {

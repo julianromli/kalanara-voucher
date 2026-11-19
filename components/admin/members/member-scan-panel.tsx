@@ -94,6 +94,31 @@ export function MemberScanPanel({
     };
   }, [startCamera, stopCamera]);
 
+  // Turn the camera off while the tab is hidden (light stays off, no decoding
+  // in the background) and back on when the cashier returns. A blocked camera
+  // stays blocked until they press Coba lagi.
+  const cameraStateRef = useRef(cameraState);
+  useEffect(() => {
+    cameraStateRef.current = cameraState;
+  }, [cameraState]);
+  useEffect(() => {
+    let paused = false;
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (cameraStateRef.current === "blocked") return;
+        paused = true;
+        stopCamera();
+        return;
+      }
+      if (paused) {
+        paused = false;
+        void startCamera();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [startCamera, stopCamera]);
+
   useEffect(() => {
     if (cameraState !== "live") return;
     const scan = () => {

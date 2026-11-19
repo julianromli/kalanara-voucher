@@ -69,8 +69,8 @@ export function ClaimRewardDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>
             {changedName
-              ? `Reward-nya ganti jadi ${changedName.toLowerCase()}. Klaim yang ini?`
-              : `Klaim ${expectedName.toLowerCase()} buat ${firstName(memberName)}?`}
+              ? `Reward-nya ganti jadi ${changedName}. Klaim yang ini?`
+              : `Klaim ${expectedName} buat ${firstName(memberName)}?`}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {changedName

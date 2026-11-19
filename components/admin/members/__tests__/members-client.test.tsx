@@ -138,6 +138,8 @@ describe("MembersClient stamp flow", () => {
   test("undo wins over the slower reload from the add (bug 1)", async () => {
     await openRina(9);
     expect(shownCount()).toBe("9");
+    // Reward names keep the admin's casing.
+    expect(screen.getByText("1 stamp lagi buat Treatment gratis")).toBeInTheDocument();
 
     const addReload = deferred<{ status: "ok"; summary: MemberSummary }>();
     actions.addStamp.mockResolvedValueOnce(stampResult(10, 0, 1, "Treatment gratis"));
