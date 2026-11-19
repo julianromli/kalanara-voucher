@@ -151,3 +151,30 @@ export function resetBanner(summary: MemberSummary): string | null {
   const steps = dropped === 1 ? "satu tingkat" : `${dropped} tingkat`;
   return `${freshStart}, dan level turun ${steps} dari ${tierName(fromTier)} ke ${tierName(toTier)}.`;
 }
+
+export interface StampChange {
+  openedReward: string | null;
+  tierBefore: number | null;
+  tierAfter: number | null;
+}
+
+/**
+ * Banner text for the stamp that was just added. Returns null when the stamp
+ * opened nothing and changed no level, so the previous banner clears.
+ */
+export function stampBanner(change: StampChange, memberName: string): string | null {
+  const name = firstName(memberName);
+  const after = change.tierAfter;
+  const tierUp = after != null && change.tierBefore != null && after > change.tierBefore;
+  const newTier = tierUp ? tierName(after) : null;
+  if (change.openedReward && newTier) {
+    return `${change.openedReward} kebuka, dan ${name} naik ke ${newTier}. Klaim di daftar reward, sekarang atau di kunjungan berikutnya. Stamp nggak berkurang.`;
+  }
+  if (change.openedReward) {
+    return `${change.openedReward} kebuka. Klaim di daftar reward. Stamp nggak berkurang.`;
+  }
+  if (newTier) {
+    return `${name} naik ke ${newTier}.`;
+  }
+  return null;
+}

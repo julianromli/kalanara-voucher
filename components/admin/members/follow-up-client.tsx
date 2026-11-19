@@ -132,25 +132,14 @@ export function FollowUpClient({
         return;
       }
       if (result.status === "not_due") {
-        setSendError("Follow up ini sudah tidak perlu dikirim. Daftarnya di-refresh.");
+        setSendError("Follow up ini udah nggak perlu dikirim. Daftarnya di-refresh.");
         if (confirmKeyRef.current === key) {
           setConfirmKey(null);
           setWaUrl(null);
         }
         const listed = await listFollowups();
         if (listed.status === "ok") {
-          setRows(
-            listed.rows.map((item) => ({
-              member_id: item.member_id,
-              name: item.name,
-              phone: item.phone,
-              stage: item.stage,
-              anchor_date: item.anchor_date,
-              last_service_name: item.last_service_name,
-              stamp_count: item.stamp_count,
-              markedAt: item.markedAt,
-            })),
-          );
+          setRows(listed.rows.map(toRow));
         }
         return;
       }
@@ -159,6 +148,95 @@ export function FollowUpClient({
       setPendingId(null);
       setSendError("Tanda terkirim gagal disimpan. Pesan WhatsApp-nya jangan dikirim ulang.");
     }
+  }
+
+  function undoMark(row: FollowUpRow) {
+    const key = rowKey(row);
+    if (!row.markedAt) return;
+    setPendingId(`undo:${key}`);
+    setSendError(null);
+    void undoFollowupSent({
+      memberId: row.member_id,
+      stage: row.stage,
+      anchorDate: row.anchor_date,
+      markedAt: row.markedAt,
+    }).then(async (result) => {
+      setPendingId(null);
+      if (result.status !== "ok") {
+        setSendError(
+          result.status === "stale"
+            ? "Tanda terkirim udah berubah. Muat ulang daftar ini."
+            : "Tanda belum bisa dibatalin. Coba lagi.",
+        );
+        return;
+      }
+      const listed = await listFollowups();
+      if (listed.status === "ok") {
+        setRows(listed.rows.map(toRow));
+        return;
+      }
+      setRows((current) =>
+        current.map((item) => (rowKey(item) === key ? { ...item, markedAt: null } : item)),
+      );
+    }).catch(() => {
+      setPendingId(null);
+      setSendError("Tanda belum bisa dibatalin. Coba lagi.");
+    });
+  }
+
+  // One action cell, shared by the phone list and the desktop table.
+  function renderAction(row: FollowUpRow) {
+    const key = rowKey(row);
+    if (row.markedAt) {
+      return (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 text-success tabular-nums">
+            <Check className="size-3" aria-hidden="true" />
+            Terkirim {formatMemberTime(row.markedAt)}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={pendingId === `undo:${key}`}
+            onClick={() => undoMark(row)}
+          >
+            Tandai belum
+          </Button>
+        </div>
+      );
+    }
+    if (whatsAppLink(row.phone, "Halo") == null) {
+      return <p className="text-destructive">Nomor nggak valid buat WhatsApp (kurang digit).</p>;
+    }
+    if (confirmKey === key) {
+      return (
+        <div className="flex flex-wrap items-center gap-2">
+          {waUrl ? (
+            <a
+              href={waUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-sm text-sm underline underline-offset-4 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+              Buka WhatsApp
+            </a>
+          ) : null}
+          <p>Udah kirim?</p>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmKey(null)}>
+            Belum
+          </Button>
+          <Button type="button" size="sm" disabled={pendingId === key} onClick={() => void send(row)}>
+            {pendingId === key ? "Menandai…" : "Udah, tandai"}
+          </Button>
+        </div>
+      );
+    }
+    return (
+      <Button type="button" size="sm" variant="outline" onClick={() => void send(row)}>
+        Kirim WA
+      </Button>
+    );
   }
 
   return (
@@ -188,7 +266,7 @@ export function FollowUpClient({
             <p className="text-sm text-destructive">Template gagal dimuat. Muat ulang sebelum mengedit.</p>
           ) : null}
         </div>
-        {sendError ? <p className="text-sm text-destructive">{sendError}</p> : null}
+        {sendError ? <p className="text-sm text-destructive" role="alert">{sendError}</p> : null}
         {loadError ? (
           <Button type="button" variant="outline" onClick={() => window.location.reload()}>
             <RotateCcw className="size-4" />
@@ -196,7 +274,7 @@ export function FollowUpClient({
           </Button>
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center rounded-xl border px-6 py-16 text-center">
-            <MessageCircle className="size-6 text-muted-foreground" />
+            <MessageCircle className="size-6 text-muted-foreground" aria-hidden="true" />
             <p className="mt-3 font-medium">Belum ada yang perlu di-follow up</p>
           </div>
         ) : (
@@ -211,18 +289,42 @@ export function FollowUpClient({
                   <button
                     key={item.id}
                     type="button"
+                    aria-pressed={filter === item.id}
                     onClick={() => setFilter(item.id)}
-                    className={`rounded-full px-3 py-1 text-sm ${
-                      filter === item.id ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
+                    className={`h-8 rounded-full px-3 text-sm transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+                      filter === item.id ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    {item.label} {count}
+                    {item.label} <span className="tabular-nums">{count}</span>
                   </button>
                 );
               })}
             </div>
-            <div className="overflow-x-auto rounded-xl border">
-              <table className="w-full min-w-[760px] text-sm" aria-label="Daftar follow up hari ini">
+            <ul className="divide-y rounded-xl border md:hidden" aria-label="Daftar follow up hari ini">
+              {visible.map((row) => (
+                <li key={rowKey(row)} className="space-y-3 px-3 py-3 text-sm">
+                  <div className="flex items-start gap-3">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs">
+                      {memberInitials(row.name || "?")}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{row.name || "Member"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {maskMemberPhone(row.phone)} · {stageLabels[row.stage] ?? row.stage}
+                      </p>
+                      <p className="mt-1 text-muted-foreground">
+                        {row.stage === "birthday"
+                          ? "Ulang tahun hari ini"
+                          : `${row.last_service_name || "Treatment"} · ${row.stamp_count} stamp`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="pl-11">{renderAction(row)}</div>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden rounded-xl border md:block">
+              <table className="w-full text-sm" aria-label="Daftar follow up hari ini">
                 <thead className="text-left text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 font-medium">Customer</th>
@@ -232,118 +334,29 @@ export function FollowUpClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((row) => {
-                    const phoneOk = whatsAppLink(row.phone, "Halo") != null;
-                    const key = rowKey(row);
-                    return (
-                      <tr key={key} className="border-t">
-                        <td className="px-3 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="flex size-8 items-center justify-center rounded-full bg-muted text-xs">
-                              {memberInitials(row.name || "?")}
-                            </span>
-                            <span>
-                              <span className="block font-medium">{row.name || "Member"}</span>
-                              <span className="text-xs text-muted-foreground">{maskMemberPhone(row.phone)}</span>
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-3 py-3">
-                          <p>{row.stage === "birthday" ? "Ulang tahun hari ini" : row.last_service_name || "Treatment"}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {row.stage === "birthday" ? "" : `${row.stamp_count} stamp`}
-                          </p>
-                        </td>
-                        <td className="px-3 py-3">{stageLabels[row.stage] ?? row.stage}</td>
-                        <td className="px-3 py-3">
-                          {row.markedAt ? (
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1 text-success">
-                                <Check className="size-3" />
-                                Terkirim {formatMemberTime(row.markedAt)}
-                              </span>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                disabled={pendingId === `undo:${key}`}
-                                onClick={() => {
-                                  if (!row.markedAt) return;
-                                  setPendingId(`undo:${key}`);
-                                  setSendError(null);
-                                  void undoFollowupSent({
-                                    memberId: row.member_id,
-                                    stage: row.stage,
-                                    anchorDate: row.anchor_date,
-                                    markedAt: row.markedAt,
-                                  }).then(async (result) => {
-                                    setPendingId(null);
-                                    if (result.status !== "ok") {
-                                      setSendError(
-                                        result.status === "stale"
-                                          ? "Tanda terkirim sudah berubah. Muat ulang daftar ini."
-                                          : "Tanda belum bisa dibatalin. Coba lagi.",
-                                      );
-                                      return;
-                                    }
-                                    const listed = await listFollowups();
-                                    if (listed.status === "ok") {
-                                      setRows(
-                                        listed.rows.map((item) => ({
-                                          member_id: item.member_id,
-                                          name: item.name,
-                                          phone: item.phone,
-                                          stage: item.stage,
-                                          anchor_date: item.anchor_date,
-                                          last_service_name: item.last_service_name,
-                                          stamp_count: item.stamp_count,
-                                          markedAt: item.markedAt,
-                                        })),
-                                      );
-                                      return;
-                                    }
-                                    setRows((current) =>
-                                      current.map((item) =>
-                                        rowKey(item) === key ? { ...item, markedAt: null } : item,
-                                      ),
-                                    );
-                                  }).catch(() => {
-                                    setPendingId(null);
-                                    setSendError("Tanda belum bisa dibatalin. Coba lagi.");
-                                  });
-                                }}
-                              >
-                                Tandai belum
-                              </Button>
-                            </div>
-                          ) : !phoneOk ? (
-                            <p className="text-destructive">
-                              Nomor nggak valid buat WhatsApp (kurang digit).
-                            </p>
-                          ) : confirmKey === key ? (
-                            <div className="flex items-center gap-2">
-                              {waUrl ? (
-                                <a href={waUrl} target="_blank" rel="noopener noreferrer" className="text-sm underline">
-                                  Buka WhatsApp
-                                </a>
-                              ) : null}
-                              <p>Udah kirim?</p>
-                              <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmKey(null)}>
-                                Belum
-                              </Button>
-                              <Button type="button" size="sm" disabled={pendingId === key} onClick={() => void send(row)}>
-                                Udah, tandai
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button type="button" size="sm" variant="outline" onClick={() => void send(row)}>
-                              Kirim WA
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {visible.map((row) => (
+                    <tr key={rowKey(row)} className="border-t">
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs">
+                            {memberInitials(row.name || "?")}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block font-medium">{row.name || "Member"}</span>
+                            <span className="text-xs text-muted-foreground">{maskMemberPhone(row.phone)}</span>
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <p>{row.stage === "birthday" ? "Ulang tahun hari ini" : row.last_service_name || "Treatment"}</p>
+                        {row.stage === "birthday" ? null : (
+                          <p className="text-xs text-muted-foreground">{row.stamp_count} stamp</p>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">{stageLabels[row.stage] ?? row.stage}</td>
+                      <td className="px-3 py-3">{renderAction(row)}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -358,6 +371,19 @@ export function FollowUpClient({
       ) : null}
     </>
   );
+}
+
+function toRow(item: FollowUpRow): FollowUpRow {
+  return {
+    member_id: item.member_id,
+    name: item.name,
+    phone: item.phone,
+    stage: item.stage,
+    anchor_date: item.anchor_date,
+    last_service_name: item.last_service_name,
+    stamp_count: item.stamp_count,
+    markedAt: item.markedAt,
+  };
 }
 
 function rowKey(row: FollowUpRow): string {

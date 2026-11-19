@@ -37,7 +37,7 @@ import {
   voidStamp,
 } from "@/lib/actions/members";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
-import { progressCopy, resetBanner } from "@/lib/membership/copy";
+import { progressCopy, resetBanner, stampBanner } from "@/lib/membership/copy";
 import {
   formatMemberDate,
   formatMemberTime,
@@ -45,7 +45,7 @@ import {
   jakartaDateISO,
   memberInitials,
 } from "@/lib/membership/format";
-import { tierName } from "@/lib/membership/rules";
+import { createLatestRequestGate } from "@/lib/membership/latest-request";
 import type { MemberSummary } from "@/lib/membership/summary";
 import { memberCardUrl } from "@/lib/membership/urls";
 
@@ -83,8 +83,13 @@ export function MembersClient({ initialRecent, services, servicesError = false }
   const [registerOpen, setRegisterOpen] = useState(false);
   const [claimMilestone, setClaimMilestone] = useState<number | null>(null);
   const [rotateOpen, setRotateOpen] = useState(false);
+  const [rotatePending, setRotatePending] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
   const recentRequest = useRef(0);
+  // Every action that changes the open member takes a ticket. Only the newest
+  // ticket may write the reloaded summary, so a slow reload from an older
+  // action (for example the add before an undo) can't overwrite a newer one.
+  const [summaryGate] = useState(createLatestRequestGate);
   const selectedIdRef = useRef<string | null>(null);
   const canManage = hasPermission(AdminPermission.MEMBERS_SETTINGS);
   const progress = summary ? progressCopy(summary) : null;
@@ -103,7 +108,14 @@ export function MembersClient({ initialRecent, services, servicesError = false }
     if (listed.status === "ok") setRecent(listed.members);
   }
 
+  async function reloadSummary(memberId: string, ticket: number) {
+    const fresh = await getMember(memberId);
+    if (!summaryGate.isLatest(ticket) || fresh.status !== "ok") return;
+    setSummary((current) => (current?.id === memberId ? fresh.summary : current));
+  }
+
   async function openMember(next: MemberSummary) {
+    summaryGate.begin();
     setSummary(next);
     setScanStatus("found");
     setConfirm(null);
@@ -115,7 +127,22 @@ export function MembersClient({ initialRecent, services, servicesError = false }
     await refreshRecent();
   }
 
+  function selectMember(memberId: string) {
+    const ticket = summaryGate.begin();
+    void getMember(memberId).then((result) => {
+      if (!summaryGate.isLatest(ticket)) return;
+      if (result.status === "ok") {
+        void openMember(result.summary);
+        return;
+      }
+      showToast("Kartu member gagal dibuka. Coba lagi.", "error");
+    }).catch(() => {
+      if (summaryGate.isLatest(ticket)) showToast("Kartu member gagal dibuka. Koneksi putus.", "error");
+    });
+  }
+
   async function lookup(value: string) {
+    summaryGate.begin();
     setSummary(null);
     setConfirm(null);
     setClaimMilestone(null);
@@ -145,6 +172,8 @@ export function MembersClient({ initialRecent, services, servicesError = false }
   async function submitStamp(confirmSameDay = false) {
     if (!summary || !serviceId) return;
     const memberId = summary.id;
+    const memberName = summary.name;
+    const ticket = summaryGate.begin();
     setPending(true);
     setStampError(false);
     let result: Awaited<ReturnType<typeof addStamp>>;
@@ -168,13 +197,10 @@ export function MembersClient({ initialRecent, services, servicesError = false }
       return;
     }
     if (result.status === "capped") {
-      const fresh = await getMember(memberId);
-      if (fresh.status === "ok") {
-        setSummary((current) => (current?.id === memberId ? fresh.summary : current));
-        if (selectedIdRef.current === memberId) {
-          setBanner("Stamp periode ini sudah penuh. Siklus berikutnya mulai setelah reset.");
-        }
+      if (selectedIdRef.current === memberId) {
+        setBanner("Stamp periode ini udah penuh. Mulai lagi dari 0 setelah reset.");
       }
+      await reloadSummary(memberId, ticket);
       return;
     }
     if (result.status !== "ok" || !result.stampId) {
@@ -182,19 +208,23 @@ export function MembersClient({ initialRecent, services, servicesError = false }
       return;
     }
     const stampId = result.stampId;
+    const addedCount = result.count;
+    if (addedCount != null && summaryGate.isLatest(ticket)) {
+      // Show the new count right away; the reload below fills in the rest.
+      setSummary((current) => (current?.id === memberId ? { ...current, stampCount: addedCount } : current));
+    }
     setConfirm(null);
     setJustAdded(true);
     window.setTimeout(() => setJustAdded(false), 6000);
-    if (result.openedReward && result.tierAfter != null && result.tierBefore != null && result.tierAfter > result.tierBefore) {
-      setBanner(`${result.openedReward} kebuka, dan ${summary.name.split(" ")[0]} naik ke ${tierName(result.tierAfter)}. Klaim di daftar reward, sekarang atau di kunjungan berikutnya. Stamp nggak berkurang.`);
-    } else if (result.openedReward) {
-      setBanner(`${result.openedReward} kebuka. Klaim di daftar reward. Stamp nggak berkurang.`);
-    }
+    // The banner shows only what this stamp changed; a plain stamp clears it.
+    setBanner(stampBanner(result, memberName));
     showToast(`Stamp ke-${result.count} tercatat`, "success", {
       duration: 6000,
       actionLabel: "Batalkan",
       onAction: () => {
+        const undoTicket = summaryGate.begin();
         setJustAdded(false);
+        setBanner(null);
         void voidStamp({ stampId }).then(async (voided) => {
           if (voided.status !== "ok") {
             showToast(
@@ -203,22 +233,16 @@ export function MembersClient({ initialRecent, services, servicesError = false }
                 : "Stamp nggak bisa dibatalin. Lewat 5 menit.",
               "error",
             );
-            return;
           }
-          const fresh = await getMember(memberId);
-          if (fresh.status === "ok") {
-            setSummary((current) => (current?.id === memberId ? fresh.summary : current));
-          }
+          await reloadSummary(memberId, undoTicket);
           await refreshRecent();
         }).catch(() => {
           showToast("Stamp nggak bisa dibatalin. Koneksi putus.", "error");
+          void reloadSummary(memberId, undoTicket);
         });
       },
     });
-    const fresh = await getMember(memberId);
-    if (fresh.status === "ok") {
-      setSummary((current) => (current?.id === memberId ? fresh.summary : current));
-    }
+    await reloadSummary(memberId, ticket);
     await refreshRecent();
   }
 
@@ -255,16 +279,13 @@ export function MembersClient({ initialRecent, services, servicesError = false }
                 {recent.length === 0 ? (
                   <li className="px-2 py-3 text-sm text-muted-foreground">Belum ada member.</li>
                 ) : (
-                  recent.map((member, index) => (
+                  recent.map((member) => (
                     <li key={member.id}>
                       <button
                         type="button"
-                        onClick={() => {
-                          void getMember(member.id).then((result) => {
-                            if (result.status === "ok") void openMember(result.summary);
-                          });
-                        }}
-                        className={`flex h-13 w-full items-center gap-3 rounded-lg px-2 text-left transition-colors hover:bg-muted/40 ${index === 0 ? "bg-muted/40" : ""}`}
+                        aria-current={summary?.id === member.id ? "true" : undefined}
+                        onClick={() => selectMember(member.id)}
+                        className={`flex h-13 w-full items-center gap-3 rounded-lg px-2 text-left transition-colors outline-none hover:bg-muted/40 focus-visible:ring-[3px] focus-visible:ring-ring/50 ${summary?.id === member.id ? "bg-muted/40" : ""}`}
                       >
                         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
                           {memberInitials(member.name)}
@@ -275,7 +296,7 @@ export function MembersClient({ initialRecent, services, servicesError = false }
                             {recentActivity(member).subtitle}
                           </span>
                         </span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground tabular-nums">
                           {formatMemberTime(recentActivity(member).at)}
                         </span>
                       </button>
@@ -293,12 +314,19 @@ export function MembersClient({ initialRecent, services, servicesError = false }
                   summary={summary}
                   canManageSettings={canManage}
                   onSendLink={() => {
-                    const popup = window.open("", "_blank", "noopener,noreferrer");
+                    // Open the tab inside the click so the popup blocker allows it.
+                    // "noopener" would make window.open return null, so cut the
+                    // opener by hand once the tab exists.
+                    const popup = window.open("", "_blank");
+                    if (popup) popup.opener = null;
                     void getMemberWaLink({ memberId: summary.id, kind: "card" }).then((result) => {
                       if (result.status === "ok" && popup) {
                         popup.location.href = result.url;
                         return;
                       }
+                      popup?.close();
+                      showToast("Link WhatsApp gagal dibuka", "error");
+                    }).catch(() => {
                       popup?.close();
                       showToast("Link WhatsApp gagal dibuka", "error");
                     });
@@ -324,14 +352,17 @@ export function MembersClient({ initialRecent, services, servicesError = false }
                       onClick={() => {
                         const serviceName = services.find((service) => service.id === serviceId)?.name;
                         if (!serviceName) return;
-                        void redeemBirthday({ memberId: summary.id, serviceName }).then(async (result) => {
+                        const memberId = summary.id;
+                        const ticket = summaryGate.begin();
+                        void redeemBirthday({ memberId, serviceName }).then(async (result) => {
                           if (result.status !== "ok") {
                             showToast("Diskon ultah belum tercatat.", "error");
                             return;
                           }
                           showToast("Diskon ultah dipakai", "success");
-                          const fresh = await getMember(summary.id);
-                          if (fresh.status === "ok") setSummary(fresh.summary);
+                          await reloadSummary(memberId, ticket);
+                        }).catch(() => {
+                          showToast("Diskon ultah belum tercatat. Koneksi putus.", "error");
                         });
                       }}
                     >
@@ -353,7 +384,7 @@ export function MembersClient({ initialRecent, services, servicesError = false }
                   </p>
                 ) : null}
                 {banner ? (
-                  <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm">
+                  <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm" role="status">
                     <p className="font-medium">{banner}</p>
                   </div>
                 ) : null}
@@ -361,7 +392,7 @@ export function MembersClient({ initialRecent, services, servicesError = false }
                   <div className="rounded-xl bg-muted px-4 py-3 text-sm">{resetNote}</div>
                 ) : null}
                 <div>
-                  <p className="text-4xl font-semibold tracking-tight">
+                  <p className="text-4xl font-semibold tracking-tight tabular-nums">
                     {summary.stampCount} <span className="text-base font-medium text-muted-foreground">stamp</span>
                   </p>
                   <p className="mt-1 text-sm font-medium">{progress.title}</p>
@@ -393,7 +424,7 @@ export function MembersClient({ initialRecent, services, servicesError = false }
               </div>
             ) : (
               <div className="flex min-h-80 flex-col items-center justify-center text-center">
-                <UserRound className="size-8 text-muted-foreground" />
+                <UserRound className="size-8 text-muted-foreground" aria-hidden="true" />
                 <p className="mt-3 font-medium">Scan QR member buat mulai</p>
                 <p className="mt-1 max-w-sm text-sm text-muted-foreground">
                   Kartu member, stamp, dan reward muncul di sini. Customer belum punya QR? Pakai Daftar member baru di kanan atas.
@@ -412,9 +443,7 @@ export function MembersClient({ initialRecent, services, servicesError = false }
         onCreated={(created) => void openMember(created)}
         onOpenExisting={(memberId) => {
           setRegisterOpen(false);
-          void getMember(memberId).then((result) => {
-            if (result.status === "ok") void openMember(result.summary);
-          });
+          selectMember(memberId);
         }}
       />
       {summary && claimRewardRow?.name ? (
@@ -432,35 +461,30 @@ export function MembersClient({ initialRecent, services, servicesError = false }
           }}
           onClaimed={(claimId, rewardName) => {
             const memberId = summary.id;
+            const ticket = summaryGate.begin();
+            setBanner(null);
             showToast(`${rewardName} diklaim`, "success", {
               duration: 6000,
               actionLabel: "Batalkan",
               onAction: () => {
+                const undoTicket = summaryGate.begin();
                 void voidClaim({ claimId }).then(async (result) => {
                   if (result.status !== "ok") {
                     showToast("Klaim nggak bisa dibatalin.", "error");
                     return;
                   }
-                  const fresh = await getMember(memberId);
-                  if (fresh.status === "ok") {
-                    setSummary((current) => (current?.id === memberId ? fresh.summary : current));
-                  }
+                  await reloadSummary(memberId, undoTicket);
                   await refreshRecent();
                 }).catch(() => {
                   showToast("Klaim nggak bisa dibatalin. Koneksi putus.", "error");
                 });
               },
             });
-            void getMember(memberId).then(async (fresh) => {
-              if (fresh.status === "ok") {
-                setSummary((current) => (current?.id === memberId ? fresh.summary : current));
-              }
-              await refreshRecent();
-            });
+            void reloadSummary(memberId, ticket).then(refreshRecent);
           }}
         />
       ) : null}
-      <AlertDialog open={rotateOpen} onOpenChange={setRotateOpen}>
+      <AlertDialog open={rotateOpen} onOpenChange={(next) => !rotatePending && setRotateOpen(next)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Ganti link kartu?</AlertDialogTitle>
@@ -469,32 +493,38 @@ export function MembersClient({ initialRecent, services, servicesError = false }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogCancel disabled={rotatePending}>Batal</AlertDialogCancel>
             <Button
               type="button"
+              disabled={rotatePending}
               onClick={() => {
                 if (!summary) return;
                 const memberId = summary.id;
+                const ticket = summaryGate.begin();
+                setRotatePending(true);
                 void rotateCardToken({ memberId }).then(async (result) => {
+                  setRotatePending(false);
                   setRotateOpen(false);
                   if (result.status === "ok") {
-                    setSummary((current) => (current?.id === memberId ? result.summary : current));
+                    if (summaryGate.isLatest(ticket)) {
+                      setSummary((current) => (current?.id === memberId ? result.summary : current));
+                    }
                     showToast("Link kartu diganti", "success");
                     return;
                   }
                   if (result.status === "rotated") {
-                    const fresh = await getMember(memberId);
-                    if (fresh.status === "ok") {
-                      setSummary((current) => (current?.id === memberId ? fresh.summary : current));
-                    }
+                    await reloadSummary(memberId, ticket);
                     showToast("Link kartu diganti. Muat ulang kartu kalau salin link masih yang lama.", "success");
                     return;
                   }
                   showToast("Link belum diganti. Koneksi putus.", "error");
+                }).catch(() => {
+                  setRotatePending(false);
+                  showToast("Link belum diganti. Koneksi putus.", "error");
                 });
               }}
             >
-              Ya, ganti link
+              {rotatePending ? "Mengganti…" : "Ya, ganti link"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
