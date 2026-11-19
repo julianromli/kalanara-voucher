@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Check } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -27,6 +28,12 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [current, setCurrent] = useState({ url, createdAt, monthCount, recent });
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timeout = window.setTimeout(() => setCopied(false), 1500);
+    return () => window.clearTimeout(timeout);
+  }, [copied]);
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
@@ -53,12 +60,21 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
                   window.prompt("Salin link ini:", current.url);
                   return;
                 }
+                setCopied(true);
                 void write(current.url).catch(() => {
+                  setCopied(false);
                   window.prompt("Salin link ini:", current.url);
                 });
               }}
             >
-              Salin link
+              {copied ? (
+                <>
+                  <Check className="size-4" aria-hidden="true" />
+                  Tersalin
+                </>
+              ) : (
+                "Salin link"
+              )}
             </Button>
             <p className="mt-3 text-xs text-muted-foreground">
               Aktif sejak {formatMemberDate(current.createdAt)}
@@ -78,12 +94,17 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
       </section>
       <div className="space-y-4">
         <section className="rounded-xl border p-4">
-          <p className="text-3xl font-semibold">{current.monthCount}</p>
+          <p className="text-3xl font-semibold tabular-nums">{current.monthCount}</p>
           <p className="text-sm text-muted-foreground">member daftar sendiri bulan ini</p>
+          {current.recent.length === 0 ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Belum ada yang daftar sendiri. Yang daftar lewat QR muncul di sini.
+            </p>
+          ) : null}
           <ul className="mt-3">
             {current.recent.map((member) => (
               <li key={member.id} className="flex items-center gap-3 py-2 text-sm">
-                <span className="flex size-8 items-center justify-center rounded-full bg-muted text-xs">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs">
                   {memberInitials(member.name)}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -92,7 +113,7 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
                     {formatMemberDate(member.createdAt)} {formatMemberTime(member.createdAt)}
                   </span>
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="shrink-0 text-xs text-muted-foreground">
                   {member.stampCount === 0 ? "Belum ada stamp" : `${member.stampCount} stamp`}
                 </span>
               </li>
@@ -113,7 +134,7 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
           </div>
         </section>
       </div>
-      <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Ganti QR daftar sendiri?</AlertDialogTitle>
@@ -130,7 +151,7 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
           </div>
           {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogCancel disabled={pending}>Batal</AlertDialogCancel>
             <Button
               type="button"
               variant="destructive"
@@ -162,7 +183,7 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
                       setOpen(false);
                       return;
                     }
-                    setError("QR belum diganti. Coba lagi, atau muat ulang halaman kalau QR lamanya sudah tidak aktif.");
+                    setError("QR belum diganti. Coba lagi, atau muat ulang halaman kalau QR lamanya udah nggak aktif.");
                   })
                   .catch(() => {
                     setPending(false);
@@ -170,7 +191,7 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
                   });
               }}
             >
-              Ya, ganti QR
+              {pending ? "Mengganti…" : "Ya, ganti QR"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

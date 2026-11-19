@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useToast } from "@/context/ToastContext";
 import { updateFollowupTemplate } from "@/lib/actions/members";
 import type { FollowupTemplateStage } from "@/lib/membership/templates";
 
@@ -27,6 +28,7 @@ export function FollowUpTemplateSheet({
 }: FollowUpTemplateSheetProps) {
   const [drafts, setDrafts] = useState(templates);
   const [pending, setPending] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -53,7 +55,7 @@ export function FollowUpTemplateSheet({
                     ),
                   )
                 }
-                className="mt-2 min-h-28 w-full rounded-lg border bg-background p-3 text-sm"
+                className="mt-2 min-h-28 w-full rounded-md border border-input bg-background p-3 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
               />
               <Button
                 type="button"
@@ -68,16 +70,18 @@ export function FollowUpTemplateSheet({
                   })
                     .then((result) => {
                       if (result.status !== "ok") {
-                        window.alert("Template belum tersimpan. Cek panjangnya, lalu coba lagi.");
+                        showToast("Template belum tersimpan. Cek panjangnya, lalu coba lagi.", "error");
+                        return;
                       }
+                      showToast(`Template ${labels[template.stage].toLowerCase()} disimpan`, "success");
                     })
                     .catch(() => {
-                      window.alert("Template belum tersimpan. Koneksi putus.");
+                      showToast("Template belum tersimpan. Koneksi putus.", "error");
                     })
                     .finally(() => setPending((current) => (current === template.stage ? null : current)));
                 }}
               >
-                Simpan
+                {pending === template.stage ? "Menyimpan…" : "Simpan"}
               </Button>
             </label>
           ))}

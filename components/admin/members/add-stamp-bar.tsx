@@ -37,16 +37,16 @@ export function AddStampBar({
 }: AddStampBarProps) {
   return (
     <section className="rounded-xl border bg-muted/30 p-4">
-      <p className="text-sm font-medium">Treatment walk-in hari ini</p>
+      <label className="text-sm font-medium" htmlFor="stamp-service">
+        Treatment walk-in hari ini
+      </label>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-        <label className="sr-only" htmlFor="stamp-service">
-          Treatment walk-in hari ini
-        </label>
         <select
           id="stamp-service"
           value={serviceId}
           onChange={(event) => onServiceChange(event.target.value)}
-          className="h-9 min-w-0 flex-1 rounded-lg border bg-background px-3 text-sm"
+          disabled={services.length === 0}
+          className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
         >
           {services.map((service) => (
             <option key={service.id} value={service.id}>
@@ -55,14 +55,14 @@ export function AddStampBar({
           ))}
         </select>
         {justAdded ? (
-          <p className="inline-flex h-9 items-center gap-2 rounded-lg bg-background px-3 text-sm">
-            <Check className="size-4 text-success" />
+          <p className="inline-flex h-9 items-center gap-2 rounded-lg bg-background px-3 text-sm" role="status">
+            <Check className="size-4 text-success" aria-hidden="true" />
             Udah dapat stamp hari ini
           </p>
         ) : (
           <Button type="button" onClick={onAdd} disabled={Boolean(disabledReason) || pending || services.length === 0}>
-            <Plus className="size-4" />
-            Tambah stamp
+            <Plus className="size-4" aria-hidden="true" />
+            {pending ? "Mencatat…" : "Tambah stamp"}
           </Button>
         )}
       </div>
@@ -70,7 +70,7 @@ export function AddStampBar({
         <p className="mt-3 text-sm text-muted-foreground">{disabledReason}</p>
       ) : null}
       {confirm ? (
-        <div className="mt-3 rounded-lg border border-warning/40 bg-warning/15 p-3 text-sm">
+        <div className="mt-3 rounded-lg border border-warning/40 bg-warning/15 p-3 text-sm" role="alert">
           <p>
             {firstName(confirm.memberName)} udah dapat stamp hari ini jam{" "}
             {formatMemberTime(confirm.createdAt)} ({confirm.serviceName}). Yakin tambah lagi?
@@ -91,7 +91,7 @@ export function AddStampBar({
         </div>
       ) : null}
       {error ? (
-        <div className="mt-3 flex items-center justify-between gap-3 text-sm text-destructive">
+        <div className="mt-3 flex items-center justify-between gap-3 text-sm text-destructive" role="alert">
           <p>Stamp belum tersimpan. Koneksi putus.</p>
           <Button
             type="button"
@@ -100,7 +100,7 @@ export function AddStampBar({
             onClick={onRetry}
             disabled={pending || Boolean(disabledReason) || services.length === 0}
           >
-            <RotateCcw className="size-4" />
+            <RotateCcw className="size-4" aria-hidden="true" />
             Coba lagi
           </Button>
         </div>

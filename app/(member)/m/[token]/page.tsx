@@ -23,9 +23,17 @@ export default async function MemberCardPage({ params, searchParams }: MemberPag
   if (result.status !== "ok") {
     const failed = result.status === "error";
     return (
-      <MemberShell title="Kartu member" subtitle={failed ? "Kartu belum bisa dibuka" : "Link ini nggak bisa dibuka"}>
-        <section className="rounded-2xl bg-background px-6 py-12 text-center shadow-sm">
-          <Link2 className="mx-auto size-6 text-muted-foreground" />
+      <MemberShell
+        title="Kartu member"
+        subtitle={failed ? "Kartu belum bisa dibuka" : "Link ini nggak bisa dibuka"}
+        footer={
+          <Button asChild className="h-11 w-full bg-foreground text-base text-background hover:bg-foreground/90">
+            <a href={APP_CONFIG.social.whatsapp}>Chat Kalanara</a>
+          </Button>
+        }
+      >
+        <section className="rounded-xl bg-background px-6 py-12 text-center shadow-sm">
+          <Link2 className="mx-auto size-6 text-muted-foreground" aria-hidden="true" />
           <h2 className="mt-4 text-lg font-semibold">
             {failed ? "Kartu belum bisa dibuka" : "Link kartu nggak ketemu"}
           </h2>
@@ -35,16 +43,11 @@ export default async function MemberCardPage({ params, searchParams }: MemberPag
               : "Mungkin link-nya kepotong atau udah diganti. Minta link baru ke kasir Kalanara, atau chat kami."}
           </p>
           {failed ? (
-            <Button type="button" className="mt-4" asChild>
+            <Button variant="outline" className="mt-4 h-11 px-6 text-base" asChild>
               <a href={`/m/${token}`}>Coba lagi</a>
             </Button>
           ) : null}
         </section>
-        <div className="fixed inset-x-0 bottom-0 border-t bg-background p-4">
-          <Button asChild className="h-11 w-full bg-foreground text-background hover:bg-foreground/90">
-            <a href={APP_CONFIG.social.whatsapp}>Chat Kalanara</a>
-          </Button>
-        </div>
       </MemberShell>
     );
   }
@@ -70,7 +73,7 @@ export default async function MemberCardPage({ params, searchParams }: MemberPag
       title={`Halo, ${firstName(summary.name)}`}
       subtitle={greeting}
       footer={
-        <Button asChild className="h-11 w-full bg-foreground text-background hover:bg-foreground/90">
+        <Button asChild className="h-11 w-full bg-foreground text-base text-background hover:bg-foreground/90">
           <a
             href={`${APP_CONFIG.social.whatsapp}?text=${encodeURIComponent(reserveText)}`}
           >
@@ -87,7 +90,7 @@ export default async function MemberCardPage({ params, searchParams }: MemberPag
         welcome={query.baru === "1"}
       />
       {summary.birthday.eligible ? (
-        <section className="rounded-2xl border border-success/20 bg-success/10 p-4 text-sm">
+        <section className="rounded-xl border border-success/20 bg-success/10 p-4 text-sm">
           <p className="font-medium">Selamat ulang tahun, {firstName(summary.name)}!</p>
           <p className="mt-1">Diskon 25% buat 1 treatment</p>
           <p className="mt-1 text-muted-foreground">
@@ -95,12 +98,12 @@ export default async function MemberCardPage({ params, searchParams }: MemberPag
           </p>
         </section>
       ) : null}
-      <StampCard summary={summary} welcome={summary.stampCount === 0} />
+      <StampCard summary={summary} />
       <RewardLadder summary={summary} />
-      <section className="rounded-2xl bg-background p-4 text-sm shadow-sm">
+      <section className="rounded-xl bg-background p-4 text-sm shadow-sm">
         {summary.lastTreatment ? (
           <p className="flex gap-2">
-            <Calendar className="mt-0.5 size-4 text-muted-foreground" />
+            <Calendar className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <span>
               Treatment terakhir
               <span className="mt-1 block text-muted-foreground">
@@ -110,7 +113,7 @@ export default async function MemberCardPage({ params, searchParams }: MemberPag
           </p>
         ) : null}
         <p className="mt-3 flex gap-2">
-          <Calendar className="mt-0.5 size-4 text-muted-foreground" />
+          <Calendar className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <span>
             Periode stamp
             <span className="mt-1 block text-muted-foreground">

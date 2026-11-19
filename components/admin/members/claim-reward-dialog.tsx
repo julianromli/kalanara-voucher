@@ -87,13 +87,13 @@ export function ClaimRewardDialog({
             Belum ada treatment aktif. Klaim belum bisa dilanjut.
           </p>
         ) : (
-          <label className="space-y-1.5 text-sm" htmlFor="claim-service">
+          <label className="block space-y-1.5 text-sm font-medium" htmlFor="claim-service">
             Treatment yang dipakai
             <select
               id="claim-service"
               value={serviceName}
               onChange={(event) => setServiceName(event.target.value)}
-              className="mt-1 h-9 w-full rounded-lg border bg-background px-3"
+              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
               {services.map((service) => (
                 <option key={service.id} value={service.name}>
@@ -149,7 +149,7 @@ export function ClaimRewardDialog({
               });
             }}
           >
-            {changedName ? "Ya, klaim yang baru" : "Klaim reward"}
+            {pending ? "Mengklaim…" : changedName ? "Ya, klaim yang baru" : "Klaim reward"}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

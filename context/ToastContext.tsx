@@ -107,7 +107,7 @@ function Toast({
       className={`
         relative overflow-hidden rounded-xl border bg-background shadow-md
         ${styles.border} ${styles.text}
-        animate-in fade-in-0 slide-in-from-bottom-2 duration-200 ease-out
+        animate-in fade-in-0 slide-in-from-bottom-2 duration-200 ease-out motion-reduce:animate-none
       `}
     >
       <div className={`absolute inset-0 pointer-events-none ${styles.bg}`} />
@@ -121,7 +121,7 @@ function Toast({
               toast.onAction?.();
               onDismiss(toast.id);
             }}
-            className="rounded-full border bg-background px-3 py-1 text-xs font-medium"
+            className="h-8 shrink-0 rounded-lg border bg-background px-3 text-xs font-medium transition-transform outline-none active:scale-[0.98] focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
             {toast.actionLabel}
           </button>
@@ -134,7 +134,7 @@ function Toast({
             hover:bg-black/5 dark:hover:bg-white/10
             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
           `}
-          aria-label="Dismiss toast"
+          aria-label="Tutup notifikasi"
         >
           <X className="size-4" />
         </button>

@@ -39,8 +39,11 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
   const [confirm, setConfirm] = useState<
     Array<{ kind: "rename" | "clear"; milestone: number; name: string; count: number }>
   >([]);
-  const dirty = JSON.stringify(rows.map(({ name, note }) => ({ name, note }))) !==
-    JSON.stringify(saved.map(({ name, note }) => ({ name, note })));
+  const changedCount = rows.filter((row) => {
+    const previous = saved.find((item) => item.milestone === row.milestone);
+    return !previous || previous.name !== row.name || previous.note !== row.note;
+  }).length;
+  const dirty = changedCount > 0;
   const allEmpty = rows.every((row) => row.name.trim().length === 0);
 
   function update(milestone: number, field: "name" | "note", value: string) {
@@ -164,8 +167,13 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
   }
 
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (dirty && !pending) requestSave();
+      }}
+    >
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-sm font-medium">Reward tiap kelipatan 5 stamp</h2>
           <p className="text-sm text-muted-foreground">
@@ -173,11 +181,11 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">
-            {dirty ? "1 perubahan belum disimpan" : "Semua tersimpan"}
+          <span className="text-sm text-muted-foreground tabular-nums" aria-live="polite">
+            {dirty ? `${changedCount} perubahan belum disimpan` : "Semua tersimpan"}
           </span>
-          <Button type="button" onClick={requestSave} disabled={!dirty || pending || loadError}>
-            Simpan perubahan
+          <Button type="submit" disabled={!dirty || pending || loadError}>
+            {pending ? "Menyimpan…" : "Simpan perubahan"}
           </Button>
         </div>
       </div>
@@ -193,7 +201,6 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
           </thead>
           <tbody>
             {rows.map((row) => {
-              const active = row.name.trim().length > 0;
               const tier = row.milestone === 10 || row.milestone === 20 || row.milestone === 30
                 ? tierName(row.milestone / 10)
                 : "";
@@ -224,7 +231,7 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
                     />
                   </td>
                   <td className="px-3 py-2 text-xs">
-                    {active ? "Aktif" : saved.find((item) => item.milestone === row.milestone)?.name ? "Belum disimpan" : "Belum diatur"}
+                    {rowStatus(row, saved.find((item) => item.milestone === row.milestone))}
                   </td>
                 </tr>
               );
@@ -238,7 +245,7 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
       {error ? (
         <p className="mt-3 text-sm text-destructive" role="alert">
           {error}{" "}
-          <button type="button" className="underline" onClick={requestSave} disabled={pending}>
+          <button type="submit" className="rounded-sm underline underline-offset-4 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" disabled={pending}>
             Coba lagi
           </button>
         </p>
@@ -271,11 +278,17 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
               disabled={pending}
               onClick={() => void persist()}
             >
-              {pending ? "Menyimpan..." : confirm.some((item) => item.kind === "clear") ? "Ya, simpan" : "Ya, ganti"}
+              {pending ? "Menyimpan…" : confirm.some((item) => item.kind === "clear") ? "Ya, simpan" : "Ya, ganti"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </form>
   );
+}
+
+function rowStatus(row: RewardDraft, saved: RewardDraft | undefined): string {
+  const changed = !saved || saved.name !== row.name || saved.note !== row.note;
+  if (changed) return "Belum disimpan";
+  return row.name.trim().length > 0 ? "Aktif" : "Belum diatur";
 }

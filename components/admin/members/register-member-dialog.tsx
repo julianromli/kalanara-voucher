@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Check } from "lucide-react";
 import QRCode from "react-qr-code";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -44,6 +45,7 @@ export function RegisterMemberDialog({
   const [registeredId, setRegisteredId] = useState<string | null>(null);
   const [created, setCreated] = useState<MemberSummary | null>(null);
   const [pending, setPending] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [syncedOpen, setSyncedOpen] = useState(open);
   const [syncedPhone, setSyncedPhone] = useState(initialPhone);
   if (open !== syncedOpen || initialPhone !== syncedPhone) {
@@ -54,6 +56,12 @@ export function RegisterMemberDialog({
       setPending(false);
     }
   }
+
+  useEffect(() => {
+    if (!copied) return;
+    const timeout = window.setTimeout(() => setCopied(false), 1500);
+    return () => window.clearTimeout(timeout);
+  }, [copied]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -121,9 +129,20 @@ export function RegisterMemberDialog({
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => void navigator.clipboard.writeText(cardUrl)}
+                    disabled={!cardUrl}
+                    onClick={() => {
+                      setCopied(true);
+                      void navigator.clipboard.writeText(cardUrl).catch(() => setCopied(false));
+                    }}
                   >
-                    Salin
+                    {copied ? (
+                      <>
+                        <Check className="size-4" aria-hidden="true" />
+                        Tersalin
+                      </>
+                    ) : (
+                      "Salin"
+                    )}
                   </Button>
                   <Button type="button" size="sm" variant="outline" onClick={() => window.print()}>
                     Cetak
@@ -207,7 +226,7 @@ export function RegisterMemberDialog({
             <div className="mt-4 space-y-3">
               <div className="space-y-1.5">
                 <Label htmlFor="member-name">Nama panggilan</Label>
-                <Input id="member-name" value={name} onChange={(event) => setName(event.target.value)} required maxLength={40} />
+                <Input id="member-name" value={name} onChange={(event) => setName(event.target.value)} required maxLength={40} autoComplete="off" />
                 <p className="text-xs text-muted-foreground">Dipakai buat sapaan di WhatsApp.</p>
               </div>
               <div className="space-y-1.5">
@@ -271,7 +290,7 @@ export function RegisterMemberDialog({
                 Batal
               </Button>
               <Button type="submit" disabled={pending}>
-                {pending ? "Mendaftarkan..." : "Daftarkan member"}
+                {pending ? "Mendaftarkan…" : "Daftarkan member"}
               </Button>
             </div>
           </form>

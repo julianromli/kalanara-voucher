@@ -34,7 +34,7 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
   const [waConsent, setWaConsent] = useState(false);
   const [website, setWebsite] = useState("");
   const [pending, setPending] = useState(false);
-  const [errors, setErrors] = useState<{ phone?: string; birthDate?: string; form?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; phone?: string; birthDate?: string; form?: string }>({});
   const [duplicatePhone, setDuplicatePhone] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
   const [retryAfterMinutes, setRetryAfterMinutes] = useState<number | null>(null);
@@ -43,10 +43,10 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
   if (qrState === "error") {
     return (
       <MemberShell title="Daftar member" subtitle="Pendaftaran belum bisa dibuka">
-        <section className="rounded-2xl bg-background px-6 py-12 text-center shadow-sm">
+        <section className="rounded-xl bg-background px-6 py-12 text-center shadow-sm">
           <p className="text-lg font-semibold">Belum bisa memuat QR</p>
           <p className="mt-2 text-sm text-muted-foreground">Koneksi putus. Coba lagi.</p>
-          <Button type="button" className="mt-4" onClick={() => window.location.reload()}>
+          <Button type="button" variant="outline" className="mt-4 h-11 px-6 text-base" onClick={() => window.location.reload()}>
             Coba lagi
           </Button>
         </section>
@@ -57,8 +57,8 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
   if (qrState === "invalid" || qrRevoked) {
     return (
       <MemberShell title="Daftar member" subtitle="QR ini udah nggak dipakai">
-        <section className="rounded-2xl bg-background px-6 py-12 text-center shadow-sm">
-          <QrCode className="mx-auto size-6 text-muted-foreground" />
+        <section className="rounded-xl bg-background px-6 py-12 text-center shadow-sm">
+          <QrCode className="mx-auto size-6 text-muted-foreground" aria-hidden="true" />
           <h2 className="mt-4 text-lg font-semibold">QR ini udah nggak dipakai</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Minta QR baru ke kasir Kalanara, atau scan poster di meja depan.
@@ -70,40 +70,51 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
 
   if (duplicatePhone) {
     return (
-      <MemberShell title="Daftar member" subtitle="Satu nomor, satu kartu member.">
-        <section className="rounded-2xl bg-background px-6 py-10 text-center shadow-sm">
-          <Smartphone className="mx-auto size-6 text-muted-foreground" />
+      <MemberShell
+        title="Daftar member"
+        subtitle="Satu nomor, satu kartu member."
+        footer={
+          <Button asChild className="h-11 w-full bg-foreground text-base text-background hover:bg-foreground/90">
+            <a href={APP_CONFIG.social.whatsapp}>Chat Kalanara</a>
+          </Button>
+        }
+      >
+        <section className="rounded-xl bg-background px-6 py-10 text-center shadow-sm">
+          <Smartphone className="mx-auto size-6 text-muted-foreground" aria-hidden="true" />
           <h2 className="mt-4 text-lg font-semibold">Nomor ini udah terdaftar</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             {duplicatePhone} udah jadi member Kalanara. Demi keamanan, link kartunya nggak kami tampilin di sini.
           </p>
-          <div className="mt-4 rounded-xl bg-muted/50 p-4 text-left text-sm">
+          <div className="mt-4 rounded-lg bg-muted/50 p-4 text-left text-sm">
             <p className="font-medium">Biar dapat link kartu kamu:</p>
             <p className="mt-1 text-muted-foreground">
               Bilang ke kasir pas datang. Kasir kirim ulang link-nya ke WhatsApp kamu.
             </p>
           </div>
-          <Button type="button" variant="outline" className="mt-4 h-11 w-full" onClick={() => setDuplicatePhone(null)}>
+          <Button type="button" variant="outline" className="mt-4 h-11 w-full text-base" onClick={() => setDuplicatePhone(null)}>
             Pakai nomor lain
           </Button>
         </section>
-        <div className="fixed inset-x-0 bottom-0 border-t bg-background p-4">
-          <Button asChild className="h-11 w-full bg-foreground text-background">
-            <a href={APP_CONFIG.social.whatsapp}>Chat Kalanara</a>
-          </Button>
-        </div>
       </MemberShell>
     );
   }
 
-  function validate() {
-    const next: { phone?: string; birthDate?: string } = {};
+  // On blur, check only the field the customer just left. On submit, check all.
+  function validate(only?: "phone" | "birthDate") {
+    const next: { name?: string; phone?: string; birthDate?: string } = {};
+    if (name.trim().length === 0) {
+      next.name = "Isi nama panggilan kamu.";
+    }
     if (!normalizeMemberPhone(phone)) {
       next.phone = "Nomor WhatsApp-nya kurang panjang. Contoh: 812 3456 7890.";
     }
     const today = jakartaDateISO();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate) || birthDate > today || Number(birthDate.slice(0, 4)) < 1900) {
       next.birthDate = "Pilih tanggal lahir kamu.";
+    }
+    if (only) {
+      setErrors((current) => ({ ...current, [only]: next[only] }));
+      return !next[only];
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -112,7 +123,8 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
   return (
     <MemberShell title="Daftar member" subtitle="Isi 3 data. Langsung jadi member, gratis.">
       <form
-        className="rounded-2xl bg-background p-4 shadow-sm"
+        noValidate
+        className="rounded-xl bg-background p-4 shadow-sm"
         onSubmit={(event) => {
           event.preventDefault();
           if (!validate()) return;
@@ -161,26 +173,31 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
             onChange={(event) => setName(event.target.value)}
             required
             maxLength={40}
-            className="h-11 text-base"
+            autoComplete="nickname"
+            className={cn("h-11 text-base md:text-base", errors.name && "border-destructive")}
+            aria-invalid={Boolean(errors.name)}
+            aria-describedby={errors.name ? "signup-name-error" : undefined}
           />
+          {errors.name ? <p id="signup-name-error" className="text-sm text-destructive">{errors.name}</p> : null}
         </div>
         <div className="mt-4 space-y-1.5">
           <Label htmlFor="signup-phone">Nomor WhatsApp</Label>
-          <div className={cn("flex h-11 items-center rounded-lg border bg-background focus-within:ring-2 focus-within:ring-ring", errors.phone && "border-destructive")}>
-            <span className="px-3 text-base text-muted-foreground">+62</span>
+          <div className={cn("flex h-11 items-center rounded-md border border-input bg-background shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50", errors.phone && "border-destructive")}>
+            <span className="pl-3 text-base text-muted-foreground" aria-hidden="true">+62</span>
             <Input
               id="signup-phone"
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
-              onBlur={validate}
+              onBlur={() => phone && validate("phone")}
               inputMode="numeric"
               autoComplete="tel-national"
-              className="h-11 border-0 text-base shadow-none focus-visible:ring-0"
+              className="h-11 border-0 text-base shadow-none focus-visible:ring-0 md:text-base"
               aria-invalid={Boolean(errors.phone)}
+              aria-describedby={errors.phone ? "signup-phone-error" : undefined}
               required
             />
           </div>
-          {errors.phone ? <p className="text-sm text-destructive">{errors.phone}</p> : null}
+          {errors.phone ? <p id="signup-phone-error" className="text-sm text-destructive">{errors.phone}</p> : null}
         </div>
         <div className="mt-4 space-y-1.5">
           <Label htmlFor="signup-birth">Tanggal lahir</Label>
@@ -189,22 +206,23 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
             type="date"
             value={birthDate}
             onChange={(event) => setBirthDate(event.target.value)}
-            onBlur={validate}
-            className={cn("h-11 text-base", errors.birthDate && "border-destructive")}
+            onBlur={() => birthDate && validate("birthDate")}
+            className={cn("h-11 text-base md:text-base", errors.birthDate && "border-destructive")}
             aria-invalid={Boolean(errors.birthDate)}
+            aria-describedby="signup-birth-hint"
             required
           />
           {errors.birthDate ? (
-            <p className="text-sm text-destructive">{errors.birthDate}</p>
+            <p id="signup-birth-hint" className="text-sm text-destructive">{errors.birthDate}</p>
           ) : (
-            <p className="text-xs text-muted-foreground">Buat diskon ulang tahun 25%.</p>
+            <p id="signup-birth-hint" className="text-sm text-muted-foreground">Buat diskon ulang tahun 25%.</p>
           )}
         </div>
-        <label className="mt-4 flex items-start gap-3 border-t pt-4 text-sm">
+        <label className="mt-4 flex min-h-11 cursor-pointer items-start gap-3 border-t pt-4 text-sm">
           <Checkbox checked={waConsent} onCheckedChange={(value) => setWaConsent(value === true)} className="mt-0.5" />
           <span>
             Boleh dihubungi lewat WhatsApp
-            <span className="mt-1 block text-xs text-muted-foreground">
+            <span className="mt-1 block text-sm text-muted-foreground">
               Buat pengingat treatment dan ucapan ulang tahun. Bisa berhenti kapan aja.
             </span>
           </span>
@@ -218,14 +236,14 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
           aria-hidden="true"
           name="website"
         />
-        {errors.form ? <p className="mt-3 text-sm text-destructive">{errors.form}</p> : null}
+        {errors.form ? <p className="mt-3 text-sm text-destructive" role="alert">{errors.form}</p> : null}
         {blocked ? (
-          <p className="mt-3 text-sm text-muted-foreground">
+          <p className="mt-3 text-sm text-muted-foreground" role="status">
             Terlalu banyak percobaan dari HP ini. {retryCopy(retryAfterMinutes)}
           </p>
         ) : null}
-        <Button type="submit" disabled={pending || blocked} className="mt-4 h-11 w-full bg-foreground text-base text-background">
-          {pending ? "Mendaftarkan..." : "Daftar jadi member"}
+        <Button type="submit" disabled={pending || blocked} className="mt-4 h-11 w-full bg-foreground text-base text-background hover:bg-foreground/90">
+          {pending ? "Mendaftarkan…" : "Daftar jadi member"}
         </Button>
       </form>
       <p className="px-2 text-sm text-muted-foreground">

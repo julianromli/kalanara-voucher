@@ -170,7 +170,7 @@ export function MemberScanPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative aspect-[5/4] overflow-hidden rounded-2xl bg-neutral-950 text-white">
+      <div className="relative aspect-[5/4] overflow-hidden rounded-xl bg-neutral-950 text-white">
         <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
         <canvas ref={canvasRef} className="hidden" />
         <div className="pointer-events-none absolute inset-6">
@@ -182,7 +182,7 @@ export function MemberScanPanel({
         </div>
         {cameraState !== "live" ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
-            <Camera className="size-6 text-white/80" />
+            <Camera className="size-6 text-white/80" aria-hidden="true" />
             <p className="text-sm font-medium">
               {cameraState === "blocked" ? "Kamera belum diizinkan" : "Menyalakan kamera"}
             </p>
@@ -205,14 +205,14 @@ export function MemberScanPanel({
         )}
         {status === "found" && statusName ? (
           <div className="absolute inset-x-0 top-4 flex justify-center">
-            <p className="rounded-full bg-success px-3 py-1 text-xs font-medium text-success-foreground">
+            <p className="rounded-full bg-success px-3 py-1 text-xs font-medium text-success-foreground" role="status">
               {statusName} ketemu
             </p>
           </div>
         ) : null}
         {status === "rejected" ? (
           <div className="absolute inset-x-0 top-4 flex justify-center px-4">
-            <p className="rounded-full bg-destructive px-3 py-1 text-center text-xs font-medium text-white">
+            <p className="rounded-full bg-destructive px-3 py-1 text-center text-xs font-medium text-white" role="alert">
               QR ini bukan kartu member Kalanara
             </p>
           </div>
@@ -230,8 +230,8 @@ export function MemberScanPanel({
           Atau cari pakai nomor HP
         </label>
         <div className="flex gap-2">
-          <div className="flex h-9 min-w-0 flex-1 items-center rounded-lg border bg-background">
-            <span className="px-3 text-sm text-muted-foreground">+62</span>
+          <div className="flex h-9 min-w-0 flex-1 items-center rounded-md border border-input bg-background shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
+            <span className="pl-3 text-sm text-muted-foreground" aria-hidden="true">+62</span>
             <Input
               id="member-phone-search"
               value={manualValue}
@@ -242,8 +242,8 @@ export function MemberScanPanel({
               aria-label="Nomor HP member"
             />
           </div>
-          <Button type="submit" variant="outline">
-            Cari
+          <Button type="submit" variant="outline" disabled={status === "loading"}>
+            {status === "loading" ? "Mencari…" : "Cari"}
           </Button>
         </div>
         {status === "not_found" ? (

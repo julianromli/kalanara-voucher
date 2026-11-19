@@ -63,8 +63,8 @@ export function MemberSettingsClient({
               tabIndex={tab === item.id ? 0 : -1}
               onClick={() => setTab(item.id)}
               onKeyDown={(event) => onTabKeyDown(event, index)}
-              className={`shrink-0 border-b-2 px-4 py-2 text-sm font-medium ${
-                tab === item.id ? "border-primary text-primary" : "border-transparent text-muted-foreground"
+              className={`shrink-0 rounded-t-md border-b-2 px-4 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+                tab === item.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
               {item.label}
@@ -90,7 +90,7 @@ export function MemberSettingsClient({
           {signupQr ? (
             <SignupQrPanel {...signupQr} />
           ) : (
-            <p className="text-sm text-destructive">QR daftar sendiri gagal dimuat.</p>
+            <p className="text-sm text-destructive" role="alert">QR daftar sendiri gagal dimuat. Muat ulang halaman ini.</p>
           )}
         </div>
       </AdminPageBody>

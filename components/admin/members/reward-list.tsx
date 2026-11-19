@@ -17,7 +17,7 @@ export function RewardList({ summary, onClaim }: RewardListProps) {
           const label = cashierRewardLabel(summary, reward);
           return (
             <li key={reward.milestone} className="flex h-11 items-center gap-3 text-sm">
-              <span className="w-8 shrink-0 text-muted-foreground">{reward.milestone}×</span>
+              <span className="w-8 shrink-0 text-muted-foreground tabular-nums">{reward.milestone}×</span>
               <span className="min-w-0 flex-1 truncate">
                 {(reward.claimId ? reward.claimedName : reward.name) || "Belum diatur"}
               </span>
@@ -27,11 +27,11 @@ export function RewardList({ summary, onClaim }: RewardListProps) {
                 </Button>
               ) : label.text ? (
                 <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  {reward.claimId ? <Check className="size-3 text-success" /> : null}
+                  {reward.claimId ? <Check className="size-3 text-success" aria-hidden="true" /> : null}
                   {label.text}
                 </span>
               ) : (
-                <span className="text-xs text-muted-foreground">—</span>
+                <span className="text-xs text-muted-foreground" aria-label="Belum bisa diklaim">–</span>
               )}
             </li>
           );

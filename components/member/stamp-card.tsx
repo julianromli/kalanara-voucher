@@ -7,10 +7,9 @@ import { cn } from "@/lib/utils";
 
 interface StampCardProps {
   summary: MemberSummary;
-  welcome?: boolean;
 }
 
-export function StampCard({ summary, welcome = false }: StampCardProps) {
+export function StampCard({ summary }: StampCardProps) {
   const progress = progressCopy(summary);
   const bracketEnd =
     summary.stampCount === 0
@@ -23,8 +22,8 @@ export function StampCard({ summary, welcome = false }: StampCardProps) {
   const filled = Math.max(0, Math.min(summary.stampCount, bracketEnd) - bracketStart + 1);
 
   return (
-    <section className="rounded-2xl bg-background p-4 shadow-sm">
-      <p className="text-4xl font-semibold tracking-tight">
+    <section className="rounded-xl bg-background p-4 shadow-sm">
+      <p className="text-4xl font-semibold tracking-tight tabular-nums">
         {summary.stampCount} <span className="text-base font-medium text-muted-foreground">stamp</span>
       </p>
       <p className="mt-2 text-sm font-medium">
@@ -44,7 +43,7 @@ export function StampCard({ summary, welcome = false }: StampCardProps) {
       {summary.stampCount === 0 ? (
         <p className="mt-1 text-sm text-muted-foreground">Voucher dari website nggak dapat stamp.</p>
       ) : null}
-      <div className="mt-4 grid grid-cols-6 gap-2">
+      <div className="mt-4 grid grid-cols-6 gap-2" aria-hidden="true">
         {marks.map((mark, index) => {
           const done = index < filled;
           return (
@@ -63,7 +62,6 @@ export function StampCard({ summary, welcome = false }: StampCardProps) {
           <Gift className="size-4" />
         </span>
       </div>
-      {welcome ? null : null}
     </section>
   );
 }
