@@ -243,7 +243,7 @@ function SuccessContent() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-white shadow-sm">
+          <div className="rounded-xl border border-border bg-card shadow-sm">
             {/* Order Info */}
             <div className="flex flex-col gap-4 border-b border-border p-6 sm:flex-row sm:items-start sm:justify-between">
               <div>

@@ -292,7 +292,7 @@ export function FollowUpClient({
                     aria-pressed={filter === item.id}
                     onClick={() => setFilter(item.id)}
                     className={`h-8 rounded-full px-3 text-sm transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
-                      filter === item.id ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"
+                      filter === item.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     {item.label} <span className="tabular-nums">{count}</span>

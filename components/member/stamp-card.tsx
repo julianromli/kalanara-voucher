@@ -51,7 +51,7 @@ export function StampCard({ summary }: StampCardProps) {
               key={mark}
               className={cn(
                 "flex aspect-square items-center justify-center rounded-full text-xs",
-                done ? "bg-foreground text-background" : "bg-muted text-muted-foreground",
+                done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
               )}
             >
               {done ? <Check className="size-4" /> : mark}

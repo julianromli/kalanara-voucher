@@ -74,7 +74,7 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
         title="Daftar member"
         subtitle="Satu nomor, satu kartu member."
         footer={
-          <Button asChild className="h-11 w-full bg-foreground text-base text-background hover:bg-foreground/90">
+          <Button asChild className="h-11 w-full text-base">
             <a href={APP_CONFIG.social.whatsapp}>Chat Kalanara</a>
           </Button>
         }
@@ -242,7 +242,7 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
             Terlalu banyak percobaan dari HP ini. {retryCopy(retryAfterMinutes)}
           </p>
         ) : null}
-        <Button type="submit" disabled={pending || blocked} className="mt-4 h-11 w-full bg-foreground text-base text-background hover:bg-foreground/90">
+        <Button type="submit" disabled={pending || blocked} className="mt-4 h-11 w-full text-base">
           {pending ? "Mendaftarkan…" : "Daftar jadi member"}
         </Button>
       </form>

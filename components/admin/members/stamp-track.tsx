@@ -12,7 +12,7 @@ export function StampTrack({ count, names }: StampTrackProps) {
     <div className="mt-4">
       <div className="relative h-2 rounded-full bg-muted">
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-foreground"
+          className="absolute inset-y-0 left-0 rounded-full bg-primary"
           style={{ width: `${Math.min(count, 30) / 30 * 100}%` }}
         />
       </div>
@@ -27,7 +27,7 @@ export function StampTrack({ count, names }: StampTrackProps) {
                 className={cn(
                   "mx-auto flex size-5 items-center justify-center rounded-full border text-[10px]",
                   reached
-                    ? "border-foreground bg-foreground text-background"
+                    ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-background text-muted-foreground",
                 )}
               >

@@ -105,20 +105,20 @@
     --radius: 0.5rem;
 
     /* Kalanara Spa Theme - Light Mode */
-    --background: oklch(0.9911 0 0); /* sand-50 */
-    --foreground: oklch(0.2046 0 0); /* sage-900 */
-    --card: oklch(0.9911 0 0);
-    --card-foreground: oklch(0.2046 0 0); /* sage-900 */
-    --popover: oklch(0.9911 0 0);
-    --popover-foreground: oklch(0.4386 0 0); /* sage-900 */
-    --primary: oklch(0.328 0.0286 210.1658); /* sage-600 */
-    --primary-foreground: oklch(0.9213 0.0135 167.1556); /* sand-50 */
-    --secondary: oklch(0.994 0 0); /* sand-100 */
-    --secondary-foreground: oklch(0.2046 0 0); /* sage-700 */
-    --muted: oklch(0.9461 0 0); /* sand-200 */
-    --muted-foreground: oklch(0.2435 0 0); /* sand-900 */
-    --accent: oklch(0.9461 0 0); /* sage-100 */
-    --accent-foreground: oklch(0.2435 0 0); /* sage-700 */
+    --background: oklch(0.98 0.005 78.3); /* sand-50 #faf8f5 */
+    --foreground: oklch(0.352 0.035 132.4); /* sage-900 #343f2c */
+    --card: oklch(0.98 0.005 78.3); /* sand-50 #faf8f5 */
+    --card-foreground: oklch(0.352 0.035 132.4); /* sage-900 #343f2c */
+    --popover: oklch(0.98 0.005 78.3); /* sand-50 #faf8f5 */
+    --popover-foreground: oklch(0.352 0.035 132.4); /* sage-900 #343f2c */
+    --primary: oklch(0.519 0.064 129.1); /* sage-600 #5d7048 */
+    --primary-foreground: oklch(0.98 0.005 78.3); /* sand-50 #faf8f5 */
+    --secondary: oklch(0.953 0.01 81.8); /* sand-100 #f3efe8 */
+    --secondary-foreground: oklch(0.445 0.052 130.5); /* sage-700 #4a5a3b */
+    --muted: oklch(0.901 0.02 77.3); /* sand-200 #e6ddd0 */
+    --muted-foreground: oklch(0.425 0.035 59.9); /* sand-900 #5d4a3b */
+    --accent: oklch(0.936 0.011 123.5); /* sage-100 #e8ebe3 */
+    --accent-foreground: oklch(0.445 0.052 130.5); /* sage-700 #4a5a3b */
     --destructive: oklch(0.5523 0.1927 32.7272);
     --success: oklch(0.5459 0.1573 155.0276); /* emerald-600 */
     --success-foreground: oklch(0.982 0.0176 155.0256); /* emerald-50 */
@@ -126,26 +126,26 @@
     --info-foreground: oklch(0.9745 0.0187 247.8544); /* blue-50 */
     --warning: oklch(0.7689 0.1884 75.1651); /* amber-500 */
     --warning-foreground: oklch(0.2792 0.0743 45.6351); /* amber-950 */
-    --border: oklch(0.9037 0 0); /* sage-200 */
-    --input: oklch(0.9731 0 0); /* sand-200 */
-    --ring: oklch(0.328 0.0286 210.1658); /* sage-500 */
+    --border: oklch(0.875 0.024 125.2); /* sage-200 #d2d9c8 */
+    --input: oklch(0.833 0.033 76.4); /* sand-300 #d5c6b1 (was labelled sand-200; one step darker so field edges show) */
+    --ring: oklch(0.519 0.064 129.1); /* sage-600 #5d7048 (was labelled sage-500; darker so the /50 focus halo reads) */
 
     /* Chart colors - spa-inspired */
-    --chart-1: oklch(0.328 0.0286 210.1658); /* sage-500 */
-    --chart-2: oklch(0.6231 0.188 259.8145); /* sand-500 */
-    --chart-3: oklch(0.6056 0.2189 292.7172); /* sage-400 */
-    --chart-4: oklch(0.7686 0.1647 70.0804); /* sand-400 */
-    --chart-5: oklch(0.6959 0.1491 162.4796); /* sage-600 */
+    --chart-1: oklch(0.519 0.064 129.1); /* sage-600 #5d7048 (spread series across the ramp) */
+    --chart-2: oklch(0.687 0.058 67.5); /* sand-500 #b39474 (was blue) */
+    --chart-3: oklch(0.699 0.065 126.1); /* sage-400 #94a67a (was purple) */
+    --chart-4: oklch(0.833 0.033 76.4); /* sand-300 #d5c6b1 (was amber) */
+    --chart-5: oklch(0.388 0.041 130.5); /* sage-800 #3d4932 (was teal) */
 
     /* Sidebar */
-    --sidebar: oklch(0.9911 0 0); /* sage-50 */
-    --sidebar-foreground: oklch(0.5452 0 0); /* sage-900 */
-    --sidebar-primary: oklch(0.328 0.0286 210.1658); /* sage-600 */
-    --sidebar-primary-foreground: oklch(0.2626 0.0147 166.4589); /* sand-50 */
-    --sidebar-accent: oklch(0.9461 0 0); /* sage-100 */
-    --sidebar-accent-foreground: oklch(0.2435 0 0); /* sage-700 */
-    --sidebar-border: oklch(0.9037 0 0); /* sage-200 */
-    --sidebar-ring: oklch(0.8348 0.1302 160.908); /* sage-500 */
+    --sidebar: oklch(0.975 0.004 121.6); /* sage-50 #f6f7f4 */
+    --sidebar-foreground: oklch(0.352 0.035 132.4); /* sage-900 #343f2c */
+    --sidebar-primary: oklch(0.519 0.064 129.1); /* sage-600 #5d7048 */
+    --sidebar-primary-foreground: oklch(0.98 0.005 78.3); /* sand-50 #faf8f5 (was a dark value) */
+    --sidebar-accent: oklch(0.936 0.011 123.5); /* sage-100 #e8ebe3 */
+    --sidebar-accent-foreground: oklch(0.445 0.052 130.5); /* sage-700 #4a5a3b */
+    --sidebar-border: oklch(0.875 0.024 125.2); /* sage-200 #d2d9c8 */
+    --sidebar-ring: oklch(0.519 0.064 129.1); /* sage-600 #5d7048 (matches --ring) */
     --destructive-foreground: oklch(0.9934 0.0032 17.2118);
     --font-sans: var(--font-outfit), sans-serif;
     --font-serif: var(--font-playfair), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
@@ -181,20 +181,20 @@
 
 .dark {
     /* Kalanara Spa Theme - Dark Mode */
-    --background: oklch(0.1822 0 0); /* sage-950 */
-    --foreground: oklch(0.9288 0.0126 255.5078); /* sand-100 */
-    --card: oklch(0.2046 0 0); /* sage-900 */
-    --card-foreground: oklch(0.9288 0.0126 255.5078); /* sand-100 */
-    --popover: oklch(0.2603 0 0); /* sage-900 */
-    --popover-foreground: oklch(0.7348 0 0); /* sand-100 */
-    --primary: oklch(0.328 0.0286 210.1658); /* sage-400 */
-    --primary-foreground: oklch(0.9213 0.0135 167.1556); /* sage-950 */
-    --secondary: oklch(0.2603 0 0); /* sage-800 */
-    --secondary-foreground: oklch(0.9851 0 0); /* sand-200 */
-    --muted: oklch(0.2393 0 0); /* sand-950 */
-    --muted-foreground: oklch(0.7122 0 0); /* sand-300 */
-    --accent: oklch(0.3132 0 0); /* sage-700 */
-    --accent-foreground: oklch(0.9851 0 0); /* sage-100 */
+    --background: oklch(0.237 0.024 132.6); /* sage-950 #1a2115 */
+    --foreground: oklch(0.953 0.01 81.8); /* sand-100 #f3efe8 */
+    --card: oklch(0.352 0.035 132.4); /* sage-900 #343f2c */
+    --card-foreground: oklch(0.953 0.01 81.8); /* sand-100 #f3efe8 */
+    --popover: oklch(0.352 0.035 132.4); /* sage-900 #343f2c */
+    --popover-foreground: oklch(0.953 0.01 81.8); /* sand-100 #f3efe8 */
+    --primary: oklch(0.789 0.045 126); /* sage-300 #b3c0a1 (was labelled sage-400; lighter so sage-950 text clears APCA 60) */
+    --primary-foreground: oklch(0.237 0.024 132.6); /* sage-950 #1a2115 */
+    --secondary: oklch(0.388 0.041 130.5); /* sage-800 #3d4932 */
+    --secondary-foreground: oklch(0.901 0.02 77.3); /* sand-200 #e6ddd0 */
+    --muted: oklch(0.279 0.022 57.7); /* sand-950 #31261e */
+    --muted-foreground: oklch(0.833 0.033 76.4); /* sand-300 #d5c6b1 */
+    --accent: oklch(0.445 0.052 130.5); /* sage-700 #4a5a3b */
+    --accent-foreground: oklch(0.936 0.011 123.5); /* sage-100 #e8ebe3 */
     --destructive: oklch(0.3123 0.0852 29.7877);
     --success: oklch(0.7654 0.1773 163.2253); /* emerald-400 */
     --success-foreground: oklch(0.2493 0.0667 153.0064); /* emerald-950 */
@@ -202,26 +202,26 @@
     --info-foreground: oklch(0.232 0.0702 264.052); /* blue-950 */
     --warning: oklch(0.8517 0.1994 91.1562); /* amber-400 */
     --warning-foreground: oklch(0.2336 0.0862 64.22); /* amber-950 */
-    --border: oklch(0.2809 0 0); /* sage-700 */
-    --input: oklch(0.2603 0 0); /* sage-800 */
-    --ring: oklch(0.328 0.0286 210.1658); /* sage-400 */
+    --border: oklch(0.445 0.052 130.5); /* sage-700 #4a5a3b */
+    --input: oklch(0.445 0.052 130.5); /* sage-700 #4a5a3b (was labelled sage-800; matches --border so fields show) */
+    --ring: oklch(0.789 0.045 126); /* sage-300 #b3c0a1 (matches --primary) */
 
     /* Chart colors - spa-inspired dark */
-    --chart-1: oklch(0.328 0.0286 210.1658); /* sage-400 */
-    --chart-2: oklch(0.7137 0.1434 254.624); /* sand-400 */
-    --chart-3: oklch(0.709 0.1592 293.5412); /* sage-300 */
-    --chart-4: oklch(0.8369 0.1644 84.4286); /* sand-300 */
-    --chart-5: oklch(0.7845 0.1325 181.912); /* sage-500 */
+    --chart-1: oklch(0.699 0.065 126.1); /* sage-400 #94a67a */
+    --chart-2: oklch(0.752 0.048 71.3); /* sand-400 #c2aa8e (was blue) */
+    --chart-3: oklch(0.875 0.024 125.2); /* sage-200 #d2d9c8 (was purple) */
+    --chart-4: oklch(0.633 0.064 63.8); /* sand-600 #a68261 (was amber) */
+    --chart-5: oklch(0.519 0.064 129.1); /* sage-600 #5d7048 (was teal) */
 
     /* Sidebar */
-    --sidebar: oklch(0.1822 0 0); /* sage-900 */
-    --sidebar-foreground: oklch(0.6301 0 0); /* sand-100 */
-    --sidebar-primary: oklch(0.328 0.0286 210.1658); /* sage-400 */
-    --sidebar-primary-foreground: oklch(0.9213 0.0135 167.1556); /* sage-950 */
-    --sidebar-accent: oklch(0.3132 0 0); /* sage-700 */
-    --sidebar-accent-foreground: oklch(0.9851 0 0); /* sage-100 */
-    --sidebar-border: oklch(0.2809 0 0); /* sage-700 */
-    --sidebar-ring: oklch(0.8003 0.1821 151.711); /* sage-400 */
+    --sidebar: oklch(0.352 0.035 132.4); /* sage-900 #343f2c */
+    --sidebar-foreground: oklch(0.953 0.01 81.8); /* sand-100 #f3efe8 */
+    --sidebar-primary: oklch(0.789 0.045 126); /* sage-300 #b3c0a1 (matches --primary) */
+    --sidebar-primary-foreground: oklch(0.237 0.024 132.6); /* sage-950 #1a2115 */
+    --sidebar-accent: oklch(0.445 0.052 130.5); /* sage-700 #4a5a3b */
+    --sidebar-accent-foreground: oklch(0.936 0.011 123.5); /* sage-100 #e8ebe3 */
+    --sidebar-border: oklch(0.445 0.052 130.5); /* sage-700 #4a5a3b */
+    --sidebar-ring: oklch(0.789 0.045 126); /* sage-300 #b3c0a1 (matches --ring) */
     --destructive-foreground: oklch(0.9368 0.0045 34.3092);
     --radius: 0.5rem;
     --font-sans: var(--font-outfit), sans-serif;

@@ -27,7 +27,7 @@ export default async function MemberCardPage({ params, searchParams }: MemberPag
         title="Kartu member"
         subtitle={failed ? "Kartu belum bisa dibuka" : "Link ini nggak bisa dibuka"}
         footer={
-          <Button asChild className="h-11 w-full bg-foreground text-base text-background hover:bg-foreground/90">
+          <Button asChild className="h-11 w-full text-base">
             <a href={APP_CONFIG.social.whatsapp}>Chat Kalanara</a>
           </Button>
         }
@@ -73,7 +73,7 @@ export default async function MemberCardPage({ params, searchParams }: MemberPag
       title={`Halo, ${firstName(summary.name)}`}
       subtitle={greeting}
       footer={
-        <Button asChild className="h-11 w-full bg-foreground text-base text-background hover:bg-foreground/90">
+        <Button asChild className="h-11 w-full text-base">
           <a
             href={`${APP_CONFIG.social.whatsapp}?text=${encodeURIComponent(reserveText)}`}
           >

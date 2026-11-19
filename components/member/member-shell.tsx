@@ -15,7 +15,7 @@ const column = "mx-auto w-full max-w-md";
 export function MemberShell({ title, subtitle, children, footer }: MemberShellProps) {
   return (
     <div className="min-h-svh bg-muted/30">
-      <header className="bg-foreground px-5 pt-6 pb-16 text-background">
+      <header className="bg-sage-900 px-5 pt-6 pb-16 text-sand-50">
         <div className={column}>
           <p className="inline-flex items-center gap-2 text-sm">
             <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
@@ -24,7 +24,7 @@ export function MemberShell({ title, subtitle, children, footer }: MemberShellPr
             {APP_CONFIG.name}
           </p>
           <h1 className="mt-4 text-3xl font-semibold tracking-tight text-balance">{title}</h1>
-          <p className="mt-1 text-sm text-background/70">{subtitle}</p>
+          <p className="mt-1 text-sm text-sand-50/75">{subtitle}</p>
         </div>
       </header>
       <div className={`${column} -mt-10 space-y-3 px-4 ${footer ? "pb-28" : "pb-8"}`}>{children}</div>

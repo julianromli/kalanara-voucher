@@ -195,7 +195,7 @@ export function MemberScanPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative aspect-[5/4] overflow-hidden rounded-xl bg-neutral-950 text-white">
+      <div className="relative aspect-[5/4] overflow-hidden rounded-xl bg-sage-950 text-white">
         <video ref={videoRef} className="h-full w-full object-cover" playsInline muted />
         <canvas ref={canvasRef} className="hidden" />
         <div className="pointer-events-none absolute inset-6">
