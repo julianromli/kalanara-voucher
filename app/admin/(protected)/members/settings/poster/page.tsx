@@ -33,9 +33,9 @@ export default async function MemberPosterPage() {
           .poster-page { max-width: none; }
         }
       `}</style>
-      <header className="bg-sage-900 px-8 pt-8 pb-16 text-sand-50">
+      <header className="bg-primary px-8 pt-8 pb-16 text-primary-foreground">
         <p className="inline-flex items-center gap-2 text-sm">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-primary-foreground/15 text-primary-foreground">
             <Leaf className="size-4" />
           </span>
           Kalanara Spa
@@ -43,7 +43,7 @@ export default async function MemberPosterPage() {
         <h1 className="mt-6 text-3xl font-semibold tracking-tight">
           Jadi member Kalanara. Gratis.
         </h1>
-        <p className="mt-2 text-sand-50/75">
+        <p className="mt-2 text-primary-foreground/80">
           Kumpulin stamp tiap treatment. Tiap 5 stamp ada reward.
         </p>
       </header>

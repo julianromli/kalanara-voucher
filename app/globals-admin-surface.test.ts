@@ -35,33 +35,13 @@ describe("admin surface CSS", () => {
     expect(afterLayer).toMatch(/\.skeleton-shimmer::after\s*\{/);
   });
 
-  test("maps semantic colour tokens to the sage/sand palette in light and dark", () => {
-    const semantic = [
-      "background", "foreground", "card", "card-foreground", "popover", "popover-foreground",
-      "primary", "primary-foreground", "secondary", "secondary-foreground", "muted", "muted-foreground",
-      "accent", "accent-foreground", "border", "input", "ring",
-      "chart-1", "chart-2", "chart-3", "chart-4", "chart-5",
-      "sidebar", "sidebar-foreground", "sidebar-primary", "sidebar-primary-foreground",
-      "sidebar-accent", "sidebar-accent-foreground", "sidebar-border", "sidebar-ring",
-    ];
-    const block = (selector: string) => {
-      const start = css.indexOf(`${selector} {`);
-      return css.slice(start, css.indexOf("}", start));
-    };
-
+  test("pins the brand dark green #23393d as primary in light and dark", () => {
+    const brand = "oklch(0.328 0.0286 210.1658)";
     for (const selector of [":root", ".dark"]) {
-      const body = block(selector);
-      for (const token of semantic) {
-        const line = body.match(new RegExp(`^\\s*--${token}: (oklch\\([^)]*\\));\\s*/\\* (sage|sand)-\\d+ #[0-9a-f]{6}`, "m"));
-        expect(line, `${selector} --${token}`).not.toBeNull();
-        const chroma = Number(line![1].split(" ")[1]);
-        expect(chroma, `${selector} --${token} must not be grey`).toBeGreaterThan(0);
-      }
+      const start = css.indexOf(`${selector} {`);
+      const body = css.slice(start, css.indexOf("}", start));
+      expect(body, `${selector} --primary`).toContain(`--primary: ${brand};`);
+      expect(body, `${selector} --primary-foreground`).toContain("--primary-foreground: oklch(0.9213 0.0135 167.1556);");
     }
-  });
-
-  test("keeps primary text readable against primary in both themes", () => {
-    expect(css).toMatch(/:root \{[^}]*--primary: oklch\(0\.519 0\.064 129\.1\); \/\* sage-600/);
-    expect(css).toMatch(/\.dark \{[^}]*--primary: oklch\(0\.789 0\.045 126\); \/\* sage-300/);
   });
 });

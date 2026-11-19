@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 const TIER_STYLES = [
   "bg-background text-foreground ring-foreground/15",
   "bg-orange-100 text-orange-900 ring-current/15 dark:bg-orange-950 dark:text-orange-200",
-  "bg-sage-100 text-sage-800 ring-current/15 dark:bg-sage-800 dark:text-sage-100",
+  "bg-slate-100 text-slate-700 ring-current/15 dark:bg-slate-800 dark:text-slate-200",
   "bg-amber-100 text-amber-900 ring-current/15 dark:bg-amber-950 dark:text-amber-200",
 ] as const;
 
