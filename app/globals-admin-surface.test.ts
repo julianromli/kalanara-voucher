@@ -42,6 +42,9 @@ describe("admin surface CSS", () => {
       const body = css.slice(start, css.indexOf("}", start));
       expect(body, `${selector} --primary`).toContain(`--primary: ${brand};`);
       expect(body, `${selector} --primary-foreground`).toContain("--primary-foreground: oklch(0.9213 0.0135 167.1556);");
+      expect(body, `${selector} --sidebar-primary-foreground`).toContain(
+        "--sidebar-primary-foreground: oklch(0.9213 0.0135 167.1556);",
+      );
     }
   });
 });

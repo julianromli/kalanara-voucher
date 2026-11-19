@@ -141,7 +141,7 @@
     --sidebar: oklch(0.9911 0 0); /* neutral #fcfcfc */
     --sidebar-foreground: oklch(0.5452 0 0); /* neutral #707070 */
     --sidebar-primary: oklch(0.328 0.0286 210.1658); /* brand dark green #23393d */
-    --sidebar-primary-foreground: oklch(0.2626 0.0147 166.4589); /* near-black green #1e2723 (dark on dark brand green; kept as live) */
+    --sidebar-primary-foreground: oklch(0.9213 0.0135 167.1556); /* pale mint on brand green #dde8e3 (same as --primary-foreground; was #1e2723, 1.26:1) */
     --sidebar-accent: oklch(0.9461 0 0); /* neutral #ededed */
     --sidebar-accent-foreground: oklch(0.2435 0 0); /* neutral #202020 */
     --sidebar-border: oklch(0.9037 0 0); /* neutral #dfdfdf */
