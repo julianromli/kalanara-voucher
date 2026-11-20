@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { normalizeMemberPhone } from "@/lib/membership/phone";
-import { parseMemberScan } from "@/lib/membership/scan";
+import { isLookupPhonePrefixVisible, parseMemberScan } from "@/lib/membership/scan";
 import { fillFollowupTemplate } from "@/lib/membership/templates";
 
 const token = "a".repeat(48);
@@ -63,5 +63,16 @@ describe("member scan and phone", () => {
     expect(text).toContain("Halo Rani");
     expect(text).toContain("Body Massage 60 menit");
     expect(text).toContain(`${appUrl}/m/${token}`);
+  });
+
+  test("shows the +62 prefix only for an empty or phone-shaped lookup", () => {
+    expect(isLookupPhonePrefixVisible("")).toBe(true);
+    expect(isLookupPhonePrefixVisible("   ")).toBe(true);
+    expect(isLookupPhonePrefixVisible("81234567890")).toBe(true);
+    expect(isLookupPhonePrefixVisible("0812 3456 7890")).toBe(true);
+    expect(isLookupPhonePrefixVisible("+6281234567890")).toBe(true);
+    expect(isLookupPhonePrefixVisible(`${appUrl}/m/${token}`)).toBe(false);
+    expect(isLookupPhonePrefixVisible(`http://localhost:3000/m/${token}`)).toBe(false);
+    expect(isLookupPhonePrefixVisible(token)).toBe(false);
   });
 });

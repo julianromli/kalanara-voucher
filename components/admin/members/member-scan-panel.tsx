@@ -5,7 +5,7 @@ import jsQR from "jsqr";
 import { Camera, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { parseMemberScan } from "@/lib/membership/scan";
+import { isLookupPhonePrefixVisible, parseMemberScan } from "@/lib/membership/scan";
 import { tryAppBaseUrl } from "@/lib/membership/urls";
 
 interface MemberScanPanelProps {
@@ -193,6 +193,8 @@ export function MemberScanPanel({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  const showPhonePrefix = isLookupPhonePrefixVisible(manualValue);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="relative aspect-[5/4] overflow-hidden rounded-xl bg-neutral-950 text-white">
@@ -256,13 +258,15 @@ export function MemberScanPanel({
         </label>
         <div className="flex gap-2">
           <div className="flex h-9 min-w-0 flex-1 items-center rounded-md border border-input bg-background shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
-            <span className="pl-3 text-sm text-muted-foreground" aria-hidden="true">+62</span>
+            {showPhonePrefix ? (
+              <span className="pl-3 text-sm text-muted-foreground" aria-hidden="true">+62</span>
+            ) : null}
             <Input
               id="member-phone-search"
               value={manualValue}
               onChange={(event) => onManualChange(event.target.value)}
-              inputMode="numeric"
-              autoComplete="tel-national"
+              inputMode={showPhonePrefix ? "numeric" : "url"}
+              autoComplete={showPhonePrefix ? "tel-national" : "off"}
               className="h-9 border-0 shadow-none focus-visible:ring-0"
               aria-label="Nomor HP member"
             />

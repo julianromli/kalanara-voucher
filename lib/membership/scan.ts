@@ -23,6 +23,15 @@ function allowedHosts(candidates: Array<string | undefined>): Set<string> {
   return hosts;
 }
 
+const PHONE_SHAPED = /^[+(0-9][0-9\s().+-]*$/;
+
+/** Show the +62 prefix only when the cashier field is empty or phone-shaped. */
+export function isLookupPhonePrefixVisible(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return true;
+  return PHONE_SHAPED.test(trimmed);
+}
+
 export function parseMemberScan(
   raw: string,
   options: { appUrl?: string; origin?: string } = {},
