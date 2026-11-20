@@ -18,6 +18,8 @@ import {
   Tag01Icon,
   UserGroupIcon,
   Megaphone01Icon,
+  LoyaltyCardIcon,
+  ReloadIcon,
 } from "@hugeicons/core-free-icons";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 import {
@@ -43,6 +45,18 @@ const navItems = [
     label: "Dashboard",
     href: "/admin/dashboard",
     requiredPermission: AdminPermission.DASHBOARD_VIEW_OPERATIONAL,
+  },
+  {
+    icon: LoyaltyCardIcon,
+    label: "Member",
+    href: "/admin/members",
+    requiredPermission: AdminPermission.MEMBERS_OPERATE,
+  },
+  {
+    icon: ReloadIcon,
+    label: "Follow up",
+    href: "/admin/members/follow-up",
+    requiredPermission: AdminPermission.MEMBERS_OPERATE,
   },
   {
     icon: Ticket01Icon,
@@ -94,9 +108,29 @@ const navItems = [
   },
 ];
 
+function isNavItemActive(href: string, pathname: string) {
+  if (href === "/admin/members") {
+    return (
+      pathname === "/admin/members" ||
+      pathname.startsWith("/admin/members/settings")
+    );
+  }
+
+  if (href === "/admin/members/follow-up") {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  return pathname === href;
+}
+
+interface AdminSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  followUpCount?: number;
+}
+
 export function AdminSidebar({
+  followUpCount = 0,
   ...props
-}: React.ComponentProps<typeof Sidebar>) {
+}: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { hasPermission, logout, user } = useAuth();
@@ -209,7 +243,9 @@ export function AdminSidebar({
                 </p>
               ) : (
                 filteredNavItems.map((item) => {
-                  const isActive = activeHref === item.href;
+                  const isActive = isNavItemActive(item.href, activeHref);
+                  const showFollowUpCount =
+                    item.href === "/admin/members/follow-up" && followUpCount > 0;
                   return (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
@@ -224,6 +260,11 @@ export function AdminSidebar({
                         >
                           <HugeiconsIcon icon={item.icon} size={16} />
                           <span>{item.label}</span>
+                          {showFollowUpCount ? (
+                            <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
+                              {followUpCount}
+                            </span>
+                          ) : null}
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

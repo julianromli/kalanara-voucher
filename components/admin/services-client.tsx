@@ -1243,7 +1243,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
 
       <AlertDialog
         open={Boolean(categoryToDelete)}
-        onOpenChange={(open) => !open && setCategoryToDelete(null)}
+        onOpenChange={(open) => !open && !isCatBusy && setCategoryToDelete(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>

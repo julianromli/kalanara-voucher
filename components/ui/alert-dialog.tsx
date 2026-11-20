@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { XIcon } from "lucide-react"
 import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
@@ -47,9 +48,12 @@ function AlertDialogOverlay({
 function AlertDialogContent({
   className,
   size = "default",
+  showCloseButton = true,
+  children,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
   size?: "default" | "sm"
+  showCloseButton?: boolean
 }) {
   return (
     <AlertDialogPortal>
@@ -62,7 +66,23 @@ function AlertDialogContent({
           className
         )}
         {...props}
-      />
+      >
+        {/*
+          The x is a second Cancel, so it closes through the same onOpenChange
+          guard as Batal. It renders first so the footer's Cancel, rendered
+          later, keeps Radix's open-focus.
+        */}
+        {showCloseButton ? (
+          <AlertDialogPrimitive.Cancel
+            data-slot="alert-dialog-close"
+            aria-label="Tutup"
+            className="absolute top-3.5 right-3.5 flex size-8 items-center justify-center rounded-lg opacity-70 transition-opacity outline-none hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0"
+          >
+            <XIcon aria-hidden="true" />
+          </AlertDialogPrimitive.Cancel>
+        ) : null}
+        {children}
+      </AlertDialogPrimitive.Content>
     </AlertDialogPortal>
   )
 }
@@ -75,7 +95,7 @@ function AlertDialogHeader({
     <div
       data-slot="alert-dialog-header"
       className={cn(
-        "grid grid-rows-[auto_1fr] place-items-center gap-1.5 text-center has-data-[slot=alert-dialog-media]:grid-rows-[auto_auto_1fr] has-data-[slot=alert-dialog-media]:gap-x-6 sm:group-data-[size=default]/alert-dialog-content:place-items-start sm:group-data-[size=default]/alert-dialog-content:text-left sm:group-data-[size=default]/alert-dialog-content:has-data-[slot=alert-dialog-media]:grid-rows-[auto_1fr]",
+        "grid grid-rows-[auto_1fr] place-items-center gap-1.5 px-8 text-center sm:group-data-[size=default]/alert-dialog-content:pl-0 sm:group-data-[size=default]/alert-dialog-content:pr-8 has-data-[slot=alert-dialog-media]:grid-rows-[auto_auto_1fr] has-data-[slot=alert-dialog-media]:gap-x-6 sm:group-data-[size=default]/alert-dialog-content:place-items-start sm:group-data-[size=default]/alert-dialog-content:text-left sm:group-data-[size=default]/alert-dialog-content:has-data-[slot=alert-dialog-media]:grid-rows-[auto_1fr]",
         className
       )}
       {...props}

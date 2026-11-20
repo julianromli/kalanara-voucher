@@ -34,4 +34,17 @@ describe("admin surface CSS", () => {
     expect(afterLayer).toMatch(/\.skeleton-shimmer\s*\{/);
     expect(afterLayer).toMatch(/\.skeleton-shimmer::after\s*\{/);
   });
+
+  test("pins the brand dark green #23393d as primary in light and dark", () => {
+    const brand = "oklch(0.328 0.0286 210.1658)";
+    for (const selector of [":root", ".dark"]) {
+      const start = css.indexOf(`${selector} {`);
+      const body = css.slice(start, css.indexOf("}", start));
+      expect(body, `${selector} --primary`).toContain(`--primary: ${brand};`);
+      expect(body, `${selector} --primary-foreground`).toContain("--primary-foreground: oklch(0.9213 0.0135 167.1556);");
+      expect(body, `${selector} --sidebar-primary-foreground`).toContain(
+        "--sidebar-primary-foreground: oklch(0.9213 0.0135 167.1556);",
+      );
+    }
+  });
 });

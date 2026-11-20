@@ -13,14 +13,26 @@ import { CheckCircle, AlertCircle, Info, X } from 'lucide-react';
 // Types
 // ============================================================================
 
+interface ToastOptions {
+  duration?: number;
+  actionLabel?: string;
+  onAction?: () => void;
+}
+
 interface ToastMessage {
   id: string;
   message: string;
   type: 'success' | 'error' | 'info';
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 interface ToastContextType {
-  showToast: (message: string, type: 'success' | 'error' | 'info') => void;
+  showToast: (
+    message: string,
+    type: 'success' | 'error' | 'info',
+    options?: ToastOptions,
+  ) => void;
 }
 
 interface ToastProviderProps {
@@ -31,7 +43,7 @@ interface ToastProviderProps {
 // Constants
 // ============================================================================
 
-const TOAST_DURATION = 3000; // 3 seconds
+const TOAST_DURATION = 3000;
 
 const TOAST_STYLES: Record<
   ToastMessage['type'],
@@ -95,13 +107,25 @@ function Toast({
       className={`
         relative overflow-hidden rounded-xl border bg-background shadow-md
         ${styles.border} ${styles.text}
-        animate-in fade-in-0 slide-in-from-bottom-2 duration-200 ease-out
+        animate-in fade-in-0 slide-in-from-bottom-2 duration-200 ease-out motion-reduce:animate-none
       `}
     >
       <div className={`absolute inset-0 pointer-events-none ${styles.bg}`} />
       <div className="relative z-10 flex items-center gap-3 px-4 py-3">
         <ToastIcon type={toast.type} />
         <p className="flex-1 text-sm font-medium">{toast.message}</p>
+        {toast.actionLabel && toast.onAction ? (
+          <button
+            type="button"
+            onClick={() => {
+              toast.onAction?.();
+              onDismiss(toast.id);
+            }}
+            className="h-8 shrink-0 rounded-lg border bg-background px-3 text-xs font-medium transition-transform outline-none active:scale-[0.98] focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          >
+            {toast.actionLabel}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => onDismiss(toast.id)}
@@ -110,7 +134,7 @@ function Toast({
             hover:bg-black/5 dark:hover:bg-white/10
             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
           `}
-          aria-label="Dismiss toast"
+          aria-label="Tutup notifikasi"
         >
           <X className="size-4" />
         </button>
@@ -153,16 +177,21 @@ export function ToastProvider({ children }: ToastProviderProps) {
   }, []);
 
   const showToast = useCallback(
-    (message: string, type: 'success' | 'error' | 'info') => {
+    (message: string, type: 'success' | 'error' | 'info', options?: ToastOptions) => {
       const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      const newToast: ToastMessage = { id, message, type };
+      const newToast: ToastMessage = {
+        id,
+        message,
+        type,
+        actionLabel: options?.actionLabel,
+        onAction: options?.onAction,
+      };
 
       setToasts((prev) => [...prev, newToast]);
 
-      // Auto-dismiss after TOAST_DURATION
       setTimeout(() => {
         dismissToast(id);
-      }, TOAST_DURATION);
+      }, options?.duration ?? TOAST_DURATION);
     },
     [dismissToast]
   );

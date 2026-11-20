@@ -694,6 +694,316 @@ export type Database = {
         };
         Relationships: [];
       };
+      member_signup_qr: {
+        Row: {
+          id: string;
+          token: string;
+          created_by: string | null;
+          created_at: string;
+          revoked_at: string | null;
+          revoked_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          token?: string;
+          created_by?: string | null;
+          created_at?: string;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          token?: string;
+          created_by?: string | null;
+          created_at?: string;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+        };
+        Relationships: [];
+      };
+      members: {
+        Row: {
+          id: string;
+          name: string;
+          phone: string;
+          birth_date: string;
+          wa_consent: boolean;
+          wa_consent_at: string | null;
+          card_token: string;
+          card_token_rotated_at: string | null;
+          member_code: string;
+          source: "cashier" | "self_signup";
+          cycle_start: string;
+          base_tier: number;
+          signup_qr_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          phone: string;
+          birth_date: string;
+          wa_consent?: boolean;
+          wa_consent_at?: string | null;
+          card_token?: string;
+          card_token_rotated_at?: string | null;
+          member_code?: string;
+          source: "cashier" | "self_signup";
+          cycle_start?: string;
+          base_tier?: number;
+          signup_qr_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          phone?: string;
+          birth_date?: string;
+          wa_consent?: boolean;
+          wa_consent_at?: string | null;
+          card_token?: string;
+          card_token_rotated_at?: string | null;
+          member_code?: string;
+          source?: "cashier" | "self_signup";
+          cycle_start?: string;
+          base_tier?: number;
+          signup_qr_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "members_signup_qr_id_fkey";
+            columns: ["signup_qr_id"];
+            isOneToOne: false;
+            referencedRelation: "member_signup_qr";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      member_stamps: {
+        Row: {
+          id: string;
+          member_id: string;
+          cycle_start: string;
+          visit_date: string;
+          service_id: string | null;
+          service_name: string;
+          created_by: string;
+          created_at: string;
+          voided_at: string | null;
+          voided_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          member_id: string;
+          cycle_start: string;
+          visit_date: string;
+          service_id?: string | null;
+          service_name: string;
+          created_by: string;
+          created_at?: string;
+          voided_at?: string | null;
+          voided_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          member_id?: string;
+          cycle_start?: string;
+          visit_date?: string;
+          service_id?: string | null;
+          service_name?: string;
+          created_by?: string;
+          created_at?: string;
+          voided_at?: string | null;
+          voided_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "member_stamps_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "member_stamps_service_id_fkey";
+            columns: ["service_id"];
+            isOneToOne: false;
+            referencedRelation: "services";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      member_rewards: {
+        Row: {
+          milestone: number;
+          name: string | null;
+          note: string | null;
+          updated_by: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          milestone: number;
+          name?: string | null;
+          note?: string | null;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          milestone?: number;
+          name?: string | null;
+          note?: string | null;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      member_reward_claims: {
+        Row: {
+          id: string;
+          member_id: string;
+          cycle_start: string;
+          milestone: number;
+          reward_name: string;
+          service_name: string | null;
+          claimed_by: string;
+          claimed_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_id: string;
+          cycle_start: string;
+          milestone: number;
+          reward_name: string;
+          service_name?: string | null;
+          claimed_by: string;
+          claimed_at?: string;
+        };
+        Update: {
+          id?: string;
+          member_id?: string;
+          cycle_start?: string;
+          milestone?: number;
+          reward_name?: string;
+          service_name?: string | null;
+          claimed_by?: string;
+          claimed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "member_reward_claims_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      member_birthday_redemptions: {
+        Row: {
+          id: string;
+          member_id: string;
+          birthday_year: number;
+          service_name: string | null;
+          redeemed_by: string;
+          redeemed_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_id: string;
+          birthday_year: number;
+          service_name?: string | null;
+          redeemed_by: string;
+          redeemed_at?: string;
+        };
+        Update: {
+          id?: string;
+          member_id?: string;
+          birthday_year?: number;
+          service_name?: string | null;
+          redeemed_by?: string;
+          redeemed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "member_birthday_redemptions_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      member_followup_due: {
+        Row: {
+          member_id: string;
+          stage: "day30" | "day60" | "day90" | "day120" | "birthday";
+          anchor_date: string;
+          computed_on: string;
+        };
+        Insert: {
+          member_id: string;
+          stage: "day30" | "day60" | "day90" | "day120" | "birthday";
+          anchor_date: string;
+          computed_on: string;
+        };
+        Update: {
+          member_id?: string;
+          stage?: "day30" | "day60" | "day90" | "day120" | "birthday";
+          anchor_date?: string;
+          computed_on?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "member_followup_due_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      member_followups: {
+        Row: {
+          id: string;
+          member_id: string;
+          stage: "day30" | "day60" | "day90" | "day120" | "birthday";
+          anchor_date: string;
+          marked_by: string | null;
+          marked_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          member_id: string;
+          stage: "day30" | "day60" | "day90" | "day120" | "birthday";
+          anchor_date: string;
+          marked_by?: string | null;
+          marked_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          member_id?: string;
+          stage?: "day30" | "day60" | "day90" | "day120" | "birthday";
+          anchor_date?: string;
+          marked_by?: string | null;
+          marked_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "member_followups_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       site_settings: {
         Row: {
           description: string | null
@@ -938,6 +1248,118 @@ export type Database = {
           redemption_id: string | null;
         }[];
       };
+      member_roll_cycle: {
+        Args: { p_member_id: string };
+        Returns: Database["public"]["Tables"]["members"]["Row"];
+      };
+      member_add_stamp: {
+        Args: {
+          p_member_id: string;
+          p_service_id: string;
+          p_admin_id: string;
+          p_confirm_same_day: boolean;
+        };
+        Returns: Json;
+      };
+      member_void_stamp: {
+        Args: { p_stamp_id: string; p_admin_id: string };
+        Returns: Json;
+      };
+      member_claim_reward: {
+        Args: {
+          p_member_id: string;
+          p_milestone: number;
+          p_service_name: string;
+          p_admin_id: string;
+          p_expected_name: string;
+        };
+        Returns: Json;
+      };
+      member_void_claim: {
+        Args: { p_claim_id: string; p_admin_id: string };
+        Returns: Json;
+      };
+      member_redeem_birthday: {
+        Args: {
+          p_member_id: string;
+          p_service_name: string;
+          p_admin_id: string;
+        };
+        Returns: Json;
+      };
+      list_member_followups: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          member_id: string;
+          name: string;
+          phone: string;
+          stage: string;
+          anchor_date: string;
+          last_service_name: string;
+          stamp_count: number;
+          effective_tier: number;
+          days_since: number;
+        }[];
+      };
+      get_member_summary: {
+        Args: { p_member_id: string };
+        Returns: Json;
+      };
+      list_recent_members: {
+        Args: { p_limit: number };
+        Returns: {
+          id: string;
+          name: string;
+          source: string;
+          created_at: string;
+          stamp_count: number;
+          last_stamp_at: string | null;
+          last_stamp_service: string | null;
+          last_claim_at: string | null;
+          last_claim_name: string | null;
+        }[];
+      };
+      member_reward_reached_counts: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          milestone: number;
+          reached_count: number;
+        }[];
+      };
+      member_regenerate_signup_qr: {
+        Args: { p_admin_id: string };
+        Returns: Database["public"]["Tables"]["member_signup_qr"]["Row"];
+      };
+      member_rotate_card_token: {
+        Args: { p_member_id: string; p_admin_id: string };
+        Returns: string;
+      };
+      member_save_rewards: {
+        Args: { p_admin_id: string; p_rows: Json };
+        Returns: Json;
+      };
+      member_followup_is_due: {
+        Args: { p_member_id: string; p_stage: string; p_anchor_date: string };
+        Returns: boolean;
+      };
+      member_birthday_discount_available: {
+        Args: { p_member_id: string };
+        Returns: boolean;
+      };
+      member_self_signup: {
+        Args: {
+          p_qr_token: string;
+          p_name: string;
+          p_phone: string;
+          p_birth_date: string;
+          p_wa_consent: boolean;
+        };
+        Returns: Json;
+      };
+      member_nightly_maintenance: {
+        Args: Record<PropertyKey, never>;
+        Returns: undefined;
+      };
       transition_order_payment_state: {
         Args: {
           p_order_id: string;
@@ -1042,6 +1464,17 @@ export type ScalevWebhookEventInsert =
   Database["public"]["Tables"]["scalev_webhook_events"]["Insert"];
 export type ScalevWebhookEventUpdate =
   Database["public"]["Tables"]["scalev_webhook_events"]["Update"];
+
+export type Member = Database["public"]["Tables"]["members"]["Row"];
+export type MemberInsert = Database["public"]["Tables"]["members"]["Insert"];
+export type MemberStamp = Database["public"]["Tables"]["member_stamps"]["Row"];
+export type MemberReward = Database["public"]["Tables"]["member_rewards"]["Row"];
+export type MemberRewardClaim =
+  Database["public"]["Tables"]["member_reward_claims"]["Row"];
+export type MemberFollowup =
+  Database["public"]["Tables"]["member_followups"]["Row"];
+export type MemberSignupQr =
+  Database["public"]["Tables"]["member_signup_qr"]["Row"];
 
 export type SiteSetting = Database["public"]["Tables"]["site_settings"]["Row"];
 export type SiteSettingInsert = Database["public"]["Tables"]["site_settings"]["Insert"];

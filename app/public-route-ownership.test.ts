@@ -39,6 +39,9 @@ describe("public route ownership", () => {
     for (const route of [
       "(public)/(marketing)/page.tsx",
       "(public)/verify/page.tsx",
+      "(member)/m/[token]/page.tsx",
+      "(member)/daftar/[qrToken]/page.tsx",
+      "(member)/layout.tsx",
       "(public)/review/[id]/page.tsx",
       "(marketing)/voucher/[id]/page.tsx",
       "checkout/[id]/page.tsx",

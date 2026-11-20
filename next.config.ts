@@ -11,6 +11,13 @@ const voucherPdfTraceFiles = VOUCHER_PDF_SERVER_ASSETS.map(
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  async headers() {
+    const noReferrer = [{ key: "Referrer-Policy", value: "no-referrer" }];
+    return [
+      { source: "/m/:path*", headers: noReferrer },
+      { source: "/daftar/:path*", headers: noReferrer },
+    ];
+  },
   outputFileTracingIncludes: Object.fromEntries(
     VOUCHER_PDF_SERVER_ROUTES.map((route) => [route, voucherPdfTraceFiles])
   ),
