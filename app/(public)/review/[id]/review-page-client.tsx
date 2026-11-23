@@ -100,7 +100,7 @@ export function ReviewPageClient({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-muted to-background py-12">
+    <div className="min-h-screen bg-gradient-to-b from-muted to-background pb-12 pt-40">
       <div className="max-w-xl mx-auto px-4">
         <div className="animate-fade-slide-up text-center mb-8">
           <h1 className="font-sans font-semibold text-4xl text-foreground mb-2">

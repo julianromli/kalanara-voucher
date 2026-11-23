@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import QRScanner from "@/components/qr-scanner";
 import type { PublicVoucherLookup } from "@/lib/types";
 
+export const VOUCHER_CODE_PLACEHOLDER = "Contoh: KSP-2026-XXXXXXXX";
+
 interface VerifyPageClientProps {
   initialCode?: string;
 }
@@ -153,7 +155,8 @@ export function VerifyPageClient({ initialCode }: VerifyPageClientProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted to-background">
-      <div className="bg-primary py-20 px-4">
+      {/* pt-40 clears the fixed announcement + 5rem nav, then leaves ~44px above the title */}
+      <div className="bg-primary px-4 pb-20 pt-40">
         <div className="max-w-2xl mx-auto text-center">
           <h1 className="animate-fade-slide-up font-sans font-semibold text-4xl md:text-5xl text-primary-foreground mb-4">
             Cek Voucher Kamu
@@ -168,25 +171,29 @@ export function VerifyPageClient({ initialCode }: VerifyPageClientProps) {
         <div className="animate-scale-in bg-card rounded-2xl shadow-spa-lg overflow-hidden">
           <div className="flex border-b border-border">
             <button
+              type="button"
+              aria-pressed={inputMode === "manual"}
               onClick={() => setInputMode("manual")}
-              className={`flex-1 py-4 px-6 flex items-center justify-center gap-2 font-medium transition-colors ${
+              className={`flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap px-3 py-4 text-base font-medium transition-colors sm:px-6 ${
                 inputMode === "manual"
                   ? "bg-muted text-foreground border-b-2 border-primary"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Keyboard size={18} />
+              <Keyboard size={18} aria-hidden />
               Ketik Kode
             </button>
             <button
+              type="button"
+              aria-pressed={inputMode === "scanner"}
               onClick={() => setInputMode("scanner")}
-              className={`flex-1 py-4 px-6 flex items-center justify-center gap-2 font-medium transition-colors ${
+              className={`flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap px-3 py-4 text-base font-medium transition-colors sm:px-6 ${
                 inputMode === "scanner"
                   ? "bg-muted text-foreground border-b-2 border-primary"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <QrCode size={18} />
+              <QrCode size={18} aria-hidden />
               Scan QR Code
             </button>
           </div>
@@ -194,24 +201,36 @@ export function VerifyPageClient({ initialCode }: VerifyPageClientProps) {
           <div className="p-6">
             {inputMode === "manual" ? (
               <form onSubmit={handleVerify}>
-                <div className="flex gap-3">
-                  <div className="flex-1 relative">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="relative min-w-0 flex-1">
+                    <label htmlFor="voucher-code" className="sr-only">
+                      Kode voucher
+                    </label>
+                    <Search
+                      size={20}
+                      aria-hidden
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    />
                     <Input
+                      id="voucher-code"
                       type="text"
                       value={code}
                       onChange={(event) => setCode(event.target.value.toUpperCase())}
-                      placeholder="Masukkan kode voucher (contoh: KSP-2024-XXXX)"
-                      className="pl-10 py-6 text-lg font-mono tracking-wider uppercase"
-                    />
-                    <Search
-                      size={20}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      placeholder={VOUCHER_CODE_PLACEHOLDER}
+                      autoComplete="off"
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      enterKeyHint="search"
+                      data-1p-ignore
+                      data-lpignore="true"
+                      className="h-11 py-0 pl-10 text-base font-mono tracking-wider uppercase md:text-base placeholder:font-sans placeholder:normal-case placeholder:tracking-normal"
                     />
                   </div>
                   <Button
                     type="submit"
                     disabled={isSearching || !code.trim()}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground px-8"
+                    aria-busy={isSearching}
+                    className="h-11 w-full shrink-0 bg-primary px-6 text-base text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 sm:w-auto"
                   >
                     {isSearching ? "..." : "Cek"}
                   </Button>
