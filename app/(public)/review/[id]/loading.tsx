@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ReviewLoading() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-muted to-background py-12">
+    <div className="min-h-screen bg-gradient-to-b from-muted to-background pb-12 pt-40">
       <div className="max-w-xl mx-auto px-4 space-y-8">
         <div className="text-center space-y-3">
           <Skeleton className="h-10 w-64 mx-auto" />

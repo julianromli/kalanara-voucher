@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function VerifyLoading() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-muted to-background">
-      <div className="bg-primary py-16 px-4 text-center space-y-3">
+      <div className="bg-primary px-4 pb-20 pt-40 text-center space-y-3">
         <Skeleton className="h-10 w-64 mx-auto" />
         <Skeleton className="h-4 w-80 mx-auto" />
       </div>
@@ -11,14 +11,13 @@ export default function VerifyLoading() {
       <div className="max-w-xl mx-auto px-4 -mt-8">
         <div className="bg-card rounded-2xl shadow-spa-lg overflow-hidden border border-border">
           <div className="flex border-b border-border">
-            <Skeleton className="h-12 w-1/2" />
-            <Skeleton className="h-12 w-1/2" />
+            <Skeleton className="h-11 w-1/2" />
+            <Skeleton className="h-11 w-1/2" />
           </div>
-          <div className="p-6 space-y-4">
-            <Skeleton className="h-12 w-full" />
-            <div className="flex gap-3">
-              <Skeleton className="h-14 w-full" />
-              <Skeleton className="h-14 w-28" />
+          <div className="p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Skeleton className="h-11 w-full" />
+              <Skeleton className="h-11 w-full shrink-0 sm:w-24" />
             </div>
           </div>
         </div>

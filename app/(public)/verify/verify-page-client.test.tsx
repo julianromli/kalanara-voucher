@@ -1,7 +1,10 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { VerifyPageClient } from "@/app/(public)/verify/verify-page-client";
+import {
+  VerifyPageClient,
+  VOUCHER_CODE_PLACEHOLDER,
+} from "@/app/(public)/verify/verify-page-client";
 
 vi.mock("@/components/qr-scanner", () => ({
   default: ({ onScan }: { onScan: (code: string) => void }) => (
@@ -204,7 +207,7 @@ describe("VerifyPageClient", () => {
 
     render(<VerifyPageClient />);
     await user.type(
-      screen.getByPlaceholderText("Masukkan kode voucher (contoh: KSP-2024-XXXX)"),
+      screen.getByPlaceholderText(VOUCHER_CODE_PLACEHOLDER),
       "network-error"
     );
     await user.click(screen.getByRole("button", { name: "Cek" }));
@@ -236,5 +239,14 @@ describe("VerifyPageClient", () => {
       await request.promise.catch(() => undefined);
     });
     expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  test("shows a short normal-case placeholder and keeps Cek disabled until a code is entered", () => {
+    render(<VerifyPageClient />);
+
+    const input = screen.getByLabelText("Kode voucher");
+    expect(input).toHaveAttribute("placeholder", VOUCHER_CODE_PLACEHOLDER);
+    expect(input).toHaveClass("placeholder:normal-case", "placeholder:font-sans", "h-11");
+    expect(screen.getByRole("button", { name: "Cek" })).toBeDisabled();
   });
 });
