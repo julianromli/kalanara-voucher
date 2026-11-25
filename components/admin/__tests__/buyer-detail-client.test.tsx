@@ -98,4 +98,16 @@ describe("BuyerDetailClient member badge", () => {
     expect(screen.getByRole("heading", { name: "Budi Santoso" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Buka kartu member/ })).not.toBeInTheDocument();
   });
+
+  test("shows contact facts, last visit, and a WhatsApp action in one header", () => {
+    render(<BuyerDetailClient buyer={buyer()} orders={[order()]} />);
+    expect(screen.getByText("WhatsApp")).toBeInTheDocument();
+    expect(screen.getByText("Email")).toBeInTheDocument();
+    expect(screen.getByText("rina@example.com")).toBeInTheDocument();
+    expect(screen.getByText("20 Nov 2026")).toBeInTheDocument();
+    const wa = screen.getByRole("link", { name: "Buka WhatsApp" });
+    expect(wa).toHaveAttribute("href", expect.stringContaining("https://wa.me/6281234564471?text="));
+    expect(screen.getByText("Pembelian")).toBeInTheDocument();
+    expect(screen.getByText("Voucher")).toBeInTheDocument();
+  });
 });

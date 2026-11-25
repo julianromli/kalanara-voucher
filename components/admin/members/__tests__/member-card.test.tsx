@@ -94,4 +94,35 @@ describe("MemberCard edit and audit", () => {
     expect(screen.queryByRole("button", { name: "Edit data" })).not.toBeInTheDocument();
     expect(screen.queryByText("Riwayat perubahan")).not.toBeInTheDocument();
   });
+
+  test("shows labeled facts and a WhatsApp action when consent is on", () => {
+    render(
+      <MemberCard
+        summary={summary()}
+        canManageSettings={false}
+        {...actions}
+      />,
+    );
+
+    expect(screen.getByText("WhatsApp")).toBeInTheDocument();
+    expect(screen.getByText("Member sejak")).toBeInTheDocument();
+    expect(screen.getByText("12 Mar 2026")).toBeInTheDocument();
+    expect(screen.getByText("Periode reset")).toBeInTheDocument();
+    expect(screen.getByText("12 Mar 2027")).toBeInTheDocument();
+    expect(screen.getByText("Belum ada kunjungan")).toBeInTheDocument();
+    expect(screen.getByText("4 stamp")).toBeInTheDocument();
+    const wa = screen.getByRole("link", { name: "Buka WhatsApp" });
+    expect(wa).toHaveAttribute("href", expect.stringContaining("https://wa.me/6281234564471?text="));
+  });
+
+  test("hides the WhatsApp action when consent is off", () => {
+    render(
+      <MemberCard
+        summary={{ ...summary(), waConsent: false }}
+        canManageSettings={false}
+        {...actions}
+      />,
+    );
+    expect(screen.queryByRole("link", { name: "Buka WhatsApp" })).not.toBeInTheDocument();
+  });
 });

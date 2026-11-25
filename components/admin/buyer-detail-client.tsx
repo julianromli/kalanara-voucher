@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
 import {
   AdminPageBody,
-  AdminPageIntro,
   AdminSurface,
 } from "@/components/admin/admin-page";
 import { useAuth } from "@/context/AuthContext";
@@ -15,6 +14,8 @@ import { formatBuyerPhone } from "@/lib/admin/buyer-phone";
 import { formatCurrency } from "@/lib/constants";
 import { sortOrderItems } from "@/lib/orderItems";
 import type { OrderWithVoucherItems } from "@/lib/database.types";
+import { formatMemberDate } from "@/lib/membership/format";
+import { whatsAppLink } from "@/lib/membership/templates";
 import { MemberBadge } from "@/components/admin/member-badge";
 import { Badge } from "@/components/ui/badge";
 
@@ -49,6 +50,11 @@ export function BuyerDetailClient({ buyer, orders }: BuyerDetailClientProps) {
     return null;
   }
 
+  const waHref = whatsAppLink(
+    buyer.phone,
+    `Halo ${buyer.customerName.split(" ")[0] || buyer.customerName}`,
+  );
+
   return (
     <>
       <DashboardHeader
@@ -57,19 +63,52 @@ export function BuyerDetailClient({ buyer, orders }: BuyerDetailClientProps) {
         titleSlot={buyer.member ? <MemberBadge member={buyer.member} /> : null}
       />
       <AdminPageBody>
-        <AdminPageIntro
-          description={
-            <>
-              <Link href="/admin/buyers" className="underline-offset-4 hover:underline">
-                Pembeli
-              </Link>
-              {" · "}
-              {formatBuyerPhone(buyer.phone)}
-              {" · "}
-              {buyer.customerEmail}
-            </>
-          }
-        />
+        <p className="text-sm text-muted-foreground">
+          <Link href="/admin/buyers" className="underline-offset-4 hover:underline">
+            Pembeli
+          </Link>
+        </p>
+
+        <AdminSurface>
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="min-w-0">
+              <dt className="text-xs text-muted-foreground">WhatsApp</dt>
+              <dd className="mt-0.5 text-sm text-pretty text-foreground">
+                {waHref ? (
+                  <a
+                    href={waHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Buka WhatsApp"
+                    className="underline underline-offset-4"
+                  >
+                    {formatBuyerPhone(buyer.phone)}
+                  </a>
+                ) : (
+                  formatBuyerPhone(buyer.phone)
+                )}
+              </dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="text-xs text-muted-foreground">Email</dt>
+              <dd className="mt-0.5 text-sm text-pretty text-foreground">{buyer.customerEmail}</dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="text-xs text-muted-foreground">Terakhir</dt>
+              <dd className="mt-0.5 text-sm text-foreground">{formatMemberDate(buyer.lastOrderAt)}</dd>
+            </div>
+          </dl>
+          <div className="mt-4 flex flex-wrap gap-x-8 gap-y-3 border-t border-border pt-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Pembelian</p>
+              <p className="font-sans text-xl font-semibold tabular-nums">{buyer.orderCount}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Voucher</p>
+              <p className="font-sans text-xl font-semibold tabular-nums">{buyer.voucherCount}</p>
+            </div>
+          </div>
+        </AdminSurface>
 
         {buyer.otherNames.length > 0 ? (
           <p className="text-sm text-muted-foreground">
@@ -77,26 +116,6 @@ export function BuyerDetailClient({ buyer, orders }: BuyerDetailClientProps) {
           </p>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          <AdminSurface>
-            <p className="text-sm text-muted-foreground">Pembelian</p>
-            <p className="font-sans text-2xl font-semibold tabular-nums">{buyer.orderCount}</p>
-          </AdminSurface>
-          <AdminSurface>
-            <p className="text-sm text-muted-foreground">Voucher</p>
-            <p className="font-sans text-2xl font-semibold tabular-nums">{buyer.voucherCount}</p>
-          </AdminSurface>
-          <AdminSurface className="col-span-2 md:col-span-1">
-            <p className="text-sm text-muted-foreground">Terakhir</p>
-            <p className="font-sans text-lg font-semibold">
-              {new Date(buyer.lastOrderAt).toLocaleDateString("id-ID", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
-            </p>
-          </AdminSurface>
-        </div>
 
         <div className="space-y-3">
           {orders.map((order) => {

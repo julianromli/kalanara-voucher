@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { formatBuyerPhone } from "@/lib/admin/buyer-phone";
 import type { MemberProfileAuditRow } from "@/lib/actions/members";
 import { formatMemberDate, formatMemberTime, memberInitials } from "@/lib/membership/format";
 import { tierBenefitLabel } from "@/lib/membership/rules";
+import { whatsAppLink } from "@/lib/membership/templates";
 import { TierPill } from "@/components/member/tier-pill";
 import type { MemberSummary } from "@/lib/membership/summary";
 
@@ -42,6 +44,55 @@ interface MemberCardProps {
   auditStatus?: "idle" | "loading" | "ok" | "error";
 }
 
+function Fact({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 text-sm text-foreground text-pretty">{children}</dd>
+    </div>
+  );
+}
+
+function MemberFacts({ summary }: { summary: MemberSummary }) {
+  const phone = formatBuyerPhone(summary.phone) || summary.phone;
+  const waHref =
+    summary.waConsent ? whatsAppLink(summary.phone, `Halo ${summary.name.split(" ")[0] || summary.name}`) : null;
+  return (
+    <dl className="mt-3 grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-3">
+      <Fact label="WhatsApp">
+        {waHref ? (
+          <a
+            href={waHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Buka WhatsApp"
+            className="underline underline-offset-4"
+          >
+            {phone}
+          </a>
+        ) : (
+          phone
+        )}
+      </Fact>
+      <Fact label="Member sejak">{formatMemberDate(summary.createdAt)}</Fact>
+      <Fact label="Periode reset">{formatMemberDate(summary.resetOn)}</Fact>
+      {summary.lastTreatment ? (
+        <Fact label="Terakhir">
+          <span className="block">{formatMemberDate(summary.lastTreatment.date)}</span>
+          {summary.lastTreatment.serviceName ? (
+            <span className="block text-muted-foreground">{summary.lastTreatment.serviceName}</span>
+          ) : null}
+        </Fact>
+      ) : (
+        <Fact label="Terakhir">Belum ada kunjungan</Fact>
+      )}
+      <Fact label="Stamp periode ini">
+        <span className="tabular-nums">{summary.stampCount} stamp</span>
+      </Fact>
+    </dl>
+  );
+}
+
 export function MemberCard({
   summary,
   canManageSettings,
@@ -67,13 +118,12 @@ export function MemberCard({
               <Badge variant="outline">Diskon ultah 25% · s/d {formatMemberDate(summary.birthday.windowEnd)}</Badge>
             ) : null}
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {formatBuyerPhone(summary.phone)} · Member sejak {formatMemberDate(summary.createdAt)} · Periode reset{" "}
-            {formatMemberDate(summary.resetOn)}
-            {benefit ? ` · ${benefit}` : ""}
-          </p>
+          <MemberFacts summary={summary} />
           {benefit ? (
-            <p className="text-xs text-muted-foreground">* Benefit level masih contoh, belum final.</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {benefit}
+              <span className="mt-0.5 block text-xs">* Benefit level masih contoh, belum final.</span>
+            </p>
           ) : null}
           {canManageSettings && onEdit ? (
             <Button type="button" size="sm" variant="outline" className="mt-3" onClick={onEdit}>
