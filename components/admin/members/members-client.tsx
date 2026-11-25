@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, Plus, UserRound } from "lucide-react";
+import { ChevronLeft, MoreHorizontal, Plus } from "lucide-react";
 import { AddStampBar, cappedReason } from "@/components/admin/members/add-stamp-bar";
 import { ClaimRewardDialog } from "@/components/admin/members/claim-reward-dialog";
 import { MemberCard } from "@/components/admin/members/member-card";
+import { MemberDirectory } from "@/components/admin/members/member-directory";
 import {
   MemberScanPanel,
   type MemberNameHit,
@@ -39,6 +40,7 @@ import {
   findMember,
   getMember,
   getMemberWaLink,
+  listMembers,
   listRecentMembers,
   searchMembers,
   redeemBirthday,
@@ -57,6 +59,9 @@ import {
 } from "@/lib/membership/format";
 import { createLatestRequestGate } from "@/lib/membership/latest-request";
 import type { MemberSummary } from "@/lib/membership/summary";
+import { buildAdminPage } from "@/lib/actions/admin-pagination";
+import type { ListMembersResult } from "@/lib/actions/members";
+import type { MemberListRow } from "@/lib/membership/list";
 import { isMemberNameQuery, parseMemberScan } from "@/lib/membership/scan";
 import { memberCardUrl, tryAppBaseUrl } from "@/lib/membership/urls";
 
@@ -72,13 +77,17 @@ interface RecentMember {
   last_claim_name: string | null;
 }
 
+const EMPTY_FOLLOW_UP = { nearReward: [] as MemberListRow[], frequent: [] as MemberListRow[] };
+const EMPTY_LIST_PAGE = buildAdminPage<MemberListRow>([], 1, 0);
+
 interface MembersClientProps {
   initialRecent: RecentMember[];
+  initialList?: ListMembersResult | null;
   services: Array<{ id: string; name: string; duration: number }>;
   servicesError?: boolean;
 }
 
-export function MembersClient({ initialRecent, services, servicesError = false }: MembersClientProps) {
+export function MembersClient({ initialRecent, initialList = null, services, servicesError = false }: MembersClientProps) {
   const router = useRouter();
   const { hasPermission } = useAuth();
   const { showToast } = useToast();
@@ -89,6 +98,15 @@ export function MembersClient({ initialRecent, services, servicesError = false }
   const [nameResults, setNameResults] = useState<MemberNameHit[]>([]);
   const [nameStatus, setNameStatus] = useState<"idle" | "searching" | "empty">("idle");
   const nameSearchRequest = useRef(0);
+  const [listPage, setListPage] = useState(initialList?.page ?? EMPTY_LIST_PAGE);
+  const [listFollowUp, setListFollowUp] = useState(initialList?.followUp ?? EMPTY_FOLLOW_UP);
+  const [listQuery, setListQuery] = useState("");
+  const [listTier, setListTier] = useState("all");
+  const [listPageNumber, setListPageNumber] = useState(initialList?.page.page ?? 1);
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState(initialList == null);
+  const listRequest = useRef(0);
+  const skipFirstListFetch = useRef(initialList != null);
   const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
   const [confirm, setConfirm] = useState<{ serviceName: string; createdAt: string } | null>(null);
   const [stampError, setStampError] = useState(false);
@@ -138,6 +156,49 @@ export function MembersClient({ initialRecent, services, servicesError = false }
     // runNameSearch reads current toasts/gates; the query string is the trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manual]);
+
+  async function loadMemberList(params: { query: string; tier: string; page: number }) {
+    const requestId = listRequest.current + 1;
+    listRequest.current = requestId;
+    setListLoading(true);
+    const result = await listMembers(params);
+    if (requestId !== listRequest.current) return;
+    setListLoading(false);
+    if (result.status !== "ok") {
+      setListError(true);
+      return;
+    }
+    setListError(false);
+    setListPage(result.page);
+    setListFollowUp(result.followUp);
+  }
+
+  useEffect(() => {
+    if (skipFirstListFetch.current) {
+      skipFirstListFetch.current = false;
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      void loadMemberList({ query: listQuery, tier: listTier, page: listPageNumber }).catch(() => {
+        setListLoading(false);
+        setListError(true);
+      });
+    }, 250);
+    return () => window.clearTimeout(timeout);
+  }, [listQuery, listTier, listPageNumber]);
+
+  function backToList() {
+    summaryGate.begin();
+    setSummary(null);
+    setScanStatus("idle");
+    setConfirm(null);
+    setClaimMilestone(null);
+    setBanner(null);
+    void loadMemberList({ query: listQuery, tier: listTier, page: listPageNumber }).catch(() => {
+      setListLoading(false);
+      setListError(true);
+    });
+  }
 
   async function refreshRecent() {
     const requestId = recentRequest.current + 1;
@@ -378,7 +439,7 @@ export function MembersClient({ initialRecent, services, servicesError = false }
           </Button>
         </div>
         <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-          <div>
+          <div className="min-w-0">
             <MemberScanPanel
               onScan={(value) => void lookup(value)}
               status={scanStatus}
@@ -429,10 +490,15 @@ export function MembersClient({ initialRecent, services, servicesError = false }
             </section>
           </div>
 
-          <div>
+          <div className="min-w-0">
             {summary && progress ? (
               <div className="space-y-5">
-                <MemberCard
+                <div>
+                  <Button type="button" variant="ghost" size="sm" className="-ml-2 mb-2" onClick={backToList}>
+                    <ChevronLeft className="size-4" />
+                    Kembali ke daftar
+                  </Button>
+                  <MemberCard
                   summary={summary}
                   canManageSettings={canManage}
                   onSendLink={() => {
@@ -461,6 +527,7 @@ export function MembersClient({ initialRecent, services, servicesError = false }
                   }}
                   onRotateLink={() => setRotateOpen(true)}
                 />
+                </div>
                 {summary.birthday.eligible ? (
                   <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/50 px-4 py-3 text-sm">
                     <p>
@@ -544,13 +611,30 @@ export function MembersClient({ initialRecent, services, servicesError = false }
                 </div>
               </div>
             ) : (
-              <div className="flex min-h-80 flex-col items-center justify-center text-center">
-                <UserRound className="size-8 text-muted-foreground" aria-hidden="true" />
-                <p className="mt-3 font-medium">Scan QR member buat mulai</p>
-                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                  Kartu member, stamp, dan reward muncul di sini. Customer belum punya QR? Pakai Daftar member baru di kanan atas.
-                </p>
-              </div>
+              <MemberDirectory
+                page={listPage}
+                followUp={listFollowUp}
+                query={listQuery}
+                onQueryChange={(value) => {
+                  setListQuery(value);
+                  setListPageNumber(1);
+                }}
+                tier={listTier}
+                onTierChange={(value) => {
+                  setListTier(value);
+                  setListPageNumber(1);
+                }}
+                onPageChange={setListPageNumber}
+                onSelect={selectMember}
+                loading={listLoading}
+                error={listError}
+                onRetry={() => {
+                  void loadMemberList({ query: listQuery, tier: listTier, page: listPageNumber }).catch(() => {
+                    setListLoading(false);
+                    setListError(true);
+                  });
+                }}
+              />
             )}
           </div>
         </div>

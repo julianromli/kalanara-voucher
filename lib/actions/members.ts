@@ -14,6 +14,15 @@ import {
   type FollowupTemplateStage,
 } from "@/lib/membership/templates";
 import { memberCardUrl, signupPageUrl, tokenTail, tryAppBaseUrl } from "@/lib/membership/urls";
+import {
+  buildMemberListRow,
+  configuredRewardMilestones,
+  filterMemberList,
+  paginateMemberList,
+  pickFollowUpMembers,
+  type MemberListRecord,
+  type MemberListRow,
+} from "@/lib/membership/list";
 import { formatISODate, nextOpenMilestone, parseISODate } from "@/lib/membership/rules";
 import { getClientIp } from "@/lib/rate-limit";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
@@ -156,6 +165,84 @@ export async function listRecentMembers() {
   const { data, error } = await supabase.rpc("list_recent_members", { p_limit: 8 });
   if (error) return failure();
   return { status: "ok" as const, members: data ?? [] };
+}
+
+export interface ListMembersInput {
+  page?: number;
+  query?: string;
+  tier?: string;
+}
+
+export interface ListMembersResult {
+  status: "ok";
+  page: ReturnType<typeof paginateMemberList>;
+  followUp: { nearReward: MemberListRow[]; frequent: MemberListRow[] };
+  milestones: number[];
+}
+
+export async function listMembers(
+  input: ListMembersInput = {},
+): Promise<ListMembersResult | MemberActionError> {
+  await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
+  const supabase = getAdminClient();
+  const [{ data: members, error: membersError }, { data: stamps, error: stampsError }, { data: rewards, error: rewardsError }] =
+    await Promise.all([
+      supabase
+        .from("members")
+        .select("id, name, phone, created_at, base_tier, cycle_start"),
+      supabase
+        .from("member_stamps")
+        .select("member_id, cycle_start, visit_date, created_at, voided_at"),
+      supabase.from("member_rewards").select("milestone, name").order("milestone"),
+    ]);
+  if (membersError || stampsError || rewardsError) return failure();
+
+  const stampsByMember = new Map<string, MemberListRecord["stamps"]>();
+  for (const stamp of stamps ?? []) {
+    const visitAt =
+      (typeof stamp.created_at === "string" && stamp.created_at) ||
+      (typeof stamp.visit_date === "string" && stamp.visit_date) ||
+      "";
+    if (!visitAt) continue;
+    const list = stampsByMember.get(stamp.member_id) ?? [];
+    list.push({
+      cycleStart: stamp.cycle_start,
+      visitAt,
+      voided: stamp.voided_at != null,
+    });
+    stampsByMember.set(stamp.member_id, list);
+  }
+
+  const rewardNames = new Map<number, string>();
+  for (const reward of rewards ?? []) {
+    const name = (reward.name ?? "").trim();
+    if (name) rewardNames.set(reward.milestone, name);
+  }
+  const milestones = configuredRewardMilestones(rewards ?? []);
+  const today = jakartaToday();
+  const rows = (members ?? []).map((member) =>
+    buildMemberListRow(
+      {
+        id: member.id,
+        name: member.name,
+        phone: member.phone,
+        createdAt: member.created_at,
+        baseTier: member.base_tier,
+        cycleStart: member.cycle_start,
+        stamps: stampsByMember.get(member.id) ?? [],
+      },
+      today,
+      rewardNames,
+    ),
+  );
+  const query = (input.query ?? "").trim();
+  const tier = input.tier ?? "all";
+  return {
+    status: "ok",
+    page: paginateMemberList(filterMemberList(rows, { query, tier }), input.page ?? 1),
+    followUp: pickFollowUpMembers(rows, milestones),
+    milestones,
+  };
 }
 
 export async function listStampServices() {
