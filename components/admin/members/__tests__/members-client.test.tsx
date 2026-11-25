@@ -338,6 +338,183 @@ describe("MembersClient name search", () => {
     });
     expect(actions.searchMembers).not.toHaveBeenCalled();
   });
+
+  test("a failed name search resets the Cari button and does not show the QR banner", async () => {
+    actions.searchMembers.mockResolvedValue({ status: "error" });
+    render(
+      <ToastProvider>
+        <MembersClient initialRecent={[]} services={[{ id: SERVICE_ID, name: "Body Massage", duration: 60 }]} />
+      </ToastProvider>,
+    );
+    const input = screen.getByLabelText("Nama atau nomor HP member");
+    fireEvent.change(input, { target: { value: "dinda" } });
+    fireEvent.submit(input.closest("form")!);
+    expect(await screen.findByText("Pencarian gagal. Coba lagi.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cari" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Mencari…" })).not.toBeInTheDocument();
+    expect(screen.queryByText("QR ini bukan kartu member Kalanara")).not.toBeInTheDocument();
+  });
+
+  test("a rejected name search also re-enables search and QR", async () => {
+    actions.searchMembers.mockRejectedValue(new Error("network"));
+    render(
+      <ToastProvider>
+        <MembersClient initialRecent={[]} services={[{ id: SERVICE_ID, name: "Body Massage", duration: 60 }]} />
+      </ToastProvider>,
+    );
+    const input = screen.getByLabelText("Nama atau nomor HP member");
+    fireEvent.change(input, { target: { value: "dinda" } });
+    fireEvent.submit(input.closest("form")!);
+    expect(await screen.findByText("Pencarian gagal. Coba lagi.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cari" })).toBeEnabled();
+    expect(screen.queryByText("QR ini bukan kartu member Kalanara")).not.toBeInTheDocument();
+  });
+
+  test("a failed getMember on a single name match re-enables search", async () => {
+    actions.searchMembers.mockResolvedValue({
+      status: "ok",
+      members: [
+        {
+          id: MEMBER_ID,
+          name: "Dinda Salsabilla",
+          phone: "6282212347221",
+          memberCode: "7KQ2X9",
+        },
+      ],
+    });
+    actions.getMember.mockResolvedValue({ status: "error" });
+    render(
+      <ToastProvider>
+        <MembersClient initialRecent={[]} services={[{ id: SERVICE_ID, name: "Body Massage", duration: 60 }]} />
+      </ToastProvider>,
+    );
+    const input = screen.getByLabelText("Nama atau nomor HP member");
+    fireEvent.change(input, { target: { value: "dinda" } });
+    fireEvent.submit(input.closest("form")!);
+    expect(await screen.findByText("Kartu member gagal dibuka. Coba lagi.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cari" })).toBeEnabled();
+    expect(screen.queryByRole("heading", { name: "Dinda Salsabilla" })).not.toBeInTheDocument();
+  });
+
+  test("a rejected getMember on a single name match also re-enables search", async () => {
+    actions.searchMembers.mockResolvedValue({
+      status: "ok",
+      members: [
+        {
+          id: MEMBER_ID,
+          name: "Dinda Salsabilla",
+          phone: "6282212347221",
+          memberCode: "7KQ2X9",
+        },
+      ],
+    });
+    actions.getMember.mockRejectedValue(new Error("network"));
+    render(
+      <ToastProvider>
+        <MembersClient initialRecent={[]} services={[{ id: SERVICE_ID, name: "Body Massage", duration: 60 }]} />
+      </ToastProvider>,
+    );
+    const input = screen.getByLabelText("Nama atau nomor HP member");
+    fireEvent.change(input, { target: { value: "dinda" } });
+    fireEvent.submit(input.closest("form")!);
+    expect(await screen.findByText("Kartu member gagal dibuka. Coba lagi.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cari" })).toBeEnabled();
+  });
+
+  test("a stale name-search response does not replace a newer submitted result", async () => {
+    const first = deferred<{
+      status: "ok";
+      members: Array<{ id: string; name: string; phone: string; memberCode: string }>;
+    }>();
+    actions.searchMembers
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValueOnce({
+        status: "ok",
+        members: [
+          {
+            id: MEMBER_ID,
+            name: "Dinda Salsabilla",
+            phone: "6282212347221",
+            memberCode: "7KQ2X9",
+          },
+          {
+            id: "22222222-2222-4222-8222-222222222222",
+            name: "Dinda Lestari",
+            phone: "6281211112222",
+            memberCode: "8LM3Y0",
+          },
+        ],
+      });
+    render(
+      <ToastProvider>
+        <MembersClient initialRecent={[]} services={[{ id: SERVICE_ID, name: "Body Massage", duration: 60 }]} />
+      </ToastProvider>,
+    );
+    const input = screen.getByLabelText("Nama atau nomor HP member");
+    const form = input.closest("form")!;
+    fireEvent.change(input, { target: { value: "din" } });
+    fireEvent.submit(form);
+    fireEvent.change(input, { target: { value: "dinda" } });
+    fireEvent.submit(form);
+    expect(await screen.findByText("Dinda Salsabilla")).toBeInTheDocument();
+    expect(screen.getByText("Dinda Lestari")).toBeInTheDocument();
+
+    await act(async () => {
+      first.resolve({
+        status: "ok",
+        members: [
+          {
+            id: "33333333-3333-4333-8333-333333333333",
+            name: "Dini Other",
+            phone: "6281299990000",
+            memberCode: "9NP4Z1",
+          },
+        ],
+      });
+      await first.promise;
+    });
+    expect(screen.queryByText("Dini Other")).not.toBeInTheDocument();
+    expect(screen.getByText("Dinda Salsabilla")).toBeInTheDocument();
+  });
+
+  test("submit cancels a pending debounce so it does not search again", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      actions.searchMembers.mockResolvedValue({
+        status: "ok",
+        members: [
+          {
+            id: MEMBER_ID,
+            name: "Dinda Salsabilla",
+            phone: "6282212347221",
+            memberCode: "7KQ2X9",
+          },
+          {
+            id: "22222222-2222-4222-8222-222222222222",
+            name: "Dinda Lestari",
+            phone: "6281211112222",
+            memberCode: "8LM3Y0",
+          },
+        ],
+      });
+      render(
+        <ToastProvider>
+          <MembersClient initialRecent={[]} services={[{ id: SERVICE_ID, name: "Body Massage", duration: 60 }]} />
+        </ToastProvider>,
+      );
+      const input = screen.getByLabelText("Nama atau nomor HP member");
+      fireEvent.change(input, { target: { value: "dinda" } });
+      fireEvent.submit(input.closest("form")!);
+      expect(await screen.findByText("Dinda Salsabilla")).toBeInTheDocument();
+      expect(actions.searchMembers).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        vi.advanceTimersByTime(400);
+      });
+      expect(actions.searchMembers).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("MembersClient directory", () => {
