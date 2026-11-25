@@ -13,12 +13,14 @@ import Link from "next/link";
 interface DashboardHeaderProps {
   title?: string;
   showActions?: boolean;
+  titleSlot?: ReactNode;
   endSlot?: ReactNode;
 }
 
 export function DashboardHeader({
   title,
   showActions = true,
+  titleSlot,
   endSlot,
 }: DashboardHeaderProps) {
   const { user } = useAuth();
@@ -31,6 +33,7 @@ export function DashboardHeader({
         <h1 className="truncate text-base font-medium tracking-tight text-foreground text-wrap-balance sm:text-xl md:text-2xl">
           {heading}
         </h1>
+        {titleSlot ? <div className="shrink-0">{titleSlot}</div> : null}
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">

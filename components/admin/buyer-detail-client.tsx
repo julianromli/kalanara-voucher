@@ -15,6 +15,7 @@ import { formatBuyerPhone } from "@/lib/admin/buyer-phone";
 import { formatCurrency } from "@/lib/constants";
 import { sortOrderItems } from "@/lib/orderItems";
 import type { OrderWithVoucherItems } from "@/lib/database.types";
+import { MemberBadge } from "@/components/admin/member-badge";
 import { Badge } from "@/components/ui/badge";
 
 interface BuyerDetailClientProps {
@@ -50,7 +51,11 @@ export function BuyerDetailClient({ buyer, orders }: BuyerDetailClientProps) {
 
   return (
     <>
-      <DashboardHeader title={buyer.customerName} showActions={false} />
+      <DashboardHeader
+        title={buyer.customerName}
+        showActions={false}
+        titleSlot={buyer.member ? <MemberBadge member={buyer.member} /> : null}
+      />
       <AdminPageBody>
         <AdminPageIntro
           description={

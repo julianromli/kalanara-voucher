@@ -31,6 +31,7 @@ import {
   requireAdminPermission,
 } from "@/lib/auth/admin-rbac-server";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 
 const milestones = [5, 10, 15, 20, 25, 30] as const;
 const followupStages = ["day30", "day60", "day90", "day120", "birthday"] as const;
@@ -185,17 +186,32 @@ export async function listMembers(
 ): Promise<ListMembersResult | MemberActionError> {
   await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
   const supabase = getAdminClient();
-  const [{ data: members, error: membersError }, { data: stamps, error: stampsError }, { data: rewards, error: rewardsError }] =
-    await Promise.all([
-      supabase
-        .from("members")
-        .select("id, name, phone, created_at, base_tier, cycle_start"),
+  const [membersResult, stampsResult, rewardsResult] = await Promise.all([
+    fetchAllRows<{
+      id: string;
+      name: string;
+      phone: string;
+      created_at: string;
+      base_tier: number;
+      cycle_start: string;
+    }>(() => supabase.from("members").select("id, name, phone, created_at, base_tier, cycle_start")),
+    fetchAllRows<{
+      member_id: string;
+      cycle_start: string;
+      visit_date: string;
+      created_at: string;
+      voided_at: string | null;
+    }>(() =>
       supabase
         .from("member_stamps")
-        .select("member_id, cycle_start, visit_date, created_at, voided_at"),
-      supabase.from("member_rewards").select("milestone, name").order("milestone"),
-    ]);
-  if (membersError || stampsError || rewardsError) return failure();
+        .select("id, member_id, cycle_start, visit_date, created_at, voided_at"),
+    ),
+    supabase.from("member_rewards").select("milestone, name").order("milestone"),
+  ]);
+  if (membersResult.error || stampsResult.error || rewardsResult.error) return failure();
+  const members = membersResult.data;
+  const stamps = stampsResult.data;
+  const rewards = rewardsResult.data;
 
   const stampsByMember = new Map<string, MemberListRecord["stamps"]>();
   for (const stamp of stamps ?? []) {

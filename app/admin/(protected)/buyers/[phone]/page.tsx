@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { BuyerDetailClient } from "@/components/admin/buyer-detail-client";
-import { getBuyerOrders } from "@/lib/actions/buyers";
+import { findMemberLinkByPhone, getBuyerOrders } from "@/lib/actions/buyers";
 import { normalizeBuyerPhone } from "@/lib/admin/buyer-phone";
 import { requireAdminRouteAccess } from "@/lib/auth/admin-rbac-server";
 import type { AdminBuyer } from "@/lib/actions/buyers";
@@ -13,9 +13,15 @@ export default async function BuyerDetailPage({ params }: BuyerDetailPageProps) 
   await requireAdminRouteAccess("/admin/buyers");
   const { phone } = await params;
   const normalized = normalizeBuyerPhone(decodeURIComponent(phone));
-  const orders = normalized ? await getBuyerOrders(normalized) : [];
+  if (!normalized) {
+    notFound();
+  }
+  const [orders, member] = await Promise.all([
+    getBuyerOrders(normalized),
+    findMemberLinkByPhone(normalized),
+  ]);
 
-  if (!normalized || orders.length === 0) {
+  if (orders.length === 0) {
     notFound();
   }
 
@@ -36,7 +42,7 @@ export default async function BuyerDetailPage({ params }: BuyerDetailPageProps) 
     voucherCount,
     lastOrderAt: latest.created_at,
     otherNames: names.filter((name) => name !== latest.customer_name),
-    member: null,
+    member,
   };
 
   return <BuyerDetailClient buyer={buyer} orders={orders} />;

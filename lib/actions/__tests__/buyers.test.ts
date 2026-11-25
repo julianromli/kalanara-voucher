@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   getAdminClient: getAdminClientMock,
 }));
 
-import { getBuyerOrders, getBuyersPage } from "@/lib/actions/buyers";
+import { findMemberLinkByPhone, getBuyerOrders, getBuyersPage } from "@/lib/actions/buyers";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 
 const MEMBER_ID = "22222222-2222-4222-8222-222222222222";
@@ -188,5 +188,89 @@ describe("getBuyerOrders", () => {
       buyer_phone: "6281234564471",
     });
     expect(orders.map((order) => order.id)).toEqual(["new-order", "old-order"]);
+  });
+});
+
+
+describe("findMemberLinkByPhone", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireAdminPermissionMock.mockResolvedValue(access);
+  });
+
+  function mockMemberLookup(options: {
+    members?: unknown;
+    membersError?: { message: string } | null;
+    stamps?: unknown;
+    stampsError?: { message: string } | null;
+  }) {
+    const from = vi.fn((table: string) => {
+      if (table === "members") {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: options.membersError ? null : (options.members ?? []),
+              error: options.membersError ?? null,
+            }),
+          })),
+        };
+      }
+      if (table === "member_stamps") {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: options.stampsError ? null : (options.stamps ?? []),
+              error: options.stampsError ?? null,
+            }),
+          })),
+        };
+      }
+      throw new Error(`unexpected table ${table}`);
+    });
+    getAdminClientMock.mockReturnValue({ from, rpc: vi.fn() });
+    return from;
+  }
+
+  test("requires ORDERS_VIEW and matches a local 08 number to a 62 member phone", async () => {
+    mockMemberLookup({
+      members: [
+        {
+          id: MEMBER_ID,
+          phone: "6281234564471",
+          member_code: "7KQ2X9",
+          cycle_start: "2026-01-10",
+          base_tier: 1,
+        },
+      ],
+      stamps: [
+        {
+          id: "55555555-5555-4555-8555-555555555555",
+          member_id: MEMBER_ID,
+          cycle_start: "2026-01-10",
+          visit_date: "2026-02-01",
+          created_at: "2026-02-01T04:00:00Z",
+          voided_at: null,
+        },
+      ],
+    });
+    const link = await findMemberLinkByPhone("081234564471");
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(AdminPermission.ORDERS_VIEW);
+    expect(link).toEqual({
+      id: MEMBER_ID,
+      memberCode: "7KQ2X9",
+      effectiveTier: 1,
+    });
+  });
+
+  test("returns null when no member shares the phone", async () => {
+    mockMemberLookup({ members: [], stamps: [] });
+    await expect(findMemberLinkByPhone("6281234564471")).resolves.toBeNull();
+  });
+
+  test("throws when the member lookup fails", async () => {
+    mockMemberLookup({ membersError: { message: "members unavailable" } });
+    await expect(findMemberLinkByPhone("6281234564471")).rejects.toEqual({
+      message: "members unavailable",
+    });
   });
 });
