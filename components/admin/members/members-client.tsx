@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, MoreHorizontal, Plus } from "lucide-react";
 import { AddStampBar, cappedReason } from "@/components/admin/members/add-stamp-bar";
 import { ClaimRewardDialog } from "@/components/admin/members/claim-reward-dialog";
+import { EditMemberDialog } from "@/components/admin/members/edit-member-dialog";
 import { MemberCard } from "@/components/admin/members/member-card";
 import { MemberDirectory } from "@/components/admin/members/member-directory";
 import {
@@ -40,6 +41,7 @@ import {
   findMember,
   getMember,
   getMemberWaLink,
+  listMemberProfileAudit,
   listMembers,
   listRecentMembers,
   searchMembers,
@@ -60,7 +62,7 @@ import {
 import { createLatestRequestGate } from "@/lib/membership/latest-request";
 import type { MemberSummary } from "@/lib/membership/summary";
 import { buildAdminPage } from "@/lib/actions/admin-pagination";
-import type { ListMembersResult } from "@/lib/actions/members";
+import type { ListMembersResult, MemberProfileAuditRow } from "@/lib/actions/members";
 import type { MemberListRow } from "@/lib/membership/list";
 import { isMemberNameQuery, parseMemberScan } from "@/lib/membership/scan";
 import { memberCardUrl, tryAppBaseUrl } from "@/lib/membership/urls";
@@ -119,6 +121,9 @@ export function MembersClient({ initialRecent, initialList = null, services, ser
   const [claimMilestone, setClaimMilestone] = useState<number | null>(null);
   const [rotateOpen, setRotateOpen] = useState(false);
   const [rotatePending, setRotatePending] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [auditRows, setAuditRows] = useState<MemberProfileAuditRow[] | undefined>(undefined);
+  const auditRequest = useRef(0);
   const [banner, setBanner] = useState<string | null>(null);
   const recentRequest = useRef(0);
   // Every action that changes the open member takes a ticket. Only the newest
@@ -134,6 +139,32 @@ export function MembersClient({ initialRecent, initialList = null, services, ser
   useEffect(() => {
     selectedIdRef.current = summary?.id ?? null;
   }, [summary?.id]);
+
+  const loadAudit = useCallback((memberId: string) => {
+    if (!canManage) {
+      setAuditRows(undefined);
+      return;
+    }
+    const requestId = auditRequest.current + 1;
+    auditRequest.current = requestId;
+    void listMemberProfileAudit(memberId)
+      .then((result) => {
+        if (requestId !== auditRequest.current || selectedIdRef.current !== memberId) return;
+        setAuditRows(result.status === "ok" ? result.rows : []);
+      })
+      .catch(() => {
+        if (requestId !== auditRequest.current || selectedIdRef.current !== memberId) return;
+        setAuditRows([]);
+      });
+  }, [canManage]);
+
+  useEffect(() => {
+    if (!summary?.id || !canManage) {
+      setAuditRows(undefined);
+      return;
+    }
+    loadAudit(summary.id);
+  }, [summary?.id, canManage, loadAudit]);
 
   useEffect(
     () => () => {
@@ -568,6 +599,8 @@ export function MembersClient({ initialRecent, initialList = null, services, ser
                   <MemberCard
                   summary={summary}
                   canManageSettings={canManage}
+                  onEdit={() => setEditOpen(true)}
+                  auditRows={auditRows}
                   onSendLink={() => {
                     // Open the tab inside the click so the popup blocker allows it.
                     // "noopener" would make window.open return null, so cut the
@@ -716,6 +749,20 @@ export function MembersClient({ initialRecent, initialList = null, services, ser
         onOpenExisting={(memberId) => {
           setRegisterOpen(false);
           selectMember(memberId);
+        }}
+      />
+      <EditMemberDialog
+        open={editOpen}
+        summary={summary}
+        onOpenChange={setEditOpen}
+        onSaved={(next, memberId) => {
+          showToast("Data member tersimpan.", "success");
+          if (next) {
+            setSummary(next);
+          } else {
+            void selectMember(memberId);
+          }
+          loadAudit(memberId);
         }}
       />
       {summary && claimRewardRow?.name ? (

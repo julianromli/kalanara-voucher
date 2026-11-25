@@ -786,6 +786,50 @@ export type Database = {
           }
         ];
       };
+      member_profile_audit: {
+        Row: {
+          id: string;
+          member_id: string;
+          changed_by: string | null;
+          changed_by_email: string | null;
+          changed_by_role: string | null;
+          field: "name" | "phone" | "birth_date" | "wa_consent";
+          old_value: string | null;
+          new_value: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_id: string;
+          changed_by?: string | null;
+          changed_by_email?: string | null;
+          changed_by_role?: string | null;
+          field: "name" | "phone" | "birth_date" | "wa_consent";
+          old_value?: string | null;
+          new_value?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          member_id?: string;
+          changed_by?: string | null;
+          changed_by_email?: string | null;
+          changed_by_role?: string | null;
+          field?: "name" | "phone" | "birth_date" | "wa_consent";
+          old_value?: string | null;
+          new_value?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "member_profile_audit_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       member_stamps: {
         Row: {
           id: string;
