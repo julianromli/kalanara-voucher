@@ -8,7 +8,9 @@ import {
   type AdminListParams,
   type AdminPage,
 } from "@/lib/actions/admin-pagination";
+import { attachMemberLinks, type BuyerMemberLink } from "@/lib/admin/buyer-member-match";
 import { normalizeBuyerPhone } from "@/lib/admin/buyer-phone";
+import { jakartaDateISO } from "@/lib/membership/format";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { OrderWithVoucherItems } from "@/lib/database.types";
 
@@ -23,6 +25,7 @@ export interface AdminBuyer {
   voucherCount: number;
   lastOrderAt: string;
   otherNames: string[];
+  member: BuyerMemberLink | null;
 }
 
 interface BuyerRpcRow {
@@ -44,6 +47,7 @@ function toAdminBuyer(row: BuyerRpcRow): AdminBuyer {
     voucherCount: Number(row.voucher_count),
     lastOrderAt: row.last_order_at,
     otherNames: row.other_names ?? [],
+    member: null,
   };
 }
 
@@ -51,9 +55,20 @@ export async function getBuyersPage(
   params: AdminListParams,
 ): Promise<AdminPage<AdminBuyer>> {
   await requireAdminPermission(AdminPermission.ORDERS_VIEW);
-  const { data, error } = await getAdminClient().rpc("list_admin_buyers", {
-    search_query: params.query,
-  });
+  const supabase = getAdminClient();
+  const [
+    { data, error },
+    { data: members, error: membersError },
+    { data: stamps, error: stampsError },
+  ] = await Promise.all([
+    supabase.rpc("list_admin_buyers", {
+      search_query: params.query,
+    }),
+    supabase.from("members").select("id, phone, member_code, cycle_start, base_tier"),
+    supabase
+      .from("member_stamps")
+      .select("member_id, cycle_start, visit_date, created_at, voided_at"),
+  ]);
 
   if (error) {
     console.error("Error fetching buyers:", error);
@@ -61,8 +76,32 @@ export async function getBuyersPage(
   }
 
   const buyers = ((data as BuyerRpcRow[] | null) ?? []).map(toAdminBuyer);
+  const linked = membersError || stampsError
+    ? buyers
+    : attachMemberLinks(
+        buyers,
+        (members ?? []).map((member) => ({
+          id: member.id,
+          phone: member.phone,
+          memberCode: member.member_code,
+          cycleStart: member.cycle_start,
+          baseTier: member.base_tier,
+          stamps: (stamps ?? [])
+            .filter((stamp) => stamp.member_id === member.id)
+            .map((stamp) => ({
+              cycleStart: stamp.cycle_start,
+              visitAt:
+                (typeof stamp.created_at === "string" && stamp.created_at) ||
+                (typeof stamp.visit_date === "string" && stamp.visit_date) ||
+                "",
+              voided: stamp.voided_at != null,
+            }))
+            .filter((stamp) => stamp.visitAt),
+        })),
+        jakartaDateISO(),
+      );
   const from = (params.page - 1) * ADMIN_PAGE_SIZE;
-  return buildAdminPage(buyers.slice(from, from + ADMIN_PAGE_SIZE), params.page, buyers.length);
+  return buildAdminPage(linked.slice(from, from + ADMIN_PAGE_SIZE), params.page, linked.length);
 }
 
 export async function getBuyerOrders(

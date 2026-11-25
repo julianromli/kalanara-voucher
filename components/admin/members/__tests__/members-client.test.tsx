@@ -25,6 +25,9 @@ const { actions, routerPush, hasPermission } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/actions/members", () => actions);
+vi.mock("@/lib/actions/buyers", () => ({
+  getBuyerOrders: vi.fn().mockResolvedValue([]),
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: routerPush }) }));
 vi.mock("@/context/AuthContext", () => ({
   useAuth: () => ({ hasPermission }),
@@ -648,5 +651,40 @@ describe("MembersClient directory", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("MembersClient deep link and purchases", () => {
+  test("opens the member card from ?member=<id>", async () => {
+    actions.getMember.mockResolvedValueOnce({ status: "ok", summary: summary(4) });
+    render(
+      <ToastProvider>
+        <MembersClient
+          initialRecent={[]}
+          initialMember={MEMBER_ID}
+          services={[{ id: SERVICE_ID, name: "Body Massage", duration: 60 }]}
+        />
+      </ToastProvider>,
+    );
+    expect(await screen.findByRole("heading", { name: "Rina Maharani" })).toBeInTheDocument();
+    expect(actions.getMember).toHaveBeenCalledWith(MEMBER_ID);
+    expect(await screen.findByText("Riwayat beli voucher")).toBeInTheDocument();
+    expect(await screen.findByText("Belum pernah beli voucher online.")).toBeInTheDocument();
+  });
+
+  test("opens the member card from a member code", async () => {
+    actions.findMember.mockResolvedValueOnce({ status: "ok", summary: summary(4) });
+    render(
+      <ToastProvider>
+        <MembersClient
+          initialRecent={[]}
+          initialMember="7KQ2X9"
+          services={[{ id: SERVICE_ID, name: "Body Massage", duration: 60 }]}
+        />
+      </ToastProvider>,
+    );
+    expect(await screen.findByRole("heading", { name: "Rina Maharani" })).toBeInTheDocument();
+    expect(actions.findMember).toHaveBeenCalledWith({ scan: "7KQ2X9" });
+    expect(actions.getMember).not.toHaveBeenCalled();
   });
 });

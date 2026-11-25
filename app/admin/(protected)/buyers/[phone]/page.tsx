@@ -36,6 +36,7 @@ export default async function BuyerDetailPage({ params }: BuyerDetailPageProps) 
     voucherCount,
     lastOrderAt: latest.created_at,
     otherNames: names.filter((name) => name !== latest.customer_name),
+    member: null,
   };
 
   return <BuyerDetailClient buyer={buyer} orders={orders} />;
