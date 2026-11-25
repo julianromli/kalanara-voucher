@@ -126,14 +126,14 @@ function DirectoryTable({
             {rows.map((row) => (
               <tr
                 key={row.id}
-                className="relative transition-colors hover:bg-muted/30"
+                className="cursor-pointer transition-colors hover:bg-muted/30"
+                onClick={() => onSelect(row.id)}
               >
                 <td className="p-3 lg:p-4">
                   <button
                     type="button"
-                    onClick={() => onSelect(row.id)}
                     aria-label={`Buka kartu ${row.name}`}
-                    className="block w-full truncate text-left font-medium text-foreground outline-none after:absolute after:inset-0 focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    className="block w-full truncate text-left font-medium text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                   >
                     {row.name}
                   </button>
