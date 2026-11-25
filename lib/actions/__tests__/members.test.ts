@@ -21,7 +21,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   getAdminClient: getAdminClientMock,
 }));
 
-import { addStamp, claimReward, markFollowupSent, saveRewards, selfSignup, voidStamp } from "@/lib/actions/members";
+import { addStamp, claimReward, markFollowupSent, saveRewards, searchMembers, selfSignup, voidStamp } from "@/lib/actions/members";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 
 const access = {
@@ -356,5 +356,95 @@ describe("member actions", () => {
       }),
     );
     expect(rpc).not.toHaveBeenCalledWith("list_member_followups");
+  });
+});
+
+describe("searchMembers", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireAdminPermissionMock.mockResolvedValue(access);
+  });
+
+  function mockSearch({
+    data = [],
+    error = null,
+  }: {
+    data?: Array<{ id: string; name: string; phone: string; member_code: string }>;
+    error?: unknown;
+  } = {}) {
+    const eq = vi.fn().mockResolvedValue({ data, error });
+    const ilike = vi.fn().mockResolvedValue({ data, error });
+    const from = vi.fn(() => ({
+      select: () => ({
+        limit: () => ({ eq, ilike }),
+      }),
+    }));
+    mockClient(vi.fn(), from);
+    return { eq, ilike, from };
+  }
+
+  test("finds dinda with a case-insensitive name search", async () => {
+    const { eq, ilike } = mockSearch({
+      data: [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Dinda Salsabilla",
+          phone: "6282212347221",
+          member_code: "7KQ2X9",
+        },
+      ],
+    });
+
+    const result = await searchMembers({ q: "dinda" });
+
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(AdminPermission.MEMBERS_OPERATE);
+    expect(ilike).toHaveBeenCalledWith("name", "%dinda%");
+    expect(eq).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      status: "ok",
+      members: [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Dinda Salsabilla",
+          phone: "6282212347221",
+          memberCode: "7KQ2X9",
+        },
+      ],
+    });
+  });
+
+  test("looks up a phone number exactly", async () => {
+    const { eq, ilike } = mockSearch({
+      data: [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Rina Maharani",
+          phone: "6281234567890",
+          member_code: "7KQ2X9",
+        },
+      ],
+    });
+
+    const result = await searchMembers({ q: "0812 3456 7890" });
+
+    expect(eq).toHaveBeenCalledWith("phone", "6281234567890");
+    expect(ilike).not.toHaveBeenCalled();
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") return;
+    expect(result.members).toHaveLength(1);
+    expect(result.members[0]?.phone).toBe("6281234567890");
+  });
+
+  test("returns no rows for a one-letter query without hitting the database", async () => {
+    const { from } = mockSearch();
+    const result = await searchMembers({ q: "d" });
+    expect(result).toEqual({ status: "ok", members: [] });
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  test("strips like wildcards from a name query", async () => {
+    const { ilike } = mockSearch();
+    await searchMembers({ q: "din%da_x" });
+    expect(ilike).toHaveBeenCalledWith("name", "%dindax%");
   });
 });

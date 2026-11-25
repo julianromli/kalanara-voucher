@@ -1,29 +1,47 @@
+import type { ReactNode } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { MemberSummary } from "@/lib/membership/summary";
 
-const actions = vi.hoisted(() => ({
-  addStamp: vi.fn(),
-  findMember: vi.fn(),
-  getMember: vi.fn(),
-  getMemberWaLink: vi.fn(),
-  listRecentMembers: vi.fn(),
-  redeemBirthday: vi.fn(),
-  rotateCardToken: vi.fn(),
-  voidClaim: vi.fn(),
-  voidStamp: vi.fn(),
-  registerMember: vi.fn(),
-  claimReward: vi.fn(),
+const { actions, routerPush, hasPermission } = vi.hoisted(() => ({
+  actions: {
+    addStamp: vi.fn(),
+    findMember: vi.fn(),
+    getMember: vi.fn(),
+    getMemberWaLink: vi.fn(),
+    listRecentMembers: vi.fn(),
+    searchMembers: vi.fn(),
+    redeemBirthday: vi.fn(),
+    rotateCardToken: vi.fn(),
+    voidClaim: vi.fn(),
+    voidStamp: vi.fn(),
+    registerMember: vi.fn(),
+    claimReward: vi.fn(),
+  },
+  routerPush: vi.fn(),
+  hasPermission: vi.fn(() => true),
 }));
 
 vi.mock("@/lib/actions/members", () => actions);
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
-vi.mock("@/context/AuthContext", () => ({ useAuth: () => ({ hasPermission: () => true }) }));
-vi.mock("@/components/admin/dashboard-header", () => ({
-  DashboardHeader: ({ title }: { title: string }) => <h1>{title}</h1>,
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: routerPush }) }));
+vi.mock("@/context/AuthContext", () => ({
+  useAuth: () => ({ hasPermission }),
 }));
-// The camera panel needs getUserMedia; the tests open members from the recent list instead.
-vi.mock("@/components/admin/members/member-scan-panel", () => ({ MemberScanPanel: () => null }));
+vi.mock("@/components/admin/dashboard-header", () => ({
+  DashboardHeader: ({
+    title,
+    endSlot,
+  }: {
+    title: string;
+    endSlot?: ReactNode;
+  }) => (
+    <header>
+      <h1>{title}</h1>
+      {endSlot}
+    </header>
+  ),
+}));
 
 import { MembersClient } from "@/components/admin/members/members-client";
 import { ToastProvider } from "@/context/ToastContext";
@@ -131,7 +149,13 @@ function shownCount(): string {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  hasPermission.mockReturnValue(true);
   actions.listRecentMembers.mockResolvedValue({ status: "ok", members: [] });
+  actions.searchMembers.mockResolvedValue({ status: "ok", members: [] });
+  Object.defineProperty(navigator, "mediaDevices", {
+    configurable: true,
+    value: { getUserMedia: vi.fn(() => Promise.reject(new Error("denied"))) },
+  });
 });
 
 describe("MembersClient stamp flow", () => {
@@ -210,5 +234,80 @@ describe("MembersClient stamp flow", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Batalkan" }));
     await waitFor(() => expect(shownCount()).toBe("9"));
     expect(screen.queryByText(BRONZE_BANNER)).not.toBeInTheDocument();
+  });
+
+  test("shows the full phone on the member card, not a masked number", async () => {
+    await openRina(9);
+    expect(screen.getByText(/\+62 812 3456 4471/)).toBeInTheDocument();
+    expect(screen.queryByText(/····/)).not.toBeInTheDocument();
+  });
+
+  test("puts Pengaturan member in the page header, not on the member card", async () => {
+    const user = userEvent.setup();
+    await openRina(9);
+    await user.click(screen.getByRole("button", { name: "Pengaturan member" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Pengaturan member" }));
+    expect(routerPush).toHaveBeenCalledWith("/admin/members/settings");
+    await user.click(screen.getByRole("button", { name: "Menu member" }));
+    expect(await screen.findByRole("menuitem", { name: "Kirim link kartu" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Pengaturan member" })).not.toBeInTheDocument();
+  });
+});
+
+describe("MembersClient name search", () => {
+  test("searching dinda calls searchMembers and does not show the QR rejected banner", async () => {
+    actions.searchMembers.mockResolvedValue({
+      status: "ok",
+      members: [
+        {
+          id: MEMBER_ID,
+          name: "Dinda Salsabilla",
+          phone: "6282212347221",
+          memberCode: "7KQ2X9",
+        },
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Dinda Lestari",
+          phone: "6281211112222",
+          memberCode: "8LM3Y0",
+        },
+      ],
+    });
+    render(
+      <ToastProvider>
+        <MembersClient initialRecent={[]} services={[{ id: SERVICE_ID, name: "Body Massage", duration: 60 }]} />
+      </ToastProvider>,
+    );
+    const input = screen.getByLabelText("Nama atau nomor HP member");
+    fireEvent.change(input, { target: { value: "dinda" } });
+    fireEvent.submit(input.closest("form")!);
+    expect(await screen.findByText("Dinda Salsabilla")).toBeInTheDocument();
+    expect(actions.searchMembers).toHaveBeenCalledWith({ q: "dinda" });
+    expect(actions.findMember).not.toHaveBeenCalled();
+    expect(screen.queryByText("QR ini bukan kartu member Kalanara")).not.toBeInTheDocument();
+    expect(screen.getByText("+62 822 1234 7221")).toBeInTheDocument();
+
+    actions.getMember.mockResolvedValueOnce({ status: "ok", summary: { ...summary(4), name: "Dinda Salsabilla", phone: "6282212347221" } });
+    fireEvent.click(screen.getByRole("button", { name: /Dinda Salsabilla/ }));
+    expect(await screen.findByRole("heading", { name: "Dinda Salsabilla" })).toBeInTheDocument();
+    expect(actions.getMember).toHaveBeenCalledWith(MEMBER_ID);
+  });
+
+  test("a phone lookup still uses findMember", async () => {
+    actions.findMember.mockResolvedValue({ status: "not_found", scan: { kind: "phone", phone: "6281234567890" } });
+    render(
+      <ToastProvider>
+        <MembersClient initialRecent={[]} services={[{ id: SERVICE_ID, name: "Body Massage", duration: 60 }]} />
+      </ToastProvider>,
+    );
+    const input = screen.getByLabelText("Nama atau nomor HP member");
+    fireEvent.change(input, { target: { value: "81234567890" } });
+    fireEvent.submit(input.closest("form")!);
+    expect(await screen.findByText("Nomor ini belum terdaftar.")).toBeInTheDocument();
+    expect(actions.findMember).toHaveBeenCalledWith({
+      scan: "81234567890",
+      origin: expect.any(String),
+    });
+    expect(actions.searchMembers).not.toHaveBeenCalled();
   });
 });

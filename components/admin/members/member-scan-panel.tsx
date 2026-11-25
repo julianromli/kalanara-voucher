@@ -5,8 +5,17 @@ import jsQR from "jsqr";
 import { Camera, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { isLookupPhonePrefixVisible, parseMemberScan } from "@/lib/membership/scan";
+import { formatBuyerPhone } from "@/lib/admin/buyer-phone";
+import { isLookupPhonePrefixVisible, isMemberNameQuery, parseMemberScan } from "@/lib/membership/scan";
 import { tryAppBaseUrl } from "@/lib/membership/urls";
+import { memberInitials } from "@/lib/membership/format";
+
+export interface MemberNameHit {
+  id: string;
+  name: string;
+  phone: string;
+  memberCode: string;
+}
 
 interface MemberScanPanelProps {
   onScan: (value: string) => void;
@@ -15,6 +24,9 @@ interface MemberScanPanelProps {
   manualValue: string;
   onManualChange: (value: string) => void;
   onManualSubmit: () => void;
+  nameResults?: MemberNameHit[];
+  nameStatus?: "idle" | "searching" | "empty";
+  onPickNameResult?: (memberId: string) => void;
 }
 
 export function MemberScanPanel({
@@ -24,6 +36,9 @@ export function MemberScanPanel({
   manualValue,
   onManualChange,
   onManualSubmit,
+  nameResults = [],
+  nameStatus = "idle",
+  onPickNameResult,
 }: MemberScanPanelProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -194,6 +209,7 @@ export function MemberScanPanel({
   }, []);
 
   const showPhonePrefix = isLookupPhonePrefixVisible(manualValue);
+  const nameQuery = isMemberNameQuery(manualValue);
 
   return (
     <div className="flex flex-col gap-4">
@@ -254,7 +270,7 @@ export function MemberScanPanel({
         }}
       >
         <label htmlFor="member-phone-search" className="text-sm font-medium">
-          Atau cari pakai nomor HP
+          Cari nama atau nomor HP
         </label>
         <div className="flex gap-2">
           <div className="flex h-9 min-w-0 flex-1 items-center rounded-md border border-input bg-background shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
@@ -265,10 +281,11 @@ export function MemberScanPanel({
               id="member-phone-search"
               value={manualValue}
               onChange={(event) => onManualChange(event.target.value)}
-              inputMode={showPhonePrefix ? "numeric" : "url"}
+              inputMode={showPhonePrefix ? "numeric" : nameQuery ? "text" : "url"}
               autoComplete={showPhonePrefix ? "tel-national" : "off"}
+              spellCheck={nameQuery ? false : undefined}
               className="h-9 border-0 shadow-none focus-visible:ring-0"
-              aria-label="Nomor HP member"
+              aria-label="Nama atau nomor HP member"
             />
           </div>
           <Button type="submit" variant="outline" disabled={status === "loading"}>
@@ -280,7 +297,35 @@ export function MemberScanPanel({
             Nomor ini belum terdaftar.
           </p>
         ) : null}
+        {nameStatus === "empty" ? (
+          <p className="text-sm text-destructive" role="alert">
+            Nama ini belum terdaftar.
+          </p>
+        ) : null}
       </form>
+      {nameResults.length > 0 ? (
+        <ul className="-mx-2" aria-label="Hasil pencarian member">
+          {nameResults.map((member) => (
+            <li key={member.id}>
+              <button
+                type="button"
+                onClick={() => onPickNameResult?.(member.id)}
+                className="flex h-13 w-full items-center gap-3 rounded-lg px-2 text-left transition-colors outline-none hover:bg-muted/40 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              >
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                  {memberInitials(member.name)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{member.name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {formatBuyerPhone(member.phone)}
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

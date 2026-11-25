@@ -9,7 +9,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { formatMemberDate, maskMemberPhone, memberInitials } from "@/lib/membership/format";
+import { formatBuyerPhone } from "@/lib/admin/buyer-phone";
+import { formatMemberDate, memberInitials } from "@/lib/membership/format";
 import { tierBenefitLabel } from "@/lib/membership/rules";
 import { TierPill } from "@/components/member/tier-pill";
 import type { MemberSummary } from "@/lib/membership/summary";
@@ -20,7 +21,6 @@ interface MemberCardProps {
   onSendLink: () => void;
   onCopyLink: () => void;
   onRotateLink: () => void;
-  onOpenSettings: () => void;
 }
 
 export function MemberCard({
@@ -29,7 +29,6 @@ export function MemberCard({
   onSendLink,
   onCopyLink,
   onRotateLink,
-  onOpenSettings,
 }: MemberCardProps) {
   const benefit = tierBenefitLabel(summary.effectiveTier);
   return (
@@ -46,7 +45,7 @@ export function MemberCard({
           ) : null}
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          {maskMemberPhone(summary.phone)} · Member sejak {formatMemberDate(summary.createdAt)} · Periode reset{" "}
+          {formatBuyerPhone(summary.phone)} · Member sejak {formatMemberDate(summary.createdAt)} · Periode reset{" "}
           {formatMemberDate(summary.resetOn)}
           {benefit ? ` · ${benefit}` : ""}
         </p>
@@ -65,9 +64,6 @@ export function MemberCard({
           <DropdownMenuItem onSelect={onCopyLink}>Salin link</DropdownMenuItem>
           {canManageSettings ? (
             <DropdownMenuItem onSelect={onRotateLink}>Ganti link kartu</DropdownMenuItem>
-          ) : null}
-          {canManageSettings ? (
-            <DropdownMenuItem onSelect={onOpenSettings}>Pengaturan member</DropdownMenuItem>
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>

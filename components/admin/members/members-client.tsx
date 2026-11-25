@@ -2,11 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, UserRound } from "lucide-react";
+import { MoreHorizontal, Plus, UserRound } from "lucide-react";
 import { AddStampBar, cappedReason } from "@/components/admin/members/add-stamp-bar";
 import { ClaimRewardDialog } from "@/components/admin/members/claim-reward-dialog";
 import { MemberCard } from "@/components/admin/members/member-card";
-import { MemberScanPanel } from "@/components/admin/members/member-scan-panel";
+import {
+  MemberScanPanel,
+  type MemberNameHit,
+} from "@/components/admin/members/member-scan-panel";
 import { RegisterMemberDialog } from "@/components/admin/members/register-member-dialog";
 import { RewardList } from "@/components/admin/members/reward-list";
 import { StampTrack } from "@/components/admin/members/stamp-track";
@@ -14,6 +17,12 @@ import { VisitHistory } from "@/components/admin/members/visit-history";
 import { AdminPageBody } from "@/components/admin/admin-page";
 import { DashboardHeader } from "@/components/admin/dashboard-header";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -31,6 +40,7 @@ import {
   getMember,
   getMemberWaLink,
   listRecentMembers,
+  searchMembers,
   redeemBirthday,
   rotateCardToken,
   voidClaim,
@@ -47,7 +57,8 @@ import {
 } from "@/lib/membership/format";
 import { createLatestRequestGate } from "@/lib/membership/latest-request";
 import type { MemberSummary } from "@/lib/membership/summary";
-import { memberCardUrl } from "@/lib/membership/urls";
+import { isMemberNameQuery, parseMemberScan } from "@/lib/membership/scan";
+import { memberCardUrl, tryAppBaseUrl } from "@/lib/membership/urls";
 
 interface RecentMember {
   id: string;
@@ -75,6 +86,9 @@ export function MembersClient({ initialRecent, services, servicesError = false }
   const [summary, setSummary] = useState<MemberSummary | null>(null);
   const [scanStatus, setScanStatus] = useState<"idle" | "found" | "rejected" | "not_found" | "loading">("idle");
   const [manual, setManual] = useState("");
+  const [nameResults, setNameResults] = useState<MemberNameHit[]>([]);
+  const [nameStatus, setNameStatus] = useState<"idle" | "searching" | "empty">("idle");
+  const nameSearchRequest = useRef(0);
   const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
   const [confirm, setConfirm] = useState<{ serviceName: string; createdAt: string } | null>(null);
   const [stampError, setStampError] = useState(false);
@@ -108,6 +122,23 @@ export function MembersClient({ initialRecent, services, servicesError = false }
     [],
   );
 
+  useEffect(() => {
+    const query = manual.trim();
+    if (!isMemberNameQuery(query)) {
+      setNameResults([]);
+      setNameStatus("idle");
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      void runNameSearch(query, false).catch(() => {
+        showToast("Pencarian gagal. Coba lagi.", "error");
+      });
+    }, 250);
+    return () => window.clearTimeout(timeout);
+    // runNameSearch reads current toasts/gates; the query string is the trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manual]);
+
   async function refreshRecent() {
     const requestId = recentRequest.current + 1;
     recentRequest.current = requestId;
@@ -131,8 +162,39 @@ export function MembersClient({ initialRecent, services, servicesError = false }
     setRotateOpen(false);
     setStampError(false);
     setJustAdded(false);
+    setNameResults([]);
+    setNameStatus("idle");
     setBanner(resetBanner(next));
     await refreshRecent();
+  }
+
+  async function runNameSearch(query: string, openIfSingle: boolean) {
+    const requestId = nameSearchRequest.current + 1;
+    nameSearchRequest.current = requestId;
+    setNameStatus("searching");
+    setNameResults([]);
+    const result = await searchMembers({ q: query });
+    if (requestId !== nameSearchRequest.current) return;
+    if (result.status !== "ok") {
+      setNameStatus("idle");
+      showToast("Pencarian gagal. Coba lagi.", "error");
+      return;
+    }
+    if (result.members.length === 0) {
+      setNameStatus("empty");
+      setNameResults([]);
+      setScanStatus("idle");
+      return;
+    }
+    if (openIfSingle && result.members.length === 1) {
+      setNameStatus("idle");
+      setNameResults([]);
+      selectMember(result.members[0].id);
+      return;
+    }
+    setNameStatus("idle");
+    setNameResults(result.members);
+    setScanStatus("idle");
   }
 
   function selectMember(memberId: string) {
@@ -155,6 +217,27 @@ export function MembersClient({ initialRecent, services, servicesError = false }
     setConfirm(null);
     setClaimMilestone(null);
     setRotateOpen(false);
+    setNameResults([]);
+    setNameStatus("idle");
+    const parsed = parseMemberScan(value, {
+      appUrl: tryAppBaseUrl() || undefined,
+      origin: window.location.origin,
+    });
+    if (parsed.kind === "empty") {
+      setScanStatus("idle");
+      return;
+    }
+    const exactLookup =
+      parsed.kind === "token" || parsed.kind === "phone" || parsed.kind === "code";
+    if (!exactLookup) {
+      if (isMemberNameQuery(value)) {
+        setScanStatus("loading");
+        await runNameSearch(value, true);
+        return;
+      }
+      setScanStatus("rejected");
+      return;
+    }
     setScanStatus("loading");
     const result = await findMember({ scan: value, origin: window.location.origin });
     if (result.status === "ok") {
@@ -166,6 +249,10 @@ export function MembersClient({ initialRecent, services, servicesError = false }
       return;
     }
     if (result.status === "not_found") {
+      if (isMemberNameQuery(value)) {
+        await runNameSearch(value, true);
+        return;
+      }
       setScanStatus("not_found");
       return;
     }
@@ -263,7 +350,26 @@ export function MembersClient({ initialRecent, services, servicesError = false }
 
   return (
     <>
-      <DashboardHeader title={`Member · ${today}`} showActions={false} />
+      <DashboardHeader
+        title={`Member · ${today}`}
+        showActions={false}
+        endSlot={
+          canManage ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" size="icon" variant="ghost" aria-label="Pengaturan member">
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => router.push("/admin/members/settings")}>
+                  Pengaturan member
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null
+        }
+      />
       <AdminPageBody>
         <div className="flex justify-end">
           <Button type="button" onClick={() => setRegisterOpen(true)}>
@@ -280,6 +386,9 @@ export function MembersClient({ initialRecent, services, servicesError = false }
               manualValue={manual}
               onManualChange={setManual}
               onManualSubmit={() => void lookup(manual)}
+              nameResults={nameResults}
+              nameStatus={nameStatus}
+              onPickNameResult={selectMember}
             />
             {scanStatus === "not_found" ? (
               <Button type="button" className="mt-3" onClick={() => setRegisterOpen(true)}>
@@ -351,7 +460,6 @@ export function MembersClient({ initialRecent, services, servicesError = false }
                       .catch(() => showToast("Link gagal disalin", "error"));
                   }}
                   onRotateLink={() => setRotateOpen(true)}
-                  onOpenSettings={() => router.push("/admin/members/settings")}
                 />
                 {summary.birthday.eligible ? (
                   <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/50 px-4 py-3 text-sm">
