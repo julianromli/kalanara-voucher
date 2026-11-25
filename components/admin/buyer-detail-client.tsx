@@ -79,7 +79,7 @@ export function BuyerDetailClient({ buyer, orders }: BuyerDetailClientProps) {
                     href={waHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label="Buka WhatsApp"
+                    aria-label={`Buka WhatsApp ${formatBuyerPhone(buyer.phone)}`}
                     className="underline underline-offset-4"
                   >
                     {formatBuyerPhone(buyer.phone)}

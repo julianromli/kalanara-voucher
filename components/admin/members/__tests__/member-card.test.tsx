@@ -111,7 +111,7 @@ describe("MemberCard edit and audit", () => {
     expect(screen.getByText("12 Mar 2027")).toBeInTheDocument();
     expect(screen.getByText("Belum ada kunjungan")).toBeInTheDocument();
     expect(screen.getByText("4 stamp")).toBeInTheDocument();
-    const wa = screen.getByRole("link", { name: "Buka WhatsApp" });
+    const wa = screen.getByRole("link", { name: "Buka WhatsApp +62 812 3456 4471" });
     expect(wa).toHaveAttribute("href", expect.stringContaining("https://wa.me/6281234564471?text="));
   });
 
@@ -123,6 +123,6 @@ describe("MemberCard edit and audit", () => {
         {...actions}
       />,
     );
-    expect(screen.queryByRole("link", { name: "Buka WhatsApp" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Buka WhatsApp/ })).not.toBeInTheDocument();
   });
 });

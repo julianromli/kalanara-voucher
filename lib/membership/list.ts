@@ -27,6 +27,7 @@ export interface MemberListRecord {
   createdAt: string;
   baseTier: number;
   cycleStart: string;
+  waConsent: boolean;
   stamps: MemberListStamp[];
 }
 
@@ -40,6 +41,7 @@ export interface MemberListRow {
   createdAt: string;
   nextMilestone: number | null;
   nextRewardName: string | null;
+  waConsent: boolean;
 }
 
 export interface MemberFollowUpGroups {
@@ -90,6 +92,7 @@ export function buildMemberListRow(
     createdAt: record.createdAt,
     nextMilestone,
     nextRewardName: nextMilestone ? rewardNames.get(nextMilestone) ?? null : null,
+    waConsent: record.waConsent,
   };
 }
 

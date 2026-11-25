@@ -65,7 +65,7 @@ function MemberFacts({ summary }: { summary: MemberSummary }) {
             href={waHref}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Buka WhatsApp"
+            aria-label={`Buka WhatsApp ${phone}`}
             className="underline underline-offset-4"
           >
             {phone}

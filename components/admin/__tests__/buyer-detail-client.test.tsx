@@ -105,7 +105,7 @@ describe("BuyerDetailClient member badge", () => {
     expect(screen.getByText("Email")).toBeInTheDocument();
     expect(screen.getByText("rina@example.com")).toBeInTheDocument();
     expect(screen.getByText("20 Nov 2026")).toBeInTheDocument();
-    const wa = screen.getByRole("link", { name: "Buka WhatsApp" });
+    const wa = screen.getByRole("link", { name: "Buka WhatsApp +62 812 3456 4471" });
     expect(wa).toHaveAttribute("href", expect.stringContaining("https://wa.me/6281234564471?text="));
     expect(screen.getByText("Pembelian")).toBeInTheDocument();
     expect(screen.getByText("Voucher")).toBeInTheDocument();

@@ -15,6 +15,7 @@ function row(overrides: Partial<MemberListRow> = {}): MemberListRow {
     createdAt: "2026-03-12T03:00:00Z",
     nextMilestone: 10,
     nextRewardName: "Treatment gratis",
+    waConsent: true,
     ...overrides,
   };
 }
@@ -65,6 +66,21 @@ describe("MemberDirectory", () => {
     );
   });
 
+  test("hides the WhatsApp action when WhatsApp consent is off", () => {
+    const declined = row({ waConsent: false });
+    render(
+      <MemberDirectory
+        page={buildAdminPage([declined], 1, 1)}
+        followUp={{ nearReward: [declined], frequent: [] }}
+        query=""
+        tier="all"
+        {...noop}
+      />,
+    );
+    expect(screen.getByText("1 stamp lagi buat Treatment gratis")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Buka WhatsApp/ })).not.toBeInTheDocument();
+  });
+
   test("hides the WhatsApp action when the phone cannot be opened in WhatsApp", () => {
     const invalid = row({ phone: "081234564471" });
     render(
@@ -108,7 +124,7 @@ describe("MemberDirectory", () => {
     expect(screen.getByText("Memuat daftar member…")).toBeInTheDocument();
   });
 
-  test("shows the visible range outside the table card", () => {
+  test("shows the visible range and page number", () => {
     const rows = Array.from({ length: 25 }, (_, index) =>
       row({
         id: `11111111-1111-4111-8111-${String(index + 26).padStart(12, "0")}`,

@@ -194,7 +194,8 @@ export async function listMembers(
       created_at: string;
       base_tier: number;
       cycle_start: string;
-    }>(() => supabase.from("members").select("id, name, phone, created_at, base_tier, cycle_start")),
+      wa_consent: boolean | null;
+    }>(() => supabase.from("members").select("id, name, phone, created_at, base_tier, cycle_start, wa_consent")),
     fetchAllRows<{
       member_id: string;
       cycle_start: string;
@@ -245,6 +246,7 @@ export async function listMembers(
         createdAt: member.created_at,
         baseTier: member.base_tier,
         cycleStart: member.cycle_start,
+        waConsent: member.wa_consent === true,
         stamps: stampsByMember.get(member.id) ?? [],
       },
       today,

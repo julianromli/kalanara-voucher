@@ -75,7 +75,7 @@ function FollowUpRow({
   onSelect: (memberId: string) => void;
 }) {
   const reason = followUpReason(row, kind);
-  const waHref = whatsAppLink(row.phone, followUpWaText(row, kind));
+  const waHref = row.waConsent ? whatsAppLink(row.phone, followUpWaText(row, kind)) : null;
   const lastVisit = row.lastVisitAt
     ? `Terakhir ${formatMemberDate(row.lastVisitAt)}`
     : "Belum ada kunjungan";
