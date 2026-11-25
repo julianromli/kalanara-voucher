@@ -111,14 +111,14 @@ function DirectoryTable({
         ))}
       </div>
       <div className="hidden min-w-0 overflow-x-auto md:block">
-        <table className="w-full table-fixed">
+        <table className="w-full table-fixed" aria-label="Daftar member">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              <th className="w-[26%] p-3 text-left text-sm font-medium text-muted-foreground lg:p-4">Nama</th>
-              <th className="w-[26%] p-3 text-left text-sm font-medium text-muted-foreground lg:p-4">WhatsApp</th>
-              <th className="w-[16%] p-3 text-left text-sm font-medium text-muted-foreground lg:p-4">Level</th>
-              <th className="w-[10%] p-3 text-left text-sm font-medium text-muted-foreground lg:p-4">Stamp</th>
-              <th className="w-[22%] p-3 text-left text-sm font-medium text-muted-foreground lg:p-4">Terakhir</th>
+              <th className="w-[26%] p-3 text-left text-sm font-medium text-muted-foreground xl:w-[22%] lg:p-4">Nama</th>
+              <th className="w-[26%] p-3 text-left text-sm font-medium text-muted-foreground xl:w-[22%] lg:p-4">WhatsApp</th>
+              <th className="w-[16%] p-3 text-left text-sm font-medium text-muted-foreground xl:w-[12%] lg:p-4">Level</th>
+              <th className="w-[10%] p-3 text-left text-sm font-medium text-muted-foreground xl:w-[8%] lg:p-4">Stamp</th>
+              <th className="w-[22%] p-3 text-left text-sm font-medium text-muted-foreground xl:w-[18%] lg:p-4">Terakhir</th>
               <th className="hidden p-3 text-left text-sm font-medium text-muted-foreground xl:table-cell xl:w-[18%] lg:p-4">Member sejak</th>
             </tr>
           </thead>
@@ -126,18 +126,17 @@ function DirectoryTable({
             {rows.map((row) => (
               <tr
                 key={row.id}
-                tabIndex={0}
-                className="cursor-pointer transition-colors hover:bg-muted/30 focus-visible:bg-muted/30 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                onClick={() => onSelect(row.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onSelect(row.id);
-                  }
-                }}
+                className="relative transition-colors hover:bg-muted/30"
               >
                 <td className="p-3 lg:p-4">
-                  <p className="truncate font-medium text-foreground">{row.name}</p>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(row.id)}
+                    aria-label={`Buka kartu ${row.name}`}
+                    className="block w-full truncate text-left font-medium text-foreground outline-none after:absolute after:inset-0 focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  >
+                    {row.name}
+                  </button>
                 </td>
                 <td className="p-3 text-sm text-foreground lg:p-4">
                   {formatBuyerPhone(row.phone)}
@@ -287,9 +286,9 @@ export function MemberDirectory({
           <AdminSurface padded={false}>
             <AdminEmptyState
               icon={<HugeiconsIcon icon={UserGroupIcon} size={22} />}
-              title={query || tier !== "all" ? "Tidak ada member" : "Belum ada member"}
+              title={query.trim() || tier !== "all" ? "Tidak ada member" : "Belum ada member"}
               description={
-                query || tier !== "all"
+                query.trim() || tier !== "all"
                   ? "Coba nama, nomor, atau filter level yang lain."
                   : "Member yang didaftarkan muncul di sini."
               }

@@ -131,6 +131,15 @@ describe("filter and paginate", () => {
     expect(filterMemberList(rows, { query: "0822-1234-7221", tier: "all" }).map((item) => item.id)).toEqual(["1"]);
   });
 
+  test("matches local 08, +62, 62, and 8 phone prefixes against stored 62 numbers", () => {
+    expect(filterMemberList(rows, { query: "0822", tier: "all" }).map((item) => item.id)).toEqual(["1"]);
+    expect(filterMemberList(rows, { query: "+62 812", tier: "all" }).map((item) => item.id)).toEqual(["2"]);
+    expect(filterMemberList(rows, { query: "62822", tier: "all" }).map((item) => item.id)).toEqual(["1"]);
+    expect(filterMemberList(rows, { query: "8123456", tier: "all" }).map((item) => item.id)).toEqual(["2"]);
+    expect(filterMemberList(rows, { query: "4471", tier: "all" }).map((item) => item.id)).toEqual(["2"]);
+    expect(filterMemberList(rows, { query: "0822", tier: "all" }).map((item) => item.id)).not.toContain("2");
+  });
+
   test("filters by level", () => {
     expect(filterMemberList(rows, { query: "", tier: "0" }).map((item) => item.id)).toEqual(["2"]);
     expect(filterMemberList(rows, { query: "", tier: "1" }).map((item) => item.id)).toEqual(["1"]);
@@ -150,5 +159,20 @@ describe("filter and paginate", () => {
     expect(page.totalCount).toBe(26);
     expect(page.totalPages).toBe(2);
     expect(page.rows).toHaveLength(1);
+  });
+
+  test("clamps an out-of-range page to the last page", () => {
+    const many = Array.from({ length: 26 }, (_, index) =>
+      row({
+        id: String(index),
+        name: `Member ${String(index).padStart(2, "0")}`,
+        createdAt: `2026-01-${String((index % 28) + 1).padStart(2, "0")}T00:00:00Z`,
+      }),
+    );
+    const page = paginateMemberList(filterMemberList(many, { query: "", tier: "all" }), 99);
+    expect(page.page).toBe(2);
+    expect(page.totalPages).toBe(2);
+    expect(page.rows).toHaveLength(1);
+    expect(page.rows[0]?.id).toBe("0");
   });
 });

@@ -1,3 +1,4 @@
+import { normalizeBuyerPhone } from "@/lib/admin/buyer-phone";
 import { normalizeMemberPhone } from "@/lib/membership/phone";
 import {
   ADMIN_PAGE_SIZE,
@@ -134,10 +135,18 @@ export function memberListQueryMatches(row: MemberListRow, query: string): boole
   const trimmed = query.trim();
   if (!trimmed) return true;
   if (row.name.toLowerCase().includes(trimmed.toLowerCase())) return true;
+  const exact = normalizeMemberPhone(trimmed);
+  if (exact && row.phone === exact) return true;
   const digits = trimmed.replace(/\D/g, "");
-  const phone = normalizeMemberPhone(trimmed);
-  if (phone && row.phone === phone) return true;
-  if (digits.length >= 3 && row.phone.includes(digits)) return true;
+  if (digits.length < 3) return false;
+  // Same prefix cleanup as normalizeMemberPhone, then the buyer normalizer so
+  // partial 08… / +62 / 62 / 8… queries line up with stored 62… numbers.
+  let rest = digits;
+  if (rest.startsWith("00")) rest = rest.slice(2);
+  if (rest.startsWith("62") && rest.charAt(2) === "0") rest = `62${rest.slice(3)}`;
+  const normalized = normalizeBuyerPhone(rest);
+  if (normalized.length >= 3 && row.phone.includes(normalized)) return true;
+  if (rest !== normalized && rest.length >= 3 && row.phone.includes(rest)) return true;
   return false;
 }
 
@@ -157,7 +166,8 @@ export function paginateMemberList(
   page: number,
   pageSize = ADMIN_PAGE_SIZE,
 ): AdminPage<MemberListRow> {
-  const safePage = page > 0 ? page : 1;
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
   const from = (safePage - 1) * pageSize;
   return buildAdminPage(rows.slice(from, from + pageSize), safePage, rows.length);
 }

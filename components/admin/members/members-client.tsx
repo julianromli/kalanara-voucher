@@ -192,16 +192,22 @@ export function MembersClient({ initialRecent, initialList = null, services, ser
     const requestId = listRequest.current + 1;
     listRequest.current = requestId;
     setListLoading(true);
-    const result = await listMembers(params);
-    if (requestId !== listRequest.current) return;
-    setListLoading(false);
-    if (result.status !== "ok") {
+    try {
+      const result = await listMembers(params);
+      if (requestId !== listRequest.current) return;
+      setListLoading(false);
+      if (result.status !== "ok") {
+        setListError(true);
+        return;
+      }
+      setListError(false);
+      setListPage(result.page);
+      setListFollowUp(result.followUp);
+    } catch {
+      if (requestId !== listRequest.current) return;
+      setListLoading(false);
       setListError(true);
-      return;
     }
-    setListError(false);
-    setListPage(result.page);
-    setListFollowUp(result.followUp);
   }
 
   useEffect(() => {
@@ -210,10 +216,7 @@ export function MembersClient({ initialRecent, initialList = null, services, ser
       return;
     }
     const timeout = window.setTimeout(() => {
-      void loadMemberList({ query: listQuery, tier: listTier, page: listPageNumber }).catch(() => {
-        setListLoading(false);
-        setListError(true);
-      });
+      void loadMemberList({ query: listQuery, tier: listTier, page: listPageNumber });
     }, 250);
     return () => window.clearTimeout(timeout);
   }, [listQuery, listTier, listPageNumber]);
@@ -225,10 +228,7 @@ export function MembersClient({ initialRecent, initialList = null, services, ser
     setConfirm(null);
     setClaimMilestone(null);
     setBanner(null);
-    void loadMemberList({ query: listQuery, tier: listTier, page: listPageNumber }).catch(() => {
-      setListLoading(false);
-      setListError(true);
-    });
+    void loadMemberList({ query: listQuery, tier: listTier, page: listPageNumber });
   }
 
   async function refreshRecent() {

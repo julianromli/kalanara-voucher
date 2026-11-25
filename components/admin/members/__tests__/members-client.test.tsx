@@ -570,7 +570,7 @@ describe("MembersClient directory", () => {
         />
       </ToastProvider>,
     );
-    fireEvent.click(screen.getAllByText("Rina Maharani")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Buka kartu Rina Maharani" }));
     expect(await screen.findByRole("button", { name: "Kembali ke daftar" })).toBeInTheDocument();
     expect(actions.getMember).toHaveBeenCalledWith(MEMBER_ID);
     expect(screen.getByText(/\+62 812 3456 4471/)).toBeInTheDocument();
@@ -592,5 +592,61 @@ describe("MembersClient directory", () => {
     );
     expect(screen.getByText("Belum ada member")).toBeInTheDocument();
     expect(screen.queryByText("Siap follow up")).not.toBeInTheDocument();
+  });
+
+  test("an older list failure does not hide a newer successful result", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const first = deferred<{ status: "error" }>();
+      const rina = listRow();
+      const dinda = listRow({
+        id: "22222222-2222-4222-8222-222222222222",
+        name: "Dinda Salsabilla",
+        phone: "6282212347221",
+        stampCount: 8,
+        nextMilestone: 10,
+        nextRewardName: "Treatment gratis",
+      });
+      actions.listMembers
+        .mockReturnValueOnce(first.promise)
+        .mockResolvedValueOnce({
+          status: "ok",
+          page: buildAdminPage([dinda], 1, 1),
+          followUp: { nearReward: [], frequent: [] },
+          milestones: [5],
+        });
+      render(
+        <ToastProvider>
+          <MembersClient
+            initialRecent={[]}
+            initialList={{
+              status: "ok",
+              page: buildAdminPage([rina], 1, 1),
+              followUp: { nearReward: [], frequent: [] },
+              milestones: [5],
+            }}
+            services={[{ id: SERVICE_ID, name: "Body Massage", duration: 60 }]}
+          />
+        </ToastProvider>,
+      );
+      const input = document.getElementById("member-directory-search") as HTMLInputElement;
+      fireEvent.change(input, { target: { value: "rin" } });
+      await act(async () => {
+        vi.advanceTimersByTime(250);
+      });
+      fireEvent.change(input, { target: { value: "dinda" } });
+      await act(async () => {
+        vi.advanceTimersByTime(250);
+      });
+      expect(await screen.findByRole("button", { name: "Buka kartu Dinda Salsabilla" })).toBeInTheDocument();
+      await act(async () => {
+        first.resolve({ status: "error" });
+        await first.promise;
+      });
+      expect(screen.getByRole("button", { name: "Buka kartu Dinda Salsabilla" })).toBeInTheDocument();
+      expect(screen.queryByText("Daftar member gagal dimuat")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
