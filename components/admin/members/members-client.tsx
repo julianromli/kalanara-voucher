@@ -8,6 +8,7 @@ import { ClaimRewardDialog } from "@/components/admin/members/claim-reward-dialo
 import { EditMemberDialog } from "@/components/admin/members/edit-member-dialog";
 import { MemberCard } from "@/components/admin/members/member-card";
 import { MemberDirectory } from "@/components/admin/members/member-directory";
+import { MemberPurchaseHistory } from "@/components/admin/members/member-purchase-history";
 import {
   MemberScanPanel,
   type MemberNameHit,
@@ -85,11 +86,18 @@ const EMPTY_LIST_PAGE = buildAdminPage<MemberListRow>([], 1, 0);
 interface MembersClientProps {
   initialRecent: RecentMember[];
   initialList?: ListMembersResult | null;
+  initialMember?: string;
   services: Array<{ id: string; name: string; duration: number }>;
   servicesError?: boolean;
 }
 
-export function MembersClient({ initialRecent, initialList = null, services, servicesError = false }: MembersClientProps) {
+export function MembersClient({
+  initialRecent,
+  initialList = null,
+  initialMember,
+  services,
+  servicesError = false,
+}: MembersClientProps) {
   const router = useRouter();
   const { hasPermission } = useAuth();
   const { showToast } = useToast();
@@ -177,6 +185,41 @@ export function MembersClient({ initialRecent, initialList = null, services, ser
     }
     loadAudit(summary.id);
   }, [summary?.id, canManage, loadAudit]);
+
+  const openedDeepLink = useRef<string | null>(null);
+  useEffect(() => {
+    const raw = initialMember?.trim() ?? "";
+    if (!raw) {
+      openedDeepLink.current = null;
+      return;
+    }
+    if (openedDeepLink.current === raw) return;
+    openedDeepLink.current = raw;
+    const uuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        raw,
+      );
+    if (uuid) {
+      void selectMember(raw);
+      return;
+    }
+    const ticket = summaryGate.begin();
+    void findMember({ scan: raw })
+      .then((result) => {
+        if (!summaryGate.isLatest(ticket)) return;
+        if (result.status === "ok") {
+          void openMember(result.summary);
+          return;
+        }
+        showToast("Kartu member gagal dibuka. Coba lagi.", "error");
+      })
+      .catch(() => {
+        if (!summaryGate.isLatest(ticket)) return;
+        showToast("Kartu member gagal dibuka. Coba lagi.", "error");
+      });
+    // Landing query should open once. Fresh function identities must not retrigger it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMember]);
 
   useEffect(
     () => () => {
@@ -722,6 +765,7 @@ export function MembersClient({ initialRecent, initialList = null, services, ser
                   <RewardList summary={summary} onClaim={setClaimMilestone} />
                   <VisitHistory summary={summary} />
                 </div>
+                <MemberPurchaseHistory key={summary.id} phone={summary.phone} />
               </div>
             ) : (
               <MemberDirectory

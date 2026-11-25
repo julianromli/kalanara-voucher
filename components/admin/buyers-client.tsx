@@ -18,7 +18,10 @@ import { useAuth } from "@/context/AuthContext";
 import { useAdminListUrl } from "@/hooks/use-admin-list-url";
 import type { AdminBuyer } from "@/lib/actions/buyers";
 import type { AdminPage } from "@/lib/actions/admin-pagination";
+import { memberAdminPath, type BuyerMemberLink } from "@/lib/admin/buyer-member-match";
 import { buyerPath, formatBuyerPhone } from "@/lib/admin/buyer-phone";
+import { tierName } from "@/lib/membership/rules";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
 interface BuyersClientProps {
@@ -33,15 +36,36 @@ function formatBuyerDate(value: string) {
   });
 }
 
-function BuyerCard({ buyer }: { buyer: AdminBuyer }) {
+
+function MemberBadge({ member }: { member: BuyerMemberLink }) {
+  const level = tierName(member.effectiveTier);
+  const label = member.effectiveTier > 0 ? `Member · ${level}` : "Member";
   return (
     <Link
-      href={buyerPath(buyer.phone)}
-      className="block rounded-xl border border-border bg-card p-4 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      href={memberAdminPath(member.id)}
+      onClick={(event) => event.stopPropagation()}
+      className="relative z-10 inline-flex pointer-events-auto"
+      aria-label={`Buka kartu member, ${level}`}
     >
-      <div className="flex items-start justify-between gap-3">
+      <Badge variant="outline">{label}</Badge>
+    </Link>
+  );
+}
+
+function BuyerCard({ buyer }: { buyer: AdminBuyer }) {
+  return (
+    <article className="relative rounded-xl border border-border bg-card p-4 transition-colors hover:bg-muted/40">
+      <Link
+        href={buyerPath(buyer.phone)}
+        className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={buyer.customerName}
+      />
+      <div className="relative pointer-events-none flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate font-medium text-foreground">{buyer.customerName}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate font-medium text-foreground">{buyer.customerName}</p>
+            {buyer.member ? <MemberBadge member={buyer.member} /> : null}
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {formatBuyerPhone(buyer.phone)}
           </p>
@@ -51,11 +75,11 @@ function BuyerCard({ buyer }: { buyer: AdminBuyer }) {
           {formatBuyerDate(buyer.lastOrderAt)}
         </p>
       </div>
-      <div className="mt-4 flex gap-4 text-sm">
+      <div className="relative pointer-events-none mt-4 flex gap-4 text-sm">
         <span className="text-foreground">{buyer.orderCount} pembelian</span>
         <span className="text-muted-foreground">{buyer.voucherCount} voucher</span>
       </div>
-    </Link>
+    </article>
   );
 }
 
@@ -139,9 +163,12 @@ export function BuyersClient({ initialPage }: BuyersClientProps) {
                   {buyers.map((buyer) => (
                     <tr key={buyer.phone} className="transition-colors hover:bg-muted/30">
                       <td className="p-4">
-                        <Link href={buyerPath(buyer.phone)} className="font-medium text-foreground hover:underline">
-                          {buyer.customerName}
-                        </Link>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link href={buyerPath(buyer.phone)} className="font-medium text-foreground hover:underline">
+                            {buyer.customerName}
+                          </Link>
+                          {buyer.member ? <MemberBadge member={buyer.member} /> : null}
+                        </div>
                         <p className="text-xs text-muted-foreground">{buyer.customerEmail}</p>
                       </td>
                       <td className="p-4 text-sm text-foreground">{formatBuyerPhone(buyer.phone)}</td>

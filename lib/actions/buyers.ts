@@ -8,7 +8,9 @@ import {
   type AdminListParams,
   type AdminPage,
 } from "@/lib/actions/admin-pagination";
+import { attachMemberLinks, type BuyerMemberLink } from "@/lib/admin/buyer-member-match";
 import { normalizeBuyerPhone } from "@/lib/admin/buyer-phone";
+import { jakartaDateISO } from "@/lib/membership/format";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { OrderWithVoucherItems } from "@/lib/database.types";
 
@@ -23,6 +25,7 @@ export interface AdminBuyer {
   voucherCount: number;
   lastOrderAt: string;
   otherNames: string[];
+  member: BuyerMemberLink | null;
 }
 
 interface BuyerRpcRow {
@@ -35,6 +38,36 @@ interface BuyerRpcRow {
   other_names: string[] | null;
 }
 
+
+const SUPABASE_PAGE_SIZE = 1000;
+
+async function fetchAllRows<T>(
+  build: () => {
+    order: (
+      column: string,
+      options: { ascending: boolean },
+    ) => {
+      range: (
+        from: number,
+        to: number,
+      ) => PromiseLike<{ data: T[] | null; error: { message?: string } | null }>;
+    };
+  },
+): Promise<{ data: T[]; error: { message?: string } | null }> {
+  const rows: T[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await build()
+      .order("id", { ascending: true })
+      .range(from, from + SUPABASE_PAGE_SIZE - 1);
+    if (error) return { data: [], error };
+    const chunk = data ?? [];
+    rows.push(...chunk);
+    if (chunk.length < SUPABASE_PAGE_SIZE) return { data: rows, error: null };
+    from += SUPABASE_PAGE_SIZE;
+  }
+}
+
 function toAdminBuyer(row: BuyerRpcRow): AdminBuyer {
   return {
     phone: row.phone,
@@ -44,6 +77,7 @@ function toAdminBuyer(row: BuyerRpcRow): AdminBuyer {
     voucherCount: Number(row.voucher_count),
     lastOrderAt: row.last_order_at,
     otherNames: row.other_names ?? [],
+    member: null,
   };
 }
 
@@ -51,18 +85,77 @@ export async function getBuyersPage(
   params: AdminListParams,
 ): Promise<AdminPage<AdminBuyer>> {
   await requireAdminPermission(AdminPermission.ORDERS_VIEW);
-  const { data, error } = await getAdminClient().rpc("list_admin_buyers", {
-    search_query: params.query,
-  });
+  const supabase = getAdminClient();
+  const [{ data, error }, membersResult, stampsResult] = await Promise.all([
+    supabase.rpc("list_admin_buyers", {
+      search_query: params.query,
+    }),
+    fetchAllRows<{
+      id: string;
+      phone: string;
+      member_code: string;
+      cycle_start: string;
+      base_tier: number;
+    }>(() =>
+      supabase.from("members").select("id, phone, member_code, cycle_start, base_tier"),
+    ),
+    fetchAllRows<{
+      id: string;
+      member_id: string;
+      cycle_start: string;
+      visit_date: string;
+      created_at: string;
+      voided_at: string | null;
+    }>(() =>
+      supabase
+        .from("member_stamps")
+        .select("id, member_id, cycle_start, visit_date, created_at, voided_at"),
+    ),
+  ]);
 
   if (error) {
     console.error("Error fetching buyers:", error);
     throw error;
   }
+  if (membersResult.error) {
+    console.error("Error fetching members for buyers:", membersResult.error);
+    throw membersResult.error;
+  }
+  if (stampsResult.error) {
+    console.error("Error fetching member stamps for buyers:", stampsResult.error);
+    throw stampsResult.error;
+  }
 
+  const stampsByMember = new Map<string, Array<{ cycleStart: string; visitAt: string; voided: boolean }>>();
+  for (const stamp of stampsResult.data) {
+    const visitAt =
+      (typeof stamp.created_at === "string" && stamp.created_at) ||
+      (typeof stamp.visit_date === "string" && stamp.visit_date) ||
+      "";
+    if (!visitAt) continue;
+    const list = stampsByMember.get(stamp.member_id) ?? [];
+    list.push({
+      cycleStart: stamp.cycle_start,
+      visitAt,
+      voided: stamp.voided_at != null,
+    });
+    stampsByMember.set(stamp.member_id, list);
+  }
   const buyers = ((data as BuyerRpcRow[] | null) ?? []).map(toAdminBuyer);
+  const linked = attachMemberLinks(
+        buyers,
+        membersResult.data.map((member) => ({
+          id: member.id,
+          phone: member.phone,
+          memberCode: member.member_code,
+          cycleStart: member.cycle_start,
+          baseTier: member.base_tier,
+          stamps: stampsByMember.get(member.id) ?? [],
+        })),
+        jakartaDateISO(),
+      );
   const from = (params.page - 1) * ADMIN_PAGE_SIZE;
-  return buildAdminPage(buyers.slice(from, from + ADMIN_PAGE_SIZE), params.page, buyers.length);
+  return buildAdminPage(linked.slice(from, from + ADMIN_PAGE_SIZE), params.page, linked.length);
 }
 
 export async function getBuyerOrders(
