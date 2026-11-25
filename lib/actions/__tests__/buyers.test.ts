@@ -47,34 +47,43 @@ describe("getBuyersPage member match", () => {
     const from = vi.fn((table: string) => {
       if (table === "members") {
         return {
-          select: vi.fn().mockResolvedValue({
-            data: [
-              {
-                id: MEMBER_ID,
-                phone: "6281234564471",
-                member_code: "7KQ2X9",
-                cycle_start: "2026-01-10",
-                base_tier: 0,
-              },
-            ],
-            error: null,
-          }),
+          select: vi.fn(() => ({
+            order: () => ({
+              range: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: MEMBER_ID,
+                    phone: "6281234564471",
+                    member_code: "7KQ2X9",
+                    cycle_start: "2026-01-10",
+                    base_tier: 0,
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          })),
         };
       }
       if (table === "member_stamps") {
         return {
-          select: vi.fn().mockResolvedValue({
-            data: [
-              {
-                member_id: MEMBER_ID,
-                cycle_start: "2026-01-10",
-                visit_date: "2026-02-01",
-                created_at: "2026-02-01T04:00:00Z",
-                voided_at: null,
-              },
-            ],
-            error: null,
-          }),
+          select: vi.fn(() => ({
+            order: () => ({
+              range: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: "55555555-5555-4555-8555-555555555555",
+                    member_id: MEMBER_ID,
+                    cycle_start: "2026-01-10",
+                    visit_date: "2026-02-01",
+                    created_at: "2026-02-01T04:00:00Z",
+                    voided_at: null,
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          })),
         };
       }
       if (table === "orders") {
@@ -95,6 +104,48 @@ describe("getBuyersPage member match", () => {
       id: MEMBER_ID,
       memberCode: "7KQ2X9",
       effectiveTier: 0,
+    });
+  });
+
+  test("throws when the member lookup fails instead of hiding every badge", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          phone: "6281234564471",
+          customer_name: "Rina Maharani",
+          customer_email: "rina@example.com",
+          order_count: 1,
+          voucher_count: 1,
+          last_order_at: "2026-11-20T04:00:00Z",
+          other_names: [],
+        },
+      ],
+      error: null,
+    });
+    const from = vi.fn((table: string) => {
+      if (table === "members") {
+        return {
+          select: vi.fn(() => ({
+            order: () => ({
+              range: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: "members unavailable" },
+              }),
+            }),
+          })),
+        };
+      }
+      return {
+        select: vi.fn(() => ({
+          order: () => ({
+            range: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        })),
+      };
+    });
+    getAdminClientMock.mockReturnValue({ rpc, from });
+    await expect(getBuyersPage({ page: 1, query: "", filter: "ALL" })).rejects.toEqual({
+      message: "members unavailable",
     });
   });
 });

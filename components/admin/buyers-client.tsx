@@ -44,7 +44,7 @@ function MemberBadge({ member }: { member: BuyerMemberLink }) {
     <Link
       href={memberAdminPath(member.id)}
       onClick={(event) => event.stopPropagation()}
-      className="relative z-10 inline-flex"
+      className="relative z-10 inline-flex pointer-events-auto"
       aria-label={`Buka kartu member, ${level}`}
     >
       <Badge variant="outline">{label}</Badge>
@@ -60,7 +60,7 @@ function BuyerCard({ buyer }: { buyer: AdminBuyer }) {
         className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label={buyer.customerName}
       />
-      <div className="relative flex items-start justify-between gap-3">
+      <div className="relative pointer-events-none flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="truncate font-medium text-foreground">{buyer.customerName}</p>
@@ -75,7 +75,7 @@ function BuyerCard({ buyer }: { buyer: AdminBuyer }) {
           {formatBuyerDate(buyer.lastOrderAt)}
         </p>
       </div>
-      <div className="relative mt-4 flex gap-4 text-sm">
+      <div className="relative pointer-events-none mt-4 flex gap-4 text-sm">
         <span className="text-foreground">{buyer.orderCount} pembelian</span>
         <span className="text-muted-foreground">{buyer.voucherCount} voucher</span>
       </div>

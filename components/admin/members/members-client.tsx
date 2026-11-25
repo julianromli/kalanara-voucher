@@ -157,8 +157,10 @@ export function MembersClient({
       void selectMember(raw);
       return;
     }
+    const ticket = summaryGate.begin();
     void findMember({ scan: raw })
       .then((result) => {
+        if (!summaryGate.isLatest(ticket)) return;
         if (result.status === "ok") {
           void openMember(result.summary);
           return;
@@ -166,6 +168,7 @@ export function MembersClient({
         showToast("Kartu member gagal dibuka. Coba lagi.", "error");
       })
       .catch(() => {
+        if (!summaryGate.isLatest(ticket)) return;
         showToast("Kartu member gagal dibuka. Coba lagi.", "error");
       });
     // Landing query should open once. Fresh function identities must not retrigger it.
