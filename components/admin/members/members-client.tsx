@@ -88,7 +88,9 @@ export function MembersClient({ initialRecent, services, servicesError = false }
   const [manual, setManual] = useState("");
   const [nameResults, setNameResults] = useState<MemberNameHit[]>([]);
   const [nameStatus, setNameStatus] = useState<"idle" | "searching" | "empty">("idle");
-  const nameSearchRequest = useRef(0);
+  const searchRequest = useRef(0);
+  const nameSearchTimer = useRef<number | null>(null);
+  const skipNameSearchDebounce = useRef(false);
   const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
   const [confirm, setConfirm] = useState<{ serviceName: string; createdAt: string } | null>(null);
   const [stampError, setStampError] = useState(false);
@@ -122,19 +124,48 @@ export function MembersClient({ initialRecent, services, servicesError = false }
     [],
   );
 
+  function beginSearchRequest() {
+    searchRequest.current += 1;
+    return searchRequest.current;
+  }
+
+  function clearNameSearchTimer() {
+    if (nameSearchTimer.current != null) {
+      window.clearTimeout(nameSearchTimer.current);
+      nameSearchTimer.current = null;
+    }
+  }
+
+  function changeManual(value: string) {
+    clearNameSearchTimer();
+    // Invalidate in-flight results for the previous query on this keystroke,
+    // before a submit of the new query starts, so the effect below never
+    // races with that submit and marks it stale.
+    beginSearchRequest();
+    setManual(value);
+  }
+
   useEffect(() => {
     const query = manual.trim();
+    if (skipNameSearchDebounce.current) {
+      skipNameSearchDebounce.current = false;
+      if (!isMemberNameQuery(query)) {
+        setNameResults([]);
+        setNameStatus("idle");
+      }
+      return;
+    }
+    clearNameSearchTimer();
     if (!isMemberNameQuery(query)) {
       setNameResults([]);
       setNameStatus("idle");
       return;
     }
-    const timeout = window.setTimeout(() => {
-      void runNameSearch(query, false).catch(() => {
-        showToast("Pencarian gagal. Coba lagi.", "error");
-      });
+    nameSearchTimer.current = window.setTimeout(() => {
+      nameSearchTimer.current = null;
+      void runNameSearch(query, false);
     }, 250);
-    return () => window.clearTimeout(timeout);
+    return () => clearNameSearchTimer();
     // runNameSearch reads current toasts/gates; the query string is the trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manual]);
@@ -169,49 +200,78 @@ export function MembersClient({ initialRecent, services, servicesError = false }
   }
 
   async function runNameSearch(query: string, openIfSingle: boolean) {
-    const requestId = nameSearchRequest.current + 1;
-    nameSearchRequest.current = requestId;
+    const requestId = beginSearchRequest();
     setNameStatus("searching");
     setNameResults([]);
-    const result = await searchMembers({ q: query });
-    if (requestId !== nameSearchRequest.current) return;
-    if (result.status !== "ok") {
+    let settled = false;
+    try {
+      const result = await searchMembers({ q: query });
+      if (requestId !== searchRequest.current) return;
+      if (result.status !== "ok") {
+        showToast("Pencarian gagal. Coba lagi.", "error");
+        return;
+      }
+      if (result.members.length === 0) {
+        setNameStatus("empty");
+        setNameResults([]);
+        setScanStatus("idle");
+        settled = true;
+        return;
+      }
+      if (openIfSingle && result.members.length === 1) {
+        setNameStatus("idle");
+        setNameResults([]);
+        settled = true;
+        await selectMember(result.members[0].id);
+        return;
+      }
       setNameStatus("idle");
-      showToast("Pencarian gagal. Coba lagi.", "error");
-      return;
-    }
-    if (result.members.length === 0) {
-      setNameStatus("empty");
-      setNameResults([]);
+      setNameResults(result.members);
       setScanStatus("idle");
-      return;
+      settled = true;
+    } catch {
+      if (requestId !== searchRequest.current) return;
+      showToast("Pencarian gagal. Coba lagi.", "error");
+    } finally {
+      if (!settled && requestId === searchRequest.current) {
+        setNameStatus("idle");
+        setScanStatus("idle");
+      }
     }
-    if (openIfSingle && result.members.length === 1) {
-      setNameStatus("idle");
-      setNameResults([]);
-      selectMember(result.members[0].id);
-      return;
-    }
-    setNameStatus("idle");
-    setNameResults(result.members);
-    setScanStatus("idle");
   }
 
-  function selectMember(memberId: string) {
+  async function selectMember(memberId: string) {
+    // A new selection invalidates an in-flight name search, but not the
+    // getMember ticket this function is about to take.
+    beginSearchRequest();
     const ticket = summaryGate.begin();
-    void getMember(memberId).then((result) => {
+    setScanStatus("loading");
+    setNameResults([]);
+    setNameStatus("idle");
+    let opened = false;
+    try {
+      const result = await getMember(memberId);
       if (!summaryGate.isLatest(ticket)) return;
       if (result.status === "ok") {
-        void openMember(result.summary);
+        await openMember(result.summary);
+        opened = true;
         return;
       }
       showToast("Kartu member gagal dibuka. Coba lagi.", "error");
-    }).catch(() => {
-      if (summaryGate.isLatest(ticket)) showToast("Kartu member gagal dibuka. Koneksi putus.", "error");
-    });
+    } catch {
+      if (!summaryGate.isLatest(ticket)) return;
+      showToast("Kartu member gagal dibuka. Coba lagi.", "error");
+    } finally {
+      if (!opened && summaryGate.isLatest(ticket)) {
+        setScanStatus((current) => (current === "loading" ? "idle" : current));
+      }
+    }
   }
 
   async function lookup(value: string) {
+    clearNameSearchTimer();
+    skipNameSearchDebounce.current = true;
+    const requestId = beginSearchRequest();
     summaryGate.begin();
     setSummary(null);
     setConfirm(null);
@@ -239,29 +299,36 @@ export function MembersClient({ initialRecent, services, servicesError = false }
       return;
     }
     setScanStatus("loading");
-    const result = await findMember({ scan: value, origin: window.location.origin });
-    if (result.status === "ok") {
-      await openMember(result.summary);
-      return;
-    }
-    if (result.status === "rejected") {
-      setScanStatus("rejected");
-      return;
-    }
-    if (result.status === "not_found") {
-      if (isMemberNameQuery(value)) {
-        await runNameSearch(value, true);
+    try {
+      const result = await findMember({ scan: value, origin: window.location.origin });
+      if (requestId !== searchRequest.current) return;
+      if (result.status === "ok") {
+        await openMember(result.summary);
         return;
       }
-      setScanStatus("not_found");
-      return;
-    }
-    if (result.status === "empty") {
+      if (result.status === "rejected") {
+        setScanStatus("rejected");
+        return;
+      }
+      if (result.status === "not_found") {
+        if (isMemberNameQuery(value)) {
+          await runNameSearch(value, true);
+          return;
+        }
+        setScanStatus("not_found");
+        return;
+      }
+      if (result.status === "empty") {
+        setScanStatus("idle");
+        return;
+      }
       setScanStatus("idle");
-      return;
+      showToast("Pencarian gagal. Coba lagi.", "error");
+    } catch {
+      if (requestId !== searchRequest.current) return;
+      setScanStatus("idle");
+      showToast("Pencarian gagal. Coba lagi.", "error");
     }
-    setScanStatus("idle");
-    showToast("Pencarian gagal. Coba lagi.", "error");
   }
 
   async function submitStamp(confirmSameDay = false) {
@@ -384,7 +451,7 @@ export function MembersClient({ initialRecent, services, servicesError = false }
               status={scanStatus}
               statusName={summary?.name.split(" ")[0]}
               manualValue={manual}
-              onManualChange={setManual}
+              onManualChange={changeManual}
               onManualSubmit={() => void lookup(manual)}
               nameResults={nameResults}
               nameStatus={nameStatus}
