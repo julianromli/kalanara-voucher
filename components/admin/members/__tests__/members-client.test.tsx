@@ -11,6 +11,7 @@ const { actions, routerPush, hasPermission } = vi.hoisted(() => ({
     getMember: vi.fn(),
     getMemberWaLink: vi.fn(),
     listRecentMembers: vi.fn(),
+    listMembers: vi.fn(),
     searchMembers: vi.fn(),
     redeemBirthday: vi.fn(),
     rotateCardToken: vi.fn(),
@@ -44,11 +45,37 @@ vi.mock("@/components/admin/dashboard-header", () => ({
 }));
 
 import { MembersClient } from "@/components/admin/members/members-client";
+import { buildAdminPage } from "@/lib/actions/admin-pagination";
+import type { MemberListRow } from "@/lib/membership/list";
 import { ToastProvider } from "@/context/ToastContext";
 
 const BRONZE_BANNER = /kebuka, dan Rina naik ke Bronze/;
 const MEMBER_ID = "11111111-1111-4111-8111-111111111111";
 const SERVICE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+
+function listRow(overrides: Partial<MemberListRow> = {}): MemberListRow {
+  return {
+    id: MEMBER_ID,
+    name: "Rina Maharani",
+    phone: "6281234564471",
+    effectiveTier: 0,
+    stampCount: 4,
+    lastVisitAt: "2026-11-20T04:00:00Z",
+    createdAt: "2026-03-12T03:00:00Z",
+    nextMilestone: 5,
+    nextRewardName: "Totok gratis",
+    ...overrides,
+  };
+}
+
+function emptyListResult() {
+  return {
+    status: "ok" as const,
+    page: buildAdminPage<MemberListRow>([], 1, 0),
+    followUp: { nearReward: [] as MemberListRow[], frequent: [] as MemberListRow[] },
+    milestones: [5, 10, 15, 20, 25, 30],
+  };
+}
 
 function summary(count: number): MemberSummary {
   const tier = count >= 30 ? 3 : count >= 20 ? 2 : count >= 10 ? 1 : 0;
@@ -151,6 +178,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   hasPermission.mockReturnValue(true);
   actions.listRecentMembers.mockResolvedValue({ status: "ok", members: [] });
+  actions.listMembers.mockResolvedValue(emptyListResult());
   actions.searchMembers.mockResolvedValue({ status: "ok", members: [] });
   Object.defineProperty(navigator, "mediaDevices", {
     configurable: true,
@@ -483,6 +511,140 @@ describe("MembersClient name search", () => {
         vi.advanceTimersByTime(400);
       });
       expect(actions.searchMembers).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("MembersClient directory", () => {
+  test("shows Siap follow up and the full member list in the right pane", () => {
+    const rina = listRow();
+    const dinda = listRow({
+      id: "22222222-2222-4222-8222-222222222222",
+      name: "Dinda Salsabilla",
+      phone: "6282212347221",
+      stampCount: 8,
+      nextMilestone: 10,
+      nextRewardName: "Treatment gratis",
+      lastVisitAt: "2026-11-18T04:00:00Z",
+    });
+    render(
+      <ToastProvider>
+        <MembersClient
+          initialRecent={[]}
+          initialList={{
+            status: "ok",
+            page: buildAdminPage([rina, dinda], 1, 2),
+            followUp: { nearReward: [rina], frequent: [dinda] },
+            milestones: [5, 10],
+          }}
+          services={[{ id: SERVICE_ID, name: "Body Massage", duration: 60 }]}
+        />
+      </ToastProvider>,
+    );
+    expect(screen.getByText("Siap follow up")).toBeInTheDocument();
+    expect(screen.getByText("Deket reward")).toBeInTheDocument();
+    expect(screen.getByText(/1 stamp lagi buat Totok gratis/)).toBeInTheDocument();
+    expect(screen.getByText("Sering datang")).toBeInTheDocument();
+    expect(screen.getByText("Semua member")).toBeInTheDocument();
+    expect(screen.getAllByText("+62 812 3456 4471").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Scan QR member buat mulai")).not.toBeInTheDocument();
+    expect(screen.queryByText(/····/)).not.toBeInTheDocument();
+  });
+
+  test("clicking a list row opens the member card, and back returns to the list", async () => {
+    const rina = listRow();
+    actions.getMember.mockResolvedValue({ status: "ok", summary: summary(4) });
+    render(
+      <ToastProvider>
+        <MembersClient
+          initialRecent={[]}
+          initialList={{
+            status: "ok",
+            page: buildAdminPage([rina], 1, 1),
+            followUp: { nearReward: [rina], frequent: [] },
+            milestones: [5],
+          }}
+          services={[{ id: SERVICE_ID, name: "Body Massage", duration: 60 }]}
+        />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Buka kartu Rina Maharani" }));
+    expect(await screen.findByRole("button", { name: "Kembali ke daftar" })).toBeInTheDocument();
+    expect(actions.getMember).toHaveBeenCalledWith(MEMBER_ID);
+    expect(screen.getByText(/\+62 812 3456 4471/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Kembali ke daftar" }));
+    expect(await screen.findByText("Semua member")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Kembali ke daftar" })).not.toBeInTheDocument();
+    expect(actions.listMembers).toHaveBeenCalled();
+  });
+
+  test("shows an empty state when there are no members", () => {
+    render(
+      <ToastProvider>
+        <MembersClient
+          initialRecent={[]}
+          initialList={emptyListResult()}
+          services={[{ id: SERVICE_ID, name: "Body Massage", duration: 60 }]}
+        />
+      </ToastProvider>,
+    );
+    expect(screen.getByText("Belum ada member")).toBeInTheDocument();
+    expect(screen.queryByText("Siap follow up")).not.toBeInTheDocument();
+  });
+
+  test("an older list failure does not hide a newer successful result", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const first = deferred<{ status: "error" }>();
+      const rina = listRow();
+      const dinda = listRow({
+        id: "22222222-2222-4222-8222-222222222222",
+        name: "Dinda Salsabilla",
+        phone: "6282212347221",
+        stampCount: 8,
+        nextMilestone: 10,
+        nextRewardName: "Treatment gratis",
+      });
+      actions.listMembers
+        .mockReturnValueOnce(first.promise)
+        .mockResolvedValueOnce({
+          status: "ok",
+          page: buildAdminPage([dinda], 1, 1),
+          followUp: { nearReward: [], frequent: [] },
+          milestones: [5],
+        });
+      render(
+        <ToastProvider>
+          <MembersClient
+            initialRecent={[]}
+            initialList={{
+              status: "ok",
+              page: buildAdminPage([rina], 1, 1),
+              followUp: { nearReward: [], frequent: [] },
+              milestones: [5],
+            }}
+            services={[{ id: SERVICE_ID, name: "Body Massage", duration: 60 }]}
+          />
+        </ToastProvider>,
+      );
+      const input = document.getElementById("member-directory-search") as HTMLInputElement;
+      fireEvent.change(input, { target: { value: "rin" } });
+      await act(async () => {
+        vi.advanceTimersByTime(250);
+      });
+      fireEvent.change(input, { target: { value: "dinda" } });
+      await act(async () => {
+        vi.advanceTimersByTime(250);
+      });
+      expect(await screen.findByRole("button", { name: "Buka kartu Dinda Salsabilla" })).toBeInTheDocument();
+      await act(async () => {
+        first.resolve({ status: "error" });
+        await first.promise;
+      });
+      expect(screen.getByRole("button", { name: "Buka kartu Dinda Salsabilla" })).toBeInTheDocument();
+      expect(screen.queryByText("Daftar member gagal dimuat")).not.toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }

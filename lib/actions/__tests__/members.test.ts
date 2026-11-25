@@ -21,7 +21,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   getAdminClient: getAdminClientMock,
 }));
 
-import { addStamp, claimReward, markFollowupSent, saveRewards, searchMembers, selfSignup, voidStamp } from "@/lib/actions/members";
+import { addStamp, claimReward, listMembers, markFollowupSent, saveRewards, searchMembers, selfSignup, voidStamp } from "@/lib/actions/members";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 
 const access = {
@@ -446,5 +446,123 @@ describe("searchMembers", () => {
     const { ilike } = mockSearch();
     await searchMembers({ q: "din%da_x" });
     expect(ilike).toHaveBeenCalledWith("name", "%dindax%");
+  });
+});
+
+describe("listMembers", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireAdminPermissionMock.mockResolvedValue(access);
+  });
+
+  function mockListTables(tables: Record<string, { data: unknown; error: unknown }>) {
+    const from = vi.fn((name: string) => {
+      const result = tables[name] ?? { data: [], error: null };
+      const thenable = {
+        then(
+          resolve: (value: { data: unknown; error: unknown }) => unknown,
+          reject?: (reason: unknown) => unknown,
+        ) {
+          return Promise.resolve(result).then(resolve, reject);
+        },
+        order: async () => result,
+      };
+      return { select: () => thenable };
+    });
+    mockClient(vi.fn(), from);
+    return from;
+  }
+
+  test("requires MEMBERS_OPERATE and flags a member one stamp short of a named reward", async () => {
+    mockListTables({
+      members: {
+        data: [
+          {
+            id: "22222222-2222-4222-8222-222222222222",
+            name: "Dinda Salsabilla",
+            phone: "6282212347221",
+            created_at: "2026-01-10T03:00:00Z",
+            base_tier: 0,
+            cycle_start: "2026-01-10",
+          },
+        ],
+        error: null,
+      },
+      member_stamps: {
+        data: Array.from({ length: 9 }, (_, index) => ({
+          member_id: "22222222-2222-4222-8222-222222222222",
+          cycle_start: "2026-01-10",
+          visit_date: `2026-0${Math.min(index + 2, 9)}-01`,
+          created_at: `2026-0${Math.min(index + 2, 9)}-01T04:00:00Z`,
+          voided_at: null,
+        })),
+        error: null,
+      },
+      member_rewards: {
+        data: [
+          { milestone: 5, name: "" },
+          { milestone: 10, name: "Treatment gratis" },
+        ],
+        error: null,
+      },
+    });
+
+    const result = await listMembers();
+
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(AdminPermission.MEMBERS_OPERATE);
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") return;
+    expect(result.milestones).toEqual([10]);
+    expect(result.followUp.nearReward).toHaveLength(1);
+    expect(result.followUp.nearReward[0]?.stampCount).toBe(9);
+    expect(result.followUp.nearReward[0]?.nextRewardName).toBe("Treatment gratis");
+    expect(result.page.totalCount).toBe(1);
+    expect(result.page.rows[0]?.phone).toBe("6282212347221");
+  });
+
+  test("searches by name and ignores voided stamps", async () => {
+    mockListTables({
+      members: {
+        data: [
+          {
+            id: "22222222-2222-4222-8222-222222222222",
+            name: "Dinda Salsabilla",
+            phone: "6282212347221",
+            created_at: "2026-01-10T03:00:00Z",
+            base_tier: 0,
+            cycle_start: "2026-01-10",
+          },
+          {
+            id: "33333333-3333-4333-8333-333333333333",
+            name: "Rina Maharani",
+            phone: "6281234564471",
+            created_at: "2026-01-11T03:00:00Z",
+            base_tier: 0,
+            cycle_start: "2026-01-11",
+          },
+        ],
+        error: null,
+      },
+      member_stamps: {
+        data: [
+          {
+            member_id: "22222222-2222-4222-8222-222222222222",
+            cycle_start: "2026-01-10",
+            visit_date: "2026-02-01",
+            created_at: "2026-02-01T04:00:00Z",
+            voided_at: "2026-02-01T04:05:00Z",
+          },
+        ],
+        error: null,
+      },
+      member_rewards: { data: [], error: null },
+    });
+
+    const result = await listMembers({ query: "dinda" });
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") return;
+    expect(result.page.rows).toHaveLength(1);
+    expect(result.page.rows[0]?.name).toBe("Dinda Salsabilla");
+    expect(result.page.rows[0]?.stampCount).toBe(0);
   });
 });
