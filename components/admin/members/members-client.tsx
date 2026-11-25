@@ -143,12 +143,15 @@ export function MembersClient({
     selectedIdRef.current = summary?.id ?? null;
   }, [summary?.id]);
 
-  const openedDeepLink = useRef(false);
+  const openedDeepLink = useRef<string | null>(null);
   useEffect(() => {
-    if (openedDeepLink.current) return;
-    const raw = initialMember?.trim();
-    if (!raw) return;
-    openedDeepLink.current = true;
+    const raw = initialMember?.trim() ?? "";
+    if (!raw) {
+      openedDeepLink.current = null;
+      return;
+    }
+    if (openedDeepLink.current === raw) return;
+    openedDeepLink.current = raw;
     const uuid =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
         raw,

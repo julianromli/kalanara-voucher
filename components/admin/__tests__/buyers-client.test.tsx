@@ -55,6 +55,17 @@ describe("BuyersClient member badge", () => {
     expect(screen.getAllByText("Member · Bronze").length).toBeGreaterThan(0);
   });
 
+  test("shows a plain Member badge when the level is still Member", () => {
+    render(
+      <BuyersClient
+        initialPage={buildAdminPage([buyer({ member: { id: MEMBER_ID, memberCode: "7KQ2X9", effectiveTier: 0 } })], 1, 1)}
+      />,
+    );
+    expect(screen.getAllByRole("link", { name: "Buka kartu member, Member" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Member").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Member · Bronze")).not.toBeInTheDocument();
+  });
+
   test("hides the badge when the buyer is not a member", () => {
     render(
       <BuyersClient

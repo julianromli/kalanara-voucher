@@ -24,7 +24,7 @@ describe("MemberPurchaseHistory", () => {
     expect(getBuyerOrders).toHaveBeenCalledWith("6281234564471");
   });
 
-  test("lists purchases made by this phone, not as a recipient", async () => {
+  test("lists the purchase orders returned for this phone", async () => {
     getBuyerOrders.mockResolvedValueOnce([
       {
         id: "ord-1",
@@ -62,3 +62,9 @@ describe("MemberPurchaseHistory", () => {
     await waitFor(() => expect(getBuyerOrders).toHaveBeenCalledTimes(1));
   });
 });
+
+  test("shows an error when the purchase history fails to load", async () => {
+    getBuyerOrders.mockRejectedValueOnce(new Error("unavailable"));
+    render(<MemberPurchaseHistory phone="6281234564471" />);
+    expect(await screen.findByText("Riwayat pembelian gagal dimuat.")).toBeInTheDocument();
+  });

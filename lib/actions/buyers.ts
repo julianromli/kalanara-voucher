@@ -126,28 +126,31 @@ export async function getBuyersPage(
     throw stampsResult.error;
   }
 
-  const members = membersResult.data;
-  const stamps = stampsResult.data;
+  const stampsByMember = new Map<string, Array<{ cycleStart: string; visitAt: string; voided: boolean }>>();
+  for (const stamp of stampsResult.data) {
+    const visitAt =
+      (typeof stamp.created_at === "string" && stamp.created_at) ||
+      (typeof stamp.visit_date === "string" && stamp.visit_date) ||
+      "";
+    if (!visitAt) continue;
+    const list = stampsByMember.get(stamp.member_id) ?? [];
+    list.push({
+      cycleStart: stamp.cycle_start,
+      visitAt,
+      voided: stamp.voided_at != null,
+    });
+    stampsByMember.set(stamp.member_id, list);
+  }
   const buyers = ((data as BuyerRpcRow[] | null) ?? []).map(toAdminBuyer);
   const linked = attachMemberLinks(
         buyers,
-        (members ?? []).map((member) => ({
+        membersResult.data.map((member) => ({
           id: member.id,
           phone: member.phone,
           memberCode: member.member_code,
           cycleStart: member.cycle_start,
           baseTier: member.base_tier,
-          stamps: (stamps ?? [])
-            .filter((stamp) => stamp.member_id === member.id)
-            .map((stamp) => ({
-              cycleStart: stamp.cycle_start,
-              visitAt:
-                (typeof stamp.created_at === "string" && stamp.created_at) ||
-                (typeof stamp.visit_date === "string" && stamp.visit_date) ||
-                "",
-              voided: stamp.voided_at != null,
-            }))
-            .filter((stamp) => stamp.visitAt),
+          stamps: stampsByMember.get(member.id) ?? [],
         })),
         jakartaDateISO(),
       );

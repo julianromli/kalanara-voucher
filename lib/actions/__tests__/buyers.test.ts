@@ -56,7 +56,7 @@ describe("getBuyersPage member match", () => {
                     phone: "6281234564471",
                     member_code: "7KQ2X9",
                     cycle_start: "2026-01-10",
-                    base_tier: 0,
+                    base_tier: 1,
                   },
                 ],
                 error: null,
@@ -103,7 +103,7 @@ describe("getBuyersPage member match", () => {
     expect(page.rows[0]?.member).toEqual({
       id: MEMBER_ID,
       memberCode: "7KQ2X9",
-      effectiveTier: 0,
+      effectiveTier: 1,
     });
   });
 
@@ -163,5 +163,30 @@ describe("getBuyerOrders", () => {
     expect(rpc).toHaveBeenCalledWith("list_admin_buyer_orders", {
       buyer_phone: "6281234564471",
     });
+  });
+
+  test("returns purchaser orders newest first", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [{ id: "old-order" }, { id: "new-order" }],
+      error: null,
+    });
+    const inFn = vi.fn().mockResolvedValue({
+      data: [
+        { id: "old-order", created_at: "2026-10-02T04:00:00Z", total_amount: 1, order_items: [], vouchers: null },
+        { id: "new-order", created_at: "2026-11-20T04:00:00Z", total_amount: 2, order_items: [], vouchers: null },
+      ],
+      error: null,
+    });
+    getAdminClientMock.mockReturnValue({
+      rpc,
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({ in: inFn })),
+      })),
+    });
+    const orders = await getBuyerOrders("081234564471");
+    expect(rpc).toHaveBeenCalledWith("list_admin_buyer_orders", {
+      buyer_phone: "6281234564471",
+    });
+    expect(orders.map((order) => order.id)).toEqual(["new-order", "old-order"]);
   });
 });

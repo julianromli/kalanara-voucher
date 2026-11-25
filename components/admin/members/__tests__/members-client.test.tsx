@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { MemberSummary } from "@/lib/membership/summary";
 
-const { actions, routerPush, hasPermission } = vi.hoisted(() => ({
+const { actions, routerPush, hasPermission, getBuyerOrders } = vi.hoisted(() => ({
   actions: {
     addStamp: vi.fn(),
     findMember: vi.fn(),
@@ -22,11 +22,12 @@ const { actions, routerPush, hasPermission } = vi.hoisted(() => ({
   },
   routerPush: vi.fn(),
   hasPermission: vi.fn(() => true),
+  getBuyerOrders: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/actions/members", () => actions);
 vi.mock("@/lib/actions/buyers", () => ({
-  getBuyerOrders: vi.fn().mockResolvedValue([]),
+  getBuyerOrders,
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: routerPush }) }));
 vi.mock("@/context/AuthContext", () => ({
@@ -670,6 +671,7 @@ describe("MembersClient deep link and purchases", () => {
     expect(actions.getMember).toHaveBeenCalledWith(MEMBER_ID);
     expect(await screen.findByText("Riwayat beli voucher")).toBeInTheDocument();
     expect(await screen.findByText("Belum pernah beli voucher online.")).toBeInTheDocument();
+    expect(getBuyerOrders).toHaveBeenCalledWith("6281234564471");
   });
 
   test("opens the member card from a member code", async () => {
