@@ -570,17 +570,6 @@ describe("listMembers", () => {
 
 const MEMBER_ID = "22222222-2222-4222-8222-222222222222";
 
-const currentMember = {
-  id: MEMBER_ID,
-  name: "Rina Maharani",
-  phone: "6281234564471",
-  birth_date: "1994-03-12",
-  wa_consent: true,
-  wa_consent_at: "2026-03-12T03:00:00.000Z",
-  cycle_start: "2026-03-12",
-  base_tier: 0,
-};
-
 const managerAccess = {
   userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   email: "manager@kalanaraspa.com",
@@ -631,45 +620,19 @@ describe("updateMember", () => {
   });
 
   function mockProfile({
-    current = currentMember,
-    updateError = null as { code?: string } | null,
-    auditError = null as unknown,
+    write = { data: { status: "ok", fields: ["name"] }, error: null } as {
+      data: { status: string; fields?: string[] } | null;
+      error: { message?: string } | null;
+    },
     summary = summaryRpc(),
   } = {}) {
-    let updatePayload: Record<string, unknown> | undefined;
-    let auditPayload: unknown;
-    const maybeSingle = vi.fn().mockResolvedValue({ data: current, error: null });
-    const selectEq = vi.fn(() => ({ maybeSingle }));
-    const select = vi.fn(() => ({ eq: selectEq }));
-    const updateEq = vi.fn().mockResolvedValue({ data: null, error: updateError });
-    const update = vi.fn((payload: Record<string, unknown>) => {
-      updatePayload = payload;
-      return { eq: updateEq };
+    const rpc = vi.fn(async (name: string) => {
+      if (name === "member_update_profile") return write;
+      if (name === "get_member_summary") return { data: summary, error: null };
+      throw new Error(`unexpected rpc ${name}`);
     });
-    const insert = vi.fn((payload: unknown) => {
-      auditPayload = payload;
-      return Promise.resolve({ data: payload, error: auditError });
-    });
-    const auditLimit = vi.fn().mockResolvedValue({ data: [], error: null });
-    const auditOrder = vi.fn(() => ({ limit: auditLimit }));
-    const auditEq = vi.fn(() => ({ order: auditOrder }));
-    const auditSelect = vi.fn(() => ({ eq: auditEq }));
-    const from = vi.fn((table: string) => {
-      if (table === "members") return { select, update };
-      if (table === "member_profile_audit") return { insert, select: auditSelect };
-      throw new Error(`unexpected table ${table}`);
-    });
-    const rpc = vi.fn().mockResolvedValue({ data: summary, error: null });
-    mockClient(rpc, from);
-    return {
-      from,
-      update,
-      updateEq,
-      insert,
-      rpc,
-      getUpdatePayload: () => updatePayload,
-      getAuditPayload: () => auditPayload,
-    };
+    mockClient(rpc, vi.fn());
+    return { rpc };
   }
 
   test("requires MEMBERS_SETTINGS and does not write when access is denied", async () => {
@@ -687,7 +650,7 @@ describe("updateMember", () => {
     ).rejects.toThrow("Forbidden");
 
     expect(requireAdminPermissionMock).toHaveBeenCalledWith(AdminPermission.MEMBERS_SETTINGS);
-    expect(mocks.from).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
   });
 
   test("rejects an invalid name, phone, or birth date", async () => {
@@ -705,12 +668,11 @@ describe("updateMember", () => {
     expect(await updateMember({ ...base, phone: "123" })).toEqual({ status: "invalid" });
     expect(await updateMember({ ...base, birthDate: "1994-13-40" })).toEqual({ status: "invalid" });
     expect(await updateMember({ ...base, birthDate: "2099-01-01" })).toEqual({ status: "invalid" });
-    expect(mocks.update).not.toHaveBeenCalled();
-    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
   });
 
   test("returns a friendly message when the new phone is already used", async () => {
-    const mocks = mockProfile({ updateError: { code: "23505" } });
+    mockProfile({ write: { data: { status: "duplicate" }, error: null } });
     const result = await updateMember({
       memberId: MEMBER_ID,
       name: "Rina Maharani",
@@ -722,11 +684,15 @@ describe("updateMember", () => {
       status: "duplicate",
       message: "Nomor ini sudah dipakai member lain",
     });
-    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(logAdminAuditMock).not.toHaveBeenCalled();
   });
 
-  test("writes one audit row per changed field and leaves stamps and cycle alone", async () => {
+  test("writes the profile and audit rows in one RPC and leaves stamps and cycle alone", async () => {
     const mocks = mockProfile({
+      write: {
+        data: { status: "ok", fields: ["name", "phone", "birth_date", "wa_consent"] },
+        error: null,
+      },
       summary: summaryRpc({
         member: {
           id: MEMBER_ID,
@@ -758,44 +724,17 @@ describe("updateMember", () => {
     expect(result.summary.cycleStart).toBe("2026-03-12");
     expect(result.summary.baseTier).toBe(0);
 
-    expect(mocks.getUpdatePayload()).toEqual({
-      name: "Rina M",
-      phone: "6282212347221",
-      birth_date: "1995-04-20",
-      wa_consent: false,
-      wa_consent_at: null,
+    expect(mocks.rpc).toHaveBeenCalledWith("member_update_profile", {
+      p_member_id: MEMBER_ID,
+      p_name: "Rina M",
+      p_phone: "6282212347221",
+      p_birth_date: "1995-04-20",
+      p_wa_consent: false,
+      p_changed_by: managerAccess.userId,
+      p_changed_by_email: managerAccess.email,
+      p_changed_by_role: "MANAGER",
     });
-    expect(mocks.getUpdatePayload()).not.toHaveProperty("cycle_start");
-    expect(mocks.getUpdatePayload()).not.toHaveProperty("base_tier");
-    expect(mocks.updateEq).toHaveBeenCalledWith("id", MEMBER_ID);
-
-    const rows = mocks.getAuditPayload() as Array<Record<string, unknown>>;
-    expect(rows).toEqual([
-      expect.objectContaining({
-        member_id: MEMBER_ID,
-        changed_by: managerAccess.userId,
-        changed_by_email: managerAccess.email,
-        changed_by_role: "MANAGER",
-        field: "name",
-        old_value: "Rina Maharani",
-        new_value: "Rina M",
-      }),
-      expect.objectContaining({
-        field: "phone",
-        old_value: "6281234564471",
-        new_value: "6282212347221",
-      }),
-      expect.objectContaining({
-        field: "birth_date",
-        old_value: "1994-03-12",
-        new_value: "1995-04-20",
-      }),
-      expect.objectContaining({
-        field: "wa_consent",
-        old_value: "true",
-        new_value: "false",
-      }),
-    ]);
+    expect(mocks.rpc.mock.calls.some((call) => call[0] === "members" || call[0] === "member_profile_audit")).toBe(false);
     expect(logAdminAuditMock).toHaveBeenCalledWith(
       managerAccess,
       expect.objectContaining({
@@ -806,8 +745,27 @@ describe("updateMember", () => {
     );
   });
 
-  test("skips the write when nothing changed", async () => {
-    const mocks = mockProfile();
+  test("returns an error and does not log when the profile write RPC fails", async () => {
+    const mocks = mockProfile({
+      write: { data: null, error: { message: "audit table unavailable" } },
+    });
+    const result = await updateMember({
+      memberId: MEMBER_ID,
+      name: "Rina M",
+      phone: "6281234564471",
+      birthDate: "1994-03-12",
+      waConsent: true,
+    });
+    expect(result).toEqual({ status: "error" });
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "member_update_profile",
+      expect.objectContaining({ p_member_id: MEMBER_ID, p_name: "Rina M" }),
+    );
+    expect(logAdminAuditMock).not.toHaveBeenCalled();
+  });
+
+  test("does not log an audit when the RPC reports no changes", async () => {
+    const mocks = mockProfile({ write: { data: { status: "unchanged" }, error: null } });
     const result = await updateMember({
       memberId: MEMBER_ID,
       name: "  Rina Maharani  ",
@@ -816,8 +774,13 @@ describe("updateMember", () => {
       waConsent: true,
     });
     expect(result.status).toBe("ok");
-    expect(mocks.update).not.toHaveBeenCalled();
-    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "member_update_profile",
+      expect.objectContaining({
+        p_name: "Rina Maharani",
+        p_phone: "6281234564471",
+      }),
+    );
     expect(logAdminAuditMock).not.toHaveBeenCalled();
   });
 });

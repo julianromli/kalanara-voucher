@@ -122,7 +122,8 @@ export function MembersClient({ initialRecent, initialList = null, services, ser
   const [rotateOpen, setRotateOpen] = useState(false);
   const [rotatePending, setRotatePending] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [auditRows, setAuditRows] = useState<MemberProfileAuditRow[] | undefined>(undefined);
+  const [auditRows, setAuditRows] = useState<MemberProfileAuditRow[]>([]);
+  const [auditStatus, setAuditStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const auditRequest = useRef(0);
   const [banner, setBanner] = useState<string | null>(null);
   const recentRequest = useRef(0);
@@ -142,25 +143,36 @@ export function MembersClient({ initialRecent, initialList = null, services, ser
 
   const loadAudit = useCallback((memberId: string) => {
     if (!canManage) {
-      setAuditRows(undefined);
+      setAuditRows([]);
+      setAuditStatus("idle");
       return;
     }
     const requestId = auditRequest.current + 1;
     auditRequest.current = requestId;
+    setAuditRows([]);
+    setAuditStatus("loading");
     void listMemberProfileAudit(memberId)
       .then((result) => {
         if (requestId !== auditRequest.current || selectedIdRef.current !== memberId) return;
-        setAuditRows(result.status === "ok" ? result.rows : []);
+        if (result.status === "ok") {
+          setAuditRows(result.rows);
+          setAuditStatus("ok");
+          return;
+        }
+        setAuditRows([]);
+        setAuditStatus("error");
       })
       .catch(() => {
         if (requestId !== auditRequest.current || selectedIdRef.current !== memberId) return;
         setAuditRows([]);
+        setAuditStatus("error");
       });
   }, [canManage]);
 
   useEffect(() => {
     if (!summary?.id || !canManage) {
-      setAuditRows(undefined);
+      setAuditRows([]);
+      setAuditStatus("idle");
       return;
     }
     loadAudit(summary.id);
@@ -601,6 +613,7 @@ export function MembersClient({ initialRecent, initialList = null, services, ser
                   canManageSettings={canManage}
                   onEdit={() => setEditOpen(true)}
                   auditRows={auditRows}
+                  auditStatus={auditStatus}
                   onSendLink={() => {
                     // Open the tab inside the click so the popup blocker allows it.
                     // "noopener" would make window.open return null, so cut the
@@ -757,12 +770,14 @@ export function MembersClient({ initialRecent, initialList = null, services, ser
         onOpenChange={setEditOpen}
         onSaved={(next, memberId) => {
           showToast("Data member tersimpan.", "success");
+          summaryGate.begin();
           if (next) {
             setSummary(next);
           } else {
             void selectMember(memberId);
           }
           loadAudit(memberId);
+          void refreshRecent();
         }}
       />
       {summary && claimRewardRow?.name ? (

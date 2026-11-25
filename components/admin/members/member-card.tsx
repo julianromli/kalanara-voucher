@@ -39,6 +39,7 @@ interface MemberCardProps {
   onRotateLink: () => void;
   onEdit?: () => void;
   auditRows?: MemberProfileAuditRow[];
+  auditStatus?: "idle" | "loading" | "ok" | "error";
 }
 
 export function MemberCard({
@@ -49,6 +50,7 @@ export function MemberCard({
   onRotateLink,
   onEdit,
   auditRows,
+  auditStatus = "idle",
 }: MemberCardProps) {
   const benefit = tierBenefitLabel(summary.effectiveTier);
   return (
@@ -94,17 +96,21 @@ export function MemberCard({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {canManageSettings && auditRows ? (
+      {canManageSettings && auditStatus !== "idle" ? (
         <section>
           <h3 className="mb-1 text-sm font-medium">Riwayat perubahan</h3>
-          {auditRows.length === 0 ? (
+          {auditStatus === "loading" ? (
+            <p className="text-sm text-muted-foreground">Memuat riwayat perubahan…</p>
+          ) : auditStatus === "error" ? (
+            <p className="text-sm text-muted-foreground">Riwayat perubahan gagal dimuat.</p>
+          ) : (auditRows ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground">Belum ada perubahan.</p>
           ) : (
             <ul>
-              {auditRows.map((row) => (
+              {(auditRows ?? []).map((row) => (
                 <li key={row.id} className="flex items-start justify-between gap-3 py-1.5 text-sm">
                   <div className="min-w-0">
-                    <p className="truncate">
+                    <p className="break-words">
                       {AUDIT_FIELD_LABEL[row.field]}: {formatAuditValue(row.field, row.oldValue)} →{" "}
                       {formatAuditValue(row.field, row.newValue)}
                     </p>

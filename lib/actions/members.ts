@@ -346,92 +346,43 @@ export async function updateMember(input: {
   }
 
   const supabase = getAdminClient();
-  const { data: current, error: loadError } = await supabase
-    .from("members")
-    .select("id, name, phone, birth_date, wa_consent, wa_consent_at, cycle_start, base_tier")
-    .eq("id", input.memberId)
-    .maybeSingle();
-  if (loadError) return failure();
-  if (!current) return { status: "not_found" as const };
+  const { data, error } = await supabase.rpc("member_update_profile", {
+    p_member_id: input.memberId,
+    p_name: name.data,
+    p_phone: phone,
+    p_birth_date: input.birthDate,
+    p_wa_consent: input.waConsent,
+    p_changed_by: access.userId,
+    p_changed_by_email: access.email || null,
+    p_changed_by_role: access.role,
+  });
+  if (error) return failure();
 
-  const patch: {
-    name?: string;
-    phone?: string;
-    birth_date?: string;
-    wa_consent?: boolean;
-    wa_consent_at?: string | null;
-  } = {};
-  const changes: Array<{
-    field: MemberProfileAuditField;
-    old_value: string | null;
-    new_value: string | null;
-  }> = [];
+  const body = asRecord(data);
+  const status = body ? text(body.status) : null;
+  if (status === "not_found") return { status: "not_found" as const };
+  if (status === "duplicate") {
+    return { status: "duplicate" as const, message: "Nomor ini sudah dipakai member lain" };
+  }
+  if (status !== "ok" && status !== "unchanged") return failure();
 
-  if (name.data !== current.name) {
-    patch.name = name.data;
-    changes.push({ field: "name", old_value: current.name, new_value: name.data });
-  }
-  if (phone !== current.phone) {
-    patch.phone = phone;
-    changes.push({ field: "phone", old_value: current.phone, new_value: phone });
-  }
-  const currentBirth = String(current.birth_date).slice(0, 10);
-  if (input.birthDate !== currentBirth) {
-    patch.birth_date = input.birthDate;
-    changes.push({ field: "birth_date", old_value: currentBirth, new_value: input.birthDate });
-  }
-  if (input.waConsent !== current.wa_consent) {
-    patch.wa_consent = input.waConsent;
-    patch.wa_consent_at = input.waConsent ? new Date().toISOString() : null;
-    changes.push({
-      field: "wa_consent",
-      old_value: current.wa_consent ? "true" : "false",
-      new_value: input.waConsent ? "true" : "false",
+  if (status === "ok") {
+    const fields = Array.isArray(body?.fields)
+      ? body.fields.filter((field): field is MemberProfileAuditField =>
+          typeof field === "string" && isProfileAuditField(field),
+        )
+      : [];
+    logAdminAudit(access, {
+      action: "membership.member_update",
+      target: input.memberId,
+      details: { fields },
     });
   }
 
-  if (changes.length === 0) {
-    const summary = await loadSummary(current.id);
-    return summary
-      ? { status: "ok" as const, summary }
-      : { status: "saved" as const, memberId: current.id };
-  }
-
-  const { error: updateError } = await supabase
-    .from("members")
-    .update(patch)
-    .eq("id", current.id);
-
-  if (updateError) {
-    if (updateError.code === "23505") {
-      return { status: "duplicate" as const, message: "Nomor ini sudah dipakai member lain" };
-    }
-    return failure();
-  }
-
-  const { error: auditError } = await supabase.from("member_profile_audit").insert(
-    changes.map((change) => ({
-      member_id: current.id,
-      changed_by: access.userId,
-      changed_by_email: access.email || null,
-      changed_by_role: access.role,
-      field: change.field,
-      old_value: change.old_value,
-      new_value: change.new_value,
-    })),
-  );
-  if (auditError) return failure();
-
-  logAdminAudit(access, {
-    action: "membership.member_update",
-    target: current.id,
-    details: { fields: changes.map((change) => change.field) },
-  });
-
-  const summary = await loadSummary(current.id);
+  const summary = await loadSummary(input.memberId);
   return summary
     ? { status: "ok" as const, summary }
-    : { status: "saved" as const, memberId: current.id };
+    : { status: "saved" as const, memberId: input.memberId };
 }
 
 export async function listMemberProfileAudit(memberId: string) {

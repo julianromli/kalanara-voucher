@@ -28,5 +28,19 @@ describe("member profile audit migration contract", () => {
       /grant all on table public\.member_profile_audit to service_role/i,
     );
     expect(sql).not.toMatch(/create policy/i);
+    expect(sql).not.toMatch(
+      /grant(?:\s+all)?\s+on table public\.member_profile_audit to (?:public|anon|authenticated)/i,
+    );
+    expect(sql).toMatch(/create or replace function public\.member_update_profile\(/i);
+    expect(sql).toMatch(/for update/i);
+    expect(sql).toMatch(
+      /revoke all on function public\.member_update_profile\([^)]+\)\s+from public, anon, authenticated/i,
+    );
+    expect(sql).toMatch(
+      /grant execute on function public\.member_update_profile\([^)]+\)\s+to service_role/i,
+    );
+    expect(sql).not.toMatch(
+      /grant execute on function public\.member_update_profile\([^)]+\)\s+to (?:public|anon|authenticated)/i,
+    );
   });
 });

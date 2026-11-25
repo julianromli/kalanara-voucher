@@ -66,7 +66,6 @@ export function EditMemberDialog({
       open={open}
       onOpenChange={(next) => {
         if (!next) {
-          requestRef.current += 1;
           setPending(false);
           setError(null);
           setFieldError({});

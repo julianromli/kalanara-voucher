@@ -1349,6 +1349,19 @@ export type Database = {
         Args: { p_member_id: string };
         Returns: Json;
       };
+      member_update_profile: {
+        Args: {
+          p_member_id: string;
+          p_name: string;
+          p_phone: string;
+          p_birth_date: string;
+          p_wa_consent: boolean;
+          p_changed_by: string;
+          p_changed_by_email: string | null;
+          p_changed_by_role: string | null;
+        };
+        Returns: Json;
+      };
       list_recent_members: {
         Args: { p_limit: number };
         Returns: {

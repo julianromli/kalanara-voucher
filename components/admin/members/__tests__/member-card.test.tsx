@@ -50,6 +50,7 @@ describe("MemberCard edit and audit", () => {
       <MemberCard
         summary={summary()}
         canManageSettings
+        auditStatus="ok"
         auditRows={[
           {
             id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",

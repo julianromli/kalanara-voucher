@@ -30,7 +30,7 @@ const { actions, routerPush, hasPermission } = vi.hoisted(() => ({
     listMemberProfileAudit: vi.fn(),
   },
   routerPush: vi.fn(),
-  hasPermission: vi.fn(() => true),
+  hasPermission: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/members", () => actions);
@@ -55,6 +55,7 @@ vi.mock("@/components/admin/dashboard-header", () => ({
 
 import { MembersClient } from "@/components/admin/members/members-client";
 import { buildAdminPage } from "@/lib/actions/admin-pagination";
+import { AdminPermission } from "@/lib/auth/admin-rbac";
 import type { MemberListRow } from "@/lib/membership/list";
 import { ToastProvider } from "@/context/ToastContext";
 
@@ -682,8 +683,9 @@ describe("MembersClient edit member", () => {
   });
 
   test("hides Edit data when the cashier cannot manage settings", async () => {
-    hasPermission.mockReturnValue(false);
+    hasPermission.mockImplementation((permission?: string) => permission !== AdminPermission.MEMBERS_SETTINGS);
     await openRina(4);
+    expect(hasPermission).toHaveBeenCalledWith(AdminPermission.MEMBERS_SETTINGS);
     expect(screen.queryByRole("button", { name: "Edit data" })).not.toBeInTheDocument();
     expect(actions.listMemberProfileAudit).not.toHaveBeenCalled();
   });
@@ -704,6 +706,7 @@ describe("MembersClient edit member", () => {
       ],
     });
     await openRina(4);
+    expect(actions.listMemberProfileAudit).toHaveBeenCalledWith(MEMBER_ID);
     expect(await screen.findByText("Riwayat perubahan")).toBeInTheDocument();
     expect(screen.getByText(/Nama: Rina → Rina Maharani/)).toBeInTheDocument();
   });
