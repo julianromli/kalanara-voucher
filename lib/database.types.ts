@@ -786,6 +786,50 @@ export type Database = {
           }
         ];
       };
+      member_profile_audit: {
+        Row: {
+          id: string;
+          member_id: string;
+          changed_by: string | null;
+          changed_by_email: string | null;
+          changed_by_role: string | null;
+          field: "name" | "phone" | "birth_date" | "wa_consent";
+          old_value: string | null;
+          new_value: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_id: string;
+          changed_by?: string | null;
+          changed_by_email?: string | null;
+          changed_by_role?: string | null;
+          field: "name" | "phone" | "birth_date" | "wa_consent";
+          old_value?: string | null;
+          new_value?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          member_id?: string;
+          changed_by?: string | null;
+          changed_by_email?: string | null;
+          changed_by_role?: string | null;
+          field?: "name" | "phone" | "birth_date" | "wa_consent";
+          old_value?: string | null;
+          new_value?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "member_profile_audit_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       member_stamps: {
         Row: {
           id: string;
@@ -1303,6 +1347,19 @@ export type Database = {
       };
       get_member_summary: {
         Args: { p_member_id: string };
+        Returns: Json;
+      };
+      member_update_profile: {
+        Args: {
+          p_member_id: string;
+          p_name: string;
+          p_phone: string;
+          p_birth_date: string;
+          p_wa_consent: boolean;
+          p_changed_by: string;
+          p_changed_by_email: string | null;
+          p_changed_by_role: string | null;
+        };
         Returns: Json;
       };
       list_recent_members: {

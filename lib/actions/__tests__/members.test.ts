@@ -21,7 +21,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   getAdminClient: getAdminClientMock,
 }));
 
-import { addStamp, claimReward, listMembers, markFollowupSent, saveRewards, searchMembers, selfSignup, voidStamp } from "@/lib/actions/members";
+import { addStamp, claimReward, listMemberProfileAudit, listMembers, markFollowupSent, saveRewards, searchMembers, selfSignup, updateMember, voidStamp } from "@/lib/actions/members";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 
 const access = {
@@ -564,5 +564,272 @@ describe("listMembers", () => {
     expect(result.page.rows).toHaveLength(1);
     expect(result.page.rows[0]?.name).toBe("Dinda Salsabilla");
     expect(result.page.rows[0]?.stampCount).toBe(0);
+  });
+});
+
+
+const MEMBER_ID = "22222222-2222-4222-8222-222222222222";
+
+const managerAccess = {
+  userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  email: "manager@kalanaraspa.com",
+  role: "MANAGER" as const,
+};
+
+function summaryRpc(overrides: Record<string, unknown> = {}) {
+  return {
+    status: "ok",
+    member: {
+      id: MEMBER_ID,
+      name: "Rina Maharani",
+      phone: "6281234564471",
+      birth_date: "1994-03-12",
+      wa_consent: true,
+      member_code: "7KQ2X9",
+      card_token: "a".repeat(48),
+      created_at: "2026-03-12T03:00:00Z",
+      source: "cashier",
+    },
+    stamp_count: 4,
+    reset_on: "2027-03-12",
+    cycle_start: "2026-03-12",
+    base_tier: 0,
+    effective_tier: 0,
+    rolled_cycles: 0,
+    birthday: {
+      eligible: false,
+      redeemed: false,
+      occurrence: "2027-03-12",
+      window_start: "2027-03-09",
+      window_end: "2027-03-15",
+      birthday_year: 2027,
+    },
+    last_treatment: null,
+    rewards: [],
+    stamps: [],
+    claims: [],
+    birthday_redemptions: [],
+    ...overrides,
+  };
+}
+
+describe("updateMember", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireAdminPermissionMock.mockResolvedValue(managerAccess);
+  });
+
+  function mockProfile({
+    write = { data: { status: "ok", fields: ["name"] }, error: null } as {
+      data: { status: string; fields?: string[] } | null;
+      error: { message?: string } | null;
+    },
+    summary = summaryRpc(),
+  } = {}) {
+    const rpc = vi.fn(async (name: string) => {
+      if (name === "member_update_profile") return write;
+      if (name === "get_member_summary") return { data: summary, error: null };
+      throw new Error(`unexpected rpc ${name}`);
+    });
+    mockClient(rpc, vi.fn());
+    return { rpc };
+  }
+
+  test("requires MEMBERS_SETTINGS and does not write when access is denied", async () => {
+    const mocks = mockProfile();
+    requireAdminPermissionMock.mockRejectedValueOnce(new Error("Forbidden"));
+
+    await expect(
+      updateMember({
+        memberId: MEMBER_ID,
+        name: "Rina",
+        phone: "6281234564471",
+        birthDate: "1994-03-12",
+        waConsent: true,
+      }),
+    ).rejects.toThrow("Forbidden");
+
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(AdminPermission.MEMBERS_SETTINGS);
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
+  test("rejects an invalid name, phone, or birth date", async () => {
+    const mocks = mockProfile();
+    const base = {
+      memberId: MEMBER_ID,
+      name: "Rina Maharani",
+      phone: "6281234564471",
+      birthDate: "1994-03-12",
+      waConsent: true,
+    };
+
+    expect(await updateMember({ ...base, name: "" })).toEqual({ status: "invalid" });
+    expect(await updateMember({ ...base, name: "R".repeat(41) })).toEqual({ status: "invalid" });
+    expect(await updateMember({ ...base, phone: "123" })).toEqual({ status: "invalid" });
+    expect(await updateMember({ ...base, birthDate: "1994-13-40" })).toEqual({ status: "invalid" });
+    expect(await updateMember({ ...base, birthDate: "2099-01-01" })).toEqual({ status: "invalid" });
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
+  test("returns a friendly message when the new phone is already used", async () => {
+    mockProfile({ write: { data: { status: "duplicate" }, error: null } });
+    const result = await updateMember({
+      memberId: MEMBER_ID,
+      name: "Rina Maharani",
+      phone: "0812 3456 9999",
+      birthDate: "1994-03-12",
+      waConsent: true,
+    });
+    expect(result).toEqual({
+      status: "duplicate",
+      message: "Nomor ini sudah dipakai member lain",
+    });
+    expect(logAdminAuditMock).not.toHaveBeenCalled();
+  });
+
+  test("writes the profile and audit rows in one RPC and leaves stamps and cycle alone", async () => {
+    const mocks = mockProfile({
+      write: {
+        data: { status: "ok", fields: ["name", "phone", "birth_date", "wa_consent"] },
+        error: null,
+      },
+      summary: summaryRpc({
+        member: {
+          id: MEMBER_ID,
+          name: "Rina M",
+          phone: "6282212347221",
+          birth_date: "1995-04-20",
+          wa_consent: false,
+          member_code: "7KQ2X9",
+          card_token: "a".repeat(48),
+          created_at: "2026-03-12T03:00:00Z",
+          source: "cashier",
+        },
+      }),
+    });
+
+    const result = await updateMember({
+      memberId: MEMBER_ID,
+      name: "Rina M",
+      phone: "0822 1234 7221",
+      birthDate: "1995-04-20",
+      waConsent: false,
+    });
+
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") return;
+    expect(result.summary.name).toBe("Rina M");
+    expect(result.summary.phone).toBe("6282212347221");
+    expect(result.summary.stampCount).toBe(4);
+    expect(result.summary.cycleStart).toBe("2026-03-12");
+    expect(result.summary.baseTier).toBe(0);
+
+    expect(mocks.rpc).toHaveBeenCalledWith("member_update_profile", {
+      p_member_id: MEMBER_ID,
+      p_name: "Rina M",
+      p_phone: "6282212347221",
+      p_birth_date: "1995-04-20",
+      p_wa_consent: false,
+      p_changed_by: managerAccess.userId,
+      p_changed_by_email: managerAccess.email,
+      p_changed_by_role: "MANAGER",
+    });
+    expect(mocks.rpc.mock.calls.some((call) => call[0] === "members" || call[0] === "member_profile_audit")).toBe(false);
+    expect(logAdminAuditMock).toHaveBeenCalledWith(
+      managerAccess,
+      expect.objectContaining({
+        action: "membership.member_update",
+        target: MEMBER_ID,
+        details: { fields: ["name", "phone", "birth_date", "wa_consent"] },
+      }),
+    );
+  });
+
+  test("returns an error and does not log when the profile write RPC fails", async () => {
+    const mocks = mockProfile({
+      write: { data: null, error: { message: "audit table unavailable" } },
+    });
+    const result = await updateMember({
+      memberId: MEMBER_ID,
+      name: "Rina M",
+      phone: "6281234564471",
+      birthDate: "1994-03-12",
+      waConsent: true,
+    });
+    expect(result).toEqual({ status: "error" });
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "member_update_profile",
+      expect.objectContaining({ p_member_id: MEMBER_ID, p_name: "Rina M" }),
+    );
+    expect(logAdminAuditMock).not.toHaveBeenCalled();
+  });
+
+  test("does not log an audit when the RPC reports no changes", async () => {
+    const mocks = mockProfile({ write: { data: { status: "unchanged" }, error: null } });
+    const result = await updateMember({
+      memberId: MEMBER_ID,
+      name: "  Rina Maharani  ",
+      phone: "081234564471",
+      birthDate: "1994-03-12",
+      waConsent: true,
+    });
+    expect(result.status).toBe("ok");
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "member_update_profile",
+      expect.objectContaining({
+        p_name: "Rina Maharani",
+        p_phone: "6281234564471",
+      }),
+    );
+    expect(logAdminAuditMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("listMemberProfileAudit", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireAdminPermissionMock.mockResolvedValue(managerAccess);
+  });
+
+  test("requires MEMBERS_SETTINGS and returns mapped rows", async () => {
+    const limit = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          field: "name",
+          old_value: "Rina",
+          new_value: "Rina M",
+          changed_by_email: "manager@kalanaraspa.com",
+          changed_by_role: "MANAGER",
+          created_at: "2026-11-25T10:00:00Z",
+        },
+      ],
+      error: null,
+    });
+    const from = vi.fn(() => ({
+      select: () => ({
+        eq: () => ({
+          order: () => ({ limit }),
+        }),
+      }),
+    }));
+    mockClient(vi.fn(), from);
+
+    const result = await listMemberProfileAudit(MEMBER_ID);
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(AdminPermission.MEMBERS_SETTINGS);
+    expect(result).toEqual({
+      status: "ok",
+      rows: [
+        {
+          id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          field: "name",
+          oldValue: "Rina",
+          newValue: "Rina M",
+          changedByEmail: "manager@kalanaraspa.com",
+          changedByRole: "MANAGER",
+          createdAt: "2026-11-25T10:00:00Z",
+        },
+      ],
+    });
   });
 });

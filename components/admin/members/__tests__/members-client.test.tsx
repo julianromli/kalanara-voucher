@@ -2,6 +2,13 @@ import type { ReactNode } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
+
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+window.ResizeObserver = MockResizeObserver as unknown as typeof window.ResizeObserver;
 import type { MemberSummary } from "@/lib/membership/summary";
 
 const { actions, routerPush, hasPermission, getBuyerOrders } = vi.hoisted(() => ({
@@ -19,9 +26,11 @@ const { actions, routerPush, hasPermission, getBuyerOrders } = vi.hoisted(() => 
     voidStamp: vi.fn(),
     registerMember: vi.fn(),
     claimReward: vi.fn(),
+    updateMember: vi.fn(),
+    listMemberProfileAudit: vi.fn(),
   },
   routerPush: vi.fn(),
-  hasPermission: vi.fn(() => true),
+  hasPermission: vi.fn(),
   getBuyerOrders: vi.fn().mockResolvedValue([]),
 }));
 
@@ -50,6 +59,7 @@ vi.mock("@/components/admin/dashboard-header", () => ({
 
 import { MembersClient } from "@/components/admin/members/members-client";
 import { buildAdminPage } from "@/lib/actions/admin-pagination";
+import { AdminPermission } from "@/lib/auth/admin-rbac";
 import type { MemberListRow } from "@/lib/membership/list";
 import { ToastProvider } from "@/context/ToastContext";
 
@@ -184,6 +194,7 @@ beforeEach(() => {
   actions.listRecentMembers.mockResolvedValue({ status: "ok", members: [] });
   actions.listMembers.mockResolvedValue(emptyListResult());
   actions.searchMembers.mockResolvedValue({ status: "ok", members: [] });
+  actions.listMemberProfileAudit.mockResolvedValue({ status: "ok", rows: [] });
   Object.defineProperty(navigator, "mediaDevices", {
     configurable: true,
     value: { getUserMedia: vi.fn(() => Promise.reject(new Error("denied"))) },
@@ -688,5 +699,55 @@ describe("MembersClient deep link and purchases", () => {
     expect(await screen.findByRole("heading", { name: "Rina Maharani" })).toBeInTheDocument();
     expect(actions.findMember).toHaveBeenCalledWith({ scan: "7KQ2X9" });
     expect(actions.getMember).not.toHaveBeenCalled();
+  });
+});
+
+describe("MembersClient edit member", () => {
+  test("opens the edit dialog for Manager+ and toasts after a successful save", async () => {
+    const next = summary(4);
+    next.name = "Rina M";
+    actions.updateMember.mockResolvedValueOnce({ status: "ok", summary: next });
+    await openRina(4);
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit data" }));
+    expect(screen.getByRole("heading", { name: "Edit data member" })).toBeInTheDocument();
+    expect(screen.getByText(/jendela diskon ultah ikut pindah/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Nama panggilan"), {
+      target: { value: "Rina M" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Simpan" }));
+
+    expect(await screen.findByText("Data member tersimpan.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Rina M" })).toBeInTheDocument();
+  });
+
+  test("hides Edit data when the cashier cannot manage settings", async () => {
+    hasPermission.mockImplementation((permission?: string) => permission !== AdminPermission.MEMBERS_SETTINGS);
+    await openRina(4);
+    expect(hasPermission).toHaveBeenCalledWith(AdminPermission.MEMBERS_SETTINGS);
+    expect(screen.queryByRole("button", { name: "Edit data" })).not.toBeInTheDocument();
+    expect(actions.listMemberProfileAudit).not.toHaveBeenCalled();
+  });
+
+  test("shows riwayat perubahan once the audit list loads", async () => {
+    actions.listMemberProfileAudit.mockResolvedValueOnce({
+      status: "ok",
+      rows: [
+        {
+          id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          field: "name",
+          oldValue: "Rina",
+          newValue: "Rina Maharani",
+          changedByEmail: "manager@kalanaraspa.com",
+          changedByRole: "MANAGER",
+          createdAt: "2026-11-25T03:00:00Z",
+        },
+      ],
+    });
+    await openRina(4);
+    expect(actions.listMemberProfileAudit).toHaveBeenCalledWith(MEMBER_ID);
+    expect(await screen.findByText("Riwayat perubahan")).toBeInTheDocument();
+    expect(screen.getByText(/Nama: Rina → Rina Maharani/)).toBeInTheDocument();
   });
 });
