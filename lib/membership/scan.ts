@@ -70,3 +70,13 @@ export function parseMemberScan(
 
   return { kind: "rejected" };
 }
+
+/** True when the cashier field looks like a name, not a card, token, or phone. */
+export function isMemberNameQuery(raw: string): boolean {
+  const value = raw.trim();
+  if (value.length < 2) return false;
+  if (/^https?:\/\//i.test(value)) return false;
+  if (TOKEN_PATTERN.test(value)) return false;
+  if (PHONE_SHAPED.test(value) && normalizeMemberPhone(value)) return false;
+  return /[A-Za-z\u00C0-\u024F]/.test(value);
+}

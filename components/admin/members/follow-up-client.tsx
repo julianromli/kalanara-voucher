@@ -12,9 +12,9 @@ import {
   markFollowupSent,
   undoFollowupSent,
 } from "@/lib/actions/members";
+import { formatBuyerPhone } from "@/lib/admin/buyer-phone";
 import {
   formatMemberTime,
-  maskMemberPhone,
   memberInitials,
 } from "@/lib/membership/format";
 import { whatsAppLink } from "@/lib/membership/templates";
@@ -310,7 +310,7 @@ export function FollowUpClient({
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{row.name || "Member"}</p>
                       <p className="text-xs text-muted-foreground">
-                        {maskMemberPhone(row.phone)} · {stageLabels[row.stage] ?? row.stage}
+                        {formatBuyerPhone(row.phone)} · {stageLabels[row.stage] ?? row.stage}
                       </p>
                       <p className="mt-1 text-muted-foreground">
                         {row.stage === "birthday"
@@ -343,7 +343,7 @@ export function FollowUpClient({
                           </span>
                           <span className="min-w-0">
                             <span className="block font-medium">{row.name || "Member"}</span>
-                            <span className="text-xs text-muted-foreground">{maskMemberPhone(row.phone)}</span>
+                            <span className="text-xs text-muted-foreground">{formatBuyerPhone(row.phone)}</span>
                           </span>
                         </div>
                       </td>

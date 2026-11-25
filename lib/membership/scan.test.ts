@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { normalizeMemberPhone } from "@/lib/membership/phone";
-import { isLookupPhonePrefixVisible, parseMemberScan } from "@/lib/membership/scan";
+import { isLookupPhonePrefixVisible, isMemberNameQuery, parseMemberScan } from "@/lib/membership/scan";
 import { fillFollowupTemplate } from "@/lib/membership/templates";
 
 const token = "a".repeat(48);
@@ -74,5 +74,17 @@ describe("member scan and phone", () => {
     expect(isLookupPhonePrefixVisible(`${appUrl}/m/${token}`)).toBe(false);
     expect(isLookupPhonePrefixVisible(`http://localhost:3000/m/${token}`)).toBe(false);
     expect(isLookupPhonePrefixVisible(token)).toBe(false);
+    expect(isLookupPhonePrefixVisible("dinda")).toBe(false);
+  });
+
+  test("treats a name like dinda as a name query, not a rejected QR", () => {
+    expect(parseMemberScan("dinda", { appUrl })).toEqual({ kind: "rejected" });
+    expect(isMemberNameQuery("dinda")).toBe(true);
+    expect(isMemberNameQuery("Dinda Salsabilla")).toBe(true);
+    expect(isMemberNameQuery("81234567890")).toBe(false);
+    expect(isMemberNameQuery("0812 3456 7890")).toBe(false);
+    expect(isMemberNameQuery(`${appUrl}/m/${token}`)).toBe(false);
+    expect(isMemberNameQuery(token)).toBe(false);
+    expect(isMemberNameQuery("a")).toBe(false);
   });
 });

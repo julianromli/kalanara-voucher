@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { HugeiconsIcon } from "@hugeicons/react";
 import { QrCode01Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
@@ -11,11 +13,13 @@ import Link from "next/link";
 interface DashboardHeaderProps {
   title?: string;
   showActions?: boolean;
+  endSlot?: ReactNode;
 }
 
 export function DashboardHeader({
   title,
   showActions = true,
+  endSlot,
 }: DashboardHeaderProps) {
   const { user } = useAuth();
   const heading = title || `Welcome back, ${user?.name?.split(" ")[0] || "Admin"}`;
@@ -43,6 +47,7 @@ export function DashboardHeader({
             </Link>
           </Button>
         ) : null}
+        {endSlot}
         <ThemeToggle />
       </div>
     </header>
