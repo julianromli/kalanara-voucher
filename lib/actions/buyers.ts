@@ -154,17 +154,26 @@ export async function findMemberLinkByPhone(
   if (!members?.length) return null;
 
   const ids = members.map((member) => member.id);
-  const { data: stamps, error: stampsError } = await supabase
-    .from("member_stamps")
-    .select("id, member_id, cycle_start, visit_date, created_at, voided_at")
-    .in("member_id", ids);
-  if (stampsError) {
-    console.error("Error finding member stamps for buyer:", stampsError);
-    throw stampsError;
+  const stampsResult = await fetchAllRows<{
+    id: string;
+    member_id: string;
+    cycle_start: string;
+    visit_date: string;
+    created_at: string;
+    voided_at: string | null;
+  }>(() =>
+    supabase
+      .from("member_stamps")
+      .select("id, member_id, cycle_start, visit_date, created_at, voided_at")
+      .in("member_id", ids),
+  );
+  if (stampsResult.error) {
+    console.error("Error finding member stamps for buyer:", stampsResult.error);
+    throw stampsResult.error;
   }
 
   const stampsByMember = new Map<string, Array<{ cycleStart: string; visitAt: string; voided: boolean }>>();
-  for (const stamp of stamps ?? []) {
+  for (const stamp of stampsResult.data) {
     const visitAt =
       (typeof stamp.created_at === "string" && stamp.created_at) ||
       (typeof stamp.visit_date === "string" && stamp.visit_date) ||

@@ -21,8 +21,8 @@ export async function fetchAllRows<T>(
       .range(from, from + SUPABASE_PAGE_SIZE - 1);
     if (error) return { data: [], error };
     const chunk = data ?? [];
+    if (chunk.length === 0) return { data: rows, error: null };
     rows.push(...chunk);
-    if (chunk.length < SUPABASE_PAGE_SIZE) return { data: rows, error: null };
-    from += SUPABASE_PAGE_SIZE;
+    from += chunk.length;
   }
 }

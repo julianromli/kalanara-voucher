@@ -23,6 +23,12 @@ const access = {
   role: "STAFF" as const,
 };
 
+
+function rangeResult<T>(rows: T[]) {
+  return (start: number, end: number) =>
+    Promise.resolve({ data: rows.slice(start, end + 1), error: null });
+}
+
 describe("getBuyersPage member match", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -49,18 +55,15 @@ describe("getBuyersPage member match", () => {
         return {
           select: vi.fn(() => ({
             order: () => ({
-              range: vi.fn().mockResolvedValue({
-                data: [
-                  {
-                    id: MEMBER_ID,
-                    phone: "6281234564471",
-                    member_code: "7KQ2X9",
-                    cycle_start: "2026-01-10",
-                    base_tier: 1,
-                  },
-                ],
-                error: null,
-              }),
+              range: rangeResult([
+                {
+                  id: MEMBER_ID,
+                  phone: "6281234564471",
+                  member_code: "7KQ2X9",
+                  cycle_start: "2026-01-10",
+                  base_tier: 1,
+                },
+              ]),
             }),
           })),
         };
@@ -69,19 +72,16 @@ describe("getBuyersPage member match", () => {
         return {
           select: vi.fn(() => ({
             order: () => ({
-              range: vi.fn().mockResolvedValue({
-                data: [
-                  {
-                    id: "55555555-5555-4555-8555-555555555555",
-                    member_id: MEMBER_ID,
-                    cycle_start: "2026-01-10",
-                    visit_date: "2026-02-01",
-                    created_at: "2026-02-01T04:00:00Z",
-                    voided_at: null,
-                  },
-                ],
-                error: null,
-              }),
+              range: rangeResult([
+                {
+                  id: "55555555-5555-4555-8555-555555555555",
+                  member_id: MEMBER_ID,
+                  cycle_start: "2026-01-10",
+                  visit_date: "2026-02-01",
+                  created_at: "2026-02-01T04:00:00Z",
+                  voided_at: null,
+                },
+              ]),
             }),
           })),
         };
@@ -216,12 +216,19 @@ describe("findMemberLinkByPhone", () => {
         };
       }
       if (table === "member_stamps") {
+        const rows = Array.isArray(options.stamps) ? options.stamps : [];
         return {
           select: vi.fn(() => ({
-            in: vi.fn().mockResolvedValue({
-              data: options.stampsError ? null : (options.stamps ?? []),
-              error: options.stampsError ?? null,
-            }),
+            in: vi.fn(() => ({
+              order: () => ({
+                range: (start: number, end: number) => {
+                  if (options.stampsError) {
+                    return Promise.resolve({ data: null, error: options.stampsError });
+                  }
+                  return Promise.resolve({ data: rows.slice(start, end + 1), error: null });
+                },
+              }),
+            })),
           })),
         };
       }

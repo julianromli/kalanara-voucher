@@ -611,6 +611,7 @@ describe("listMembers", () => {
     expect(ranges.members).toEqual([
       [0, 999],
       [1000, 1999],
+      [1001, 2000],
     ]);
     expect(first.page.totalCount).toBe(1001);
     expect(first.page.totalPages).toBe(41);
