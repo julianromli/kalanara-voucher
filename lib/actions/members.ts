@@ -313,6 +313,107 @@ export async function registerMember(input: {
     : { status: "created" as const, memberId: data.id };
 }
 
+const PROFILE_AUDIT_FIELDS = ["name", "phone", "birth_date", "wa_consent"] as const;
+export type MemberProfileAuditField = (typeof PROFILE_AUDIT_FIELDS)[number];
+
+export interface MemberProfileAuditRow {
+  id: string;
+  field: MemberProfileAuditField;
+  oldValue: string | null;
+  newValue: string | null;
+  changedByEmail: string | null;
+  changedByRole: string | null;
+  createdAt: string;
+}
+
+function isProfileAuditField(value: string): value is MemberProfileAuditField {
+  return (PROFILE_AUDIT_FIELDS as readonly string[]).includes(value);
+}
+
+export async function updateMember(input: {
+  memberId: string;
+  name: string;
+  phone: string;
+  birthDate: string;
+  waConsent: boolean;
+}) {
+  const access = await requireAdminPermission(AdminPermission.MEMBERS_SETTINGS);
+  if (!z.string().uuid().safeParse(input.memberId).success) return failure();
+  const name = nameSchema.safeParse(input.name);
+  const phone = normalizeMemberPhone(input.phone);
+  if (!name.success || !phone || !isRealBirthDate(input.birthDate)) {
+    return { status: "invalid" as const };
+  }
+
+  const supabase = getAdminClient();
+  const { data, error } = await supabase.rpc("member_update_profile", {
+    p_member_id: input.memberId,
+    p_name: name.data,
+    p_phone: phone,
+    p_birth_date: input.birthDate,
+    p_wa_consent: input.waConsent,
+    p_changed_by: access.userId,
+    p_changed_by_email: access.email || null,
+    p_changed_by_role: access.role,
+  });
+  if (error) return failure();
+
+  const body = asRecord(data);
+  const status = body ? text(body.status) : null;
+  if (status === "not_found") return { status: "not_found" as const };
+  if (status === "duplicate") {
+    return { status: "duplicate" as const, message: "Nomor ini sudah dipakai member lain" };
+  }
+  if (status !== "ok" && status !== "unchanged") return failure();
+
+  if (status === "ok") {
+    const fields = Array.isArray(body?.fields)
+      ? body.fields.filter((field): field is MemberProfileAuditField =>
+          typeof field === "string" && isProfileAuditField(field),
+        )
+      : [];
+    logAdminAudit(access, {
+      action: "membership.member_update",
+      target: input.memberId,
+      details: { fields },
+    });
+  }
+
+  const summary = await loadSummary(input.memberId);
+  return summary
+    ? { status: "ok" as const, summary }
+    : { status: "saved" as const, memberId: input.memberId };
+}
+
+export async function listMemberProfileAudit(memberId: string) {
+  await requireAdminPermission(AdminPermission.MEMBERS_SETTINGS);
+  if (!z.string().uuid().safeParse(memberId).success) return failure();
+  const { data, error } = await getAdminClient()
+    .from("member_profile_audit")
+    .select("id, field, old_value, new_value, changed_by_email, changed_by_role, created_at")
+    .eq("member_id", memberId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (error) return failure();
+  return {
+    status: "ok" as const,
+    rows: (data ?? []).flatMap((row) => {
+      if (!isProfileAuditField(row.field)) return [];
+      return [
+        {
+          id: row.id,
+          field: row.field,
+          oldValue: row.old_value,
+          newValue: row.new_value,
+          changedByEmail: row.changed_by_email,
+          changedByRole: row.changed_by_role,
+          createdAt: row.created_at,
+        } satisfies MemberProfileAuditRow,
+      ];
+    }),
+  };
+}
+
 export async function addStamp(input: {
   memberId: string;
   serviceId: string;
