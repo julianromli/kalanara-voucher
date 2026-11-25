@@ -770,6 +770,7 @@ export function MembersClient({ initialRecent, initialList = null, services, ser
         onOpenChange={setEditOpen}
         onSaved={(next, memberId) => {
           showToast("Data member tersimpan.", "success");
+          if (selectedIdRef.current !== memberId) return;
           summaryGate.begin();
           if (next) {
             setSummary(next);

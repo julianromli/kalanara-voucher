@@ -43,4 +43,22 @@ describe("member profile audit migration contract", () => {
       /grant execute on function public\.member_update_profile\([^)]+\)\s+to (?:public|anon|authenticated)/i,
     );
   });
+
+  test("the update function writes one audit row per changed field with old and new values", () => {
+    const sql = readFileSync(migrationPath, "utf8");
+    for (const field of ["name", "phone", "birth_date", "wa_consent"]) {
+      expect(sql).toMatch(
+        new RegExp(
+          String.raw`IF current\.${field} IS DISTINCT FROM p_${field === "birth_date" ? "birth_date" : field === "wa_consent" ? "wa_consent" : field} THEN[\s\S]*?INSERT INTO public\.member_profile_audit \([\s\S]*?field, old_value, new_value`,
+          "i",
+        ),
+      );
+    }
+    expect(sql).toMatch(/'name', current\.name, p_name/);
+    expect(sql).toMatch(/'phone', current\.phone, p_phone/);
+    expect(sql).toMatch(/'birth_date', current\.birth_date::text, p_birth_date::text/);
+    expect(sql).toMatch(/'wa_consent'/);
+    expect(sql).toMatch(/CASE WHEN current\.wa_consent THEN 'true' ELSE 'false' END/);
+    expect(sql).toMatch(/CASE WHEN p_wa_consent THEN 'true' ELSE 'false' END/);
+  });
 });
