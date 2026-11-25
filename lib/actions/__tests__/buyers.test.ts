@@ -280,4 +280,49 @@ describe("findMemberLinkByPhone", () => {
       message: "members unavailable",
     });
   });
+
+  test("pages stamp history past the 1000-row cap and fails when stamps error", async () => {
+    const stamps = Array.from({ length: 1001 }, (_, index) => ({
+      id: `stamp-${String(index).padStart(4, "0")}`,
+      member_id: MEMBER_ID,
+      cycle_start: "2026-01-10",
+      visit_date: "2026-02-01",
+      created_at: "2026-02-01T04:00:00Z",
+      voided_at: index >= 991 ? null : "2026-02-01T04:05:00Z",
+    }));
+    mockMemberLookup({
+      members: [
+        {
+          id: MEMBER_ID,
+          phone: "6281234564471",
+          member_code: "7KQ2X9",
+          cycle_start: "2026-01-10",
+          base_tier: 0,
+        },
+      ],
+      stamps,
+    });
+    const link = await findMemberLinkByPhone("6281234564471");
+    expect(link).toEqual({
+      id: MEMBER_ID,
+      memberCode: "7KQ2X9",
+      effectiveTier: 1,
+    });
+
+    mockMemberLookup({
+      members: [
+        {
+          id: MEMBER_ID,
+          phone: "6281234564471",
+          member_code: "7KQ2X9",
+          cycle_start: "2026-01-10",
+          base_tier: 0,
+        },
+      ],
+      stampsError: { message: "stamps unavailable" },
+    });
+    await expect(findMemberLinkByPhone("6281234564471")).rejects.toEqual({
+      message: "stamps unavailable",
+    });
+  });
 });

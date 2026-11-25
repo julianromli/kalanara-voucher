@@ -589,14 +589,24 @@ describe("listMembers", () => {
     const { ranges } = mockListTables({
       members: { data: memberRows, error: null },
       member_stamps: {
-        data: Array.from({ length: 9 }, (_, index) => ({
-          id: `stamp-${index}`,
-          member_id: "member-1000",
-          cycle_start: "2026-01-01",
-          visit_date: `2026-0${Math.min(index + 2, 9)}-01`,
-          created_at: `2026-0${Math.min(index + 2, 9)}-01T04:00:00Z`,
-          voided_at: null,
-        })),
+        data: [
+          ...Array.from({ length: 992 }, (_, index) => ({
+            id: `stamp-void-${String(index).padStart(4, "0")}`,
+            member_id: "member-1000",
+            cycle_start: "2026-01-01",
+            visit_date: "2026-02-01",
+            created_at: "2026-02-01T04:00:00Z",
+            voided_at: "2026-02-01T04:05:00Z",
+          })),
+          ...Array.from({ length: 9 }, (_, index) => ({
+            id: `stamp-${index}`,
+            member_id: "member-1000",
+            cycle_start: "2026-01-01",
+            visit_date: `2026-0${Math.min(index + 2, 9)}-01`,
+            created_at: `2026-0${Math.min(index + 2, 9)}-01T04:00:00Z`,
+            voided_at: null,
+          })),
+        ],
         error: null,
       },
       member_rewards: {
@@ -609,6 +619,11 @@ describe("listMembers", () => {
     expect(first.status).toBe("ok");
     if (first.status !== "ok") return;
     expect(ranges.members).toEqual([
+      [0, 999],
+      [1000, 1999],
+      [1001, 2000],
+    ]);
+    expect(ranges.member_stamps).toEqual([
       [0, 999],
       [1000, 1999],
       [1001, 2000],
