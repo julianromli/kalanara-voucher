@@ -78,6 +78,7 @@ function listRow(overrides: Partial<MemberListRow> = {}): MemberListRow {
     createdAt: "2026-03-12T03:00:00Z",
     nextMilestone: 5,
     nextRewardName: "Totok gratis",
+    waConsent: true,
     ...overrides,
   };
 }

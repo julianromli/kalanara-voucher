@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface AdminListPaginationProps {
   itemLabel: string;
@@ -9,6 +10,8 @@ interface AdminListPaginationProps {
   totalPages: number;
   onPageChange: (page: number) => void;
   disabled?: boolean;
+  pageSize?: number;
+  className?: string;
 }
 
 export function AdminListPagination({
@@ -18,14 +21,24 @@ export function AdminListPagination({
   totalPages,
   onPageChange,
   disabled = false,
+  pageSize,
+  className,
 }: AdminListPaginationProps) {
+  const rangeLabel =
+    pageSize && totalCount > 0
+      ? `Menampilkan ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, totalCount)} dari ${totalCount} ${itemLabel}`
+      : `${totalCount} ${itemLabel}`;
+
   return (
     <nav
       aria-label={`Navigasi halaman ${itemLabel}`}
-      className="flex flex-col gap-3 border-t border-border px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between"
+      className={cn(
+        "flex flex-col gap-3 border-t border-border px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between",
+        className,
+      )}
     >
       <p className="text-muted-foreground tabular-nums" aria-live="polite">
-        {totalCount} {itemLabel}
+        {rangeLabel}
       </p>
       <div className="flex items-center gap-3">
         <Button

@@ -456,21 +456,32 @@ describe("listMembers", () => {
   });
 
   function mockListTables(tables: Record<string, { data: unknown; error: unknown }>) {
+    const ranges: Record<string, Array<[number, number]>> = {};
     const from = vi.fn((name: string) => {
       const result = tables[name] ?? { data: [], error: null };
-      const thenable = {
-        then(
-          resolve: (value: { data: unknown; error: unknown }) => unknown,
-          reject?: (reason: unknown) => unknown,
-        ) {
-          return Promise.resolve(result).then(resolve, reject);
-        },
-        order: async () => result,
+      if (name === "member_rewards") {
+        return {
+          select: () => ({
+            order: async () => result,
+          }),
+        };
+      }
+      const rows = Array.isArray(result.data) ? result.data : [];
+      return {
+        select: () => ({
+          order: () => ({
+            range: (start: number, end: number) => {
+              ranges[name] = ranges[name] ?? [];
+              ranges[name].push([start, end]);
+              if (result.error) return Promise.resolve({ data: null, error: result.error });
+              return Promise.resolve({ data: rows.slice(start, end + 1), error: null });
+            },
+          }),
+        }),
       };
-      return { select: () => thenable };
     });
     mockClient(vi.fn(), from);
-    return from;
+    return { from, ranges };
   }
 
   test("requires MEMBERS_OPERATE and flags a member one stamp short of a named reward", async () => {
@@ -564,6 +575,121 @@ describe("listMembers", () => {
     expect(result.page.rows).toHaveLength(1);
     expect(result.page.rows[0]?.name).toBe("Dinda Salsabilla");
     expect(result.page.rows[0]?.stampCount).toBe(0);
+  });
+
+  test("pages past the Supabase 1000-row cap and keeps directory paging at 25", async () => {
+    const memberRows = Array.from({ length: 1001 }, (_, index) => ({
+      id: `member-${String(index).padStart(4, "0")}`,
+      name: index === 1000 ? "Zahra Unique" : `Member ${String(index).padStart(4, "0")}`,
+      phone: `62812${String(index).padStart(7, "0")}`,
+      created_at: new Date(Date.UTC(2026, 0, 1, 3, 0, 0) + index * 1000).toISOString(),
+      base_tier: 0,
+      cycle_start: "2026-01-01",
+    }));
+    const { ranges } = mockListTables({
+      members: { data: memberRows, error: null },
+      member_stamps: {
+        data: [
+          ...Array.from({ length: 992 }, (_, index) => ({
+            id: `stamp-void-${String(index).padStart(4, "0")}`,
+            member_id: "member-1000",
+            cycle_start: "2026-01-01",
+            visit_date: "2026-02-01",
+            created_at: "2026-02-01T04:00:00Z",
+            voided_at: "2026-02-01T04:05:00Z",
+          })),
+          ...Array.from({ length: 9 }, (_, index) => ({
+            id: `stamp-${index}`,
+            member_id: "member-1000",
+            cycle_start: "2026-01-01",
+            visit_date: `2026-0${Math.min(index + 2, 9)}-01`,
+            created_at: `2026-0${Math.min(index + 2, 9)}-01T04:00:00Z`,
+            voided_at: null,
+          })),
+        ],
+        error: null,
+      },
+      member_rewards: {
+        data: [{ milestone: 10, name: "Treatment gratis" }],
+        error: null,
+      },
+    });
+
+    const first = await listMembers({ page: 1 });
+    expect(first.status).toBe("ok");
+    if (first.status !== "ok") return;
+    expect(ranges.members).toEqual([
+      [0, 999],
+      [1000, 1999],
+      [1001, 2000],
+    ]);
+    expect(ranges.member_stamps).toEqual([
+      [0, 999],
+      [1000, 1999],
+      [1001, 2000],
+    ]);
+    expect(first.page.totalCount).toBe(1001);
+    expect(first.page.totalPages).toBe(41);
+    expect(first.page.pageSize).toBe(25);
+    expect(first.page.rows).toHaveLength(25);
+    expect(first.page.rows[0]?.name).toBe("Zahra Unique");
+    expect(first.followUp.nearReward.map((row) => row.name)).toContain("Zahra Unique");
+
+    const last = await listMembers({ page: 99 });
+    expect(last.status).toBe("ok");
+    if (last.status !== "ok") return;
+    expect(last.page.page).toBe(41);
+    expect(last.page.rows).toHaveLength(1);
+    expect(last.page.rows[0]?.name).toBe("Member 0000");
+
+    const search = await listMembers({ query: "Zahra Unique" });
+    expect(search.status).toBe("ok");
+    if (search.status !== "ok") return;
+    expect(search.page.totalCount).toBe(1);
+    expect(search.page.rows[0]?.name).toBe("Zahra Unique");
+    expect(search.page.rows[0]?.stampCount).toBe(9);
+  });
+
+  test("fails when a later members page errors", async () => {
+    const from = vi.fn((name: string) => {
+      if (name === "member_rewards") {
+        return { select: () => ({ order: async () => ({ data: [], error: null }) }) };
+      }
+      if (name === "member_stamps") {
+        return {
+          select: () => ({
+            order: () => ({
+              range: async () => ({ data: [], error: null }),
+            }),
+          }),
+        };
+      }
+      return {
+        select: () => ({
+          order: () => ({
+            range: async (start: number) => {
+              if (start === 0) {
+                return {
+                  data: Array.from({ length: 1000 }, (_, index) => ({
+                    id: `member-${index}`,
+                    name: `Member ${index}`,
+                    phone: `62812${String(index).padStart(7, "0")}`,
+                    created_at: "2026-01-01T03:00:00Z",
+                    base_tier: 0,
+                    cycle_start: "2026-01-01",
+                  })),
+                  error: null,
+                };
+              }
+              return { data: null, error: { message: "timeout" } };
+            },
+          }),
+        }),
+      };
+    });
+    mockClient(vi.fn(), from);
+    const result = await listMembers();
+    expect(result).toEqual({ status: "error" });
   });
 });
 

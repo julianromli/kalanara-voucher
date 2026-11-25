@@ -10,8 +10,10 @@ import {
 } from "@/lib/actions/admin-pagination";
 import { attachMemberLinks, type BuyerMemberLink } from "@/lib/admin/buyer-member-match";
 import { normalizeBuyerPhone } from "@/lib/admin/buyer-phone";
+import { normalizeMemberPhone } from "@/lib/membership/phone";
 import { jakartaDateISO } from "@/lib/membership/format";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { fetchAllRows } from "@/lib/supabase/fetch-all-rows";
 import type { OrderWithVoucherItems } from "@/lib/database.types";
 
 const BUYER_ORDER_SELECT =
@@ -36,36 +38,6 @@ interface BuyerRpcRow {
   voucher_count: number;
   last_order_at: string;
   other_names: string[] | null;
-}
-
-
-const SUPABASE_PAGE_SIZE = 1000;
-
-async function fetchAllRows<T>(
-  build: () => {
-    order: (
-      column: string,
-      options: { ascending: boolean },
-    ) => {
-      range: (
-        from: number,
-        to: number,
-      ) => PromiseLike<{ data: T[] | null; error: { message?: string } | null }>;
-    };
-  },
-): Promise<{ data: T[]; error: { message?: string } | null }> {
-  const rows: T[] = [];
-  let from = 0;
-  for (;;) {
-    const { data, error } = await build()
-      .order("id", { ascending: true })
-      .range(from, from + SUPABASE_PAGE_SIZE - 1);
-    if (error) return { data: [], error };
-    const chunk = data ?? [];
-    rows.push(...chunk);
-    if (chunk.length < SUPABASE_PAGE_SIZE) return { data: rows, error: null };
-    from += SUPABASE_PAGE_SIZE;
-  }
 }
 
 function toAdminBuyer(row: BuyerRpcRow): AdminBuyer {
@@ -156,6 +128,79 @@ export async function getBuyersPage(
       );
   const from = (params.page - 1) * ADMIN_PAGE_SIZE;
   return buildAdminPage(linked.slice(from, from + ADMIN_PAGE_SIZE), params.page, linked.length);
+}
+
+
+export async function findMemberLinkByPhone(
+  phone: string,
+): Promise<BuyerMemberLink | null> {
+  await requireAdminPermission(AdminPermission.ORDERS_VIEW);
+  const phones = [...new Set(
+    [normalizeMemberPhone(phone), normalizeBuyerPhone(phone)].filter(
+      (value): value is string => Boolean(value),
+    ),
+  )];
+  if (phones.length === 0) return null;
+
+  const supabase = getAdminClient();
+  const { data: members, error } = await supabase
+    .from("members")
+    .select("id, phone, member_code, cycle_start, base_tier")
+    .in("phone", phones);
+  if (error) {
+    console.error("Error finding member for buyer:", error);
+    throw error;
+  }
+  if (!members?.length) return null;
+
+  const ids = members.map((member) => member.id);
+  const stampsResult = await fetchAllRows<{
+    id: string;
+    member_id: string;
+    cycle_start: string;
+    visit_date: string;
+    created_at: string;
+    voided_at: string | null;
+  }>(() =>
+    supabase
+      .from("member_stamps")
+      .select("id, member_id, cycle_start, visit_date, created_at, voided_at")
+      .in("member_id", ids),
+  );
+  if (stampsResult.error) {
+    console.error("Error finding member stamps for buyer:", stampsResult.error);
+    throw stampsResult.error;
+  }
+
+  const stampsByMember = new Map<string, Array<{ cycleStart: string; visitAt: string; voided: boolean }>>();
+  for (const stamp of stampsResult.data) {
+    const visitAt =
+      (typeof stamp.created_at === "string" && stamp.created_at) ||
+      (typeof stamp.visit_date === "string" && stamp.visit_date) ||
+      "";
+    if (!visitAt) continue;
+    const list = stampsByMember.get(stamp.member_id) ?? [];
+    list.push({
+      cycleStart: stamp.cycle_start,
+      visitAt,
+      voided: stamp.voided_at != null,
+    });
+    stampsByMember.set(stamp.member_id, list);
+  }
+
+  const [linked] = attachMemberLinks(
+    [{ phone: phones[0] }],
+    members.map((member) => ({
+      id: member.id,
+      phone: member.phone,
+      memberCode: member.member_code,
+      cycleStart: member.cycle_start,
+      baseTier: member.base_tier,
+      stamps: stampsByMember.get(member.id) ?? [],
+    })),
+    jakartaDateISO(),
+  );
+  return linked?.member ?? null;
 }
 
 export async function getBuyerOrders(

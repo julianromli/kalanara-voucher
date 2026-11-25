@@ -18,10 +18,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useAdminListUrl } from "@/hooks/use-admin-list-url";
 import type { AdminBuyer } from "@/lib/actions/buyers";
 import type { AdminPage } from "@/lib/actions/admin-pagination";
-import { memberAdminPath, type BuyerMemberLink } from "@/lib/admin/buyer-member-match";
+import { MemberBadge } from "@/components/admin/member-badge";
 import { buyerPath, formatBuyerPhone } from "@/lib/admin/buyer-phone";
-import { tierName } from "@/lib/membership/rules";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
 interface BuyersClientProps {
@@ -36,21 +34,6 @@ function formatBuyerDate(value: string) {
   });
 }
 
-
-function MemberBadge({ member }: { member: BuyerMemberLink }) {
-  const level = tierName(member.effectiveTier);
-  const label = member.effectiveTier > 0 ? `Member · ${level}` : "Member";
-  return (
-    <Link
-      href={memberAdminPath(member.id)}
-      onClick={(event) => event.stopPropagation()}
-      className="relative z-10 inline-flex pointer-events-auto"
-      aria-label={`Buka kartu member, ${level}`}
-    >
-      <Badge variant="outline">{label}</Badge>
-    </Link>
-  );
-}
 
 function BuyerCard({ buyer }: { buyer: AdminBuyer }) {
   return (

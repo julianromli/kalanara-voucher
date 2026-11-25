@@ -19,6 +19,7 @@ function record(overrides: Partial<MemberListRecord> = {}): MemberListRecord {
     createdAt: "2026-01-10T03:00:00Z",
     baseTier: 0,
     cycleStart: "2026-01-10",
+    waConsent: true,
     stamps: [],
     ...overrides,
   };
@@ -35,6 +36,7 @@ function row(overrides: Partial<MemberListRow> = {}): MemberListRow {
     createdAt: "2026-01-10T03:00:00Z",
     nextMilestone: 5,
     nextRewardName: "Totok gratis",
+    waConsent: true,
     ...overrides,
   };
 }
