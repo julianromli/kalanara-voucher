@@ -1055,7 +1055,12 @@ export async function buildFollowupMessage(input: {
     nama: summary.name.split(" ")[0] || summary.name,
     treatment: summary.lastTreatment?.serviceName || "treatment",
     stamp: String(summary.stampCount),
-    sisa: next == null ? "sudah penuh" : String(next - summary.stampCount),
+    sisa:
+      next != null
+        ? String(next - summary.stampCount)
+        : summary.stampCount >= 30
+          ? "sudah penuh"
+          : "nggak ada",
     reward_berikutnya: next == null
       ? "periode berikutnya"
       : nextReward?.name || "reward berikutnya",

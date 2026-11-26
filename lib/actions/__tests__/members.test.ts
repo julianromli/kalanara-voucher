@@ -1269,6 +1269,25 @@ describe("buildFollowupMessage after a stamp void", () => {
     expect(result.text).not.toContain("penuh");
   });
 
+  test("a custom template with {sisa} does not say penuh below 30 stamps", async () => {
+    mockFollowup(summaryRpc({ stamp_count: 26, rewards: claimed30 }));
+    getAdminClientMock.mockReturnValue({
+      rpc: vi.fn(async () => ({ data: summaryRpc({ stamp_count: 26, rewards: claimed30 }), error: null })),
+      from: vi.fn(() => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { value: "Sisa stamp: {sisa}." }, error: null }),
+          }),
+        }),
+      })),
+    });
+
+    const result = await buildFollowupMessage({ memberId: MEMBER_ID, stage: "day60" });
+
+    if (result.status !== "ok") throw new Error(result.status);
+    expect(result.text).toBe("Sisa stamp: nggak ada.");
+  });
+
   test("skips a claimed reward above the count", async () => {
     const rewards = claimed30.map((reward) =>
       reward.milestone === 5 ? { ...reward, claim_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" } : { ...reward, claim_id: null },
