@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from "vitest";
 
 vi.mock("@/lib/actions/members", () => ({ saveRewards: vi.fn() }));
 vi.mock("@/context/ToastContext", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 import { RewardSettingsForm } from "@/components/admin/members/reward-settings-form";
 
