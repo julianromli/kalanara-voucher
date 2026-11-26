@@ -159,6 +159,7 @@ export function CRMClient({
   );
   const [pendingResetSection, setPendingResetSection] = useState<LandingCopySection | null>(null);
   const [pendingDeleteTestimonialId, setPendingDeleteTestimonialId] = useState<string | null>(null);
+  const [isDeletingTestimonial, setIsDeletingTestimonial] = useState(false);
   const [isTestimonialModalOpen, setIsTestimonialModalOpen] = useState(false);
   const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
   const [testimonialForm, setTestimonialForm] = useState<Partial<TestimonialInsert>>({
@@ -396,6 +397,8 @@ export function CRMClient({
   };
 
   const handleDeleteTestimonial = async (id: string) => {
+    if (isDeletingTestimonial) return;
+    setIsDeletingTestimonial(true);
     try {
       await deleteTestimonial(id);
       setTestimonialItems((current) => current.filter((item) => item.id !== id));
@@ -405,6 +408,8 @@ export function CRMClient({
     } catch (error) {
       console.error(error);
       showToast("Gagal menghapus testimoni.", "error");
+    } finally {
+      setIsDeletingTestimonial(false);
     }
   };
 
@@ -940,7 +945,7 @@ export function CRMClient({
         <AlertDialog
           open={pendingDeleteTestimonialId !== null}
           onOpenChange={(open) => {
-            if (!open) setPendingDeleteTestimonialId(null);
+            if (!open && !isDeletingTestimonial) setPendingDeleteTestimonialId(null);
           }}
         >
           <AlertDialogContent>
@@ -951,17 +956,18 @@ export function CRMClient({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Batal</AlertDialogCancel>
+              <AlertDialogCancel disabled={isDeletingTestimonial}>Batal</AlertDialogCancel>
               <Button
                 type="button"
                 variant="destructive"
+                disabled={isDeletingTestimonial || !pendingDeleteTestimonialId}
                 onClick={() => {
                   if (pendingDeleteTestimonialId) {
                     void handleDeleteTestimonial(pendingDeleteTestimonialId);
                   }
                 }}
               >
-                Ya, hapus
+                {isDeletingTestimonial ? "Menghapus…" : "Ya, hapus"}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>

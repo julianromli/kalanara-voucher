@@ -234,6 +234,8 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
                 void write(current.url).then(() => {
                   setCopied(true);
                   setCopyFallbackOpen(false);
+                }).catch(() => {
+                  // Keep the dialog open so the link can still be copied by hand.
                 });
               }}
             >
