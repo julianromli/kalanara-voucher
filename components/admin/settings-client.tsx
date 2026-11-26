@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TimePicker } from "@/components/ui/time-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -177,28 +178,28 @@ export function SettingsClient({
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
                         <Label htmlFor="start-time">Opening Time</Label>
-                        <Input
+                        <TimePicker
                           id="start-time"
-                          type="time"
+                          aria-label="Opening Time"
                           value={settings.businessHours.start}
-                          onChange={(e) => setSettings({
+                          onChange={(start) => setSettings({
                             ...settings,
-                            businessHours: { ...settings.businessHours, start: e.target.value }
+                            businessHours: { ...settings.businessHours, start }
                           })}
                         />
                       </div>
                       <div>
                         <Label htmlFor="end-time">Closing Time</Label>
-                        <Input
+                        <TimePicker
                           id="end-time"
-                          type="time"
+                          aria-label="Closing Time"
                           value={settings.businessHours.end}
-                          onChange={(e) => setSettings({
+                          onChange={(end) => setSettings({
                             ...settings,
-                            businessHours: { ...settings.businessHours, end: e.target.value }
+                            businessHours: { ...settings.businessHours, end }
                           })}
                         />
                       </div>

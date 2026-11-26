@@ -47,7 +47,7 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
   const dirty = changedCount > 0;
   const allEmpty = rows.every((row) => row.name.trim().length === 0);
   const [started, setStarted] = useState(false);
-  useUnsavedChangesGuard(dirty, "Perubahan reward belum disimpan. Tetap tinggalkan halaman ini?");
+  const unsavedGuard = useUnsavedChangesGuard(dirty, "Perubahan reward belum disimpan. Tetap tinggalkan halaman ini?");
   useEffect(() => {
     if (started) document.getElementById("reward-name-5")?.focus();
   }, [started]);
@@ -301,6 +301,7 @@ export function RewardSettingsForm({ initialRows, loadError }: RewardSettingsFor
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {unsavedGuard}
     </form>
   );
 }
