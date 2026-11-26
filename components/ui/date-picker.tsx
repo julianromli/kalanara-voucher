@@ -78,6 +78,11 @@ export function isDatePickerLayer(target: EventTarget | null): boolean {
   );
 }
 
+/** Use on DialogContent so clicking the calendar or its menus does not close the dialog. */
+export function preventCloseOnDatePickerLayer(event: { target: EventTarget | null; preventDefault: () => void }) {
+  if (isDatePickerLayer(event.target)) event.preventDefault();
+}
+
 function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
@@ -153,6 +158,10 @@ export function DatePicker({
 
   return (
     <div className={cn("relative", className)}>
+      <CalendarIcon
+        className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-muted-foreground"
+        aria-hidden="true"
+      />
       <Popover
         open={open}
         onOpenChange={(next) => {
@@ -183,10 +192,6 @@ export function DatePicker({
               "pl-10",
             )}
           >
-            <CalendarIcon
-              className="pointer-events-none absolute left-3 size-4 text-muted-foreground"
-              aria-hidden="true"
-            />
             <span className="min-w-0 flex-1 truncate">
               {value ? formatDateLabel(value) : placeholder}
             </span>
@@ -288,6 +293,7 @@ export function DatePicker({
             startMonth={min ? startOfMonth(min) : new Date(DEFAULT_MIN_YEAR, 0, 1)}
             endMonth={max ? startOfMonth(max) : undefined}
             hideNavigation
+            classNames={{ month_caption: "hidden" }}
             className="[--cell-size:2.75rem] p-3 pt-1"
           />
         </PopoverContent>
