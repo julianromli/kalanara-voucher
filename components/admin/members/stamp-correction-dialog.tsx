@@ -292,7 +292,9 @@ export function StampCorrectionDialog({
           <div className="mt-4 space-y-4">
             {inPastPeriod ? (
               <p className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-pretty">
-                Ini periode lalu. Reward periode itu nggak bisa diklaim lagi, tapi level yang kebawa ke periode sekarang bisa ikut berubah.
+                {mode === "void" || mode === "add"
+                  ? "Ini periode lalu. Reward periode itu nggak bisa diklaim lagi, tapi level yang kebawa ke periode sekarang bisa ikut berubah."
+                  : "Ini periode lalu. Jumlah stamp dan level nggak berubah."}
               </p>
             ) : null}
 
