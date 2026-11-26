@@ -106,6 +106,38 @@ describe("member actions", () => {
     );
   });
 
+  test("stamps a seeded service whose id is not an RFC 4122 uuid", async () => {
+    // Live ids for Deep Sleep, Me Time and 6 other seeded services fail the
+    // version/variant check of z.string().uuid(); Postgres accepts them.
+    const rpc = vi.fn().mockResolvedValue({
+      data: { status: "ok", stamp_id: "55555555-5555-4555-8555-555555555555", count: 1 },
+      error: null,
+    });
+    mockClient(rpc);
+
+    const result = await addStamp({
+      memberId: "be808d21-b0e8-47f7-a795-2cfb50cfd4cd",
+      serviceId: "d0e1f2a3-b4c5-3d4e-7f8a-9b0c1d2e3f4a",
+    });
+
+    expect(result.status).toBe("ok");
+    expect(rpc).toHaveBeenCalledWith(
+      "member_add_stamp",
+      expect.objectContaining({ p_service_id: "d0e1f2a3-b4c5-3d4e-7f8a-9b0c1d2e3f4a" }),
+    );
+  });
+
+  test("still rejects a service id that is not hex", async () => {
+    const rpc = vi.fn();
+    mockClient(rpc);
+    const result = await addStamp({
+      memberId: "22222222-2222-4222-8222-222222222222",
+      serviceId: "deep-sleep",
+    });
+    expect(result.status).toBe("invalid");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   test("rejects a void after the server window", async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: { status: "too_late" },

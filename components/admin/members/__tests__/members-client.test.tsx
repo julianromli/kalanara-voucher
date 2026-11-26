@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -278,6 +278,42 @@ describe("MembersClient stamp flow", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Batalkan" }));
     await waitFor(() => expect(shownCount()).toBe("9"));
     expect(screen.queryByText(BRONZE_BANNER)).not.toBeInTheDocument();
+  });
+
+  test("says Koneksi putus only when the request itself failed", async () => {
+    const stampRetry = () => {
+      const alert = screen
+        .getAllByRole("alert")
+        .find((node) => node.textContent?.includes("Stamp belum tersimpan"));
+      if (!alert) throw new Error("no stamp error shown");
+      return within(alert).getByRole("button", { name: "Coba lagi" });
+    };
+    await openRina(0);
+
+    actions.addStamp.mockResolvedValueOnce({ status: "invalid_service" });
+    fireEvent.click(screen.getByRole("button", { name: "Tambah stamp" }));
+    expect(
+      await screen.findByText("Stamp belum tersimpan. Treatment ini udah nggak aktif. Pilih treatment lain."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Koneksi putus/)).not.toBeInTheDocument();
+
+    actions.addStamp.mockResolvedValueOnce({ status: "invalid" });
+    fireEvent.click(stampRetry());
+    expect(await screen.findByText(/Data member atau treatment nggak valid/)).toBeInTheDocument();
+
+    actions.addStamp.mockResolvedValueOnce({ status: "error" });
+    fireEvent.click(stampRetry());
+    expect(await screen.findByText(/Server lagi bermasalah/)).toBeInTheDocument();
+
+    actions.addStamp.mockRejectedValueOnce(new Error("An unexpected response was received from the server."));
+    fireEvent.click(stampRetry());
+    await waitFor(() => expect(actions.addStamp).toHaveBeenCalledTimes(4));
+    expect(await screen.findByText(/Server lagi bermasalah/)).toBeInTheDocument();
+    expect(screen.queryByText(/Koneksi putus/)).not.toBeInTheDocument();
+
+    actions.addStamp.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    fireEvent.click(stampRetry());
+    expect(await screen.findByText("Stamp belum tersimpan. Koneksi putus.")).toBeInTheDocument();
   });
 
   test("shows the full phone on the member card, not a masked number", async () => {
