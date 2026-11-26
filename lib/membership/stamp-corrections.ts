@@ -137,7 +137,9 @@ export function isStampDateAllowed(
   value: string,
   bounds: { min: string; max: string },
 ): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= bounds.min && value <= bounds.max;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  if (localDateToISO(isoToLocalDate(value)) !== value) return false;
+  return value >= bounds.min && value <= bounds.max;
 }
 
 export function shiftISODate(value: string, days: number): string {

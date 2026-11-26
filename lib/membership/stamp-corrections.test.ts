@@ -33,6 +33,7 @@ describe("stampDateBounds", () => {
     expect(isStampDateAllowed("2026-03-11", bounds)).toBe(false);
     expect(isStampDateAllowed("2026-11-27", bounds)).toBe(false);
     expect(isStampDateAllowed("", bounds)).toBe(false);
+    expect(isStampDateAllowed("2026-04-31", bounds)).toBe(false);
   });
 
   test("shifts across month and leap-year edges", () => {

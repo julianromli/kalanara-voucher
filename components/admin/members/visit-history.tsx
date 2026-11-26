@@ -46,20 +46,26 @@ const VISIBLE_EVENTS = 8;
 const VISIBLE_AUDIT = 5;
 
 export function VisitHistory({ summary, services = [], onCorrected }: VisitHistoryProps) {
-  const [history, setHistory] = useState<StampHistory | null>(null);
-  const [historyStatus, setHistoryStatus] = useState<"loading" | "ok" | "error">("loading");
+  // Each loaded result carries its member id, so a late answer for the
+  // previous member can never show on the current one.
+  const [loaded, setLoaded] = useState<{
+    memberId: string;
+    status: "ok" | "error";
+    history: StampHistory | null;
+  } | null>(null);
   const [showAllEvents, setShowAllEvents] = useState(false);
   const [showAllAudit, setShowAllAudit] = useState(false);
   const [dialog, setDialog] = useState<{ mode: StampCorrectionMode; stamp: StampHistoryStamp | null } | null>(null);
-  const [historyMemberId, setHistoryMemberId] = useState(summary.id);
+  const [viewedMemberId, setViewedMemberId] = useState(summary.id);
   const requestRef = useRef(0);
   const canCorrect = Boolean(onCorrected);
+  const current = loaded?.memberId === summary.id ? loaded : null;
+  const history = current?.history ?? null;
+  const historyStatus = current?.status ?? "loading";
 
-  // A different member must never show the previous member's stamps.
-  if (historyMemberId !== summary.id) {
-    setHistoryMemberId(summary.id);
-    setHistory(null);
-    setHistoryStatus("loading");
+  // Opening a different member resets the list toggles and any open dialog.
+  if (viewedMemberId !== summary.id) {
+    setViewedMemberId(summary.id);
     setShowAllEvents(false);
     setShowAllAudit(false);
     setDialog(null);
@@ -69,20 +75,20 @@ export function VisitHistory({ summary, services = [], onCorrected }: VisitHisto
     if (!canCorrect) return;
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
+    const memberId = summary.id;
     void Promise.resolve()
-      .then(() => listStampHistory(summary.id))
+      .then(() => listStampHistory(memberId))
       .then((result) => {
         if (requestId !== requestRef.current) return;
-        if (result.status === "ok") {
-          setHistory(result.history);
-          setHistoryStatus("ok");
-          return;
-        }
-        setHistoryStatus("error");
+        setLoaded(
+          result.status === "ok"
+            ? { memberId, status: "ok", history: result.history }
+            : { memberId, status: "error", history: null },
+        );
       })
       .catch(() => {
         if (requestId !== requestRef.current) return;
-        setHistoryStatus("error");
+        setLoaded({ memberId, status: "error", history: null });
       });
     // Reload whenever the summary object changes: every stamp, claim or
     // correction reloads the summary first.
@@ -149,7 +155,7 @@ export function VisitHistory({ summary, services = [], onCorrected }: VisitHisto
             size="sm"
             variant="outline"
             className="h-11 sm:h-8"
-            disabled={services.length === 0}
+            disabled={services.length === 0 || historyStatus !== "ok"}
             onClick={() => setDialog({ mode: "add", stamp: null })}
           >
             <Plus className="size-4" aria-hidden="true" />

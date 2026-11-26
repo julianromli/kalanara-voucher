@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const { listStampHistoryMock } = vi.hoisted(() => ({ listStampHistoryMock: vi.fn() }));
@@ -125,5 +125,32 @@ describe("VisitHistory corrections", () => {
     render(<VisitHistory summary={summary()} />);
     expect(screen.queryByRole("button", { name: "Tambah stamp lama" })).not.toBeInTheDocument();
     expect(listStampHistoryMock).not.toHaveBeenCalled();
+  });
+
+  test("keeps Tambah stamp lama disabled until the history loads", () => {
+    listStampHistoryMock.mockReturnValue(new Promise(() => {}));
+    render(<VisitHistory summary={summary()} services={[{ id: "s1", name: "Deep Sleep" }]} onCorrected={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Tambah stamp lama" })).toBeDisabled();
+  });
+
+  test("a late answer for the previous member never shows on the next one", async () => {
+    let resolveFirst: (value: typeof history) => void = () => {};
+    listStampHistoryMock
+      .mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve; }))
+      .mockReturnValueOnce(new Promise(() => {}));
+    const first = summary();
+    const { rerender } = render(<VisitHistory summary={first} services={[]} onCorrected={vi.fn()} />);
+    rerender(
+      <VisitHistory
+        summary={{ ...first, id: "22222222-2222-4222-8222-222222222222", name: "Budi" }}
+        services={[]}
+        onCorrected={vi.fn()}
+      />,
+    );
+    await act(async () => {
+      resolveFirst(history);
+    });
+    expect(screen.queryByText("Riwayat koreksi")).not.toBeInTheDocument();
+    expect(screen.queryByText("Me Time")).not.toBeInTheDocument();
   });
 });

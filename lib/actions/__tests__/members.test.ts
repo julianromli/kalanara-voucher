@@ -1175,4 +1175,58 @@ describe("stamp corrections", () => {
     expect(rpc).toHaveBeenCalledWith("list_member_stamp_history", { p_member_id: memberId });
     expect(result).toMatchObject({ status: "ok", history: { cycleStart: "2026-03-12" } });
   });
+
+  test("add past stamp returns the existing stamp on a same-day clash and logs nothing", async () => {
+    mockClient(
+      vi.fn().mockResolvedValue({
+        data: { status: "needs_confirm", service_name: "Deep Sleep", created_at: "2026-11-20T03:00:00Z" },
+        error: null,
+      }),
+    );
+
+    const result = await addPastStamp({ memberId, serviceId: legacyServiceId, visitDate: "2026-11-20" });
+
+    expect(result).toMatchObject({ status: "needs_confirm", serviceName: "Deep Sleep" });
+    expect(logAdminAuditMock).not.toHaveBeenCalled();
+  });
+
+  test("service and date corrections write the admin audit log on success", async () => {
+    mockClient(
+      vi.fn()
+        .mockResolvedValueOnce({ data: { status: "ok", member_id: memberId, service_name: "Me Time" }, error: null })
+        .mockResolvedValueOnce({ data: { status: "ok", member_id: memberId, visit_date: "2026-11-19" }, error: null }),
+    );
+
+    await correctStampService({ stampId: legacyStampId, serviceId: legacyServiceId });
+    await correctStampDate({ stampId: legacyStampId, visitDate: "2026-11-19", confirmSameDay: true });
+
+    expect(logAdminAuditMock).toHaveBeenNthCalledWith(
+      1,
+      access,
+      expect.objectContaining({ action: "membership.stamp_correct_service", target: legacyStampId }),
+    );
+    expect(logAdminAuditMock).toHaveBeenNthCalledWith(
+      2,
+      access,
+      expect.objectContaining({ action: "membership.stamp_correct_date", target: legacyStampId }),
+    );
+  });
+
+  test("rejects ids that are not 8-4-4-4-12 hex before calling the database", async () => {
+    const rpc = vi.fn();
+    mockClient(rpc);
+
+    expect((await correctVoidStamp({ stampId: "not-a-uuid" })).status).toBe("invalid");
+    expect((await correctStampService({ stampId: legacyStampId, serviceId: "1" })).status).toBe("invalid");
+    expect((await correctStampDate({ stampId: "x", visitDate: "2026-11-19" })).status).toBe("invalid");
+    expect((await addPastStamp({ memberId: "x", serviceId: legacyServiceId, visitDate: "2026-11-19" })).status).toBe("invalid");
+    expect((await listStampHistory("x")).status).toBe("error");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  test("history returns not_found for a missing member", async () => {
+    mockClient(vi.fn().mockResolvedValue({ data: { status: "not_found" }, error: null }));
+
+    expect((await listStampHistory(memberId)).status).toBe("not_found");
+  });
 });

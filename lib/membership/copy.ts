@@ -10,6 +10,22 @@ import {
 } from "@/lib/membership/rules";
 import type { MemberRewardView, MemberSummary } from "@/lib/membership/summary";
 
+/**
+ * Next milestone above the count that is not claimed yet. A stamp void can
+ * leave a claimed reward above the count; that reward is done, so progress
+ * and follow-up messages point at the next unclaimed one instead.
+ */
+export function nextUnclaimedMilestone(
+  summary: Pick<MemberSummary, "stampCount" | "rewards">,
+): number | null {
+  const claimed = new Set(
+    summary.rewards.filter((reward) => reward.claimId).map((reward) => reward.milestone),
+  );
+  let next: number | null = nextOpenMilestone(summary.stampCount);
+  while (next != null && claimed.has(next)) next = nextOpenMilestone(next);
+  return next;
+}
+
 export function progressCopy(summary: MemberSummary): { title: string; detail: string } {
   if (summary.stampCount >= 30) {
     const nextTier = tierName(Math.max(summary.effectiveTier - 1, 0));
@@ -19,13 +35,7 @@ export function progressCopy(summary: MemberSummary): { title: string; detail: s
     };
   }
 
-  // A void can leave a claimed reward above the count. That reward is done,
-  // so progress points at the next unclaimed milestone instead.
-  const claimed = new Set(
-    summary.rewards.filter((reward) => reward.claimId).map((reward) => reward.milestone),
-  );
-  let next = nextOpenMilestone(summary.stampCount);
-  while (next != null && claimed.has(next)) next = nextOpenMilestone(next);
+  const next = nextUnclaimedMilestone(summary);
   if (next == null) {
     return { title: `${summary.stampCount} stamp`, detail: "" };
   }

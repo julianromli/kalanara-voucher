@@ -23,7 +23,8 @@ import {
   type MemberListRecord,
   type MemberListRow,
 } from "@/lib/membership/list";
-import { formatISODate, nextOpenMilestone, parseISODate } from "@/lib/membership/rules";
+import { nextUnclaimedMilestone } from "@/lib/membership/copy";
+import { formatISODate, parseISODate } from "@/lib/membership/rules";
 import {
   STAMP_REASON_MAX,
   parseKeptClaims,
@@ -1031,8 +1032,9 @@ export async function buildFollowupMessage(input: {
     .maybeSingle();
   if (error) return failure();
   const storedTemplate = templateRow?.value || DEFAULT_FOLLOWUP_TEMPLATES[input.stage];
+  const next = nextUnclaimedMilestone(summary);
   const template =
-    nextOpenMilestone(summary.stampCount) == null
+    next == null
       ? storedTemplate.replace(
           /tinggal \{sisa\} lagi buat \{reward_berikutnya\}/g,
           "stamp periode ini sudah penuh",
@@ -1044,7 +1046,6 @@ export async function buildFollowupMessage(input: {
   } catch {
     return failure();
   }
-  const next = nextOpenMilestone(summary.stampCount);
   const nextReward = summary.rewards.find((reward) => reward.milestone === next);
   const textValue = fillFollowupTemplate(template, {
     nama: summary.name.split(" ")[0] || summary.name,

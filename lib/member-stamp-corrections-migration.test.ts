@@ -29,16 +29,22 @@ describe("member stamp corrections migration contract", () => {
     expect(sql).toMatch(/create table public\.member_stamp_audit/i);
     expect(sql).toMatch(/member_id uuid not null references public\.members \(id\) on delete cascade/i);
     expect(sql).toMatch(/stamp_id uuid not null references public\.member_stamps \(id\) on delete cascade/i);
+    const table = sql.slice(
+      sql.indexOf("CREATE TABLE public.member_stamp_audit"),
+      sql.indexOf("CREATE INDEX member_stamp_audit_member_created_idx"),
+    );
     for (const column of [
-      "changed_by uuid",
-      "changed_by_email text",
-      "changed_by_role text",
-      "old_value text",
-      "new_value text",
-      "reason text",
-      "created_at timestamptz NOT NULL DEFAULT now()",
+      "changed_by uuid,",
+      "changed_by_email text,",
+      "changed_by_role text,",
+      "old_value text,",
+      "new_value text,",
+      "reason text,",
+      "service_name text NOT NULL,",
+      "visit_date date NOT NULL,",
+      "created_at timestamptz NOT NULL DEFAULT now(),",
     ]) {
-      expect(sql).toContain(column);
+      expect(table).toMatch(new RegExp(`\\n  ${column.replace(/[()]/g, "\\$&")}\\n`));
     }
     expect(sql).toMatch(/action IN \('void', 'service', 'visit_date', 'add_past'\)/);
     expect(sql).toMatch(/reason IS NULL OR char_length\(reason\) BETWEEN 1 AND 200/);
