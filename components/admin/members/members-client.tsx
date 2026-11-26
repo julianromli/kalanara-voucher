@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, MoreHorizontal, Plus } from "lucide-react";
-import { AddStampBar, cappedReason } from "@/components/admin/members/add-stamp-bar";
+import {
+  AddStampBar,
+  cappedReason,
+  isNetworkFailure,
+  stampFailureMessage,
+  stampThrownMessage,
+} from "@/components/admin/members/add-stamp-bar";
 import { ClaimRewardDialog } from "@/components/admin/members/claim-reward-dialog";
 import { EditMemberDialog } from "@/components/admin/members/edit-member-dialog";
 import { MemberCard } from "@/components/admin/members/member-card";
@@ -121,7 +127,7 @@ export function MembersClient({
   const skipFirstListFetch = useRef(initialList != null);
   const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
   const [confirm, setConfirm] = useState<{ serviceName: string; createdAt: string } | null>(null);
-  const [stampError, setStampError] = useState(false);
+  const [stampError, setStampError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const justAddedTimer = useRef<number | null>(null);
@@ -338,7 +344,7 @@ export function MembersClient({
     setConfirm(null);
     setClaimMilestone(null);
     setRotateOpen(false);
-    setStampError(false);
+    setStampError(null);
     setJustAdded(false);
     setNameResults([]);
     setNameStatus("idle");
@@ -484,7 +490,7 @@ export function MembersClient({
     const memberName = summary.name;
     const ticket = summaryGate.begin();
     setPending(true);
-    setStampError(false);
+    setStampError(null);
     let result: Awaited<ReturnType<typeof addStamp>>;
     try {
       result = await addStamp({
@@ -492,9 +498,9 @@ export function MembersClient({
         serviceId,
         confirmSameDay,
       });
-    } catch {
+    } catch (error) {
       setPending(false);
-      setStampError(true);
+      setStampError(stampThrownMessage(error));
       return;
     }
     setPending(false);
@@ -513,7 +519,7 @@ export function MembersClient({
       return;
     }
     if (result.status !== "ok" || !result.stampId) {
-      setStampError(true);
+      setStampError(stampFailureMessage(result.status));
       return;
     }
     const stampId = result.stampId;
@@ -550,8 +556,13 @@ export function MembersClient({
           }
           await reloadSummary(memberId, undoTicket);
           await refreshRecent();
-        }).catch(() => {
-          showToast("Stamp nggak bisa dibatalin. Koneksi putus.", "error");
+        }).catch((error: unknown) => {
+          showToast(
+            isNetworkFailure(error)
+              ? "Stamp nggak bisa dibatalin. Koneksi putus."
+              : "Stamp nggak bisa dibatalin. Server lagi bermasalah.",
+            "error",
+          );
           void reloadSummary(memberId, undoTicket);
         });
       },
