@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { DatePicker, formatISODate, parseISODate } from "@/components/ui/date-picker";
 import { parseTime, TimePicker } from "@/components/ui/time-picker";
 import { cn } from "@/lib/utils";
@@ -49,8 +50,34 @@ export function parseDateTimeLocal(value: string): Date | undefined {
     }
     return date;
   }
-  const date = new Date(trimmed);
-  return Number.isNaN(date.getTime()) ? undefined : date;
+  const iso = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(Z|[+-]\d{2}:\d{2})$/.exec(trimmed);
+  if (!iso) {
+    const date = new Date(trimmed);
+    return Number.isNaN(date.getTime()) ? undefined : date;
+  }
+  const year = Number(iso[1]);
+  const month = Number(iso[2]) - 1;
+  const day = Number(iso[3]);
+  const hours = Number(iso[4]);
+  const minutes = Number(iso[5]);
+  const seconds = Number(iso[6] ?? 0);
+  const milliseconds = iso[7] ? Number(iso[7].padEnd(3, "0")) : 0;
+  if (hours > 23 || minutes > 59 || seconds > 59) return undefined;
+  const asWrittenUtc = new Date(Date.UTC(year, month, day, hours, minutes, seconds, milliseconds));
+  if (
+    asWrittenUtc.getUTCFullYear() !== year ||
+    asWrittenUtc.getUTCMonth() !== month ||
+    asWrittenUtc.getUTCDate() !== day ||
+    asWrittenUtc.getUTCHours() !== hours ||
+    asWrittenUtc.getUTCMinutes() !== minutes ||
+    asWrittenUtc.getUTCSeconds() !== seconds
+  ) {
+    return undefined;
+  }
+  if (iso[8] === "Z") return asWrittenUtc;
+  const sign = iso[8].startsWith("-") ? -1 : 1;
+  const offsetMinutes = sign * (Number(iso[8].slice(1, 3)) * 60 + Number(iso[8].slice(4, 6)));
+  return new Date(asWrittenUtc.getTime() - offsetMinutes * 60_000);
 }
 
 /** Format a date as a local `YYYY-MM-DDTHH:mm` string. */
@@ -59,10 +86,19 @@ export function formatDateTimeLocal(date: Date): string {
   return `${formatISODate(date)}T${time}`;
 }
 
+function atMinute(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes());
+}
+
+/** Clamp to min/max, then drop seconds without ending below min or above max. */
 export function clampDateTime(date: Date, min?: Date, max?: Date): Date {
-  if (min && date < min) return new Date(min.getTime());
-  if (max && date > max) return new Date(max.getTime());
-  return date;
+  let next = date;
+  if (min && next < min) next = new Date(min.getTime());
+  if (max && next > max) next = new Date(max.getTime());
+  next = atMinute(next);
+  if (min && next < min) next = atMinute(new Date(next.getTime() + 60_000));
+  if (max && next > max) next = atMinute(max);
+  return next;
 }
 
 function timeBoundOnDay(bound: Date | undefined, day: Date): string | undefined {
@@ -94,13 +130,19 @@ export function DateTimePicker({
     : "";
   const timeMin = dateValue ? timeBoundOnDay(min, dateValue) : undefined;
   const timeMax = dateValue ? timeBoundOnDay(max, dateValue) : undefined;
+  const rootRef = React.useRef<HTMLDivElement>(null);
 
   function commit(date: Date) {
     onChange(clampDateTime(date, min, max));
   }
 
+  function focusDateTrigger() {
+    const trigger = rootRef.current?.querySelector("button");
+    if (trigger instanceof HTMLButtonElement) trigger.focus();
+  }
+
   return (
-    <div className={cn("flex flex-col gap-2 sm:flex-row sm:items-center", className)}>
+    <div ref={rootRef} className={cn("flex flex-col gap-2 sm:flex-row sm:items-center", className)}>
       <DatePicker
         value={dateValue}
         onChange={(date) => {
@@ -118,7 +160,7 @@ export function DateTimePicker({
         disabled={disabled}
         id={id}
         required={false}
-        clearable={clearable}
+        clearable={clearable ?? !required}
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
         aria-describedby={ariaDescribedBy}
@@ -156,11 +198,11 @@ export function DateTimePicker({
         className="sr-only"
         onChange={() => {}}
         onFocus={() => {
-          if (id) document.getElementById(id)?.focus();
+          focusDateTrigger();
         }}
         onInvalid={(event) => {
           event.preventDefault();
-          if (id) document.getElementById(id)?.focus();
+          focusDateTrigger();
         }}
       />
     </div>

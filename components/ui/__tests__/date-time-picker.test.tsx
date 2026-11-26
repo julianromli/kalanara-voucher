@@ -19,6 +19,15 @@ describe("date and time helpers", () => {
     expect(date?.toISOString()).toBe("2026-11-26T02:00:00.000Z");
   });
 
+  test("rejects an overflowing ISO timestamp", () => {
+    expect(parseDateTimeLocal("2026-02-31T09:00:00.000Z")).toBeUndefined();
+  });
+
+  test("parses an ISO timestamp with an offset", () => {
+    const date = parseDateTimeLocal("2026-11-26T09:00:00+07:00");
+    expect(date?.toISOString()).toBe("2026-11-26T02:00:00.000Z");
+  });
+
   test("rejects impossible local dates and times", () => {
     expect(parseDateTimeLocal("2026-02-31T09:00")).toBeUndefined();
     expect(parseDateTimeLocal("2026-11-26T09:60")).toBeUndefined();
@@ -47,5 +56,10 @@ describe("date and time helpers", () => {
     expect(formatDateTimeLocal(clampDateTime(parseDateTimeLocal("2026-11-26T12:00")!, min, max))).toBe(
       "2026-11-26T12:00",
     );
+  });
+
+  test("rounds a second-level min up to the next minute", () => {
+    const min = new Date(2026, 10, 26, 9, 0, 30);
+    expect(formatDateTimeLocal(clampDateTime(new Date(2026, 10, 26, 9, 0, 0), min))).toBe("2026-11-26T09:01");
   });
 });

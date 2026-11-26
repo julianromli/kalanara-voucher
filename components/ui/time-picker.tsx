@@ -122,7 +122,7 @@ export function TimePicker({
       aria-describedby={ariaDescribedBy}
     >
       <Select
-        value={hour || undefined}
+        value={hour}
         onValueChange={(next) => commit(next, minute)}
         disabled={disabled}
       >
@@ -154,7 +154,7 @@ export function TimePicker({
         :
       </span>
       <Select
-        value={minute || undefined}
+        value={minute}
         onValueChange={(next) => commit(hour, next)}
         disabled={disabled}
       >
