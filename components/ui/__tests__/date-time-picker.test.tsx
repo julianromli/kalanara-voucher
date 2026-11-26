@@ -1,0 +1,27 @@
+import { describe, expect, test } from "vitest";
+import { formatDateTimeLocal, parseDateTimeLocal } from "@/components/ui/date-time-picker";
+import { parseTime } from "@/components/ui/time-picker";
+
+describe("date and time helpers", () => {
+  test("round-trips a local datetime without treating it as UTC", () => {
+    const date = parseDateTimeLocal("2026-11-26T09:00");
+    expect(date?.getFullYear()).toBe(2026);
+    expect(date?.getMonth()).toBe(10);
+    expect(date?.getDate()).toBe(26);
+    expect(date?.getHours()).toBe(9);
+    expect(date?.getMinutes()).toBe(0);
+    expect(formatDateTimeLocal(date!)).toBe("2026-11-26T09:00");
+  });
+
+  test("parses a full ISO timestamp", () => {
+    const date = parseDateTimeLocal("2026-11-26T02:00:00.000Z");
+    expect(date).toBeDefined();
+    expect(date?.toISOString()).toBe("2026-11-26T02:00:00.000Z");
+  });
+
+  test("parses HH:mm and rejects invalid times", () => {
+    expect(parseTime("09:00")).toBe("09:00");
+    expect(parseTime("18:00:00")).toBe("18:00");
+    expect(parseTime("24:00")).toBe("");
+  });
+});
