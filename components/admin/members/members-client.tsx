@@ -774,7 +774,18 @@ export function MembersClient({
                 />
                 <div className="grid gap-6 md:grid-cols-2">
                   <RewardList summary={summary} onClaim={setClaimMilestone} />
-                  <VisitHistory summary={summary} />
+                  <VisitHistory
+                    summary={summary}
+                    services={services}
+                    onCorrected={(message) => {
+                      const memberId = summary.id;
+                      const ticket = summaryGate.begin();
+                      setBanner(null);
+                      setJustAdded(false);
+                      showToast(message, "success");
+                      void reloadSummary(memberId, ticket).then(() => refreshRecent());
+                    }}
+                  />
                 </div>
                 <MemberPurchaseHistory key={summary.id} phone={summary.phone} />
               </div>

@@ -19,7 +19,13 @@ export function progressCopy(summary: MemberSummary): { title: string; detail: s
     };
   }
 
-  const next = nextOpenMilestone(summary.stampCount);
+  // A void can leave a claimed reward above the count. That reward is done,
+  // so progress points at the next unclaimed milestone instead.
+  const claimed = new Set(
+    summary.rewards.filter((reward) => reward.claimId).map((reward) => reward.milestone),
+  );
+  let next = nextOpenMilestone(summary.stampCount);
+  while (next != null && claimed.has(next)) next = nextOpenMilestone(next);
   if (next == null) {
     return { title: `${summary.stampCount} stamp`, detail: "" };
   }

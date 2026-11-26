@@ -21,7 +21,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   getAdminClient: getAdminClientMock,
 }));
 
-import { addStamp, claimReward, listMemberProfileAudit, listMembers, markFollowupSent, saveRewards, searchMembers, selfSignup, updateMember, voidStamp } from "@/lib/actions/members";
+import { addPastStamp, addStamp, claimReward, correctStampDate, correctStampService, correctVoidStamp, listStampHistory, listMemberProfileAudit, listMembers, markFollowupSent, saveRewards, searchMembers, selfSignup, updateMember, voidStamp } from "@/lib/actions/members";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 
 const access = {
@@ -989,5 +989,190 @@ describe("listMemberProfileAudit", () => {
         },
       ],
     });
+  });
+});
+
+describe("stamp corrections", () => {
+  const legacyStampId = "6c2f9b1e-0a4d-2c3b-1a2b-3c4d5e6f7a8b";
+  const legacyServiceId = "a1b2c3d4-e5f6-0718-293a-4b5c6d7e8f90";
+  const memberId = "22222222-2222-4222-8222-222222222222";
+  const author = {
+    p_changed_by: access.userId,
+    p_changed_by_email: access.email,
+    p_changed_by_role: access.role,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireAdminPermissionMock.mockResolvedValue(access);
+  });
+
+  test("void sends the author and optional reason, and accepts legacy seed ids", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { status: "ok", member_id: memberId, count: 4, claims_kept: [] },
+      error: null,
+    });
+    mockClient(rpc);
+
+    const result = await correctVoidStamp({ stampId: legacyStampId, reason: "  salah member  " });
+
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(AdminPermission.MEMBERS_OPERATE);
+    expect(rpc).toHaveBeenCalledWith("member_correct_void_stamp", {
+      p_stamp_id: legacyStampId,
+      p_confirm_claimed: false,
+      p_reason: "salah member",
+      ...author,
+    });
+    expect(result).toMatchObject({ status: "ok", count: 4, claims: [] });
+    expect(logAdminAuditMock).toHaveBeenCalledWith(
+      access,
+      expect.objectContaining({ action: "membership.stamp_correct_void", target: legacyStampId }),
+    );
+  });
+
+  test("void returns the claimed rewards when it would drop below them", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        status: "needs_confirm_claimed",
+        count_after: 4,
+        claims: [{ milestone: 5, reward_name: "Treatment gratis" }],
+      },
+      error: null,
+    });
+    mockClient(rpc);
+
+    const result = await correctVoidStamp({ stampId: legacyStampId });
+
+    expect(rpc.mock.calls[0][1]).toMatchObject({ p_reason: null, p_confirm_claimed: false });
+    expect(result).toMatchObject({
+      status: "needs_confirm_claimed",
+      count: 4,
+      claims: [{ milestone: 5, rewardName: "Treatment gratis" }],
+    });
+    expect(logAdminAuditMock).not.toHaveBeenCalled();
+  });
+
+  test("void with confirm passes it through", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { status: "ok", member_id: memberId, count: 4, claims_kept: [{ milestone: 5, reward_name: "Treatment gratis" }] },
+      error: null,
+    });
+    mockClient(rpc);
+
+    const result = await correctVoidStamp({ stampId: legacyStampId, confirmClaimed: true });
+
+    expect(rpc.mock.calls[0][1]).toMatchObject({ p_confirm_claimed: true });
+    expect(result).toMatchObject({ claims: [{ milestone: 5, rewardName: "Treatment gratis" }] });
+  });
+
+  test("rejects a reason over 200 characters before calling the database", async () => {
+    const rpc = vi.fn();
+    mockClient(rpc);
+
+    const result = await correctVoidStamp({ stampId: legacyStampId, reason: "x".repeat(201) });
+
+    expect(result.status).toBe("invalid");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  test("service change accepts legacy service ids", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { status: "ok", member_id: memberId, service_name: "Deep Sleep" },
+      error: null,
+    });
+    mockClient(rpc);
+
+    const result = await correctStampService({ stampId: legacyStampId, serviceId: legacyServiceId });
+
+    expect(rpc).toHaveBeenCalledWith("member_correct_stamp_service", {
+      p_stamp_id: legacyStampId,
+      p_service_id: legacyServiceId,
+      p_reason: null,
+      ...author,
+    });
+    expect(result).toMatchObject({ status: "ok", serviceName: "Deep Sleep" });
+  });
+
+  test("date change rejects an impossible calendar date", async () => {
+    const rpc = vi.fn();
+    mockClient(rpc);
+
+    const result = await correctStampDate({ stampId: legacyStampId, visitDate: "2026-02-30" });
+
+    expect(result.status).toBe("invalid");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  test("date change passes period bounds back on outside_period", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { status: "outside_period", cycle_start: "2026-03-12", reset_on: "2027-03-12" },
+      error: null,
+    });
+    mockClient(rpc);
+
+    const result = await correctStampDate({ stampId: legacyStampId, visitDate: "2026-01-02" });
+
+    expect(rpc.mock.calls[0][1]).toMatchObject({ p_visit_date: "2026-01-02", p_confirm_same_day: false });
+    expect(result).toMatchObject({ status: "outside_period", cycleStart: "2026-03-12", resetOn: "2027-03-12" });
+    expect(logAdminAuditMock).not.toHaveBeenCalled();
+  });
+
+  test("add past stamp sends the date and confirm, returns the new count", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { status: "ok", member_id: memberId, stamp_id: legacyStampId, count: 6, service_name: "Me Time" },
+      error: null,
+    });
+    mockClient(rpc);
+
+    const result = await addPastStamp({
+      memberId,
+      serviceId: legacyServiceId,
+      visitDate: "2026-11-20",
+      confirmSameDay: true,
+      reason: "kelupaan",
+    });
+
+    expect(rpc).toHaveBeenCalledWith("member_add_past_stamp", {
+      p_member_id: memberId,
+      p_service_id: legacyServiceId,
+      p_visit_date: "2026-11-20",
+      p_confirm_same_day: true,
+      p_reason: "kelupaan",
+      ...author,
+    });
+    expect(result).toMatchObject({ status: "ok", count: 6 });
+    expect(logAdminAuditMock).toHaveBeenCalledWith(
+      access,
+      expect.objectContaining({ action: "membership.stamp_add_past" }),
+    );
+  });
+
+  test("a database error becomes a plain error status", async () => {
+    mockClient(vi.fn().mockResolvedValue({ data: null, error: { message: "boom" } }));
+
+    const result = await addPastStamp({ memberId, serviceId: legacyServiceId, visitDate: "2026-11-20" });
+
+    expect(result.status).toBe("error");
+  });
+
+  test("history is parsed and gated to MEMBERS_OPERATE", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        status: "ok",
+        cycle_start: "2026-03-12",
+        reset_on: "2027-03-12",
+        today: "2026-11-26",
+        stamps: [],
+        audit: [],
+      },
+      error: null,
+    });
+    mockClient(rpc);
+
+    const result = await listStampHistory(memberId);
+
+    expect(requireAdminPermissionMock).toHaveBeenCalledWith(AdminPermission.MEMBERS_OPERATE);
+    expect(rpc).toHaveBeenCalledWith("list_member_stamp_history", { p_member_id: memberId });
+    expect(result).toMatchObject({ status: "ok", history: { cycleStart: "2026-03-12" } });
   });
 });
