@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { QrCode, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker, formatISODate, parseISODate } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { selfSignup } from "@/lib/actions/members";
@@ -201,16 +202,23 @@ export function SelfSignupForm({ qrToken, qrState }: SelfSignupFormProps) {
         </div>
         <div className="mt-4 space-y-1.5">
           <Label htmlFor="signup-birth">Tanggal lahir</Label>
-          <Input
+          <DatePicker
             id="signup-birth"
-            type="date"
-            value={birthDate}
-            onChange={(event) => setBirthDate(event.target.value)}
-            onBlur={() => birthDate && validate("birthDate")}
-            className={cn("h-11 text-base md:text-base", errors.birthDate && "border-destructive")}
+            value={parseISODate(birthDate)}
+            onChange={(date) => {
+              const next = date ? formatISODate(date) : "";
+              setBirthDate(next);
+              if (errors.birthDate) {
+                setErrors((current) => ({ ...current, birthDate: undefined }));
+              }
+            }}
+            min={new Date(1900, 0, 1)}
+            max={new Date()}
+            placeholder="Pilih tanggal lahir"
+            required
             aria-invalid={Boolean(errors.birthDate)}
             aria-describedby="signup-birth-hint"
-            required
+            className={errors.birthDate ? "[&_button]:border-destructive" : undefined}
           />
           {errors.birthDate ? (
             <p id="signup-birth-hint" className="text-sm text-destructive">{errors.birthDate}</p>

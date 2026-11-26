@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DatePicker, formatISODate, parseISODate, preventCloseOnDatePickerLayer } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateMember } from "@/lib/actions/members";
@@ -73,7 +74,10 @@ export function EditMemberDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent>
+      <DialogContent
+        onPointerDownOutside={preventCloseOnDatePickerLayer}
+        onFocusOutside={preventCloseOnDatePickerLayer}
+      >
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -164,11 +168,13 @@ export function EditMemberDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="edit-member-birth">Tanggal lahir</Label>
-              <Input
+              <DatePicker
                 id="edit-member-birth"
-                type="date"
-                value={birthDate}
-                onChange={(event) => setBirthDate(event.target.value)}
+                value={parseISODate(birthDate)}
+                onChange={(date) => setBirthDate(date ? formatISODate(date) : "")}
+                min={new Date(1900, 0, 1)}
+                max={new Date()}
+                placeholder="Pilih tanggal lahir"
                 required
               />
               <p className="text-xs text-muted-foreground">
