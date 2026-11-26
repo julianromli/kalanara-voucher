@@ -36,7 +36,7 @@ function renderBar(overrides: Partial<Parameters<typeof AddStampBar>[0]> = {}) {
     onServiceChange: vi.fn(),
     justAdded: false,
     confirm: null,
-    error: false,
+    error: null,
     pending: false,
     onAdd: vi.fn(),
     onConfirm: vi.fn(),
@@ -49,6 +49,14 @@ function renderBar(overrides: Partial<Parameters<typeof AddStampBar>[0]> = {}) {
 }
 
 describe("AddStampBar", () => {
+  test("shows the error message it is given, next to Coba lagi", () => {
+    renderBar({ error: "Stamp belum tersimpan. Server lagi bermasalah. Coba lagi sebentar lagi." });
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Server lagi bermasalah");
+    expect(alert).not.toHaveTextContent("Koneksi putus");
+    expect(screen.getByRole("button", { name: "Coba lagi" })).toBeInTheDocument();
+  });
+
   test("uses the custom select, not a native select", async () => {
     const user = userEvent.setup();
     const { props } = renderBar();
