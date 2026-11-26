@@ -21,6 +21,9 @@ describe("date and time helpers", () => {
 
   test("rejects an overflowing ISO timestamp", () => {
     expect(parseDateTimeLocal("2026-02-31T09:00:00.000Z")).toBeUndefined();
+    expect(parseDateTimeLocal("2026-02-31T09:00:00.123456Z")).toBeUndefined();
+    expect(parseDateTimeLocal("2026-11-26T09:00:00+07:60")).toBeUndefined();
+    expect(parseDateTimeLocal("2026-11-26T09:00:00+24:00")).toBeUndefined();
   });
 
   test("parses an ISO timestamp with an offset", () => {

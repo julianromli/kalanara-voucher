@@ -50,7 +50,7 @@ export function parseDateTimeLocal(value: string): Date | undefined {
     }
     return date;
   }
-  const iso = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(Z|[+-]\d{2}:\d{2})$/.exec(trimmed);
+  const iso = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(Z|[+-]\d{2}:\d{2})$/.exec(trimmed);
   if (!iso) {
     const date = new Date(trimmed);
     return Number.isNaN(date.getTime()) ? undefined : date;
@@ -61,7 +61,7 @@ export function parseDateTimeLocal(value: string): Date | undefined {
   const hours = Number(iso[4]);
   const minutes = Number(iso[5]);
   const seconds = Number(iso[6] ?? 0);
-  const milliseconds = iso[7] ? Number(iso[7].padEnd(3, "0")) : 0;
+  const milliseconds = iso[7] ? Number(iso[7].padEnd(3, "0").slice(0, 3)) : 0;
   if (hours > 23 || minutes > 59 || seconds > 59) return undefined;
   const asWrittenUtc = new Date(Date.UTC(year, month, day, hours, minutes, seconds, milliseconds));
   if (
@@ -75,8 +75,11 @@ export function parseDateTimeLocal(value: string): Date | undefined {
     return undefined;
   }
   if (iso[8] === "Z") return asWrittenUtc;
+  const offsetHours = Number(iso[8].slice(1, 3));
+  const offsetMins = Number(iso[8].slice(4, 6));
+  if (offsetHours > 23 || offsetMins > 59) return undefined;
   const sign = iso[8].startsWith("-") ? -1 : 1;
-  const offsetMinutes = sign * (Number(iso[8].slice(1, 3)) * 60 + Number(iso[8].slice(4, 6)));
+  const offsetMinutes = sign * (offsetHours * 60 + offsetMins);
   return new Date(asWrittenUtc.getTime() - offsetMinutes * 60_000);
 }
 
