@@ -786,6 +786,75 @@ export type Database = {
           }
         ];
       };
+      member_stamp_audit: {
+        Row: {
+          id: string;
+          member_id: string;
+          stamp_id: string;
+          action: "void" | "service" | "visit_date" | "add_past";
+          old_value: string | null;
+          new_value: string | null;
+          service_name: string;
+          visit_date: string;
+          cycle_start: string;
+          reason: string | null;
+          details: Json;
+          changed_by: string | null;
+          changed_by_email: string | null;
+          changed_by_role: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_id: string;
+          stamp_id: string;
+          action: "void" | "service" | "visit_date" | "add_past";
+          old_value?: string | null;
+          new_value?: string | null;
+          service_name: string;
+          visit_date: string;
+          cycle_start: string;
+          reason?: string | null;
+          details?: Json;
+          changed_by?: string | null;
+          changed_by_email?: string | null;
+          changed_by_role?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          member_id?: string;
+          stamp_id?: string;
+          action?: "void" | "service" | "visit_date" | "add_past";
+          old_value?: string | null;
+          new_value?: string | null;
+          service_name?: string;
+          visit_date?: string;
+          cycle_start?: string;
+          reason?: string | null;
+          details?: Json;
+          changed_by?: string | null;
+          changed_by_email?: string | null;
+          changed_by_role?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "member_stamp_audit_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "member_stamp_audit_stamp_id_fkey";
+            columns: ["stamp_id"];
+            isOneToOne: false;
+            referencedRelation: "member_stamps";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       member_profile_audit: {
         Row: {
           id: string;
@@ -1346,6 +1415,57 @@ export type Database = {
         }[];
       };
       get_member_summary: {
+        Args: { p_member_id: string };
+        Returns: Json;
+      };
+      member_correct_void_stamp: {
+        Args: {
+          p_stamp_id: string;
+          p_confirm_claimed: boolean;
+          p_reason: string | null;
+          p_changed_by: string;
+          p_changed_by_email: string | null;
+          p_changed_by_role: string | null;
+        };
+        Returns: Json;
+      };
+      member_correct_stamp_service: {
+        Args: {
+          p_stamp_id: string;
+          p_service_id: string;
+          p_reason: string | null;
+          p_changed_by: string;
+          p_changed_by_email: string | null;
+          p_changed_by_role: string | null;
+        };
+        Returns: Json;
+      };
+      member_correct_stamp_date: {
+        Args: {
+          p_stamp_id: string;
+          p_visit_date: string;
+          p_confirm_same_day: boolean;
+          p_reason: string | null;
+          p_changed_by: string;
+          p_changed_by_email: string | null;
+          p_changed_by_role: string | null;
+        };
+        Returns: Json;
+      };
+      member_add_past_stamp: {
+        Args: {
+          p_member_id: string;
+          p_service_id: string;
+          p_visit_date: string;
+          p_confirm_same_day: boolean;
+          p_reason: string | null;
+          p_changed_by: string;
+          p_changed_by_email: string | null;
+          p_changed_by_role: string | null;
+        };
+        Returns: Json;
+      };
+      list_member_stamp_history: {
         Args: { p_member_id: string };
         Returns: Json;
       };

@@ -28,6 +28,11 @@ const { actions, routerPush, hasPermission, getBuyerOrders } = vi.hoisted(() => 
     claimReward: vi.fn(),
     updateMember: vi.fn(),
     listMemberProfileAudit: vi.fn(),
+    listStampHistory: vi.fn(),
+    correctVoidStamp: vi.fn(),
+    correctStampService: vi.fn(),
+    correctStampDate: vi.fn(),
+    addPastStamp: vi.fn(),
   },
   routerPush: vi.fn(),
   hasPermission: vi.fn(),
@@ -196,6 +201,7 @@ beforeEach(() => {
   actions.listMembers.mockResolvedValue(emptyListResult());
   actions.searchMembers.mockResolvedValue({ status: "ok", members: [] });
   actions.listMemberProfileAudit.mockResolvedValue({ status: "ok", rows: [] });
+  actions.listStampHistory.mockResolvedValue({ status: "error" });
   Object.defineProperty(navigator, "mediaDevices", {
     configurable: true,
     value: { getUserMedia: vi.fn(() => Promise.reject(new Error("denied"))) },

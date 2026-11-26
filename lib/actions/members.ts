@@ -23,7 +23,13 @@ import {
   type MemberListRecord,
   type MemberListRow,
 } from "@/lib/membership/list";
-import { formatISODate, nextOpenMilestone, parseISODate } from "@/lib/membership/rules";
+import { nextUnclaimedMilestone } from "@/lib/membership/copy";
+import { formatISODate, parseISODate } from "@/lib/membership/rules";
+import {
+  STAMP_REASON_MAX,
+  parseKeptClaims,
+  parseStampHistory,
+} from "@/lib/membership/stamp-corrections";
 import { getClientIp } from "@/lib/rate-limit";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 import {
@@ -191,7 +197,7 @@ export async function listMembers(
 ): Promise<ListMembersResult | MemberActionError> {
   await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
   const supabase = getAdminClient();
-  const [membersResult, stampsResult, rewardsResult] = await Promise.all([
+  const [membersResult, stampsResult, rewardsResult, claimsResult] = await Promise.all([
     fetchAllRows<{
       id: string;
       name: string;
@@ -213,8 +219,13 @@ export async function listMembers(
         .select("id, member_id, cycle_start, visit_date, created_at, voided_at"),
     ),
     supabase.from("member_rewards").select("milestone, name").order("milestone"),
+    fetchAllRows<{ member_id: string; cycle_start: string; milestone: number }>(() =>
+      supabase.from("member_reward_claims").select("id, member_id, cycle_start, milestone"),
+    ),
   ]);
-  if (membersResult.error || stampsResult.error || rewardsResult.error) return failure();
+  if (membersResult.error || stampsResult.error || rewardsResult.error || claimsResult.error) {
+    return failure();
+  }
   const members = membersResult.data;
   const stamps = stampsResult.data;
   const rewards = rewardsResult.data;
@@ -235,6 +246,13 @@ export async function listMembers(
     stampsByMember.set(stamp.member_id, list);
   }
 
+  const claimsByMember = new Map<string, NonNullable<MemberListRecord["claims"]>>();
+  for (const claim of claimsResult.data ?? []) {
+    const list = claimsByMember.get(claim.member_id) ?? [];
+    list.push({ cycleStart: claim.cycle_start, milestone: claim.milestone });
+    claimsByMember.set(claim.member_id, list);
+  }
+
   const rewardNames = new Map<number, string>();
   for (const reward of rewards ?? []) {
     const name = (reward.name ?? "").trim();
@@ -253,6 +271,7 @@ export async function listMembers(
         cycleStart: member.cycle_start,
         waConsent: member.wa_consent === true,
         stamps: stampsByMember.get(member.id) ?? [],
+        claims: claimsByMember.get(member.id) ?? [],
       },
       today,
       rewardNames,
@@ -500,6 +519,207 @@ export async function voidStamp(input: { stampId: string }) {
     });
   }
   return { status: text(body?.status) ?? "error", memberId: text(body?.member_id) };
+}
+
+const reasonSchema = z
+  .string()
+  .trim()
+  .max(STAMP_REASON_MAX)
+  .optional()
+  .transform((value) => (value ? value : null));
+
+const visitDateSchema = birthDateSchema.refine((value) => {
+  const date = parseISODate(value);
+  return formatISODate(date) === value;
+});
+
+function correctionAuthor(access: Awaited<ReturnType<typeof requireAdminPermission>>) {
+  return {
+    p_changed_by: access.userId,
+    p_changed_by_email: access.email || null,
+    p_changed_by_role: access.role,
+  };
+}
+
+function periodContext(body: Record<string, unknown> | null) {
+  return { cycleStart: text(body?.cycle_start), resetOn: text(body?.reset_on) };
+}
+
+export async function listStampHistory(memberId: string) {
+  await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
+  if (!idSchema.safeParse(memberId).success) return failure();
+  const { data, error } = await getAdminClient().rpc("list_member_stamp_history", {
+    p_member_id: memberId,
+  });
+  if (error) return failure();
+  if (asRecord(data)?.status === "not_found") return { status: "not_found" as const };
+  const history = parseStampHistory(data);
+  if (!history) return failure();
+  return { status: "ok" as const, history };
+}
+
+export async function correctVoidStamp(input: {
+  stampId: string;
+  reason?: string;
+  confirmClaimed?: boolean;
+}) {
+  const access = await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
+  const reason = reasonSchema.safeParse(input.reason);
+  if (!idSchema.safeParse(input.stampId).success || !reason.success) {
+    return { status: "invalid" as const };
+  }
+  const { data, error } = await getAdminClient().rpc("member_correct_void_stamp", {
+    p_stamp_id: input.stampId,
+    p_confirm_claimed: input.confirmClaimed === true,
+    p_reason: reason.data,
+    ...correctionAuthor(access),
+  });
+  if (error) return failure();
+  const body = asRecord(data);
+  const status = text(body?.status) ?? "error";
+  const claims = parseKeptClaims(body?.claims ?? body?.claims_kept);
+  if (status === "ok") {
+    logAdminAudit(access, {
+      action: "membership.stamp_correct_void",
+      target: input.stampId,
+      details: {
+        memberId: text(body?.member_id),
+        count: numberValue(body?.count),
+        claimsKept: claims.map((claim) => claim.milestone),
+      },
+    });
+  }
+  return {
+    status,
+    memberId: text(body?.member_id),
+    count: numberValue(body?.count) ?? numberValue(body?.count_after),
+    claims,
+    cycleStart: text(body?.cycle_start),
+    pastPeriod: body?.past_period === true,
+    tierBefore: numberValue(body?.tier_before),
+    tierAfter: numberValue(body?.tier_after),
+  };
+}
+
+export async function correctStampService(input: {
+  stampId: string;
+  serviceId: string;
+  reason?: string;
+}) {
+  const access = await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
+  const reason = reasonSchema.safeParse(input.reason);
+  if (
+    !idSchema.safeParse(input.stampId).success ||
+    !idSchema.safeParse(input.serviceId).success ||
+    !reason.success
+  ) {
+    return { status: "invalid" as const };
+  }
+  const { data, error } = await getAdminClient().rpc("member_correct_stamp_service", {
+    p_stamp_id: input.stampId,
+    p_service_id: input.serviceId,
+    p_reason: reason.data,
+    ...correctionAuthor(access),
+  });
+  if (error) return failure();
+  const body = asRecord(data);
+  const status = text(body?.status) ?? "error";
+  if (status === "ok") {
+    logAdminAudit(access, {
+      action: "membership.stamp_correct_service",
+      target: input.stampId,
+      details: { memberId: text(body?.member_id) },
+    });
+  }
+  return { status, memberId: text(body?.member_id), serviceName: text(body?.service_name) };
+}
+
+export async function correctStampDate(input: {
+  stampId: string;
+  visitDate: string;
+  reason?: string;
+  confirmSameDay?: boolean;
+}) {
+  const access = await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
+  const reason = reasonSchema.safeParse(input.reason);
+  if (
+    !idSchema.safeParse(input.stampId).success ||
+    !visitDateSchema.safeParse(input.visitDate).success ||
+    !reason.success
+  ) {
+    return { status: "invalid" as const };
+  }
+  const { data, error } = await getAdminClient().rpc("member_correct_stamp_date", {
+    p_stamp_id: input.stampId,
+    p_visit_date: input.visitDate,
+    p_confirm_same_day: input.confirmSameDay === true,
+    p_reason: reason.data,
+    ...correctionAuthor(access),
+  });
+  if (error) return failure();
+  const body = asRecord(data);
+  const status = text(body?.status) ?? "error";
+  if (status === "ok") {
+    logAdminAudit(access, {
+      action: "membership.stamp_correct_date",
+      target: input.stampId,
+      details: { memberId: text(body?.member_id) },
+    });
+  }
+  return {
+    status,
+    memberId: text(body?.member_id),
+    serviceName: text(body?.service_name),
+    ...periodContext(body),
+  };
+}
+
+export async function addPastStamp(input: {
+  memberId: string;
+  serviceId: string;
+  visitDate: string;
+  reason?: string;
+  confirmSameDay?: boolean;
+}) {
+  const access = await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
+  const reason = reasonSchema.safeParse(input.reason);
+  if (
+    !idSchema.safeParse(input.memberId).success ||
+    !idSchema.safeParse(input.serviceId).success ||
+    !visitDateSchema.safeParse(input.visitDate).success ||
+    !reason.success
+  ) {
+    return { status: "invalid" as const };
+  }
+  const { data, error } = await getAdminClient().rpc("member_add_past_stamp", {
+    p_member_id: input.memberId,
+    p_service_id: input.serviceId,
+    p_visit_date: input.visitDate,
+    p_confirm_same_day: input.confirmSameDay === true,
+    p_reason: reason.data,
+    ...correctionAuthor(access),
+  });
+  if (error) return failure();
+  const body = asRecord(data);
+  const status = text(body?.status) ?? "error";
+  if (status === "ok") {
+    logAdminAudit(access, {
+      action: "membership.stamp_add_past",
+      target: text(body?.stamp_id) ?? input.memberId,
+      details: { memberId: input.memberId, count: numberValue(body?.count) },
+    });
+  }
+  return {
+    status,
+    stampId: text(body?.stamp_id),
+    count: numberValue(body?.count),
+    serviceName: text(body?.service_name),
+    openedReward: text(body?.opened_reward),
+    pastPeriod: body?.past_period === true,
+    tierBefore: numberValue(body?.tier_before),
+    tierAfter: numberValue(body?.tier_after),
+    ...periodContext(body),
+  };
 }
 
 export async function claimReward(input: {
@@ -832,11 +1052,16 @@ export async function buildFollowupMessage(input: {
     .maybeSingle();
   if (error) return failure();
   const storedTemplate = templateRow?.value || DEFAULT_FOLLOWUP_TEMPLATES[input.stage];
+  const next = nextUnclaimedMilestone(summary);
+  // next is also null below 30 when every reward left was claimed before a
+  // stamp void; only a real 30-stamp period is "penuh".
   const template =
-    nextOpenMilestone(summary.stampCount) == null
+    next == null
       ? storedTemplate.replace(
           /tinggal \{sisa\} lagi buat \{reward_berikutnya\}/g,
-          "stamp periode ini sudah penuh",
+          summary.stampCount >= 30
+            ? "stamp periode ini sudah penuh"
+            : "reward periode ini sudah diklaim semua",
         )
       : storedTemplate;
   let link = "";
@@ -845,13 +1070,17 @@ export async function buildFollowupMessage(input: {
   } catch {
     return failure();
   }
-  const next = nextOpenMilestone(summary.stampCount);
   const nextReward = summary.rewards.find((reward) => reward.milestone === next);
   const textValue = fillFollowupTemplate(template, {
     nama: summary.name.split(" ")[0] || summary.name,
     treatment: summary.lastTreatment?.serviceName || "treatment",
     stamp: String(summary.stampCount),
-    sisa: next == null ? "sudah penuh" : String(next - summary.stampCount),
+    sisa:
+      next != null
+        ? String(next - summary.stampCount)
+        : summary.stampCount >= 30
+          ? "sudah penuh"
+          : "nggak ada",
     reward_berikutnya: next == null
       ? "periode berikutnya"
       : nextReward?.name || "reward berikutnya",
