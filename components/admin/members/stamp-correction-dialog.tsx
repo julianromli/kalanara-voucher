@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { isNetworkFailure } from "@/components/admin/members/add-stamp-bar";
 import { Button } from "@/components/ui/button";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker, preventCloseOnDatePickerLayer } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -269,7 +269,11 @@ export function StampCorrectionDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="sm:max-w-[460px]">
+      <DialogContent
+        className="sm:max-w-[460px]"
+        onPointerDownOutside={preventCloseOnDatePickerLayer}
+        onFocusOutside={preventCloseOnDatePickerLayer}
+      >
         <form
           onSubmit={(event) => {
             event.preventDefault();
