@@ -60,6 +60,11 @@ function isRealBirthDate(value: string): boolean {
   return year >= 1900 && value <= jakartaToday();
 }
 
+// Postgres accepts any 8-4-4-4-12 hex id. z.string().uuid() also checks the RFC
+// version and variant bits, which the hand-seeded services (Deep Sleep, Me Time
+// and 6 others) fail, so their stamps were rejected before reaching the database.
+const idSchema = z.guid();
+
 function failure(): MemberActionError {
   return { status: "error" };
 }
@@ -154,7 +159,7 @@ export async function searchMembers(input: { q: string }) {
 
 export async function getMember(memberId: string) {
   await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
-  if (!z.string().uuid().safeParse(memberId).success) return failure();
+  if (!idSchema.safeParse(memberId).success) return failure();
   const summary = await loadSummary(memberId);
   if (!summary) return { status: "not_found" as const };
   return { status: "ok" as const, summary };
@@ -356,7 +361,7 @@ export async function updateMember(input: {
   waConsent: boolean;
 }) {
   const access = await requireAdminPermission(AdminPermission.MEMBERS_SETTINGS);
-  if (!z.string().uuid().safeParse(input.memberId).success) return failure();
+  if (!idSchema.safeParse(input.memberId).success) return failure();
   const name = nameSchema.safeParse(input.name);
   const phone = normalizeMemberPhone(input.phone);
   if (!name.success || !phone || !isRealBirthDate(input.birthDate)) {
@@ -405,7 +410,7 @@ export async function updateMember(input: {
 
 export async function listMemberProfileAudit(memberId: string) {
   await requireAdminPermission(AdminPermission.MEMBERS_SETTINGS);
-  if (!z.string().uuid().safeParse(memberId).success) return failure();
+  if (!idSchema.safeParse(memberId).success) return failure();
   const { data, error } = await getAdminClient()
     .from("member_profile_audit")
     .select("id, field, old_value, new_value, changed_by_email, changed_by_role, created_at")
@@ -439,8 +444,8 @@ export async function addStamp(input: {
 }) {
   const access = await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
   if (
-    !z.string().uuid().safeParse(input.memberId).success ||
-    !z.string().uuid().safeParse(input.serviceId).success
+    !idSchema.safeParse(input.memberId).success ||
+    !idSchema.safeParse(input.serviceId).success
   ) {
     return { status: "invalid" as const };
   }
@@ -477,7 +482,7 @@ export async function addStamp(input: {
 
 export async function voidStamp(input: { stampId: string }) {
   const access = await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
-  if (!z.string().uuid().safeParse(input.stampId).success) {
+  if (!idSchema.safeParse(input.stampId).success) {
     return { status: "invalid" as const };
   }
   const supabase = getAdminClient();
@@ -507,7 +512,7 @@ export async function claimReward(input: {
   const serviceName = serviceNameSchema.safeParse(input.serviceName);
   const expectedName = z.string().trim().min(1).max(40).safeParse(input.expectedName);
   if (
-    !z.string().uuid().safeParse(input.memberId).success ||
+    !idSchema.safeParse(input.memberId).success ||
     !milestones.includes(input.milestone as (typeof milestones)[number]) ||
     !serviceName.success ||
     !expectedName.success
@@ -541,7 +546,7 @@ export async function claimReward(input: {
 
 export async function voidClaim(input: { claimId: string }) {
   const access = await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
-  if (!z.string().uuid().safeParse(input.claimId).success) {
+  if (!idSchema.safeParse(input.claimId).success) {
     return { status: "invalid" as const };
   }
   const supabase = getAdminClient();
@@ -567,7 +572,7 @@ export async function redeemBirthday(input: {
 }) {
   const access = await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
   const serviceName = serviceNameSchema.safeParse(input.serviceName);
-  if (!z.string().uuid().safeParse(input.memberId).success || !serviceName.success) {
+  if (!idSchema.safeParse(input.memberId).success || !serviceName.success) {
     return { status: "invalid" as const };
   }
   const supabase = getAdminClient();
@@ -597,7 +602,7 @@ export async function getMemberWaLink(input: {
   kind: "card";
 }) {
   await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
-  if (!z.string().uuid().safeParse(input.memberId).success) return failure();
+  if (!idSchema.safeParse(input.memberId).success) return failure();
   const summary = await loadSummary(input.memberId);
   if (!summary) return { status: "not_found" as const };
   let url: string;
@@ -614,7 +619,7 @@ export async function getMemberWaLink(input: {
 
 export async function rotateCardToken(input: { memberId: string }) {
   const access = await requireAdminPermission(AdminPermission.MEMBERS_SETTINGS);
-  if (!z.string().uuid().safeParse(input.memberId).success) {
+  if (!idSchema.safeParse(input.memberId).success) {
     return { status: "invalid" as const };
   }
   const supabase = getAdminClient();
@@ -1155,7 +1160,7 @@ function isFollowupKey(input: {
   anchorDate: string;
 }): input is { memberId: string; stage: (typeof followupStages)[number]; anchorDate: string } {
   return (
-    z.string().uuid().safeParse(input.memberId).success &&
+    idSchema.safeParse(input.memberId).success &&
     followupStages.includes(input.stage as (typeof followupStages)[number]) &&
     birthDateSchema.safeParse(input.anchorDate).success
   );

@@ -11,7 +11,8 @@ interface AddStampBarProps {
   disabledReason?: string | null;
   justAdded: boolean;
   confirm: { serviceName: string; createdAt: string; memberName: string } | null;
-  error: boolean;
+  /** Shown with Coba lagi; null hides it. */
+  error: string | null;
   pending: boolean;
   onAdd: () => void;
   onConfirm: () => void;
@@ -92,7 +93,7 @@ export function AddStampBar({
       ) : null}
       {error ? (
         <div className="mt-3 flex items-center justify-between gap-3 text-sm text-destructive" role="alert">
-          <p>Stamp belum tersimpan. Koneksi putus.</p>
+          <p>{error}</p>
           <Button
             type="button"
             size="sm"
@@ -117,4 +118,28 @@ export function AddStampBar({
 
 export function cappedReason(resetOn: string): string {
   return `Stamp udah maksimal 30. Reset di ${formatMemberDate(resetOn)}.`;
+}
+
+export const STAMP_NETWORK_ERROR = "Stamp belum tersimpan. Koneksi putus.";
+export const STAMP_SERVER_ERROR = "Stamp belum tersimpan. Server lagi bermasalah. Coba lagi sebentar lagi.";
+
+/** A thrown server action is a network failure only when fetch itself failed or the device is offline. */
+export function isNetworkFailure(error: unknown): boolean {
+  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+  return offline || error instanceof TypeError;
+}
+
+export function stampThrownMessage(error: unknown): string {
+  return isNetworkFailure(error) ? STAMP_NETWORK_ERROR : STAMP_SERVER_ERROR;
+}
+
+/** The server answered, so the connection is fine; say what it refused. */
+export function stampFailureMessage(status: string): string {
+  if (status === "invalid_service") {
+    return "Stamp belum tersimpan. Treatment ini udah nggak aktif. Pilih treatment lain.";
+  }
+  if (status === "invalid") {
+    return "Stamp belum tersimpan. Data member atau treatment nggak valid. Muat ulang halaman, lalu coba lagi.";
+  }
+  return STAMP_SERVER_ERROR;
 }
