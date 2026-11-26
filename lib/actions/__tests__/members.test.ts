@@ -563,6 +563,62 @@ describe("listMembers", () => {
     expect(result.page.rows[0]?.phone).toBe("6282212347221");
   });
 
+  test("does not flag a member for a reward already claimed this period", async () => {
+    const memberId = "22222222-2222-4222-8222-222222222222";
+    const { from } = mockListTables({
+      members: {
+        data: [
+          {
+            id: memberId,
+            name: "Dinda Salsabilla",
+            phone: "6282212347221",
+            created_at: "2026-01-10T03:00:00Z",
+            base_tier: 0,
+            cycle_start: "2026-01-10",
+          },
+        ],
+        error: null,
+      },
+      // 10 stamps, one voided after the 10× reward was claimed: 9 count.
+      member_stamps: {
+        data: Array.from({ length: 10 }, (_, index) => ({
+          member_id: memberId,
+          cycle_start: "2026-01-10",
+          visit_date: `2026-0${Math.min(index + 2, 9)}-01`,
+          created_at: `2026-0${Math.min(index + 2, 9)}-01T04:00:00Z`,
+          voided_at: index === 0 ? "2026-11-20T04:00:00Z" : null,
+        })),
+        error: null,
+      },
+      member_rewards: {
+        data: [
+          { milestone: 10, name: "Treatment gratis" },
+          { milestone: 20, name: "Facial" },
+        ],
+        error: null,
+      },
+      member_reward_claims: {
+        data: [{ id: "c1", member_id: memberId, cycle_start: "2026-01-10", milestone: 10 }],
+        error: null,
+      },
+    });
+
+    const result = await listMembers();
+
+    expect(from).toHaveBeenCalledWith("member_reward_claims");
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") return;
+    expect(result.followUp.nearReward).toHaveLength(0);
+    expect(result.page.rows[0]?.stampCount).toBe(9);
+    expect(result.page.rows[0]?.nextRewardName).toBe("Facial");
+  });
+
+  test("fails closed when reward claims cannot load", async () => {
+    mockListTables({ member_reward_claims: { data: null, error: { message: "boom" } } });
+    const result = await listMembers();
+    expect(result.status).toBe("error");
+  });
+
   test("searches by name and ignores voided stamps", async () => {
     mockListTables({
       members: {
@@ -1063,6 +1119,62 @@ describe("stamp corrections", () => {
 
     expect(rpc.mock.calls[0][1]).toMatchObject({ p_confirm_claimed: true });
     expect(result).toMatchObject({ claims: [{ milestone: 5, rewardName: "Treatment gratis" }] });
+  });
+
+  test("a past-period void reports the period and the level change", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        status: "ok",
+        member_id: memberId,
+        count_after: 19,
+        cycle_start: "2025-03-12",
+        past_period: true,
+        tier_before: 2,
+        tier_after: 1,
+        claims_kept: [],
+      },
+      error: null,
+    });
+    mockClient(rpc);
+
+    const result = await correctVoidStamp({ stampId: legacyStampId, confirmClaimed: true });
+
+    expect(result).toMatchObject({
+      status: "ok",
+      count: 19,
+      cycleStart: "2025-03-12",
+      pastPeriod: true,
+      tierBefore: 2,
+      tierAfter: 1,
+    });
+  });
+
+  test("a stamp added into a past period reports that period", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        status: "ok",
+        member_id: memberId,
+        count: 20,
+        cycle_start: "2025-03-12",
+        reset_on: "2026-03-12",
+        past_period: true,
+        tier_before: 1,
+        tier_after: 2,
+        opened_reward: null,
+      },
+      error: null,
+    });
+    mockClient(rpc);
+
+    const result = await addPastStamp({ memberId, serviceId: legacyServiceId, visitDate: "2025-06-01" });
+
+    expect(result).toMatchObject({ status: "ok", count: 20, pastPeriod: true, tierBefore: 1, tierAfter: 2, cycleStart: "2025-03-12" });
+  });
+
+  test("before_signup comes back as is", async () => {
+    mockClient(vi.fn().mockResolvedValue({ data: { status: "before_signup", origin: "2025-03-12" }, error: null }));
+    const result = await addPastStamp({ memberId, serviceId: legacyServiceId, visitDate: "2025-03-01" });
+    expect(result.status).toBe("before_signup");
   });
 
   test("rejects a reason over 200 characters before calling the database", async () => {

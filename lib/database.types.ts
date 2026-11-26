@@ -796,6 +796,7 @@ export type Database = {
           new_value: string | null;
           service_name: string;
           visit_date: string;
+          cycle_start: string;
           reason: string | null;
           details: Json;
           changed_by: string | null;
@@ -812,6 +813,7 @@ export type Database = {
           new_value?: string | null;
           service_name: string;
           visit_date: string;
+          cycle_start: string;
           reason?: string | null;
           details?: Json;
           changed_by?: string | null;
@@ -828,6 +830,7 @@ export type Database = {
           new_value?: string | null;
           service_name?: string;
           visit_date?: string;
+          cycle_start?: string;
           reason?: string | null;
           details?: Json;
           changed_by?: string | null;

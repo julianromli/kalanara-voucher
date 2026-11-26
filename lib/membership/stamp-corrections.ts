@@ -1,4 +1,5 @@
 import { formatMemberDate } from "@/lib/membership/format";
+import { tierName } from "@/lib/membership/rules";
 
 export const STAMP_AUDIT_ACTIONS = ["void", "service", "visit_date", "add_past"] as const;
 export type StampAuditAction = (typeof STAMP_AUDIT_ACTIONS)[number];
@@ -7,6 +8,7 @@ export const STAMP_REASON_MAX = 200;
 
 export interface StampHistoryStamp {
   id: string;
+  cycleStart: string;
   visitDate: string;
   serviceId: string | null;
   serviceName: string;
@@ -24,7 +26,10 @@ export interface StampAuditRow {
   newValue: string | null;
   serviceName: string;
   visitDate: string;
+  cycleStart: string;
   reason: string | null;
+  tierBefore: number | null;
+  tierAfter: number | null;
   claimsKept: Array<{ milestone: number; rewardName: string }>;
   changedByName: string | null;
   changedByEmail: string | null;
@@ -32,10 +37,22 @@ export interface StampAuditRow {
   createdAt: string;
 }
 
+export interface StampPeriod {
+  cycleStart: string;
+  /** Exclusive: the reset date of this period. */
+  resetOn: string;
+  current: boolean;
+  stampCount: number;
+  claims: KeptClaim[];
+}
+
 export interface StampHistory {
+  /** First period start: the sign-up date. No stamp may be dated before it. */
+  origin: string;
   cycleStart: string;
   resetOn: string;
   today: string;
+  periods: StampPeriod[];
   stamps: StampHistoryStamp[];
   audit: StampAuditRow[];
 }
@@ -75,12 +92,30 @@ export function parseStampHistory(value: unknown): StampHistory | null {
   const resetOn = text(body.reset_on);
   const today = text(body.today);
   if (!cycleStart || !resetOn || !today) return null;
+  const origin = text(body.origin) ?? cycleStart;
   const stamps = Array.isArray(body.stamps) ? body.stamps : [];
+  const periods = Array.isArray(body.periods) ? body.periods : [];
   const audit = Array.isArray(body.audit) ? body.audit : [];
   return {
+    origin,
     cycleStart,
     resetOn,
     today,
+    periods: periods.flatMap((item) => {
+      const row = record(item);
+      const start = text(row?.cycle_start);
+      const end = text(row?.reset_on);
+      if (!row || !start || !end) return [];
+      return [
+        {
+          cycleStart: start,
+          resetOn: end,
+          current: row.current === true,
+          stampCount: typeof row.stamp_count === "number" ? row.stamp_count : 0,
+          claims: parseKeptClaims(row.claims),
+        },
+      ];
+    }),
     stamps: stamps.flatMap((item) => {
       const row = record(item);
       const id = text(row?.id);
@@ -88,6 +123,7 @@ export function parseStampHistory(value: unknown): StampHistory | null {
       return [
         {
           id,
+          cycleStart: text(row.cycle_start) ?? cycleStart,
           visitDate: text(row.visit_date) ?? "",
           serviceId: text(row.service_id),
           serviceName: text(row.service_name) ?? "",
@@ -112,7 +148,10 @@ export function parseStampHistory(value: unknown): StampHistory | null {
           newValue: text(row.new_value),
           serviceName: text(row.service_name) ?? "",
           visitDate: text(row.visit_date) ?? "",
+          cycleStart: text(row.cycle_start) ?? "",
           reason: text(row.reason),
+          tierBefore: typeof details?.tier_before === "number" ? details.tier_before : null,
+          tierAfter: typeof details?.tier_after === "number" ? details.tier_after : null,
           claimsKept: parseKeptClaims(details?.claims_kept),
           changedByName: text(row.changed_by_name),
           changedByEmail: text(row.changed_by_email),
@@ -124,13 +163,36 @@ export function parseStampHistory(value: unknown): StampHistory | null {
   };
 }
 
-/** Last day a stamp may be dated: today, or the day before reset if that is earlier. */
-export function stampDateBounds(input: { cycleStart: string; resetOn: string; today: string }) {
+/**
+ * Dates a stamp in one period may take: from the period start (never before
+ * the sign-up origin) to the day before its reset, never after today.
+ */
+export function stampDateBounds(input: {
+  cycleStart: string;
+  resetOn: string;
+  today: string;
+  origin?: string;
+}) {
   const dayBeforeReset = shiftISODate(input.resetOn, -1);
+  const floor = input.origin && input.origin > input.cycleStart ? input.origin : input.cycleStart;
   return {
-    min: input.cycleStart,
+    min: floor,
     max: input.today < dayBeforeReset ? input.today : dayBeforeReset,
   };
+}
+
+/** A new past stamp may go in any period: sign-up date through today. */
+export function addStampBounds(history: Pick<StampHistory, "origin" | "today">) {
+  return { min: history.origin, max: history.today };
+}
+
+/** The period a calendar date falls in, from the server's period list. */
+export function periodForDate(periods: StampPeriod[], date: string): StampPeriod | null {
+  return periods.find((period) => date >= period.cycleStart && date < period.resetOn) ?? null;
+}
+
+export function periodLabel(period: Pick<StampPeriod, "cycleStart" | "resetOn">): string {
+  return `${formatMemberDate(period.cycleStart)} – ${formatMemberDate(shiftISODate(period.resetOn, -1))}`;
 }
 
 export function isStampDateAllowed(
@@ -160,10 +222,16 @@ export function localDateToISO(value: Date): string {
   return `${value.getFullYear()}-${month}-${day}`;
 }
 
-export function claimWarning(claims: KeptClaim[], countAfter: number | null): string {
+export function claimWarning(
+  claims: KeptClaim[],
+  countAfter: number | null,
+  pastPeriod = false,
+): string {
   const names = claims.map((claim) => `${claim.rewardName} (${claim.milestone} stamp)`).join(", ");
-  const count = countAfter == null ? "" : ` Stamp jadi ${countAfter}.`;
-  return `Reward ${names} udah diklaim di periode ini.${count} Klaimnya tetap tercatat dan nggak bisa diklaim dobel.`;
+  const count = countAfter == null ? "" : ` Stamp periode itu jadi ${countAfter}.`;
+  const where = pastPeriod ? "di periode lalu" : "di periode ini";
+  const countHere = pastPeriod ? count : count.replace(" periode itu", "");
+  return `Reward ${names} udah diklaim ${where}.${countHere} Klaimnya tetap tercatat dan nggak bisa diklaim dobel.`;
 }
 
 export function stampCorrectionMessage(
@@ -179,8 +247,10 @@ export function stampCorrectionMessage(
       return "Stamp ini udah dihapus sebelumnya.";
     case "outside_period":
       return context.cycleStart && context.resetOn
-        ? `Tanggalnya harus di periode ini: ${formatMemberDate(context.cycleStart)} sampai sebelum ${formatMemberDate(context.resetOn)}.`
-        : "Stamp di periode lama nggak bisa diubah.";
+        ? `Tanggalnya harus di periode stamp ini: ${formatMemberDate(context.cycleStart)} sampai sebelum ${formatMemberDate(context.resetOn)}.`
+        : "Tanggalnya harus di periode stamp ini.";
+    case "before_signup":
+      return "Tanggal kunjungan nggak boleh sebelum tanggal daftar member.";
     case "future_date":
       return "Tanggal kunjungan nggak boleh setelah hari ini.";
     case "invalid_date":
@@ -220,4 +290,12 @@ const ROLE_LABEL: Record<string, string> = {
 export function roleLabel(role: string | null): string | null {
   if (!role) return null;
   return ROLE_LABEL[role] ?? role;
+}
+
+/** "Level sekarang turun ke Bronze." after a past-period change, or "". */
+export function levelChangeNote(before?: number | null, after?: number | null): string {
+  if (before == null || after == null || before === after) return "";
+  return after < before
+    ? `Level sekarang turun ke ${tierName(after)}.`
+    : `Level sekarang naik ke ${tierName(after)}.`;
 }

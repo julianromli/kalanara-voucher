@@ -197,7 +197,7 @@ export async function listMembers(
 ): Promise<ListMembersResult | MemberActionError> {
   await requireAdminPermission(AdminPermission.MEMBERS_OPERATE);
   const supabase = getAdminClient();
-  const [membersResult, stampsResult, rewardsResult] = await Promise.all([
+  const [membersResult, stampsResult, rewardsResult, claimsResult] = await Promise.all([
     fetchAllRows<{
       id: string;
       name: string;
@@ -219,8 +219,13 @@ export async function listMembers(
         .select("id, member_id, cycle_start, visit_date, created_at, voided_at"),
     ),
     supabase.from("member_rewards").select("milestone, name").order("milestone"),
+    fetchAllRows<{ member_id: string; cycle_start: string; milestone: number }>(() =>
+      supabase.from("member_reward_claims").select("id, member_id, cycle_start, milestone"),
+    ),
   ]);
-  if (membersResult.error || stampsResult.error || rewardsResult.error) return failure();
+  if (membersResult.error || stampsResult.error || rewardsResult.error || claimsResult.error) {
+    return failure();
+  }
   const members = membersResult.data;
   const stamps = stampsResult.data;
   const rewards = rewardsResult.data;
@@ -241,6 +246,13 @@ export async function listMembers(
     stampsByMember.set(stamp.member_id, list);
   }
 
+  const claimsByMember = new Map<string, NonNullable<MemberListRecord["claims"]>>();
+  for (const claim of claimsResult.data ?? []) {
+    const list = claimsByMember.get(claim.member_id) ?? [];
+    list.push({ cycleStart: claim.cycle_start, milestone: claim.milestone });
+    claimsByMember.set(claim.member_id, list);
+  }
+
   const rewardNames = new Map<number, string>();
   for (const reward of rewards ?? []) {
     const name = (reward.name ?? "").trim();
@@ -259,6 +271,7 @@ export async function listMembers(
         cycleStart: member.cycle_start,
         waConsent: member.wa_consent === true,
         stamps: stampsByMember.get(member.id) ?? [],
+        claims: claimsByMember.get(member.id) ?? [],
       },
       today,
       rewardNames,
@@ -581,6 +594,10 @@ export async function correctVoidStamp(input: {
     memberId: text(body?.member_id),
     count: numberValue(body?.count) ?? numberValue(body?.count_after),
     claims,
+    cycleStart: text(body?.cycle_start),
+    pastPeriod: body?.past_period === true,
+    tierBefore: numberValue(body?.tier_before),
+    tierAfter: numberValue(body?.tier_after),
   };
 }
 
@@ -698,6 +715,9 @@ export async function addPastStamp(input: {
     count: numberValue(body?.count),
     serviceName: text(body?.service_name),
     openedReward: text(body?.opened_reward),
+    pastPeriod: body?.past_period === true,
+    tierBefore: numberValue(body?.tier_before),
+    tierAfter: numberValue(body?.tier_after),
     ...periodContext(body),
   };
 }

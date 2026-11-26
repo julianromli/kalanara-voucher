@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { ChevronDown, MoreHorizontal, Plus } from "lucide-react";
 import {
   StampCorrectionDialog,
   type StampCorrectionMode,
@@ -17,9 +17,10 @@ import {
 import { listStampHistory } from "@/lib/actions/members";
 import { firstName, formatMemberDate, formatMemberTime, jakartaDateISO } from "@/lib/membership/format";
 import {
+  levelChangeNote,
+  periodLabel,
   roleLabel,
   stampAuditSummary,
-  stampDateBounds,
   type StampHistory,
   type StampHistoryStamp,
 } from "@/lib/membership/stamp-corrections";
@@ -95,27 +96,24 @@ export function VisitHistory({ summary, services = [], onCorrected }: VisitHisto
     // correction reloads the summary first.
   }, [summary, canCorrect]);
 
-  const period = history
-    ? { cycleStart: history.cycleStart, resetOn: history.resetOn }
-    : { cycleStart: summary.cycleStart, resetOn: summary.resetOn };
-  const bounds = stampDateBounds({
-    ...period,
-    today: history?.today ?? jakartaDateISO(),
+  const today = history?.today ?? jakartaDateISO();
+  // A new stamp may go anywhere from sign-up to today; the dialog works out the period.
+  const periodOpen = (history?.origin ?? summary.cycleStart) <= today;
+  const currentStart = history?.cycleStart ?? summary.cycleStart;
+  const stampEvent = (stamp: StampHistoryStamp): VisitEvent => ({
+    id: stamp.id,
+    at: `${stamp.visitDate}T23:59:59|${stamp.createdAt}`,
+    title: stamp.serviceName,
+    meta: stamp.voidedAt
+      ? `${formatMemberDate(stamp.visitDate)} · Dihapus${stamp.voidedByName ? ` oleh ${firstName(stamp.voidedByName)}` : ""}`
+      : `${formatMemberDate(stamp.visitDate)} · Walk-in${stamp.createdByName ? ` · ${firstName(stamp.createdByName)}` : ""}`,
+    aside: stamp.voidedAt ? "Dihapus" : "+1 stamp",
+    stamp,
+    voided: Boolean(stamp.voidedAt),
   });
-  const periodOpen = bounds.min <= bounds.max;
 
   const stampEvents: VisitEvent[] = history
-    ? history.stamps.map((stamp) => ({
-        id: stamp.id,
-        at: `${stamp.visitDate}T23:59:59|${stamp.createdAt}`,
-        title: stamp.serviceName,
-        meta: stamp.voidedAt
-          ? `${formatMemberDate(stamp.visitDate)} · Dihapus${stamp.voidedByName ? ` oleh ${firstName(stamp.voidedByName)}` : ""}`
-          : `${formatMemberDate(stamp.visitDate)} · Walk-in${stamp.createdByName ? ` · ${firstName(stamp.createdByName)}` : ""}`,
-        aside: stamp.voidedAt ? "Dihapus" : "+1 stamp",
-        stamp,
-        voided: Boolean(stamp.voidedAt),
-      }))
+    ? history.stamps.filter((stamp) => stamp.cycleStart === currentStart).map(stampEvent)
     : summary.stamps.map((stamp) => ({
         id: stamp.id,
         at: `${stamp.visitDate}T23:59:59|${stamp.createdAt}`,
@@ -123,6 +121,21 @@ export function VisitHistory({ summary, services = [], onCorrected }: VisitHisto
         meta: `${formatMemberDate(stamp.visitDate)} · Walk-in${stamp.createdByName ? ` · ${firstName(stamp.createdByName)}` : ""}`,
         aside: "+1 stamp",
       }));
+
+  // Earlier periods, newest first, each with its own stamps and claims.
+  const pastPeriods = history
+    ? history.periods
+        .filter((item) => !item.current)
+        .map((item) => ({
+          period: item,
+          events: history.stamps
+            .filter((stamp) => stamp.cycleStart === item.cycleStart)
+            .map(stampEvent)
+            .sort(byNewest),
+        }))
+        .filter((group) => group.events.length > 0 || group.period.claims.length > 0)
+        .reverse()
+    : [];
 
   const events: VisitEvent[] = [
     ...stampEvents,
@@ -140,7 +153,17 @@ export function VisitHistory({ summary, services = [], onCorrected }: VisitHisto
       meta: `${formatMemberDate(redemption.redeemedAt)} · Ulang tahun`,
       aside: "Dipakai",
     })),
-  ].sort((left, right) => (left.at < right.at ? 1 : left.at > right.at ? -1 : 0));
+  ].sort(byNewest);
+
+  const renderEvent = (event: VisitEvent) => (
+    <EventRow
+      key={event.id}
+      event={event}
+      canCorrect={canCorrect}
+      editable={Boolean(canCorrect && event.stamp && !event.voided && history != null)}
+      onPick={(mode) => setDialog({ mode, stamp: event.stamp ?? null })}
+    />
+  );
 
   const shownEvents = showAllEvents ? events : events.slice(0, VISIBLE_EVENTS);
   const audit = history?.audit ?? [];
@@ -168,42 +191,7 @@ export function VisitHistory({ summary, services = [], onCorrected }: VisitHisto
         <p className="text-sm text-muted-foreground">Belum ada kunjungan.</p>
       ) : (
         <ul>
-          {shownEvents.map((event) => {
-            const editable = canCorrect && event.stamp && !event.voided && history != null;
-            return (
-              <li key={event.id} className="flex items-center justify-between gap-3 py-1.5 text-sm">
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={
-                      event.voided
-                        ? "truncate font-medium text-muted-foreground line-through decoration-muted-foreground/60"
-                        : "truncate font-medium"
-                    }
-                  >
-                    {event.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{event.meta}</p>
-                </div>
-                {event.voided ? (
-                  <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
-                    {event.aside}
-                  </span>
-                ) : (
-                  <span className="shrink-0 text-xs text-muted-foreground">{event.aside}</span>
-                )}
-                {canCorrect ? (
-                  editable && event.stamp ? (
-                    <StampRowMenu
-                      stamp={event.stamp}
-                      onPick={(mode) => setDialog({ mode, stamp: event.stamp ?? null })}
-                    />
-                  ) : (
-                    <span className="size-11 shrink-0 sm:size-9" aria-hidden="true" />
-                  )
-                ) : null}
-              </li>
-            );
-          })}
+          {shownEvents.map(renderEvent)}
         </ul>
       )}
       {events.length > VISIBLE_EVENTS ? (
@@ -216,6 +204,37 @@ export function VisitHistory({ summary, services = [], onCorrected }: VisitHisto
         >
           {showAllEvents ? "Tampilkan lebih sedikit" : `Lihat semua (${events.length})`}
         </Button>
+      ) : null}
+      {pastPeriods.length > 0 ? (
+        <div className="mt-4 space-y-2">
+          <h4 className="text-sm font-medium">Periode lalu</h4>
+          {pastPeriods.map(({ period, events: periodEvents }) => (
+            <details key={period.cycleStart} className="group rounded-lg border border-border">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm [&::-webkit-details-marker]:hidden">
+                <span className="min-w-0">
+                  <span className="block font-medium">{periodLabel(period)}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {period.stampCount} stamp
+                    {period.claims.length > 0
+                      ? ` · Reward ${period.claims.map((claim) => `${claim.milestone}×`).join(", ")} diklaim`
+                      : ""}
+                  </span>
+                </span>
+                <ChevronDown
+                  className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none"
+                  aria-hidden="true"
+                />
+              </summary>
+              <ul className="border-t border-border px-3 py-1">
+                {periodEvents.length === 0 ? (
+                  <li className="py-1.5 text-sm text-muted-foreground">Belum ada stamp.</li>
+                ) : (
+                  periodEvents.map(renderEvent)
+                )}
+              </ul>
+            </details>
+          ))}
+        </div>
       ) : null}
       {canCorrect && historyStatus === "error" ? (
         <p className="mt-2 text-xs text-muted-foreground" role="status">
@@ -233,9 +252,17 @@ export function VisitHistory({ summary, services = [], onCorrected }: VisitHisto
               return (
                 <li key={row.id} className="flex items-start justify-between gap-3 py-1.5 text-sm">
                   <div className="min-w-0">
-                    <p className="break-words">{stampAuditSummary(row)}</p>
+                    <p className="break-words">
+                      {stampAuditSummary(row)}
+                      {row.cycleStart && row.cycleStart !== currentStart ? (
+                        <span className="text-muted-foreground"> · periode lalu</span>
+                      ) : null}
+                    </p>
                     {row.reason ? (
                       <p className="break-words text-xs text-muted-foreground">Alasan: {row.reason}</p>
+                    ) : null}
+                    {levelChangeNote(row.tierBefore, row.tierAfter) ? (
+                      <p className="text-xs text-muted-foreground">{levelChangeNote(row.tierBefore, row.tierAfter)}</p>
                     ) : null}
                     {row.claimsKept.length > 0 ? (
                       <p className="text-xs text-muted-foreground">
@@ -276,8 +303,15 @@ export function VisitHistory({ summary, services = [], onCorrected }: VisitHisto
           stamp={dialog?.stamp ?? null}
           memberId={summary.id}
           services={services}
-          bounds={bounds}
-          period={period}
+          history={
+            history ?? {
+              origin: summary.cycleStart,
+              cycleStart: summary.cycleStart,
+              resetOn: summary.resetOn,
+              today,
+              periods: [],
+            }
+          }
           onOpenChange={(open) => {
             if (!open) setDialog(null);
           }}
@@ -325,5 +359,52 @@ function StampRowMenu({
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function byNewest(left: { at: string }, right: { at: string }) {
+  return left.at < right.at ? 1 : left.at > right.at ? -1 : 0;
+}
+
+function EventRow({
+  event,
+  canCorrect,
+  editable,
+  onPick,
+}: {
+  event: VisitEvent;
+  canCorrect: boolean;
+  editable: boolean;
+  onPick: (mode: StampCorrectionMode) => void;
+}) {
+  return (
+    <li className="flex items-center justify-between gap-3 py-1.5 text-sm">
+      <div className="min-w-0 flex-1">
+        <p
+          className={
+            event.voided
+              ? "truncate font-medium text-muted-foreground line-through decoration-muted-foreground/60"
+              : "truncate font-medium"
+          }
+        >
+          {event.title}
+        </p>
+        <p className="text-xs text-muted-foreground">{event.meta}</p>
+      </div>
+      {event.voided ? (
+        <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+          {event.aside}
+        </span>
+      ) : (
+        <span className="shrink-0 text-xs text-muted-foreground">{event.aside}</span>
+      )}
+      {canCorrect ? (
+        editable && event.stamp ? (
+          <StampRowMenu stamp={event.stamp} onPick={onPick} />
+        ) : (
+          <span className="size-11 shrink-0 sm:size-9" aria-hidden="true" />
+        )
+      ) : null}
+    </li>
   );
 }

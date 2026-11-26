@@ -51,12 +51,17 @@ function summary(): MemberSummary {
 const history = {
   status: "ok" as const,
   history: {
+    origin: "2026-03-12",
     cycleStart: "2026-03-12",
     resetOn: "2027-03-12",
     today: "2026-11-26",
+    periods: [
+      { cycleStart: "2026-03-12", resetOn: "2027-03-12", current: true, stampCount: 1, claims: [] },
+    ],
     stamps: [
       {
         id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        cycleStart: "2026-03-12",
         visitDate: "2026-11-25",
         serviceId: "s1",
         serviceName: "Deep Sleep",
@@ -67,6 +72,7 @@ const history = {
       },
       {
         id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        cycleStart: "2026-03-12",
         visitDate: "2026-11-24",
         serviceId: "s2",
         serviceName: "Me Time",
@@ -85,7 +91,10 @@ const history = {
         newValue: "dibatalkan",
         serviceName: "Me Time",
         visitDate: "2026-11-24",
+        cycleStart: "2026-03-12",
         reason: "salah member",
+        tierBefore: null,
+        tierAfter: null,
         claimsKept: [],
         changedByName: "Wildan",
         changedByEmail: "wildan@kalanaraspa.com",
@@ -175,5 +184,52 @@ describe("VisitHistory corrections", () => {
     });
     expect(screen.getByText("Rejuvenate Me")).toBeInTheDocument();
     expect(screen.queryByText("Riwayat koreksi")).not.toBeInTheDocument();
+  });
+
+  test("groups earlier periods with their count and claims, and their stamps stay editable", async () => {
+    const past = {
+      ...history,
+      history: {
+        ...history.history,
+        origin: "2025-03-12",
+        periods: [
+          {
+            cycleStart: "2025-03-12",
+            resetOn: "2026-03-12",
+            current: false,
+            stampCount: 20,
+            claims: [{ milestone: 20, rewardName: "Facial" }],
+          },
+          ...history.history.periods,
+        ],
+        stamps: [
+          ...history.history.stamps,
+          {
+            ...history.history.stamps[0],
+            id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+            cycleStart: "2025-03-12",
+            visitDate: "2025-06-01",
+            serviceName: "Hot Stone",
+          },
+        ],
+        audit: [
+          {
+            ...history.history.audit[0],
+            cycleStart: "2025-03-12",
+            tierBefore: 2,
+            tierAfter: 1,
+          },
+        ],
+      },
+    };
+    listStampHistoryMock.mockResolvedValue(past);
+    render(<VisitHistory summary={summary()} services={[{ id: "s1", name: "Deep Sleep" }]} onCorrected={vi.fn()} />);
+
+    expect(await screen.findByText("Periode lalu")).toBeInTheDocument();
+    expect(screen.getByText("12 Mar 2025 – 11 Mar 2026")).toBeInTheDocument();
+    expect(screen.getByText("20 stamp · Reward 20× diklaim")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Koreksi stamp Hot Stone 1 Jun 2025" })).toBeInTheDocument();
+    expect(screen.getByText("Level sekarang turun ke Bronze.")).toBeInTheDocument();
+    expect(screen.getByText(/periode lalu$/)).toBeInTheDocument();
   });
 });

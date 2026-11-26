@@ -9,6 +9,10 @@ import {
   stampAuditSummary,
   stampCorrectionMessage,
   stampDateBounds,
+  addStampBounds,
+  levelChangeNote,
+  periodForDate,
+  periodLabel,
 } from "@/lib/membership/stamp-corrections";
 
 describe("stampDateBounds", () => {
@@ -24,6 +28,33 @@ describe("stampDateBounds", () => {
       min: "2026-03-12",
       max: "2027-03-11",
     });
+  });
+
+  test("a past period ends the day before its reset, floored at sign-up", () => {
+    expect(
+      stampDateBounds({ cycleStart: "2025-03-12", resetOn: "2026-03-12", today: "2026-11-26", origin: "2025-03-12" }),
+    ).toEqual({ min: "2025-03-12", max: "2026-03-11" });
+    expect(
+      stampDateBounds({ cycleStart: "2025-03-12", resetOn: "2026-03-12", today: "2026-11-26", origin: "2025-04-01" }),
+    ).toEqual({ min: "2025-04-01", max: "2026-03-11" });
+  });
+
+  test("a new stamp may go anywhere from sign-up to today", () => {
+    expect(addStampBounds({ origin: "2025-03-12", today: "2026-11-26" })).toEqual({
+      min: "2025-03-12",
+      max: "2026-11-26",
+    });
+  });
+
+  test("finds the period a date falls in", () => {
+    const periods = [
+      { cycleStart: "2025-03-12", resetOn: "2026-03-12", current: false, stampCount: 20, claims: [] },
+      { cycleStart: "2026-03-12", resetOn: "2027-03-12", current: true, stampCount: 3, claims: [] },
+    ];
+    expect(periodForDate(periods, "2026-03-11")?.current).toBe(false);
+    expect(periodForDate(periods, "2026-03-12")?.current).toBe(true);
+    expect(periodForDate(periods, "2025-03-11")).toBeNull();
+    expect(periodLabel(periods[0])).toBe("12 Mar 2025 – 11 Mar 2026");
   });
 
   test("allows only real dates inside the bounds", () => {
@@ -86,7 +117,49 @@ describe("parseStampHistory", () => {
     });
     expect(history?.stamps[0].voidedAt).toBe("2026-11-26T03:00:00Z");
     expect(history?.audit).toHaveLength(1);
+    expect(history?.origin).toBe("2026-03-12");
+    expect(history?.stamps[0].cycleStart).toBe("2026-03-12");
     expect(history?.audit[0].claimsKept).toEqual([{ milestone: 5, rewardName: "Treatment gratis" }]);
+  });
+
+  test("reads periods, stamp periods and level changes", () => {
+    const history = parseStampHistory({
+      status: "ok",
+      origin: "2025-03-12",
+      cycle_start: "2026-03-12",
+      reset_on: "2027-03-12",
+      today: "2026-11-26",
+      periods: [
+        {
+          cycle_start: "2025-03-12",
+          reset_on: "2026-03-12",
+          current: false,
+          stamp_count: 20,
+          claims: [{ milestone: 20, reward_name: "Facial" }],
+        },
+        { cycle_start: "2026-03-12", reset_on: "2027-03-12", current: true, stamp_count: 2, claims: [] },
+      ],
+      stamps: [{ id: "s1", cycle_start: "2025-03-12", visit_date: "2025-05-01", service_name: "Deep Sleep" }],
+      audit: [
+        {
+          id: "a1",
+          stamp_id: "s1",
+          action: "void",
+          cycle_start: "2025-03-12",
+          service_name: "Deep Sleep",
+          visit_date: "2025-05-01",
+          details: { tier_before: 1, tier_after: 0 },
+          created_at: "2026-11-26T03:00:00Z",
+        },
+      ],
+    });
+    expect(history?.origin).toBe("2025-03-12");
+    expect(history?.periods).toEqual([
+      { cycleStart: "2025-03-12", resetOn: "2026-03-12", current: false, stampCount: 20, claims: [{ milestone: 20, rewardName: "Facial" }] },
+      { cycleStart: "2026-03-12", resetOn: "2027-03-12", current: true, stampCount: 2, claims: [] },
+    ]);
+    expect(history?.stamps[0].cycleStart).toBe("2025-03-12");
+    expect(history?.audit[0]).toMatchObject({ cycleStart: "2025-03-12", tierBefore: 1, tierAfter: 0 });
   });
 
   test("rejects a non-ok body", () => {
@@ -102,6 +175,19 @@ describe("copy", () => {
     );
   });
 
+  test("claim warning names a past period", () => {
+    expect(claimWarning([{ milestone: 20, rewardName: "Facial" }], 19, true)).toBe(
+      "Reward Facial (20 stamp) udah diklaim di periode lalu. Stamp periode itu jadi 19. Klaimnya tetap tercatat dan nggak bisa diklaim dobel.",
+    );
+  });
+
+  test("level change note", () => {
+    expect(levelChangeNote(2, 1)).toBe("Level sekarang turun ke Bronze.");
+    expect(levelChangeNote(1, 2)).toBe("Level sekarang naik ke Silver.");
+    expect(levelChangeNote(1, 1)).toBe("");
+    expect(levelChangeNote(null, 1)).toBe("");
+  });
+
   test("says Koneksi putus only for network failures", () => {
     expect(stampCorrectionMessage("network")).toContain("Koneksi putus");
     expect(stampCorrectionMessage("error")).not.toContain("Koneksi putus");
@@ -111,7 +197,10 @@ describe("copy", () => {
   test("names the period when a date is outside it", () => {
     expect(
       stampCorrectionMessage("outside_period", { cycleStart: "2026-03-12", resetOn: "2027-03-12" }),
-    ).toBe("Tanggalnya harus di periode ini: 12 Mar 2026 sampai sebelum 12 Mar 2027.");
+    ).toBe("Tanggalnya harus di periode stamp ini: 12 Mar 2026 sampai sebelum 12 Mar 2027.");
+    expect(stampCorrectionMessage("before_signup")).toBe(
+      "Tanggal kunjungan nggak boleh sebelum tanggal daftar member.",
+    );
     expect(stampCorrectionMessage("future_date")).toBe("Tanggal kunjungan nggak boleh setelah hari ini.");
   });
 
@@ -121,7 +210,10 @@ describe("copy", () => {
       stampId: "y",
       serviceName: "Me Time",
       visitDate: "2026-11-20",
+      cycleStart: "2026-03-12",
       reason: null,
+      tierBefore: null,
+      tierAfter: null,
       claimsKept: [],
       changedByName: null,
       changedByEmail: null,

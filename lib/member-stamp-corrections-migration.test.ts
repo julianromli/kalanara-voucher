@@ -42,6 +42,7 @@ describe("member stamp corrections migration contract", () => {
       "reason text,",
       "service_name text NOT NULL,",
       "visit_date date NOT NULL,",
+      "cycle_start date NOT NULL,",
       "created_at timestamptz NOT NULL DEFAULT now(),",
     ]) {
       expect(table).toMatch(new RegExp(`\\n  ${column.replace(/[()]/g, "\\$&")}\\n`));
@@ -74,18 +75,40 @@ describe("member stamp corrections migration contract", () => {
     );
   });
 
-  test("period bounds: on or after cycle_start, before the reset, not after today in Jakarta", () => {
+  test("date bounds: never before sign-up, inside the stamp's own period, not after today in Jakarta", () => {
     const body = functionBody("member_stamp_date_problem");
     expect(body).toMatch(/p_visit_date > \(now\(\) AT TIME ZONE 'Asia\/Jakarta'\)::date THEN 'future_date'/);
-    expect(body).toMatch(/p_visit_date < p_cycle_start THEN 'outside_period'/);
-    expect(body).toMatch(/p_visit_date >= \(p_cycle_start \+ interval '12 months'\)::date THEN 'outside_period'/);
-    for (const name of ["member_correct_stamp_date", "member_add_past_stamp"]) {
-      expect(functionBody(name)).toMatch(/public\.member_stamp_date_problem\(member_row\.cycle_start, p_visit_date\)/);
-    }
+    expect(body).toMatch(/p_visit_date < p_origin THEN 'before_signup'/);
+    expect(body).toMatch(/p_visit_date < p_period_start THEN 'outside_period'/);
+    expect(body).toMatch(/p_visit_date >= p_period_end THEN 'outside_period'/);
+    const move = functionBody("member_correct_stamp_date");
+    expect(move).toMatch(/public\.member_stamp_date_problem\(\s+origin,\s+stamp_row\.cycle_start,\s+period_end,\s+p_visit_date\s+\)/);
+    expect(move).toMatch(/period_end := LEAST\(period_end, member_row\.cycle_start\)/);
+    const add = functionBody("member_add_past_stamp");
+    expect(add).toMatch(/public\.member_period_start_for\(origin, p_visit_date\)/);
+    expect(add).toMatch(/public\.member_stamp_date_problem\(origin, period_start, period_end, p_visit_date\)/);
+  });
+
+  test("periods step from the sign-up origin like member_preview_cycle", () => {
+    expect(functionBody("member_origin_cycle")).toMatch(/SELECT min\(stamp\.cycle_start\)/);
+    expect(functionBody("member_period_start_for")).toMatch(/interval '12 months'/);
+  });
+
+  test("past-period void and add recompute the carried level; claims checked in the stamp's period", () => {
+    const voidBody = functionBody("member_correct_void_stamp");
+    expect(voidBody).toMatch(/past_period := stamp_row\.cycle_start < member_row\.cycle_start/);
+    expect(voidBody).toMatch(/AND claim\.cycle_start = stamp_row\.cycle_start/);
+    expect(voidBody).toMatch(/IF past_period THEN\s+PERFORM public\.member_recompute_carry\(member_row\.id\)/);
+    const add = functionBody("member_add_past_stamp");
+    expect(add).toMatch(/AND stamp\.cycle_start = period_start/);
+    expect(add).toMatch(/IF past_period THEN\s+PERFORM public\.member_recompute_carry\(member_row\.id\)/);
+    const carry = functionBody("member_recompute_carry");
+    expect(carry).toMatch(/public\.member_preview_cycle\(/);
+    expect(carry).toMatch(/base_tier = preview\.base_tier/);
   });
 
   test.each(["member_correct_void_stamp", "member_correct_stamp_service", "member_correct_stamp_date"])(
-    "%s locks the member, then the stamp, and only edits the current period",
+    "%s locks the member, then the stamp, and edits any period",
     (name) => {
       const body = functionBody(name);
       const roll = body.indexOf("public.member_roll_cycle(stamp_member_id)");
@@ -93,7 +116,7 @@ describe("member stamp corrections migration contract", () => {
       expect(roll).toBeGreaterThan(0);
       expect(lock).toBeGreaterThan(roll);
       expect(body).toMatch(/IF stamp_row\.voided_at IS NOT NULL THEN\s+RETURN jsonb_build_object\('status', 'already_voided'\)/);
-      expect(body).toMatch(/IF stamp_row\.cycle_start <> member_row\.cycle_start THEN\s+RETURN jsonb_build_object\('status', 'outside_period'\)/);
+      expect(body).not.toMatch(/IF stamp_row\.cycle_start <> member_row\.cycle_start THEN/);
     },
   );
 
@@ -132,11 +155,14 @@ describe("member stamp corrections migration contract", () => {
     expect(functionBody("member_write_stamp_audit")).toMatch(/NULLIF\(btrim\(COALESCE\(p_reason, ''\)\), ''\)/);
   });
 
-  test("history read model includes voided stamps of the current period only", () => {
+  test("history read model lists every period with its claims, voided stamps included", () => {
     const body = functionBody("list_member_stamp_history");
     expect(body).toMatch(/public\.member_preview_cycle\(/);
-    expect(body).toMatch(/stamp\.cycle_start = preview\.cycle_start/);
-    expect(body).not.toMatch(/stamp\.voided_at IS NULL/);
+    expect(body).toMatch(/'periods', periods/);
+    expect(body).toMatch(/AND claim\.cycle_start = v_start/);
+    expect(body).toMatch(/'current', v_start = preview\.cycle_start/);
+    // Only the per-period count skips voided stamps; the stamp list keeps them.
+    expect(body.match(/stamp\.voided_at IS NULL/g)).toHaveLength(1);
     expect(body).toMatch(/FROM public\.member_stamp_audit AS audit/);
   });
 });

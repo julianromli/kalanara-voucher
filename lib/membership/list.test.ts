@@ -95,7 +95,76 @@ describe("buildMemberListRow", () => {
   });
 });
 
+describe("claim-aware next reward", () => {
+  const names = new Map([
+    [5, "Totok gratis"],
+    [10, "Treatment gratis"],
+  ]);
+  const fourStamps = Array.from({ length: 4 }, (_, index) => ({
+    cycleStart: "2026-01-10",
+    visitAt: `2026-02-0${index + 1}T04:00:00Z`,
+    voided: false,
+  }));
+
+  test("a reward claimed this period is skipped, even after a void drops the count under it", () => {
+    const built = buildMemberListRow(
+      record({ stamps: fourStamps, claims: [{ cycleStart: "2026-01-10", milestone: 5 }] }),
+      "2026-11-25",
+      names,
+    );
+    expect(built.stampCount).toBe(4);
+    expect(built.nextMilestone).toBe(10);
+    expect(built.nextRewardName).toBe("Treatment gratis");
+    expect(isNearReward(built, [5, 10])).toBe(false);
+  });
+
+  test("a claim from an earlier period does not count against this one", () => {
+    const built = buildMemberListRow(
+      record({ stamps: fourStamps, claims: [{ cycleStart: "2025-01-10", milestone: 5 }] }),
+      "2026-11-25",
+      names,
+    );
+    expect(built.nextMilestone).toBe(5);
+    expect(isNearReward(built, [5, 10])).toBe(true);
+  });
+
+  test("a claim before the nightly roll belongs to the old period", () => {
+    const built = buildMemberListRow(
+      record({
+        cycleStart: "2025-01-10",
+        stamps: fourStamps.map((stamp) => ({ ...stamp, cycleStart: "2026-01-10" })),
+        claims: [{ cycleStart: "2025-01-10", milestone: 5 }],
+      }),
+      "2026-11-25",
+      names,
+    );
+    expect(built.stampCount).toBe(4);
+    expect(built.nextMilestone).toBe(5);
+  });
+
+  test("nothing left once every reward of the period is claimed", () => {
+    const built = buildMemberListRow(
+      record({
+        stamps: fourStamps,
+        claims: [
+          { cycleStart: "2026-01-10", milestone: 5 },
+          { cycleStart: "2026-01-10", milestone: 10 },
+        ],
+      }),
+      "2026-11-25",
+      names,
+    );
+    expect(built.nextMilestone).toBeNull();
+    expect(isNearReward(built, [5, 10])).toBe(false);
+  });
+});
+
 describe("follow-up picks", () => {
+  test("is not near a reward that is not one stamp away", () => {
+    expect(isNearReward(row({ stampCount: 3, nextMilestone: 5 }), [5])).toBe(false);
+    expect(isNearReward(row({ stampCount: 4, nextMilestone: null }), [5])).toBe(false);
+  });
+
   test("marks a member one stamp short of a configured reward", () => {
     const near = row({ stampCount: 9, nextMilestone: 10, nextRewardName: "Treatment gratis" });
     expect(isNearReward(near, [10])).toBe(true);

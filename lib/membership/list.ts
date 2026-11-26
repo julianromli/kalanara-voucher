@@ -29,6 +29,8 @@ export interface MemberListRecord {
   cycleStart: string;
   waConsent: boolean;
   stamps: MemberListStamp[];
+  /** Reward claims of any period; only the current period's count. */
+  claims?: Array<{ cycleStart: string; milestone: number }>;
 }
 
 export interface MemberListRow {
@@ -77,10 +79,17 @@ export function buildMemberListRow(
     today,
     stampsByCycle,
   });
+  // A reward already claimed in this period is done, even when a stamp void
+  // dropped the count back under it, so aim at the next unclaimed one.
+  const claimed = new Set(
+    (record.claims ?? [])
+      .filter((claim) => claim.cycleStart === rolled.cycleStart)
+      .map((claim) => claim.milestone),
+  );
   const nextMilestone =
     configuredRewardMilestones(
       [...rewardNames.entries()].map(([milestone, name]) => ({ milestone, name })),
-    ).find((milestone) => milestone > rolled.stampCount) ?? null;
+    ).find((milestone) => milestone > rolled.stampCount && !claimed.has(milestone)) ?? null;
 
   return {
     id: record.id,
@@ -96,8 +105,13 @@ export function buildMemberListRow(
   };
 }
 
+/** One stamp away from the next unclaimed configured reward. */
 export function isNearReward(row: MemberListRow, milestones: number[]): boolean {
-  return milestones.some((milestone) => row.stampCount === milestone - 1);
+  return (
+    row.nextMilestone != null &&
+    row.nextMilestone === row.stampCount + 1 &&
+    milestones.includes(row.nextMilestone)
+  );
 }
 
 export function compareMemberListRows(left: MemberListRow, right: MemberListRow): number {

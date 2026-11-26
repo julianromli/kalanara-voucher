@@ -30,12 +30,18 @@ import {
 import { formatMemberDate } from "@/lib/membership/format";
 import {
   STAMP_REASON_MAX,
+  addStampBounds,
   claimWarning,
   isStampDateAllowed,
   isoToLocalDate,
+  levelChangeNote,
   localDateToISO,
+  periodForDate,
+  periodLabel,
   stampCorrectionMessage,
+  stampDateBounds,
   type KeptClaim,
+  type StampHistory,
   type StampHistoryStamp,
 } from "@/lib/membership/stamp-corrections";
 
@@ -47,15 +53,14 @@ interface StampCorrectionDialogProps {
   memberId: string;
   stamp: StampHistoryStamp | null;
   services: Array<{ id: string; name: string }>;
-  bounds: { min: string; max: string };
-  period: { cycleStart: string; resetOn: string };
+  history: Pick<StampHistory, "origin" | "cycleStart" | "resetOn" | "today" | "periods">;
   onOpenChange: (open: boolean) => void;
   onDone: (message: string) => void;
 }
 
 type Pending =
   | { kind: "same_day"; serviceName: string }
-  | { kind: "claimed"; claims: KeptClaim[]; countAfter: number | null }
+  | { kind: "claimed"; claims: KeptClaim[]; countAfter: number | null; pastPeriod: boolean }
   | null;
 
 const TITLES: Record<StampCorrectionMode, string> = {
@@ -71,8 +76,7 @@ export function StampCorrectionDialog({
   memberId,
   stamp,
   services,
-  bounds,
-  period,
+  history,
   onOpenChange,
   onDone,
 }: StampCorrectionDialogProps) {
@@ -86,6 +90,19 @@ export function StampCorrectionDialog({
   const [syncKey, setSyncKey] = useState("");
   const mountedRef = useRef(true);
   const requestRef = useRef(0);
+
+  // The stamp's own period; a new stamp may go in any period from sign-up to today.
+  const stampPeriod = stamp
+    ? history.periods.find((item) => item.cycleStart === stamp.cycleStart) ??
+      (stamp.cycleStart === history.cycleStart
+        ? { cycleStart: history.cycleStart, resetOn: history.resetOn }
+        : null)
+    : null;
+  const bounds =
+    mode === "add" || !stampPeriod
+      ? addStampBounds(history)
+      : stampDateBounds({ ...stampPeriod, today: history.today, origin: history.origin });
+  const period = stampPeriod ?? { cycleStart: history.cycleStart, resetOn: history.resetOn };
 
   const key = `${open}-${mode}-${stamp?.id ?? "new"}`;
   if (key !== syncKey) {
@@ -149,10 +166,14 @@ export function StampCorrectionDialog({
             kind: "claimed",
             claims: ("claims" in result && result.claims) || [],
             countAfter: ("count" in result ? result.count : null) ?? null,
+            pastPeriod: "pastPeriod" in result && result.pastPeriod === true,
           });
           return;
         }
         message = `Stamp ${stamp.serviceName} dihapus.`;
+        if ("tierBefore" in result) {
+          message = `${message} ${levelChangeNote(result.tierBefore, result.tierAfter)}`.trim();
+        }
       } else if (mode === "service" && stamp) {
         const result = await correctStampService({ stampId: stamp.id, serviceId, reason: trimmed });
         status = result.status;
@@ -190,7 +211,15 @@ export function StampCorrectionDialog({
           return;
         }
         const count = "count" in result ? result.count : null;
-        message = count ? `Stamp lama tercatat. Sekarang ${count} stamp.` : "Stamp lama tercatat.";
+        const past = "pastPeriod" in result && result.pastPeriod === true;
+        message = past
+          ? `Stamp lama tercatat di periode lalu (${count ?? "?"} stamp di periode itu).`
+          : count
+            ? `Stamp lama tercatat. Sekarang ${count} stamp.`
+            : "Stamp lama tercatat.";
+        if ("tierBefore" in result) {
+          message = `${message} ${levelChangeNote(result.tierBefore, result.tierAfter)}`.trim();
+        }
       }
       if (!mountedRef.current || requestId !== requestRef.current) return;
       setPending(false);
@@ -208,6 +237,17 @@ export function StampCorrectionDialog({
     }
   }
 
+  const datePeriod = mode === "add" && visitDate ? periodForDate(history.periods, visitDate) : null;
+  const inPastPeriod =
+    mode === "add"
+      ? datePeriod != null && !datePeriod.current
+      : stamp != null && stamp.cycleStart !== history.cycleStart;
+  const dateHint =
+    mode === "add"
+      ? datePeriod
+        ? `Masuk periode ${datePeriod.current ? "sekarang" : "lalu"}: ${periodLabel(datePeriod)}.`
+        : `Pilih tanggal ${formatMemberDate(bounds.min)} sampai ${formatMemberDate(bounds.max)}.`
+      : `Periode stamp ini: ${periodLabel(period)}.`;
   const minDate = isoToLocalDate(bounds.min);
   const maxDate = isoToLocalDate(bounds.max);
   const confirmLabel =
@@ -246,6 +286,12 @@ export function StampCorrectionDialog({
           </DialogHeader>
 
           <div className="mt-4 space-y-4">
+            {inPastPeriod ? (
+              <p className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-pretty">
+                Ini periode lalu. Reward periode itu nggak bisa diklaim lagi, tapi level yang kebawa ke periode sekarang bisa ikut berubah.
+              </p>
+            ) : null}
+
             {destructive ? (
               <p className="text-sm text-muted-foreground text-pretty">
                 Stamp ini nggak dihitung lagi. Jumlah stamp, progres reward, dan level ikut dihitung ulang. Datanya tetap ada di riwayat dengan tanda dihapus.
@@ -314,7 +360,7 @@ export function StampCorrectionDialog({
                   className={dateError ? "text-sm text-destructive" : "text-xs text-muted-foreground"}
                   role={dateError ? "alert" : undefined}
                 >
-                  {dateError ?? `Periode ini: ${formatMemberDate(period.cycleStart)} sampai sebelum ${formatMemberDate(period.resetOn)}.`}
+                  {dateError ?? dateHint}
                 </p>
               </div>
             ) : null}
@@ -346,7 +392,7 @@ export function StampCorrectionDialog({
             {confirm ? (
               <div className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm" role="alert">
                 {confirm.kind === "claimed"
-                  ? claimWarning(confirm.claims, confirm.countAfter)
+                  ? claimWarning(confirm.claims, confirm.countAfter, confirm.pastPeriod)
                   : `Udah ada stamp ${confirm.serviceName} di ${formatMemberDate(visitDate)}. Tetap simpan dua stamp di hari yang sama?`}
               </div>
             ) : null}
