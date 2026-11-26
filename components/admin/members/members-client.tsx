@@ -6,6 +6,7 @@ import { ChevronLeft, MoreHorizontal, Plus } from "lucide-react";
 import {
   AddStampBar,
   cappedReason,
+  isNetworkFailure,
   stampFailureMessage,
   stampThrownMessage,
 } from "@/components/admin/members/add-stamp-bar";
@@ -555,8 +556,13 @@ export function MembersClient({
           }
           await reloadSummary(memberId, undoTicket);
           await refreshRecent();
-        }).catch(() => {
-          showToast("Stamp nggak bisa dibatalin. Koneksi putus.", "error");
+        }).catch((error: unknown) => {
+          showToast(
+            isNetworkFailure(error)
+              ? "Stamp nggak bisa dibatalin. Koneksi putus."
+              : "Stamp nggak bisa dibatalin. Server lagi bermasalah.",
+            "error",
+          );
           void reloadSummary(memberId, undoTicket);
         });
       },

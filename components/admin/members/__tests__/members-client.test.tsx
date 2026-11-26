@@ -311,6 +311,19 @@ describe("MembersClient stamp flow", () => {
     expect(await screen.findByText(/Server lagi bermasalah/)).toBeInTheDocument();
     expect(screen.queryByText(/Koneksi putus/)).not.toBeInTheDocument();
 
+    const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    try {
+      actions.addStamp.mockRejectedValueOnce(new Error("offline"));
+      fireEvent.click(stampRetry());
+      expect(await screen.findByText("Stamp belum tersimpan. Koneksi putus.")).toBeInTheDocument();
+    } finally {
+      onLine.mockRestore();
+    }
+
+    actions.addStamp.mockRejectedValueOnce(new Error("An unexpected response was received from the server."));
+    fireEvent.click(stampRetry());
+    expect(await screen.findByText(/Server lagi bermasalah/)).toBeInTheDocument();
+
     actions.addStamp.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     fireEvent.click(stampRetry());
     expect(await screen.findByText("Stamp belum tersimpan. Koneksi putus.")).toBeInTheDocument();

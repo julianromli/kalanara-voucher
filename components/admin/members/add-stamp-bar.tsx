@@ -124,9 +124,13 @@ export const STAMP_NETWORK_ERROR = "Stamp belum tersimpan. Koneksi putus.";
 export const STAMP_SERVER_ERROR = "Stamp belum tersimpan. Server lagi bermasalah. Coba lagi sebentar lagi.";
 
 /** A thrown server action is a network failure only when fetch itself failed or the device is offline. */
-export function stampThrownMessage(error: unknown): string {
+export function isNetworkFailure(error: unknown): boolean {
   const offline = typeof navigator !== "undefined" && navigator.onLine === false;
-  return offline || error instanceof TypeError ? STAMP_NETWORK_ERROR : STAMP_SERVER_ERROR;
+  return offline || error instanceof TypeError;
+}
+
+export function stampThrownMessage(error: unknown): string {
+  return isNetworkFailure(error) ? STAMP_NETWORK_ERROR : STAMP_SERVER_ERROR;
 }
 
 /** The server answered, so the connection is fine; say what it refused. */
