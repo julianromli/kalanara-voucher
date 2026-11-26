@@ -772,7 +772,7 @@ export function MembersClient({
                   onCancelConfirm={() => setConfirm(null)}
                   onRetry={() => void submitStamp(Boolean(confirm))}
                 />
-                <div className="grid gap-6 md:grid-cols-2">
+                <div className="grid gap-6 md:grid-cols-2 [&>*]:min-w-0">
                   <RewardList summary={summary} onClaim={setClaimMilestone} />
                   <VisitHistory
                     summary={summary}
