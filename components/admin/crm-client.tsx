@@ -45,6 +45,15 @@ import {
 } from "@/components/admin/crm-landing-panels";
 import { ExternalLink, Edit2, Plus, Trash2 } from "lucide-react";
 import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -148,6 +157,8 @@ export function CRMClient({
   const [testimonialItems, setTestimonialItems] = useState<Testimonial[]>(() =>
     sortTestimonials(testimonials)
   );
+  const [pendingResetSection, setPendingResetSection] = useState<LandingCopySection | null>(null);
+  const [pendingDeleteTestimonialId, setPendingDeleteTestimonialId] = useState<string | null>(null);
   const [isTestimonialModalOpen, setIsTestimonialModalOpen] = useState(false);
   const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
   const [testimonialForm, setTestimonialForm] = useState<Partial<TestimonialInsert>>({
@@ -299,14 +310,6 @@ export function CRMClient({
   };
 
   const handleResetLandingSection = async (section: LandingCopySection) => {
-    if (
-      !confirm(
-        "Kembalikan teks bagian ini ke teks awal? Perubahan yang belum disimpan akan hilang."
-      )
-    ) {
-      return;
-    }
-
     const defaults = cloneLandingCopy(DEFAULT_LANDING_COPY[section]);
 
     try {
@@ -327,6 +330,7 @@ export function CRMClient({
       );
     } finally {
       endSavingSection(section);
+      setPendingResetSection(null);
     }
   };
 
@@ -392,13 +396,10 @@ export function CRMClient({
   };
 
   const handleDeleteTestimonial = async (id: string) => {
-    if (!confirm("Hapus testimoni ini dari halaman utama?")) {
-      return;
-    }
-
     try {
       await deleteTestimonial(id);
       setTestimonialItems((current) => current.filter((item) => item.id !== id));
+      setPendingDeleteTestimonialId(null);
       router.refresh();
       showToast("Testimoni berhasil dihapus.", "success");
     } catch (error) {
@@ -421,7 +422,7 @@ export function CRMClient({
       </Button>
       <Button
         variant="outline"
-        onClick={() => void handleResetLandingSection(section)}
+        onClick={() => setPendingResetSection(section)}
         disabled={savingSections.has(section)}
       >
         Kembalikan teks awal
@@ -714,7 +715,7 @@ export function CRMClient({
                               variant="destructive"
                               size="icon"
                               aria-label={`Hapus ${testimonial.name}`}
-                              onClick={() => void handleDeleteTestimonial(testimonial.id)}
+                              onClick={() => setPendingDeleteTestimonialId(testimonial.id)}
                             >
                               <Trash2 className="size-4" />
                             </Button>
@@ -901,6 +902,70 @@ export function CRMClient({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        <AlertDialog
+          open={pendingResetSection !== null}
+          onOpenChange={(open) => {
+            if (!open && pendingResetSection && !savingSections.has(pendingResetSection)) {
+              setPendingResetSection(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Kembalikan teks awal?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Perubahan yang belum disimpan akan hilang.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={pendingResetSection ? savingSections.has(pendingResetSection) : false}>
+                Batal
+              </AlertDialogCancel>
+              <Button
+                type="button"
+                disabled={!pendingResetSection || savingSections.has(pendingResetSection)}
+                onClick={() => {
+                  if (pendingResetSection) {
+                    void handleResetLandingSection(pendingResetSection);
+                  }
+                }}
+              >
+                {pendingResetSection && savingSections.has(pendingResetSection)
+                  ? "Mengembalikan…"
+                  : "Ya, kembalikan"}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <AlertDialog
+          open={pendingDeleteTestimonialId !== null}
+          onOpenChange={(open) => {
+            if (!open) setPendingDeleteTestimonialId(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Hapus testimoni ini?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Testimoni ini akan hilang dari halaman utama.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Batal</AlertDialogCancel>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                  if (pendingDeleteTestimonialId) {
+                    void handleDeleteTestimonial(pendingDeleteTestimonialId);
+                  }
+                }}
+              >
+                Ya, hapus
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </AdminPageBody>
     </>
   );

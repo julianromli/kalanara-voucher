@@ -11,6 +11,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { claimReward } from "@/lib/actions/members";
 import { firstName } from "@/lib/membership/format";
 
@@ -87,21 +94,33 @@ export function ClaimRewardDialog({
             Belum ada treatment aktif. Klaim belum bisa dilanjut.
           </p>
         ) : (
-          <label className="block space-y-1.5 text-sm font-medium" htmlFor="claim-service">
-            Treatment yang dipakai
-            <select
-              id="claim-service"
-              value={serviceName}
-              onChange={(event) => setServiceName(event.target.value)}
-              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium" htmlFor="claim-service">
+              Treatment yang dipakai
+            </label>
+            <Select
+              value={serviceName || undefined}
+              onValueChange={setServiceName}
             >
-              {services.map((service) => (
-                <option key={service.id} value={service.name}>
-                  {service.name}
-                </option>
-              ))}
-            </select>
-          </label>
+              <SelectTrigger
+                id="claim-service"
+                className="h-11 min-h-11 w-full rounded-md text-base"
+              >
+                <SelectValue placeholder="Pilih treatment" />
+              </SelectTrigger>
+              <SelectContent position="popper" align="start" className="max-w-[var(--radix-select-trigger-width)]">
+                {services.map((service) => (
+                  <SelectItem
+                    key={service.id}
+                    value={service.name}
+                    className="min-h-11 items-start whitespace-normal py-2 text-left text-base leading-snug [&>span:last-child]:block [&>span:last-child]:whitespace-normal [&>span:last-child]:break-words"
+                  >
+                    {service.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         )}
         <p className="text-xs text-muted-foreground">
           Dicatat di riwayat kunjungan. Nggak nambah stamp.
