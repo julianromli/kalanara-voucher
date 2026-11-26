@@ -21,7 +21,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   getAdminClient: getAdminClientMock,
 }));
 
-import { addPastStamp, addStamp, claimReward, correctStampDate, correctStampService, correctVoidStamp, listStampHistory, listMemberProfileAudit, listMembers, markFollowupSent, saveRewards, searchMembers, selfSignup, updateMember, voidStamp } from "@/lib/actions/members";
+import { addPastStamp, addStamp, buildFollowupMessage, claimReward, correctStampDate, correctStampService, correctVoidStamp, listStampHistory, listMemberProfileAudit, listMembers, markFollowupSent, saveRewards, searchMembers, selfSignup, updateMember, voidStamp } from "@/lib/actions/members";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
 
 const access = {
@@ -1228,5 +1228,56 @@ describe("stamp corrections", () => {
     mockClient(vi.fn().mockResolvedValue({ data: { status: "not_found" }, error: null }));
 
     expect((await listStampHistory(memberId)).status).toBe("not_found");
+  });
+});
+
+describe("buildFollowupMessage after a stamp void", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireAdminPermissionMock.mockResolvedValue(access);
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://voucher.kalanaraspa.com");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  function mockFollowup(summary: Record<string, unknown>) {
+    const rpc = vi.fn(async (name: string) => {
+      if (name === "get_member_summary") return { data: summary, error: null };
+      throw new Error(`unexpected rpc ${name}`);
+    });
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const from = vi.fn(() => ({ select: () => ({ eq: () => ({ maybeSingle }) }) }));
+    mockClient(rpc, from);
+  }
+
+  const claimed30 = [5, 10, 15, 20, 25, 30].map((milestone) => ({
+    milestone,
+    name: `Reward ${milestone}`,
+    claim_id: milestone === 30 ? "dddddddd-dddd-4ddd-8ddd-dddddddddddd" : null,
+  }));
+
+  test("does not call the period full when the last reward was claimed before a void", async () => {
+    mockFollowup(summaryRpc({ stamp_count: 26, rewards: claimed30 }));
+
+    const result = await buildFollowupMessage({ memberId: MEMBER_ID, stage: "day60" });
+
+    expect(result.status).toBe("ok");
+    if (result.status !== "ok") return;
+    expect(result.text).toContain("Stamp kamu sekarang 26, reward periode ini sudah diklaim semua.");
+    expect(result.text).not.toContain("penuh");
+  });
+
+  test("skips a claimed reward above the count", async () => {
+    const rewards = claimed30.map((reward) =>
+      reward.milestone === 5 ? { ...reward, claim_id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee" } : { ...reward, claim_id: null },
+    );
+    mockFollowup(summaryRpc({ stamp_count: 4, rewards }));
+
+    const result = await buildFollowupMessage({ memberId: MEMBER_ID, stage: "day60" });
+
+    if (result.status !== "ok") throw new Error(result.status);
+    expect(result.text).toContain("tinggal 6 lagi buat Reward 10");
   });
 });

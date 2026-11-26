@@ -63,9 +63,10 @@ export function VisitHistory({ summary, services = [], onCorrected }: VisitHisto
   const history = current?.history ?? null;
   const historyStatus = current?.status ?? "loading";
 
-  // Opening a different member resets the list toggles and any open dialog.
+  // Opening a different member drops the old history, the list toggles and any open dialog.
   if (viewedMemberId !== summary.id) {
     setViewedMemberId(summary.id);
+    setLoaded(null);
     setShowAllEvents(false);
     setShowAllAudit(false);
     setDialog(null);

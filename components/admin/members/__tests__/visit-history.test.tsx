@@ -153,4 +153,27 @@ describe("VisitHistory corrections", () => {
     expect(screen.queryByText("Riwayat koreksi")).not.toBeInTheDocument();
     expect(screen.queryByText("Me Time")).not.toBeInTheDocument();
   });
+
+  test("an older reload for the same member never replaces a newer one", async () => {
+    let resolveOld: (value: typeof history) => void = () => {};
+    let resolveNew: (value: typeof history) => void = () => {};
+    listStampHistoryMock
+      .mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }))
+      .mockReturnValueOnce(new Promise((resolve) => { resolveNew = resolve; }));
+    const first = summary();
+    const { rerender } = render(<VisitHistory summary={first} services={[]} onCorrected={vi.fn()} />);
+    rerender(<VisitHistory summary={{ ...first, stampCount: 2 }} services={[]} onCorrected={vi.fn()} />);
+    const newer = {
+      ...history,
+      history: { ...history.history, audit: [], stamps: [{ ...history.history.stamps[0], serviceName: "Rejuvenate Me" }] },
+    };
+    await act(async () => {
+      resolveNew(newer);
+    });
+    await act(async () => {
+      resolveOld(history);
+    });
+    expect(screen.getByText("Rejuvenate Me")).toBeInTheDocument();
+    expect(screen.queryByText("Riwayat koreksi")).not.toBeInTheDocument();
+  });
 });

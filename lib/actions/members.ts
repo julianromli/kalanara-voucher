@@ -1033,11 +1033,15 @@ export async function buildFollowupMessage(input: {
   if (error) return failure();
   const storedTemplate = templateRow?.value || DEFAULT_FOLLOWUP_TEMPLATES[input.stage];
   const next = nextUnclaimedMilestone(summary);
+  // next is also null below 30 when every reward left was claimed before a
+  // stamp void; only a real 30-stamp period is "penuh".
   const template =
     next == null
       ? storedTemplate.replace(
           /tinggal \{sisa\} lagi buat \{reward_berikutnya\}/g,
-          "stamp periode ini sudah penuh",
+          summary.stampCount >= 30
+            ? "stamp periode ini sudah penuh"
+            : "reward periode ini sudah diklaim semua",
         )
       : storedTemplate;
   let link = "";
