@@ -1,9 +1,18 @@
+"use client";
+
 import { AlertCircle, CreditCard } from "lucide-react";
 import {
   getPaymentMark,
   PaymentMethodMark,
 } from "@/components/checkout/payment-method-mark";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getPaymentMethodDescription } from "@/lib/checkout/client";
 import type {
@@ -145,22 +154,30 @@ export function PaymentSelector(props: PaymentSelectorProps) {
               >
                 Bank Virtual Account
               </label>
-              <select
-                id={`${idPrefix}-va-bank`}
-                value={subPaymentMethod}
-                onChange={(event) =>
-                  onSubPaymentMethodChange(
-                    event.target.value as ScalevVABankCode
-                  )
+              <Select
+                value={subPaymentMethod || undefined}
+                onValueChange={(value) =>
+                  onSubPaymentMethodChange(value as ScalevVABankCode)
                 }
-                className="min-h-12 w-full rounded-lg border border-border bg-background px-3 text-base"
               >
-                {selectedPaymentOption.subMethods.map((bank) => (
-                  <option key={bank} value={bank}>
-                    {bank}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger
+                  id={`${idPrefix}-va-bank`}
+                  className="min-h-12 w-full rounded-md text-base"
+                >
+                  <SelectValue placeholder="Pilih bank" />
+                </SelectTrigger>
+                <SelectContent position="popper" align="start">
+                  {selectedPaymentOption.subMethods.map((bank) => (
+                    <SelectItem
+                      key={bank}
+                      value={bank}
+                      className="min-h-11 text-base"
+                    >
+                      {bank}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           ) : null}
         </>

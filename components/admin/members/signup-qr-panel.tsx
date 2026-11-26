@@ -12,6 +12,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { MemberQr } from "@/components/member/member-qr";
 import { regenerateSignupQr } from "@/lib/actions/members";
 import { displayUrl, formatMemberDate, formatMemberTime, memberInitials } from "@/lib/membership/format";
@@ -29,6 +38,7 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
   const [error, setError] = useState<string | null>(null);
   const [current, setCurrent] = useState({ url, createdAt, monthCount, recent });
   const [copied, setCopied] = useState(false);
+  const [copyFallbackOpen, setCopyFallbackOpen] = useState(false);
   useEffect(() => {
     if (!copied) return;
     const timeout = window.setTimeout(() => setCopied(false), 1500);
@@ -57,13 +67,13 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
               onClick={() => {
                 const write = navigator.clipboard?.writeText.bind(navigator.clipboard);
                 if (!write) {
-                  window.prompt("Salin link ini:", current.url);
+                  setCopyFallbackOpen(true);
                   return;
                 }
                 setCopied(true);
                 void write(current.url).catch(() => {
                   setCopied(false);
-                  window.prompt("Salin link ini:", current.url);
+                  setCopyFallbackOpen(true);
                 });
               }}
             >
@@ -196,6 +206,44 @@ export function SignupQrPanel({ url, createdAt, monthCount, recent }: SignupQrPa
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog open={copyFallbackOpen} onOpenChange={setCopyFallbackOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Salin link pendaftaran</DialogTitle>
+            <DialogDescription>
+              Link-nya belum tersalin otomatis. Salin teks di bawah, atau tekan Salin lagi.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            readOnly
+            value={current.url}
+            aria-label="Link pendaftaran"
+            className="text-base"
+            onFocus={(event) => event.currentTarget.select()}
+            onClick={(event) => event.currentTarget.select()}
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCopyFallbackOpen(false)}>
+              Tutup
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                const write = navigator.clipboard?.writeText.bind(navigator.clipboard);
+                if (!write) return;
+                void write(current.url).then(() => {
+                  setCopied(true);
+                  setCopyFallbackOpen(false);
+                }).catch(() => {
+                  // Keep the dialog open so the link can still be copied by hand.
+                });
+              }}
+            >
+              Salin
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -2,6 +2,13 @@
 
 import { Check, Plus, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatMemberDate, formatMemberTime, firstName } from "@/lib/membership/format";
 
 interface AddStampBarProps {
@@ -41,27 +48,42 @@ export function AddStampBar({
       <label className="text-sm font-medium" htmlFor="stamp-service">
         Treatment walk-in hari ini
       </label>
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-        <select
-          id="stamp-service"
-          value={serviceId}
-          onChange={(event) => onServiceChange(event.target.value)}
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Select
+          value={serviceId || undefined}
+          onValueChange={onServiceChange}
           disabled={services.length === 0}
-          className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
         >
-          {services.map((service) => (
-            <option key={service.id} value={service.id}>
-              {service.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            id="stamp-service"
+            className="h-11 min-h-11 w-full min-w-0 flex-1 rounded-md text-base"
+          >
+            <SelectValue placeholder="Pilih treatment" />
+          </SelectTrigger>
+          <SelectContent position="popper" align="start" className="max-w-[var(--radix-select-trigger-width)]">
+            {services.map((service) => (
+              <SelectItem
+                key={service.id}
+                value={service.id}
+                className="min-h-11 items-start whitespace-normal py-2 text-left text-base leading-snug [&>span:last-child]:block [&>span:last-child]:whitespace-normal [&>span:last-child]:break-words"
+              >
+                {service.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {justAdded ? (
-          <p className="inline-flex h-9 items-center gap-2 rounded-lg bg-background px-3 text-sm" role="status">
+          <p className="inline-flex h-11 items-center gap-2 rounded-lg bg-background px-3 text-sm" role="status">
             <Check className="size-4 text-success" aria-hidden="true" />
             Udah dapat stamp hari ini
           </p>
         ) : (
-          <Button type="button" onClick={onAdd} disabled={Boolean(disabledReason) || pending || services.length === 0}>
+          <Button
+            type="button"
+            className="h-11 shrink-0"
+            onClick={onAdd}
+            disabled={Boolean(disabledReason) || pending || services.length === 0}
+          >
             <Plus className="size-4" aria-hidden="true" />
             {pending ? "Mencatat…" : "Tambah stamp"}
           </Button>
