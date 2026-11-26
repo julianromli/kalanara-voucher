@@ -183,6 +183,7 @@ export function SettingsClient({
                         <Label htmlFor="start-time">Opening Time</Label>
                         <TimePicker
                           id="start-time"
+                          aria-label="Opening Time"
                           value={settings.businessHours.start}
                           onChange={(start) => setSettings({
                             ...settings,
@@ -194,6 +195,7 @@ export function SettingsClient({
                         <Label htmlFor="end-time">Closing Time</Label>
                         <TimePicker
                           id="end-time"
+                          aria-label="Closing Time"
                           value={settings.businessHours.end}
                           onChange={(end) => setSettings({
                             ...settings,

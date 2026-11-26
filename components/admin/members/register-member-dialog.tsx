@@ -16,7 +16,7 @@ import { DatePicker, formatISODate, parseISODate, preventCloseOnDatePickerLayer 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { registerMember } from "@/lib/actions/members";
-import { displayUrl } from "@/lib/membership/format";
+import { displayUrl, jakartaDateISO } from "@/lib/membership/format";
 import { memberCardUrl } from "@/lib/membership/urls";
 import type { MemberSummary } from "@/lib/membership/summary";
 
@@ -251,7 +251,7 @@ export function RegisterMemberDialog({
                   value={parseISODate(birthDate)}
                   onChange={(date) => setBirthDate(date ? formatISODate(date) : "")}
                   min={new Date(1900, 0, 1)}
-                  max={new Date()}
+                  max={parseISODate(jakartaDateISO())}
                   placeholder="Pilih tanggal lahir"
                   required
                 />

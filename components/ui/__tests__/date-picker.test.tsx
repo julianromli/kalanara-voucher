@@ -106,6 +106,15 @@ describe("DatePicker", () => {
     expect(onChange).toHaveBeenCalledWith(undefined);
   });
 
+  test("includes future years when max is omitted", async () => {
+    const user = userEvent.setup();
+    const nextYear = String(new Date().getFullYear() + 1);
+    render(<DatePicker value={parseISODate("2026-11-26")} onChange={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "26 November 2026" }));
+    await user.click(screen.getByRole("combobox", { name: "Tahun" }));
+    expect(await screen.findByRole("option", { name: nextYear })).toBeInTheDocument();
+  });
+
   test("disables days after max", async () => {
     const user = userEvent.setup();
     render(

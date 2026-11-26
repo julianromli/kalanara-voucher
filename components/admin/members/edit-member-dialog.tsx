@@ -14,6 +14,7 @@ import { DatePicker, formatISODate, parseISODate, preventCloseOnDatePickerLayer 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateMember } from "@/lib/actions/members";
+import { jakartaDateISO } from "@/lib/membership/format";
 import type { MemberSummary } from "@/lib/membership/summary";
 
 interface EditMemberDialogProps {
@@ -173,7 +174,7 @@ export function EditMemberDialog({
                 value={parseISODate(birthDate)}
                 onChange={(date) => setBirthDate(date ? formatISODate(date) : "")}
                 min={new Date(1900, 0, 1)}
-                max={new Date()}
+                max={parseISODate(jakartaDateISO())}
                 placeholder="Pilih tanggal lahir"
                 required
               />

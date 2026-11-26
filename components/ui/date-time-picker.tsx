@@ -28,15 +28,26 @@ export function parseDateTimeLocal(value: string): Date | undefined {
   if (!trimmed) return undefined;
   const local = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(trimmed);
   if (local) {
-    const date = new Date(
-      Number(local[1]),
-      Number(local[2]) - 1,
-      Number(local[3]),
-      Number(local[4]),
-      Number(local[5]),
-      Number(local[6] ?? 0),
-    );
-    return Number.isNaN(date.getTime()) ? undefined : date;
+    const year = Number(local[1]);
+    const month = Number(local[2]) - 1;
+    const day = Number(local[3]);
+    const hours = Number(local[4]);
+    const minutes = Number(local[5]);
+    const seconds = Number(local[6] ?? 0);
+    if (hours > 23 || minutes > 59 || seconds > 59) return undefined;
+    const date = new Date(year, month, day, hours, minutes, seconds);
+    if (
+      Number.isNaN(date.getTime()) ||
+      date.getFullYear() !== year ||
+      date.getMonth() !== month ||
+      date.getDate() !== day ||
+      date.getHours() !== hours ||
+      date.getMinutes() !== minutes ||
+      date.getSeconds() !== seconds
+    ) {
+      return undefined;
+    }
+    return date;
   }
   const date = new Date(trimmed);
   return Number.isNaN(date.getTime()) ? undefined : date;
@@ -46,6 +57,18 @@ export function parseDateTimeLocal(value: string): Date | undefined {
 export function formatDateTimeLocal(date: Date): string {
   const time = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
   return `${formatISODate(date)}T${time}`;
+}
+
+export function clampDateTime(date: Date, min?: Date, max?: Date): Date {
+  if (min && date < min) return new Date(min.getTime());
+  if (max && date > max) return new Date(max.getTime());
+  return date;
+}
+
+function timeBoundOnDay(bound: Date | undefined, day: Date): string | undefined {
+  if (!bound) return undefined;
+  if (formatISODate(bound) !== formatISODate(day)) return undefined;
+  return `${String(bound.getHours()).padStart(2, "0")}:${String(bound.getMinutes()).padStart(2, "0")}`;
 }
 
 export function DateTimePicker({
@@ -65,12 +88,16 @@ export function DateTimePicker({
   "aria-describedby": ariaDescribedBy,
   "aria-invalid": ariaInvalid,
 }: DateTimePickerProps) {
-  const dateValue = value
-    ? parseISODate(formatISODate(value))
-    : undefined;
+  const dateValue = value ? parseISODate(formatISODate(value)) : undefined;
   const timeValue = value
     ? `${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}`
     : "";
+  const timeMin = dateValue ? timeBoundOnDay(min, dateValue) : undefined;
+  const timeMax = dateValue ? timeBoundOnDay(max, dateValue) : undefined;
+
+  function commit(date: Date) {
+    onChange(clampDateTime(date, min, max));
+  }
 
   return (
     <div className={cn("flex flex-col gap-2 sm:flex-row sm:items-center", className)}>
@@ -83,19 +110,20 @@ export function DateTimePicker({
           }
           const time = parseTime(timeValue) || "00:00";
           const [hours, minutes] = time.split(":").map(Number);
-          onChange(new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes));
+          commit(new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes));
         }}
         min={min}
         max={max}
         placeholder={placeholder}
         disabled={disabled}
         id={id}
-        required={required}
+        required={false}
         clearable={clearable}
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
         aria-describedby={ariaDescribedBy}
         aria-invalid={ariaInvalid}
+        aria-required={required || undefined}
         className="min-w-0 flex-1"
       />
       <TimePicker
@@ -105,15 +133,35 @@ export function DateTimePicker({
           const parsed = parseTime(time);
           if (!parsed) return;
           const [hours, minutes] = parsed.split(":").map(Number);
-          onChange(
+          commit(
             new Date(dateValue.getFullYear(), dateValue.getMonth(), dateValue.getDate(), hours, minutes),
           );
         }}
         disabled={disabled || !dateValue}
-        required={required}
-        name={name}
+        min={timeMin}
+        max={timeMax}
+        required={false}
         className="sm:w-[11rem]"
-        aria-label="Waktu"
+        aria-label={ariaLabel ? `${ariaLabel}, waktu` : "Waktu"}
+        aria-invalid={ariaInvalid}
+      />
+      <input
+        type="text"
+        tabIndex={-1}
+        aria-hidden="true"
+        name={name}
+        value={value ? formatDateTimeLocal(value) : ""}
+        required={required}
+        disabled={disabled}
+        className="sr-only"
+        onChange={() => {}}
+        onFocus={() => {
+          if (id) document.getElementById(id)?.focus();
+        }}
+        onInvalid={(event) => {
+          event.preventDefault();
+          if (id) document.getElementById(id)?.focus();
+        }}
       />
     </div>
   );

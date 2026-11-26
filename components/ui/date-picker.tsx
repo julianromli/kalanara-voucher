@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const DEFAULT_MIN_YEAR = 1900;
+const DEFAULT_FUTURE_YEARS = 10;
 const MONTH_INDEXES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
 
 export type DatePickerProps = {
@@ -102,9 +103,15 @@ function clampMonth(date: Date, min?: Date, max?: Date): Date {
   return next;
 }
 
-function yearRange(min?: Date, max?: Date): number[] {
+function yearRange(min?: Date, max?: Date, value?: Date, month?: Date): number[] {
   const start = min?.getFullYear() ?? DEFAULT_MIN_YEAR;
-  const end = max?.getFullYear() ?? new Date().getFullYear();
+  const end =
+    max?.getFullYear() ??
+    Math.max(
+      new Date().getFullYear() + DEFAULT_FUTURE_YEARS,
+      value?.getFullYear() ?? 0,
+      month?.getFullYear() ?? 0,
+    );
   const years: number[] = [];
   for (let year = start; year <= end; year += 1) {
     years.push(year);
@@ -143,7 +150,9 @@ export function DatePicker({
     clampMonth(value ?? new Date(), min, max),
   );
   const triggerRef = React.useRef<HTMLButtonElement>(null);
-  const years = React.useMemo(() => yearRange(min, max), [min, max]);
+  const years = React.useMemo(() => yearRange(min, max, value, month), [min, max, value, month]);
+
+  if (disabled && open) setOpen(false);
 
   React.useEffect(() => {
     if (value) setMonth(clampMonth(value, min, max));
@@ -320,8 +329,8 @@ export function DatePicker({
         value={value ? formatISODate(value) : ""}
         required={required}
         disabled={disabled}
-        readOnly
         className="sr-only"
+        onChange={() => {}}
         onFocus={() => triggerRef.current?.focus()}
         onInvalid={(event) => {
           event.preventDefault();
