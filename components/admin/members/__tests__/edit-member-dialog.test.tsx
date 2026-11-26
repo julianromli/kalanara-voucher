@@ -72,7 +72,7 @@ describe("EditMemberDialog", () => {
 
     expect(screen.getByLabelText("Nama panggilan")).toHaveValue("Rina Maharani");
     expect(screen.getByLabelText("Nomor HP (WhatsApp)")).toHaveValue("6281234564471");
-    expect(screen.getByLabelText("Tanggal lahir")).toHaveValue("1994-03-12");
+    expect(screen.getByLabelText("Tanggal lahir")).toHaveTextContent("12 Maret 1994");
     expect(screen.getByText(/jendela diskon ultah ikut pindah/)).toBeInTheDocument();
   });
 

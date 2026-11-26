@@ -7,6 +7,8 @@ import { DashboardHeader } from "@/components/admin/dashboard-header";
 import { DiscountCheckoutLimitNotice } from "@/components/admin/discount-checkout-limit-notice";
 import { AdminPageBody, AdminPageIntro, AdminSurface } from "@/components/admin/admin-page";
 import { Button } from "@/components/ui/button";
+import { DateTimePicker, formatDateTimeLocal, parseDateTimeLocal } from "@/components/ui/date-time-picker";
+import { preventCloseOnDatePickerLayer } from "@/components/ui/date-picker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -409,7 +411,11 @@ export function DiscountCodesClient({
       </AdminPageBody>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent
+          className="max-h-[90vh] overflow-y-auto sm:max-w-lg"
+          onPointerDownOutside={preventCloseOnDatePickerLayer}
+          onFocusOutside={preventCloseOnDatePickerLayer}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <TicketPercent className="size-5 text-primary" />
@@ -482,33 +488,35 @@ export function DiscountCodesClient({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">
+                <label htmlFor="discount-starts-at" className="mb-1.5 block text-sm font-medium text-foreground">
                   Mulai Berlaku
                 </label>
-                <Input
-                  type="datetime-local"
-                  value={formState.startsAt}
-                  onChange={(event) =>
+                <DateTimePicker
+                  id="discount-starts-at"
+                  value={parseDateTimeLocal(formState.startsAt)}
+                  onChange={(date) =>
                     setFormState((current) => ({
                       ...current,
-                      startsAt: event.target.value,
+                      startsAt: date ? formatDateTimeLocal(date) : "",
                     }))
                   }
+                  placeholder="Pilih tanggal mulai"
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">
+                <label htmlFor="discount-ends-at" className="mb-1.5 block text-sm font-medium text-foreground">
                   Berakhir
                 </label>
-                <Input
-                  type="datetime-local"
-                  value={formState.endsAt}
-                  onChange={(event) =>
+                <DateTimePicker
+                  id="discount-ends-at"
+                  value={parseDateTimeLocal(formState.endsAt)}
+                  onChange={(date) =>
                     setFormState((current) => ({
                       ...current,
-                      endsAt: event.target.value,
+                      endsAt: date ? formatDateTimeLocal(date) : "",
                     }))
                   }
+                  placeholder="Pilih tanggal berakhir"
                 />
               </div>
             </div>

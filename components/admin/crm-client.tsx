@@ -21,6 +21,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DateTimePicker, formatDateTimeLocal, parseDateTimeLocal } from "@/components/ui/date-time-picker";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -522,12 +523,12 @@ export function CRMClient({
                   </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor="announcement-countdown">Tanggal dan jam berakhir</Label>
-                    <Input
+                    <DateTimePicker
                       id="announcement-countdown"
-                      type="datetime-local"
-                      value={countdownEndAt ? countdownEndAt.slice(0, 16) : ""}
-                      onChange={(event) => setCountdownEndAt(event.target.value)}
+                      value={parseDateTimeLocal(countdownEndAt)}
+                      onChange={(date) => setCountdownEndAt(date ? formatDateTimeLocal(date) : "")}
                       disabled={isSavingAnnouncement}
+                      placeholder="Pilih tanggal dan jam"
                     />
                   </div>
                   <div className="flex flex-wrap items-center gap-2">

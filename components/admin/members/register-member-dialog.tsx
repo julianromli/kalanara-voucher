@@ -12,10 +12,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DatePicker, formatISODate, parseISODate, preventCloseOnDatePickerLayer } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { registerMember } from "@/lib/actions/members";
-import { displayUrl } from "@/lib/membership/format";
+import { displayUrl, jakartaDateISO } from "@/lib/membership/format";
 import { memberCardUrl } from "@/lib/membership/urls";
 import type { MemberSummary } from "@/lib/membership/summary";
 
@@ -94,7 +95,10 @@ export function RegisterMemberDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent>
+      <DialogContent
+        onPointerDownOutside={preventCloseOnDatePickerLayer}
+        onFocusOutside={preventCloseOnDatePickerLayer}
+      >
         <style>{`
           @media print {
             body * { visibility: hidden; }
@@ -242,7 +246,15 @@ export function RegisterMemberDialog({
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="member-birth">Tanggal lahir</Label>
-                <Input id="member-birth" type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} required />
+                <DatePicker
+                  id="member-birth"
+                  value={parseISODate(birthDate)}
+                  onChange={(date) => setBirthDate(date ? formatISODate(date) : "")}
+                  min={new Date(1900, 0, 1)}
+                  max={parseISODate(jakartaDateISO())}
+                  placeholder="Pilih tanggal lahir"
+                  required
+                />
                 <p className="text-xs text-muted-foreground">Buat diskon ulang tahun 25%. Cuma admin yang bisa ubah.</p>
               </div>
               <label className="flex items-start gap-2 text-sm">
