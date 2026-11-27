@@ -59,6 +59,10 @@ export default async function AdminPurchasesPage({
           access.role,
           AdminPermission.ORDERS_DELETE_HARD
         )}
+        canResendVoucher={hasPermissionForRole(
+          access.role,
+          AdminPermission.ORDERS_RESEND_VOUCHER
+        )}
       />
     );
 }

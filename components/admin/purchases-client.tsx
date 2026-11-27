@@ -64,12 +64,19 @@ import {
 import { buyerPath, formatBuyerPhone } from "@/lib/admin/buyer-phone";
 import { cn } from "@/lib/utils";
 import type { OrderWithVoucherItems } from "@/lib/database.types";
+import {
+  ResendVoucherDialog,
+  VoucherDeliveryStatus,
+} from "@/components/admin/voucher-resend-dialog";
+import { getVoucherDeliveryOverview } from "@/lib/actions/voucher-resend";
+import type { VoucherDeliveryOverview } from "@/lib/voucher-resend/shared";
 
 interface PurchasesClientProps {
   initialPage: AdminPage<OrderWithVoucherItems>;
   initialTotalCount: number;
   canUpdatePaymentStatus: boolean;
   canDeletePurchases: boolean;
+  canResendVoucher?: boolean;
   focusedOrder?: OrderWithVoucherItems | null;
 }
 
@@ -141,6 +148,7 @@ export function PurchasesClient({
   initialTotalCount,
   canUpdatePaymentStatus,
   canDeletePurchases,
+  canResendVoucher = false,
   focusedOrder = null,
 }: PurchasesClientProps) {
   const router = useRouter();
@@ -168,6 +176,52 @@ export function PurchasesClient({
   const [isClearingAll, setIsClearingAll] = useState(false);
   const [pendingCompleteOrder, setPendingCompleteOrder] =
     useState<OrderWithVoucherItems | null>(null);
+  const [delivery, setDelivery] = useState<{
+    orderId: string | null;
+    state: "idle" | "loading" | "ready" | "failed";
+    vouchers: VoucherDeliveryOverview[];
+  }>({ orderId: null, state: "idle", vouchers: [] });
+  const [deliveryReload, setDeliveryReload] = useState(0);
+  const [resendTarget, setResendTarget] = useState<VoucherDeliveryOverview | null>(null);
+  const selectedOrderId = selectedOrder?.id ?? null;
+  const selectedOrderPaid = selectedOrder?.payment_status === "COMPLETED";
+
+  useEffect(() => {
+    if (!selectedOrderId || !selectedOrderPaid) {
+      return;
+    }
+    let cancelled = false;
+    setDelivery((current) => ({
+      orderId: selectedOrderId,
+      state: "loading",
+      vouchers: current.orderId === selectedOrderId ? current.vouchers : [],
+    }));
+    getVoucherDeliveryOverview(selectedOrderId)
+      .then((result) => {
+        if (cancelled) return;
+        setDelivery(
+          result.status === "ok"
+            ? { orderId: selectedOrderId, state: "ready", vouchers: result.vouchers }
+            : { orderId: selectedOrderId, state: "failed", vouchers: [] },
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDelivery({ orderId: selectedOrderId, state: "failed", vouchers: [] });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedOrderId, selectedOrderPaid, deliveryReload]);
+
+  const showDelivery = canResendVoucher && selectedOrderPaid;
+  const deliveryFor = (voucherId: string | null | undefined) =>
+    voucherId && delivery.orderId === selectedOrderId
+      ? delivery.vouchers.find((entry) => entry.voucherId === voucherId) ?? null
+      : null;
+  const deliveryLoading =
+    delivery.orderId !== selectedOrderId || delivery.state === "loading" || delivery.state === "idle";
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -687,13 +741,31 @@ export function PurchasesClient({
                           </p>
                         </div>
                       </div>
+                      {showDelivery ? (
+                        <VoucherDeliveryStatus
+                          overview={deliveryFor(item.voucher_id)}
+                          loading={deliveryLoading}
+                          failed={delivery.state === "failed"}
+                          onResend={setResendTarget}
+                        />
+                      ) : null}
                     </div>
                   ))}
 
                   {selectedOrder.order_items.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      This order uses the legacy single-voucher structure.
-                    </p>
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        This order uses the legacy single-voucher structure.
+                      </p>
+                      {showDelivery ? (
+                        <VoucherDeliveryStatus
+                          overview={deliveryFor(selectedOrder.vouchers?.id)}
+                          loading={deliveryLoading}
+                          failed={delivery.state === "failed"}
+                          onResend={setResendTarget}
+                        />
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               </div>
@@ -789,6 +861,23 @@ export function PurchasesClient({
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <ResendVoucherDialog
+        open={Boolean(resendTarget)}
+        orderId={selectedOrder?.id ?? ""}
+        overview={resendTarget}
+        onOpenChange={(open) => {
+          if (!open) setResendTarget(null);
+        }}
+        onSent={(message) => {
+          showToast(message, "success");
+          setDeliveryReload((count) => count + 1);
+        }}
+        onWhatsAppCopied={(message) => {
+          showToast(message, "success");
+          setDeliveryReload((count) => count + 1);
+        }}
+      />
 
       <Dialog
         open={Boolean(pendingCompleteOrder)}

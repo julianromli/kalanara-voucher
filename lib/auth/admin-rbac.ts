@@ -11,6 +11,7 @@ export const AdminPermission = {
   ORDERS_VIEW: "orders.view",
   ORDERS_UPDATE_PAYMENT_STATUS: "orders.update_payment_status",
   ORDERS_DELETE_HARD: "orders.delete_hard",
+  ORDERS_RESEND_VOUCHER: "orders.resend_voucher",
   DISCOUNT_CODES_MANAGE: "discount_codes.manage",
   VOUCHERS_MANAGE: "vouchers.manage",
   SERVICES_MANAGE: "services.manage",
@@ -36,6 +37,7 @@ const ROLE_PERMISSIONS: Record<CanonicalAdminRole, readonly AdminPermission[]> =
     AdminPermission.DASHBOARD_VIEW_BUSINESS,
     AdminPermission.ORDERS_VIEW,
     AdminPermission.ORDERS_UPDATE_PAYMENT_STATUS,
+    AdminPermission.ORDERS_RESEND_VOUCHER,
     AdminPermission.DISCOUNT_CODES_MANAGE,
     AdminPermission.VOUCHERS_MANAGE,
     AdminPermission.SERVICES_MANAGE,
@@ -47,6 +49,7 @@ const ROLE_PERMISSIONS: Record<CanonicalAdminRole, readonly AdminPermission[]> =
   STAFF: [
     AdminPermission.DASHBOARD_VIEW_OPERATIONAL,
     AdminPermission.ORDERS_VIEW,
+    AdminPermission.ORDERS_RESEND_VOUCHER,
     AdminPermission.VOUCHERS_MANAGE,
     AdminPermission.MEMBERS_OPERATE,
   ],
