@@ -296,6 +296,42 @@ describe("CheckoutSuccessPage", () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
+    test("an email still pending after polling stops offers Cek lagi", async () => {
+      const pending = completed({ ...giftVoucher, deliveryMethod: "EMAIL", emailStatus: "PENDING" });
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(pending)
+        .mockResolvedValueOnce(pending)
+        .mockResolvedValueOnce(pending)
+        .mockResolvedValueOnce(pending)
+        .mockResolvedValueOnce(pending)
+        .mockResolvedValue(completed({ ...giftVoucher, deliveryMethod: "EMAIL", emailStatus: "SENT" }));
+      vi.stubGlobal("fetch", fetchMock);
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      try {
+        render(
+          <ToastProvider>
+            <CheckoutSuccessPage />
+          </ToastProvider>
+        );
+
+        expect(
+          await screen.findByText("Voucher sedang dikirim ke email dias@example.com.")
+        ).toBeInTheDocument();
+        await vi.advanceTimersByTimeAsync(2500 * 5);
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5));
+        const checkAgain = screen.getByRole("button", { name: "Cek lagi" });
+        fireEvent.click(checkAgain);
+        expect(
+          await screen.findByText("Voucher dikirim ke email dias@example.com.")
+        ).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Cek lagi" })).not.toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     test("does not claim the email went out until the outbox says so", async () => {
       vi.stubGlobal(
         "fetch",
