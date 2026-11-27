@@ -33,6 +33,10 @@ import {
   type VoucherDeliveryOverview,
 } from "@/lib/voucher-resend/shared";
 
+// Statuses where the email may already be out from an earlier try with the
+// same id, so a retry must reuse it.
+const RETRY_KEEPS_REQUEST_ID = new Set(["network", "cooldown", "rate_limited", "error"]);
+
 export function VoucherDeliveryStatus({
   overview,
   loading,
@@ -195,8 +199,11 @@ export function ResendVoucherDialog({
     }
     setPending("email");
     setError(null);
+    // Kept until a definitive answer: after a dropped connection the email
+    // may have gone out, and a cooldown or server error on the retry says
+    // nothing new, so the next try must reuse the same id.
     const requestId = requestIdRef.current ?? crypto.randomUUID();
-    requestIdRef.current = null;
+    requestIdRef.current = requestId;
     try {
       const result = await requestVoucherResend({
         requestId,
@@ -208,6 +215,7 @@ export function ResendVoucherDialog({
       });
       if (!mountedRef.current) return;
       setPending(null);
+      if (!RETRY_KEEPS_REQUEST_ID.has(result.status)) requestIdRef.current = null;
       if (result.status === "sent") {
         onSent(
           result.recipientEmailUpdated
@@ -226,15 +234,11 @@ export function ResendVoucherDialog({
         setEmailError(resendFailureMessage("invalid_email"));
         return;
       }
-      // The email provider dropped the connection: the email may have gone out.
-      if (result.status === "network") requestIdRef.current = requestId;
       setError(resendFailureMessage(result.status, result.retryAfterSeconds));
     } catch (caught) {
       if (!mountedRef.current) return;
       setPending(null);
-      const network = isNetworkFailure(caught);
-      if (network) requestIdRef.current = requestId;
-      setError(resendFailureMessage(network ? "network" : "error"));
+      setError(resendFailureMessage(isNetworkFailure(caught) ? "network" : "error"));
     }
   }
 
@@ -249,23 +253,27 @@ export function ResendVoucherDialog({
         target: wa.kind,
       });
       if (!mountedRef.current) return;
-      setPending(null);
       if (result.status !== "ok") {
+        setPending(null);
         setError(resendFailureMessage(result.status, result.retryAfterSeconds));
         return;
       }
       try {
         await navigator.clipboard.writeText(result.url);
       } catch {
+        setPending(null);
         setError("Link WhatsApp gagal disalin. Izinkan akses clipboard di browser, lalu coba lagi.");
         return;
       }
+      // Stay busy until the copy is logged, so a second click can't add a
+      // second COPIED row.
       const logged = await recordVoucherWhatsAppLinkCopied({
         orderId,
         voucherId: overview.voucherId,
         target: wa.kind,
       }).catch(() => null);
       if (!mountedRef.current) return;
+      setPending(null);
       if (logged?.status !== "ok") {
         setError("Link WhatsApp sudah disalin, tapi catatannya gagal disimpan.");
         return;

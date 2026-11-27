@@ -246,9 +246,11 @@ export async function resendVoucherEmailForAdmin(input: {
       idempotencyKey: `voucher-resend-${input.requestId ?? resendId}`,
     });
   } catch (error) {
+    // sendVoucherEmailMessage reports transport failures itself; anything
+    // thrown here is a bug in rendering or setup, not a dropped connection.
     sendResult = {
       ok: false,
-      reason: "network",
+      reason: "provider",
       message: error instanceof Error ? error.message : "Unknown send error",
     };
   }

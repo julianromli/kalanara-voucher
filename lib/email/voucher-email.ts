@@ -363,9 +363,11 @@ export async function sendVoucherEmailMessage(input: {
     return { ok: false, reason: "pdf", message: "Failed to generate voucher PDF" };
   }
 
-  let response: Awaited<ReturnType<ReturnType<typeof getResend>["emails"]["send"]>>;
+  // Client setup errors (missing API key) are not transport failures.
+  const resend = getResend();
+  let response: Awaited<ReturnType<typeof resend.emails.send>>;
   try {
-    response = await getResend().emails.send(
+    response = await resend.emails.send(
       {
         from: "Kalanara Spa <noreply@voucher.kalanaraspa.com>",
         to: [input.to],

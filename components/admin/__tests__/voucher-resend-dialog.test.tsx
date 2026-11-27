@@ -269,6 +269,41 @@ describe("ResendVoucherDialog", () => {
     expect(props.onWhatsAppCopied).not.toHaveBeenCalled();
   });
 
+  test("says the copy was not logged when the audit write fails", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    getVoucherWhatsAppLinkMock.mockResolvedValue({ status: "ok", url: "https://wa.me/6281211112222?text=hi" });
+    recordCopiedMock.mockResolvedValue({ status: "error" });
+    const props = renderDialog();
+
+    await user.click(screen.getByRole("button", { name: "Salin link WhatsApp" }));
+
+    expect(
+      await screen.findByText("Link WhatsApp sudah disalin, tapi catatannya gagal disimpan.")
+    ).toBeInTheDocument();
+    expect(props.onWhatsAppCopied).not.toHaveBeenCalled();
+  });
+
+  test("the WhatsApp button stays busy until the copy is logged", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    getVoucherWhatsAppLinkMock.mockResolvedValue({ status: "ok", url: "https://wa.me/6281211112222?text=hi" });
+    let finishLog: (value: { status: "ok" }) => void = () => undefined;
+    recordCopiedMock.mockReturnValue(new Promise((resolve) => (finishLog = resolve)));
+    renderDialog();
+
+    const button = screen.getByRole("button", { name: "Salin link WhatsApp" });
+    await user.click(button);
+    await waitFor(() => expect(recordCopiedMock).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("button", { name: "Kirim email" })).toBeDisabled();
+    await user.click(button);
+    expect(recordCopiedMock).toHaveBeenCalledTimes(1);
+    finishLog({ status: "ok" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Kirim email" })).toBeEnabled());
+  });
+
   test("sent but not logged closes the dialog and says not to resend", async () => {
     const user = userEvent.setup();
     resendVoucherEmailMock.mockResolvedValue({ status: "sent_not_logged", to: "dias@gmail.com" });
@@ -284,10 +319,11 @@ describe("ResendVoucherDialog", () => {
     expect(props.onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  test("a retry after a dropped connection reuses the request id", async () => {
+  test("a retry after a dropped connection reuses the request id, even through a cooldown", async () => {
     const user = userEvent.setup();
     resendVoucherEmailMock
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce({ status: "cooldown", retryAfterSeconds: 40 })
       .mockResolvedValueOnce({ status: "provider_error" })
       .mockResolvedValueOnce({ status: "sent", to: "dias@gmail.com", recipientEmailUpdated: false });
     renderDialog();
@@ -295,11 +331,14 @@ describe("ResendVoucherDialog", () => {
     await user.click(screen.getByRole("button", { name: "Kirim email" }));
     expect(await screen.findByText(/Koneksi putus/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Kirim email" }));
+    await screen.findByText(/Tunggu 40 detik/);
+    await user.click(screen.getByRole("button", { name: "Kirim email" }));
     await screen.findByText(/ditolak penyedia email/);
     await user.click(screen.getByRole("button", { name: "Kirim email" }));
 
     const ids = resendVoucherEmailMock.mock.calls.map(([input]) => input.requestId);
     expect(ids[1]).toBe(ids[0]);
-    expect(ids[2]).not.toBe(ids[1]);
+    expect(ids[2]).toBe(ids[0]);
+    expect(ids[3]).not.toBe(ids[2]);
   });
 });
