@@ -273,6 +273,21 @@ describe("voucher resend actions", () => {
     );
   });
 
+  test("a render or setup bug is a server error, not a provider rejection", async () => {
+    sendVoucherEmailMessageMock.mockRejectedValue(new Error("template blew up"));
+    const { rpc } = mockClient(baseTables(), rpcFor({ status: "ok", resend_id: RESEND_ID }));
+    const result = await resendVoucherEmail({
+      orderId: ORDER_ID,
+      voucherId: VOUCHER_ID,
+      target: "RECIPIENT",
+    });
+    expect(result).toEqual({ status: "error" });
+    expect(rpc).toHaveBeenCalledWith(
+      "voucher_resend_finish",
+      expect.objectContaining({ p_sent: false, p_error: "internal: template blew up" })
+    );
+  });
+
   test("says the email went out when only the audit finish fails", async () => {
     mockClient(
       baseTables(),
