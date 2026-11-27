@@ -6,6 +6,7 @@ import {
   type ScalevPaymentMethod,
   type ScalevVABankCode,
 } from "@/lib/scalev/types";
+import { isValidEmailAddress } from "@/lib/email-address";
 import { DeliveryMethod, SendTo } from "@/lib/types";
 
 export interface ValidatedCheckoutLineItem extends ScalevCheckoutLineItem {
@@ -72,11 +73,16 @@ function normalizeLineItem(
     return null;
   }
 
+  const recipientEmail = getOptionalString(data.recipientEmail);
+  if (recipientEmail && !isValidEmailAddress(recipientEmail)) {
+    return null;
+  }
+
   return {
     ...customer,
     serviceId,
     recipientName,
-    recipientEmail: getOptionalString(data.recipientEmail),
+    recipientEmail,
     recipientPhone: getOptionalString(data.recipientPhone),
     senderMessage: getOptionalString(data.senderMessage),
     deliveryMethod,
@@ -115,6 +121,7 @@ export function validateCheckoutRequest(
   if (
     !customerName ||
     !customerEmail ||
+    !isValidEmailAddress(customerEmail) ||
     !customerPhone ||
     (paymentMethodValue !== undefined &&
       !isScalevPaymentMethod(paymentMethodValue))

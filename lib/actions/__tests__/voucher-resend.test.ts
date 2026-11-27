@@ -22,8 +22,10 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 vi.mock("@/lib/email/voucher-email", () => ({
-  renderVoucherEmailHtml: () => "<html>voucher</html>",
+  renderVoucherEmailHtml: (_content: unknown, options?: { variant?: string }) =>
+    options?.variant === "buyer_copy" ? "<html>copy</html>" : "<html>voucher</html>",
   voucherGiftSubject: () => "gift subject",
+  voucherBuyerCopySubject: () => "buyer copy subject",
   sendVoucherEmailMessage: sendVoucherEmailMessageMock,
 }));
 
@@ -187,6 +189,10 @@ describe("voucher resend actions", () => {
       target: "BUYER",
     });
     expect(result).toMatchObject({ status: "sent", to: "buyer@gmail.com" });
+    // The voucher is for Dias, so the buyer gets the buyer copy, not the gift email.
+    expect(sendVoucherEmailMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: "buyer copy subject", html: "<html>copy</html>" })
+    );
   });
 
   test("rejects a typo custom address before touching the database", async () => {

@@ -89,3 +89,34 @@ describe("resend messages", () => {
     );
   });
 });
+
+describe("email typo suggestions", () => {
+  test.each([
+    ["dias@gmail.con", "dias@gmail.com"],
+    ["dias@gmai.com", "dias@gmail.com"],
+    ["dias@gmial.com", "dias@gmail.com"],
+    ["dias@gmail", "dias@gmail.com"],
+    ["dias@yahooo.com", "dias@yahoo.com"],
+    ["dias@yahoo.co.di", "dias@yahoo.co.id"],
+    ["Dias@GMAIL.CON", "Dias@gmail.com"],
+  ])("suggests %s -> %s", async (input, expected) => {
+    const { suggestEmailFix } = await import("@/lib/email-address");
+    expect(suggestEmailFix(input)).toBe(expected);
+  });
+
+  test.each(["dias@gmail.com", "dias@mail.com", "dias@yahoo.co.jp", "dias@i-dacasia.com", "dias@kalanaraspa.com"])(
+    "leaves %s alone",
+    async (input) => {
+      const { suggestEmailFix } = await import("@/lib/email-address");
+      expect(suggestEmailFix(input)).toBeNull();
+    },
+  );
+
+  test("field message: typo first, then format, empty passes", async () => {
+    const { emailFieldProblem } = await import("@/lib/email-address");
+    expect(emailFieldProblem("tri@gmail.con")).toBe("Cek lagi emailnya. Maksudnya tri@gmail.com?");
+    expect(emailFieldProblem("tri@kantor")).toBe("Format email tidak valid");
+    expect(emailFieldProblem("")).toBeNull();
+    expect(emailFieldProblem("tri@gmail.com")).toBeNull();
+  });
+});

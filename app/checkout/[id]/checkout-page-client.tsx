@@ -34,6 +34,7 @@ import type {
   ScalevCheckoutRequest,
   ScalevVABankCode,
 } from "@/lib/scalev/types";
+import { emailFieldProblem } from "@/lib/email-address";
 import { DeliveryMethod, SendTo, type Service } from "@/lib/types";
 
 interface CheckoutPageClientProps {
@@ -262,12 +263,8 @@ export function CheckoutPageClient({
                   recipientPhoneError={errors.recipientPhone}
                   recipientEmailRegistration={register("recipientEmail", {
                     required: showRecipientEmail ? "Email penerima wajib diisi" : false,
-                    pattern: showRecipientEmail
-                      ? {
-                          value: /^\S+@\S+$/i,
-                          message: "Format email tidak valid",
-                        }
-                      : undefined,
+                    validate: (value: unknown) =>
+                      showRecipientEmail ? emailFieldProblem(value) ?? true : true,
                     setValueAs: (value: unknown) =>
                       typeof value === "string" ? value.trim() : value,
                   })}
@@ -286,7 +283,7 @@ export function CheckoutPageClient({
               <CustomerFields
                 idPrefix="checkout"
                 className="animate-fade-slide-up animate-stagger-3"
-                description="Kami gunakan untuk konfirmasi pembayaran dan bantuan jika ada kendala."
+                description="Voucher atau salinannya dikirim ke email ini. Nomor WhatsApp dipakai kalau ada kendala pembayaran."
                 nameRegistration={register("customerName", {
                   required: "Nama lengkap wajib diisi",
                   setValueAs: (value: unknown) =>
@@ -294,10 +291,7 @@ export function CheckoutPageClient({
                 })}
                 emailRegistration={register("customerEmail", {
                   required: "Email wajib diisi",
-                  pattern: {
-                    value: /^\S+@\S+$/i,
-                    message: "Format email tidak valid",
-                  },
+                  validate: (value: unknown) => emailFieldProblem(value) ?? true,
                   setValueAs: (value: unknown) =>
                     typeof value === "string" ? value.trim() : value,
                 })}

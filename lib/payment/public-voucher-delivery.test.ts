@@ -22,6 +22,7 @@ describe("authorized voucher delivery", () => {
       public_access_token: "token",
       payment_status: "COMPLETED",
       customer_phone: "62812",
+      customer_email: "buyer@example.com",
       recipient_phone: "62813",
       send_to: "RECIPIENT",
       vouchers: {
@@ -48,6 +49,7 @@ describe("authorized voucher delivery", () => {
         token: "token",
         voucherCode: "KSPV-1",
         recipientEmail: "recipient@example.com",
+        buyerEmail: "buyer@example.com",
         recipientPhone: "62813",
         recipientName: "Penerima",
         senderName: "Pengirim",
@@ -67,6 +69,7 @@ describe("authorized voucher delivery", () => {
       public_access_token: "token",
       payment_status: "COMPLETED",
       customer_phone: "62812",
+      customer_email: "buyer@example.com",
       order_items: [
         {
           id: "item-1",
@@ -97,6 +100,7 @@ describe("authorized voucher delivery", () => {
         token: "token",
         voucherCode: "KSPV-2",
         recipientEmail: "recipient@example.com",
+        buyerEmail: "buyer@example.com",
         recipientPhone: "62812",
         recipientName: "Penerima",
         senderName: "Pengirim",

@@ -438,4 +438,43 @@ describe("CheckoutPageClient", () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/discount-codes/preview");
     expect(push).not.toHaveBeenCalled();
   });
+
+  test("suggests the fix for a typo email on blur", async () => {
+    const user = userEvent.setup();
+    renderCheckout();
+    const email = screen.getByLabelText("Email", { selector: "#checkout-customer-email" });
+
+    await user.type(email, "tri@gmail.con");
+    await user.tab();
+    expect(
+      await screen.findByText("Cek lagi emailnya. Maksudnya tri@gmail.com?")
+    ).toBeInTheDocument();
+
+    await user.clear(email);
+    await user.type(email, "tri@gmail");
+    await user.tab();
+    expect(
+      await screen.findByText("Cek lagi emailnya. Maksudnya tri@gmail.com?")
+    ).toBeInTheDocument();
+
+    await user.clear(email);
+    await user.type(email, "tri@gmail.com");
+    await user.tab();
+    await waitFor(() =>
+      expect(screen.queryByText(/Cek lagi emailnya/)).not.toBeInTheDocument()
+    );
+  });
+
+  test("checks the recipient email the same way", async () => {
+    const user = userEvent.setup();
+    renderCheckout();
+    fireEvent.click(screen.getByRole("radio", { name: "Untuk orang lain" }));
+    const email = screen.getByLabelText("Email penerima");
+
+    await user.type(email, "dias@gmai.com");
+    await user.tab();
+    expect(
+      await screen.findByText("Cek lagi emailnya. Maksudnya dias@gmail.com?")
+    ).toBeInTheDocument();
+  });
 });

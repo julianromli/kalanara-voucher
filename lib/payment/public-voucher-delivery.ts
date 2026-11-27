@@ -7,6 +7,7 @@ export interface AuthorizedVoucherDelivery {
   token: string;
   voucherCode: string;
   recipientEmail: string | null;
+  buyerEmail: string | null;
   recipientPhone: string | null;
   recipientName: string;
   senderName: string;
@@ -49,6 +50,7 @@ function mapAuthorizedVoucherDelivery(
     token: order.public_access_token,
     voucherCode: voucher.code,
     recipientEmail: voucher.recipient_email,
+    buyerEmail: order.customer_email ?? null,
     recipientPhone,
     recipientName: voucher.recipient_name,
     senderName: voucher.sender_name,
@@ -138,12 +140,15 @@ async function postVoucherDelivery(
   path: "/api/email/send-voucher" | "/api/whatsapp/send-voucher",
   orderId: string,
   token: string,
-  orderItemId?: string
+  orderItemId?: string,
+  audience?: "buyer"
 ) {
   const response = await fetch(`${getServerAppUrl()}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ orderId, token, orderItemId }),
+    body: JSON.stringify(
+      audience ? { orderId, token, orderItemId, audience } : { orderId, token, orderItemId }
+    ),
   });
 
   if (!response.ok) {
@@ -159,9 +164,10 @@ async function postVoucherDelivery(
 export async function sendVoucherEmail(
   orderId: string,
   token: string,
-  orderItemId?: string
+  orderItemId?: string,
+  audience?: "buyer"
 ) {
-  await postVoucherDelivery("/api/email/send-voucher", orderId, token, orderItemId);
+  await postVoucherDelivery("/api/email/send-voucher", orderId, token, orderItemId, audience);
 }
 
 export async function sendVoucherWhatsApp(

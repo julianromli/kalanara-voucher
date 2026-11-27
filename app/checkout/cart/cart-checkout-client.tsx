@@ -27,6 +27,7 @@ import {
   resolveCheckoutRecipientName,
 } from "@/lib/checkout/client";
 import { getPaymentStatusPath, POPUP_BLOCKED_MESSAGE, submitCheckoutPayment } from "@/lib/checkout/payment-client";
+import { emailFieldProblem } from "@/lib/email-address";
 import { DeliveryMethod, SendTo } from "@/lib/types";
 import { useCartStore } from "@/store/cart-store";
 
@@ -337,16 +338,14 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
             <div className="space-y-6">
               <CustomerFields
                 idPrefix="cart"
+                description="Voucher atau salinannya dikirim ke email ini. Nomor WhatsApp dipakai kalau ada kendala pembayaran."
                 nameRegistration={register("customerName", {
                   required: "Nama lengkap wajib diisi",
                   setValueAs: (value: unknown) => (typeof value === "string" ? value.trim() : value),
                 })}
                 emailRegistration={register("customerEmail", {
                   required: "Email wajib diisi",
-                  pattern: {
-                    value: /^\S+@\S+$/i,
-                    message: "Format email tidak valid",
-                  },
+                  validate: (value: unknown) => emailFieldProblem(value) ?? true,
                   setValueAs: (value: unknown) => (typeof value === "string" ? value.trim() : value),
                 })}
                 phoneRegistration={registerPhoneField("customerPhone", "Nomor WhatsApp wajib diisi")}
@@ -510,12 +509,8 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
                               recipientPhoneError={itemErrors?.recipientPhone}
                               recipientEmailRegistration={register(`lineItems.${index}.recipientEmail`, {
                                 required: showRecipientEmail ? "Email penerima wajib diisi" : false,
-                                pattern: showRecipientEmail
-                                  ? {
-                                      value: /^\S+@\S+$/i,
-                                      message: "Format email tidak valid",
-                                    }
-                                  : undefined,
+                                validate: (value: unknown) =>
+                                  showRecipientEmail ? emailFieldProblem(value) ?? true : true,
                                 setValueAs: (value: unknown) =>
                                   typeof value === "string" ? value.trim() : value,
                               })}

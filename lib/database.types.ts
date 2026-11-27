@@ -1690,7 +1690,7 @@ export type Database = {
       payment_method: "CREDIT_CARD" | "BANK_TRANSFER" | "E_WALLET";
       payment_status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
       admin_role: "SUPER_ADMIN" | "MANAGER" | "STAFF";
-      voucher_delivery_channel: "EMAIL" | "WHATSAPP";
+      voucher_delivery_channel: "EMAIL" | "WHATSAPP" | "EMAIL_BUYER_COPY";
       voucher_delivery_status:
         | "PENDING"
         | "PROCESSING"

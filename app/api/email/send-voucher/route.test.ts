@@ -39,6 +39,7 @@ describe("POST /api/email/send-voucher", () => {
       token: "server-token",
       voucherCode: "KSPV-001",
       recipientEmail: "recipient@example.com",
+      buyerEmail: "buyer@example.com",
       recipientName: "Penerima",
       senderName: "Pengirim",
       senderMessage: null,
@@ -285,5 +286,88 @@ describe("POST /api/email/send-voucher", () => {
       error: "Failed to generate voucher PDF",
     });
     expect(resendSendMock).not.toHaveBeenCalled();
+  });
+
+  describe("buyer copy", () => {
+    const buyerRequest = (ip: string) =>
+      new Request("http://localhost/api/email/send-voucher", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-forwarded-for": ip },
+        body: JSON.stringify({ orderId: "server-order-1", token: "server-token", audience: "buyer" }),
+      }) as never;
+
+    test("sends the buyer copy to the buyer with its own subject, note and key", async () => {
+      const { POST } = await import("@/app/api/email/send-voucher/route");
+
+      const giftResponse = await POST(
+        new Request("http://localhost/api/email/send-voucher", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.70" },
+          body: JSON.stringify({ orderId: "server-order-1", token: "server-token" }),
+        }) as never
+      );
+      const copyResponse = await POST(buyerRequest("203.0.113.71"));
+
+      expect(giftResponse.status).toBe(200);
+      expect(copyResponse.status).toBe(200);
+      const [giftPayload, giftOptions] = resendSendMock.mock.calls[0];
+      const [copyPayload, copyOptions] = resendSendMock.mock.calls[1];
+      expect(giftPayload.to).toEqual(["recipient@example.com"]);
+      expect(copyPayload.to).toEqual(["buyer@example.com"]);
+      expect(copyPayload.subject).toBe("Your copy: Kalanara Spa voucher for Penerima");
+      expect(copyPayload.html).toContain("This is your copy.");
+      expect(copyPayload.html).toContain("recipient@example.com");
+      expect(giftPayload.html).not.toContain("This is your copy.");
+      expect(copyPayload.attachments).toHaveLength(1);
+      expect(copyOptions.idempotencyKey).toMatch(/^voucher-email-[a-f0-9]{64}$/);
+      expect(copyOptions.idempotencyKey).not.toBe(giftOptions.idempotencyKey);
+    });
+
+    test("skips the copy when the recipient address is the buyer's", async () => {
+      getAuthorizedVoucherDeliveryMock.mockResolvedValueOnce({
+        orderId: "server-order-1",
+        token: "server-token",
+        voucherCode: "KSPV-001",
+        recipientEmail: "Buyer@Example.com",
+        buyerEmail: "buyer@example.com",
+        recipientName: "Penerima",
+        senderName: "Pengirim",
+        senderMessage: null,
+        serviceName: "Balinese Massage",
+        serviceDuration: 60,
+        amount: 450000,
+        expiryDate: "2027-01-01T00:00:00.000Z",
+      });
+      const { POST } = await import("@/app/api/email/send-voucher/route");
+
+      const response = await POST(buyerRequest("203.0.113.72"));
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({ success: true, skipped: "same_address" });
+      expect(resendSendMock).not.toHaveBeenCalled();
+    });
+
+    test("returns 400 when the order has no buyer email", async () => {
+      getAuthorizedVoucherDeliveryMock.mockResolvedValueOnce({
+        orderId: "server-order-1",
+        token: "server-token",
+        voucherCode: "KSPV-001",
+        recipientEmail: "recipient@example.com",
+        buyerEmail: null,
+        recipientName: "Penerima",
+        senderName: "Pengirim",
+        senderMessage: null,
+        serviceName: "Balinese Massage",
+        serviceDuration: 60,
+        amount: 450000,
+        expiryDate: "2027-01-01T00:00:00.000Z",
+      });
+      const { POST } = await import("@/app/api/email/send-voucher/route");
+
+      const response = await POST(buyerRequest("203.0.113.73"));
+
+      expect(response.status).toBe(400);
+      expect(resendSendMock).not.toHaveBeenCalled();
+    });
   });
 });

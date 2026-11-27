@@ -5,8 +5,10 @@ import {
   getEmailIdempotencyKey,
   renderVoucherEmailHtml,
   sendVoucherEmailMessage,
+  voucherBuyerCopySubject,
   voucherGiftSubject,
 } from "@/lib/email/voucher-email";
+import { isValidEmailAddress, sameEmailAddress } from "@/lib/email-address";
 
 const checkRateLimit = createRateLimiter({ limit: 10, windowMs: 60000 });
 
@@ -14,6 +16,8 @@ interface VoucherEmailRequest {
   orderId: string;
   token: string;
   orderItemId?: string;
+  // "buyer" sends the buyer's copy of a voucher bought for someone else.
+  audience?: "buyer";
 }
 
 export async function POST(request: NextRequest) {
@@ -31,7 +35,7 @@ export async function POST(request: NextRequest) {
       throw error;
     })) as VoucherEmailRequest;
 
-    const { orderId, token, orderItemId } = body;
+    const { orderId, token, orderItemId, audience } = body;
 
     if (!orderId || !token) {
       return NextResponse.json(
@@ -46,6 +50,47 @@ export async function POST(request: NextRequest) {
         { error: "Voucher tidak valid atau email penerima tidak tersedia." },
         { status: 400 }
       );
+    }
+
+    if (audience === "buyer") {
+      const buyerEmail = delivery.buyerEmail?.trim() ?? "";
+      if (!buyerEmail || !isValidEmailAddress(buyerEmail)) {
+        return NextResponse.json(
+          { error: "Email pembeli tidak tersedia." },
+          { status: 400 }
+        );
+      }
+      if (sameEmailAddress(buyerEmail, delivery.recipientEmail)) {
+        // The recipient address is the buyer's: the gift email already
+        // reached them, so there is no copy to send.
+        return NextResponse.json({ success: true, skipped: "same_address" });
+      }
+
+      const copyHtml = renderVoucherEmailHtml(delivery, {
+        variant: "buyer_copy",
+        recipientEmail: delivery.recipientEmail,
+      });
+      const copyResult = await sendVoucherEmailMessage({
+        delivery,
+        to: buyerEmail,
+        subject: voucherBuyerCopySubject(delivery),
+        html: copyHtml,
+        idempotencyKey: getEmailIdempotencyKey(
+          { ...delivery, recipientEmail: buyerEmail },
+          copyHtml,
+          "EMAIL_BUYER_COPY"
+        ),
+      });
+      if (!copyResult.ok) {
+        return NextResponse.json(
+          {
+            error:
+              copyResult.reason === "pdf" ? "Failed to generate voucher PDF" : "Failed to send email",
+          },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({ success: true, messageId: copyResult.messageId });
     }
 
     const emailHtml = renderVoucherEmailHtml(delivery);

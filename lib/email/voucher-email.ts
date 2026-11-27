@@ -78,10 +78,11 @@ export async function createVoucherPdfAttachment(
 // they are not deterministic.
 export function getEmailIdempotencyKey(
   delivery: VoucherEmailContent,
-  emailHtml: string
+  emailHtml: string,
+  channel: "EMAIL" | "EMAIL_BUYER_COPY" = "EMAIL"
 ): string {
   const deliveryIdentity = JSON.stringify({
-    channel: "EMAIL",
+    channel,
     attachment: "voucher-pdf-v1",
     html: createHash("sha256").update(emailHtml).digest("hex"),
     orderId: delivery.orderId,
@@ -103,7 +104,20 @@ export function voucherGiftSubject(delivery: Pick<VoucherEmailContent, "senderNa
   return `🎁 ${sanitizeHeaderValue(delivery.senderName)} sent you a gift from Kalanara Spa!`;
 }
 
-export function renderVoucherEmailHtml(delivery: VoucherEmailContent): string {
+export type VoucherEmailVariant = "gift" | "buyer_copy";
+
+// Subject for the buyer's copy of a voucher bought for someone else.
+export function voucherBuyerCopySubject(
+  delivery: Pick<VoucherEmailContent, "recipientName">
+): string {
+  return `Your copy: Kalanara Spa voucher for ${sanitizeHeaderValue(delivery.recipientName)}`;
+}
+
+export function renderVoucherEmailHtml(
+  delivery: VoucherEmailContent,
+  options: { variant?: VoucherEmailVariant; recipientEmail?: string | null } = {}
+): string {
+  const variant = options.variant ?? "gift";
   const recipientName = escapeHtml(delivery.recipientName);
   const senderName = escapeHtml(delivery.senderName);
   const senderMessage = delivery.senderMessage ? escapeHtml(delivery.senderMessage) : null;
@@ -155,7 +169,20 @@ export function renderVoucherEmailHtml(delivery: VoucherEmailContent): string {
             A gift for you&nbsp;&nbsp;<span style="color: #e6bf6d;">&bull;</span>&nbsp;&nbsp;Harmony in every touch&nbsp;&nbsp;<span style="color: #e6bf6d;">&bull;</span>&nbsp;&nbsp;A gift for you
           </td>
         </tr>
-
+${
+  variant === "buyer_copy"
+    ? `
+        <!-- Buyer copy note -->
+        <tr>
+          <td style="padding: 20px 40px; background-color: #f4efe6; color: #243a3e; font-size: 15px; line-height: 1.5; text-align: center;">
+            This is your copy. The same voucher was sent to <strong style="font-weight: 600;">${recipientName}</strong>${
+              options.recipientEmail ? ` at ${escapeHtml(options.recipientEmail)}` : ""
+            }. Keep it in case they need the code.
+          </td>
+        </tr>
+`
+    : ""
+}
         <!-- Hero -->
         <tr>
           <td style="padding: 40px 40px 48px; text-align: center;">
