@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const { resendMock } = vi.hoisted(() => ({ resendMock: vi.fn() }));
 
@@ -36,6 +36,10 @@ describe("POST /api/admin/vouchers/resend", () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   test("passes the input to the resend and returns its result", async () => {
     resendMock.mockResolvedValue({ status: "sent", to: "dias@gmail.com", recipientEmailUpdated: false });
     const response = await POST(
@@ -46,7 +50,7 @@ describe("POST /api/admin/vouchers/resend", () => {
           target: "CUSTOM",
           email: "dias@gmail.com",
           saveAsRecipient: true,
-          requestId: "r-1",
+          requestId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
         })
       )
     );
@@ -62,7 +66,7 @@ describe("POST /api/admin/vouchers/resend", () => {
       target: "CUSTOM",
       email: "dias@gmail.com",
       saveAsRecipient: true,
-      requestId: "r-1",
+      requestId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
     });
   });
 
@@ -100,12 +104,11 @@ describe("POST /api/admin/vouchers/resend", () => {
   });
 
   test("returns 500 error for an unexpected throw", async () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
     resendMock.mockRejectedValue(new Error("db down"));
     const response = await POST(request(JSON.stringify({})));
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({ status: "error" });
-    consoleError.mockRestore();
   });
 
   test.each([
@@ -120,6 +123,6 @@ describe("POST /api/admin/vouchers/resend", () => {
     resendMock.mockResolvedValue({ status, retryAfterSeconds: 30 });
     const response = await POST(request(JSON.stringify({})));
     expect(response.status).toBe(http);
-    await expect(response.json()).resolves.toMatchObject({ status });
+    await expect(response.json()).resolves.toEqual({ status, retryAfterSeconds: 30 });
   });
 });

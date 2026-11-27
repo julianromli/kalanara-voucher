@@ -422,10 +422,24 @@ describe("voucher resend actions", () => {
   });
 
   test("refuses a voucher that does not belong to the order", async () => {
-    mockClient(baseTables(), rpcFor({ status: "not_found" }));
+    // The order links neither through order_items nor orders.voucher_id; the
+    // begin RPC owns that check (see the migration contract test) and says
+    // not_found for exactly this pair.
+    const rpc = rpcFor({ status: "not_found" });
+    mockClient(
+      baseTables({
+        orders: { data: { ...order, voucher_id: null }, error: null },
+        order_items: { data: [], error: null },
+      }),
+      rpc
+    );
     await expect(
       resendVoucherEmail({ orderId: ORDER_ID, voucherId: VOUCHER_ID, target: "RECIPIENT" })
     ).resolves.toEqual({ status: "not_found", retryAfterSeconds: null });
+    expect(rpc).toHaveBeenCalledWith(
+      "voucher_resend_begin",
+      expect.objectContaining({ p_order_id: ORDER_ID, p_voucher_id: VOUCHER_ID })
+    );
     expect(sendVoucherEmailMessageMock).not.toHaveBeenCalled();
   });
 
@@ -444,7 +458,7 @@ describe("voucher resend actions", () => {
 
   test("returns network when the email provider cannot be reached", async () => {
     mockClient(baseTables(), rpcFor({ status: "ok", resend_id: RESEND_ID }));
-    sendVoucherEmailMessageMock.mockRejectedValue(new TypeError("fetch failed"));
+    sendVoucherEmailMessageMock.mockResolvedValue({ ok: false, reason: "network", message: "Email provider unreachable" });
     await expect(
       resendVoucherEmail({ orderId: ORDER_ID, voucherId: VOUCHER_ID, target: "RECIPIENT" })
     ).resolves.toEqual({ status: "network" });

@@ -78,7 +78,9 @@ describe("voucher resends migration contract", () => {
 
   test("finish records the address it replaced, read under the voucher lock", () => {
     const body = functionBody("voucher_resend_finish");
-    const read = body.search(/SELECT voucher\.recipient_email INTO v_replaced[\s\S]*?FOR UPDATE;/);
+    const read = body.search(
+      /SELECT voucher\.recipient_email INTO v_replaced\s+FROM public\.vouchers AS voucher\s+WHERE voucher\.id = v_row\.voucher_id\s+FOR UPDATE;/
+    );
     const update = body.indexOf("UPDATE public.vouchers");
     expect(read).toBeGreaterThan(0);
     expect(read).toBeLessThan(update);
