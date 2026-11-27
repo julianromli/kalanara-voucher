@@ -386,6 +386,8 @@ export interface PublicOrderVoucherPayload {
   expiryDate: string;
   deliveryMethod: DeliveryMethod;
   sendTo: SendTo;
+  /** wa.me link saved at delivery; the buyer taps it to send the voucher. */
+  whatsappLink?: string | null;
 }
 
 export interface PublicOrderDetailsPayload {

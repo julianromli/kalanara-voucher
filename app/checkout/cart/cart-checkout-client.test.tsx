@@ -196,7 +196,7 @@ describe("CartCheckoutClient", () => {
     expect(screen.getAllByText("Mengikuti Voucher 1").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("radio", { name: "Untuk orang lain" }));
     fireEvent.click(
-      screen.getByRole("checkbox", { name: "Kirim juga lewat WhatsApp" })
+      screen.getByRole("checkbox", { name: "Siapkan juga pesan WhatsApp" })
     );
 
     fireEvent.change(screen.getByPlaceholderText("Nama penerima voucher"), {
@@ -297,7 +297,7 @@ describe("CartCheckoutClient", () => {
     expect(secondRecipientRadio).toBeChecked();
 
     const firstIncludeWhatsApp = screen.getAllByRole("checkbox", {
-      name: "Kirim juga lewat WhatsApp",
+      name: "Siapkan juga pesan WhatsApp",
     })[0];
     firstIncludeWhatsApp.focus();
     await user.keyboard("[Space]");
@@ -361,7 +361,7 @@ describe("CartCheckoutClient", () => {
     fireEvent.click(screen.getByLabelText("Pakai data yang sama untuk semua voucher"));
     fireEvent.click(screen.getByRole("radio", { name: "Untuk orang lain" }));
     fireEvent.click(
-      screen.getByRole("checkbox", { name: "Kirim juga lewat WhatsApp" })
+      screen.getByRole("checkbox", { name: "Siapkan juga pesan WhatsApp" })
     );
     expect(screen.getAllByText("Mengikuti Voucher 1").length).toBeGreaterThan(0);
 

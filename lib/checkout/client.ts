@@ -55,15 +55,63 @@ export function getDeliveryPreview(
   sendTo: SendTo,
   deliveryMethod: DeliveryMethod
 ) {
-  const destination =
-    sendTo === SendTo.RECIPIENT ? "penerima" : "kamu";
-  const channel =
-    deliveryMethod === DeliveryMethod.BOTH
-      ? "email dan WhatsApp"
-      : deliveryMethod === DeliveryMethod.EMAIL
-        ? "email"
-        : "WhatsApp";
-  return `Voucher akan dikirim ke ${channel} ${destination} setelah pembayaran berhasil.`;
+  const destination = sendTo === SendTo.RECIPIENT ? "penerima" : "kamu";
+  const whatsAppStep =
+    "Setelah bayar, kamu bisa kirim pesan WhatsApp-nya dengan satu tap.";
+  if (deliveryMethod === DeliveryMethod.WHATSAPP) {
+    return whatsAppStep;
+  }
+  const emailLine = `Voucher akan dikirim ke email ${destination} setelah pembayaran berhasil.`;
+  return deliveryMethod === DeliveryMethod.BOTH
+    ? `${emailLine} ${whatsAppStep}`
+    : emailLine;
+}
+
+export interface SuccessDeliveryCopy {
+  email: string | null;
+  whatsapp: string | null;
+}
+
+/**
+ * What the success page can honestly say: email goes out automatically,
+ * WhatsApp is never sent for the buyer, it is a wa.me message they tap to send.
+ */
+export function getSuccessDeliveryCopy(voucher: {
+  sendTo: SendTo;
+  deliveryMethod: DeliveryMethod;
+  recipientEmail?: string | null;
+  recipientName?: string;
+  whatsappLink?: string | null;
+}, customerEmail?: string | null): SuccessDeliveryCopy {
+  const forRecipient = voucher.sendTo === SendTo.RECIPIENT;
+  const usesEmail =
+    voucher.deliveryMethod === DeliveryMethod.EMAIL ||
+    voucher.deliveryMethod === DeliveryMethod.BOTH;
+  const usesWhatsApp =
+    voucher.deliveryMethod === DeliveryMethod.WHATSAPP ||
+    voucher.deliveryMethod === DeliveryMethod.BOTH;
+
+  let email: string | null = null;
+  if (usesEmail) {
+    const address = forRecipient ? voucher.recipientEmail : customerEmail;
+    email = address
+      ? `Voucher dikirim ke email ${address}.`
+      : forRecipient
+        ? "Voucher dikirim ke email penerima."
+        : "Voucher dikirim ke email kamu.";
+  } else if (usesWhatsApp) {
+    email = "Voucher tidak dikirim lewat email. Simpan PDF-nya atau kirim lewat WhatsApp.";
+  }
+
+  let whatsapp: string | null = null;
+  if (usesWhatsApp) {
+    const target = forRecipient ? voucher.recipientName || "penerima" : "nomor kamu";
+    whatsapp = voucher.whatsappLink
+      ? `WhatsApp tidak terkirim otomatis. Tap tombol di bawah untuk mengirim voucher ke ${target} dari WhatsApp kamu.`
+      : "Link WhatsApp belum siap. Cek lagi sebentar.";
+  }
+
+  return { email, whatsapp };
 }
 
 export function buildConditionalFieldAnnouncement(

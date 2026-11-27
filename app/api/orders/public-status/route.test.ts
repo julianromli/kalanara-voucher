@@ -4,9 +4,15 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const {
   reconcilePublicOrderStatusByInternalOrderId,
   resolveActiveOrderStatusSession,
+  withWhatsAppHandoffLinks,
 } = vi.hoisted(() => ({
   reconcilePublicOrderStatusByInternalOrderId: vi.fn(),
   resolveActiveOrderStatusSession: vi.fn(),
+  withWhatsAppHandoffLinks: vi.fn(async (_orderId: string, payload: unknown) => payload),
+}));
+
+vi.mock("@/lib/payment/whatsapp-handoff", () => ({
+  withWhatsAppHandoffLinks,
 }));
 
 vi.mock("@/lib/scalev/reconcile", () => ({
@@ -142,6 +148,37 @@ describe("POST /api/orders/public-status", () => {
       status: "pending",
       orderId: "KSP-123",
       paymentStatus: "PENDING",
+    });
+  });
+
+  test("adds saved WhatsApp links using the session's internal order id", async () => {
+    resolveActiveOrderStatusSession.mockResolvedValue({
+      id: sessionId,
+      orderId: "internal-order-1",
+      expiresAt: "2026-09-14T12:58:00.000Z",
+    });
+    const completed = { status: "completed", orderId: "KSP-123", paymentStatus: "COMPLETED" };
+    reconcilePublicOrderStatusByInternalOrderId.mockResolvedValue(completed);
+    withWhatsAppHandoffLinks.mockResolvedValueOnce({
+      ...completed,
+      vouchers: [{ voucherCode: "V-1", whatsappLink: "https://wa.me/628123?text=x" }],
+    });
+    const { POST } = await import("@/app/api/orders/public-status/route");
+
+    const response = await POST(
+      new NextRequest("https://voucher.kalanaraspa.com/api/orders/public-status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `__Host-kalanara-status-${sessionId}=short-lived-secret`,
+        },
+        body: JSON.stringify({ orderId: "KSP-123", statusSessionId: sessionId }),
+      })
+    );
+
+    expect(withWhatsAppHandoffLinks).toHaveBeenCalledWith("internal-order-1", completed);
+    await expect(response.json()).resolves.toMatchObject({
+      vouchers: [{ whatsappLink: "https://wa.me/628123?text=x" }],
     });
   });
 });

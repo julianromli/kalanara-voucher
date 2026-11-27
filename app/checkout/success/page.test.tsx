@@ -150,6 +150,7 @@ describe("CheckoutSuccessPage", () => {
             expiryDate: "2026-03-12T04:05:55.854402Z",
             deliveryMethod: "WHATSAPP",
             sendTo: "PURCHASER",
+            whatsappLink: "https://wa.me/6281234567890?text=Voucher",
           },
         }),
       })
@@ -161,7 +162,15 @@ describe("CheckoutSuccessPage", () => {
       </ToastProvider>
     );
 
-    expect(await screen.findByText("Voucher dikirim ke WhatsApp kamu")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "Voucher tidak dikirim lewat email. Simpan PDF-nya atau kirim lewat WhatsApp."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Kirim lewat WhatsApp" })).toHaveAttribute(
+      "href",
+      "https://wa.me/6281234567890?text=Voucher"
+    );
     expect(screen.getByRole("button", { name: "Download PDF" })).toBeInTheDocument();
 
     await waitFor(() => {
@@ -180,6 +189,110 @@ describe("CheckoutSuccessPage", () => {
     await waitFor(() => {
       expect(useCartStore.getState().items.map((item) => item.id)).toEqual(["cart-2"]);
       expect(useCartStore.getState().pendingCheckout).toBeNull();
+    });
+  });
+
+  describe("WhatsApp handoff", () => {
+    const giftVoucher = {
+      voucherCode: "KSPV-002",
+      paymentOrderId: "KSP-123",
+      recipientName: "Dias",
+      recipientEmail: "dias@example.com",
+      recipientPhone: "081234567890",
+      senderName: "Tri",
+      senderMessage: null,
+      serviceName: "Balinese Massage",
+      serviceDuration: 60,
+      amount: 450000,
+      expiryDate: "2027-03-12T04:05:55.854402Z",
+      deliveryMethod: "BOTH",
+      sendTo: "RECIPIENT",
+    };
+    const completed = (voucher: Record<string, unknown>) => ({
+      ok: true,
+      json: async () => ({
+        status: "completed",
+        orderId: "KSP-123",
+        paymentStatus: "COMPLETED",
+        voucher,
+        vouchers: [voucher],
+        orderDetails: { customerEmail: "tri@example.com" },
+      }),
+    });
+
+    test("says where the email went and offers the saved wa.me link as a tap", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          completed({ ...giftVoucher, whatsappLink: "https://wa.me/6281234567890?text=Halo" })
+        )
+      );
+
+      render(
+        <ToastProvider>
+          <CheckoutSuccessPage />
+        </ToastProvider>
+      );
+
+      expect(
+        await screen.findByText("Voucher dikirim ke email dias@example.com.")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "WhatsApp tidak terkirim otomatis. Tap tombol di bawah untuk mengirim voucher ke Dias dari WhatsApp kamu."
+        )
+      ).toBeInTheDocument();
+      const link = screen.getByRole("link", { name: "Kirim lewat WhatsApp" });
+      expect(link).toHaveAttribute("href", "https://wa.me/6281234567890?text=Halo");
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+      expect(link.className).toContain("min-h-11");
+      expect(screen.queryByText(/dikirim ke email dan WhatsApp/)).not.toBeInTheDocument();
+    });
+
+    test("keeps polling briefly until the WhatsApp link is saved", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(completed(giftVoucher))
+        .mockResolvedValue(
+          completed({ ...giftVoucher, whatsappLink: "https://wa.me/6281234567890?text=Halo" })
+        );
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(
+        <ToastProvider>
+          <CheckoutSuccessPage />
+        </ToastProvider>
+      );
+
+      expect(
+        await screen.findByText("Link WhatsApp belum siap. Cek lagi sebentar.")
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Cek lagi" })).toBeInTheDocument();
+      expect(
+        await screen.findByRole("link", { name: "Kirim lewat WhatsApp" }, { timeout: 4000 })
+      ).toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    test("email-only vouchers show no WhatsApp action and stop polling", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(completed({ ...giftVoucher, deliveryMethod: "EMAIL" }));
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(
+        <ToastProvider>
+          <CheckoutSuccessPage />
+        </ToastProvider>
+      );
+
+      expect(
+        await screen.findByText("Voucher dikirim ke email dias@example.com.")
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Kirim lewat WhatsApp" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Cek lagi" })).not.toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 });
