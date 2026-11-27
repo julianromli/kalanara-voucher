@@ -51,7 +51,10 @@ function findRoutesThatRenderVoucherPdf(): string[] {
         walk(entryPath);
       } else if (entry.name === "route.ts") {
         const source = fs.readFileSync(entryPath, "utf8");
-        if (/from\s+["']@\/lib\/pdf["']/.test(source)) {
+        // Direct users of lib/pdf, plus routes that render it through the
+        // voucher email helpers. Only direct imports are checked: add any new
+        // module that wraps these to this list.
+        if (/from\s+["']@\/lib\/(?:pdf|email\/voucher-email|voucher-resend\/server|actions\/voucher-resend)["']/.test(source)) {
           const routeDir = path.relative(path.join(process.cwd(), "app"), dir);
           routes.push(`/${routeDir.split(path.sep).join("/")}`);
         }
@@ -64,6 +67,28 @@ function findRoutesThatRenderVoucherPdf(): string[] {
 }
 
 describe("voucher PDF background", () => {
+  it("renders the same bytes for the same voucher, so idempotent email retries match", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    let first: string;
+    let second: string;
+    try {
+      vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+      first = await renderPdfSource();
+      vi.setSystemTime(new Date("2026-06-30T12:34:56Z"));
+      second = await renderPdfSource();
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(second).toBe(first);
+    expect(first).toContain("/CreationDate (D:20250101000000+00'00')");
+    const other = Buffer.from(
+      await (await generateVoucherPDF({ ...SAMPLE_VOUCHER, code: "KSP-2026-OTHER" })).arrayBuffer()
+    ).toString("latin1");
+    const fileId = (source: string) => /\/ID \[ <([0-9A-F]{32})>/.exec(source)?.[1];
+    expect(fileId(other)).toMatch(/^[0-9A-F]{32}$/);
+    expect(fileId(other)).not.toBe(fileId(first));
+  }, 20_000);
+
   afterEach(() => {
     vi.restoreAllMocks();
   });

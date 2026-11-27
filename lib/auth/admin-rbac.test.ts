@@ -39,3 +39,12 @@ describe("membership admin access", () => {
     );
   });
 });
+
+describe("voucher resend access", () => {
+  test.each(["STAFF", "MANAGER", "SUPER_ADMIN", "ADMIN"] as const)(
+    "lets %s resend a voucher",
+    (role) => {
+      expect(hasPermissionForRole(role, AdminPermission.ORDERS_RESEND_VOUCHER)).toBe(true);
+    },
+  );
+});

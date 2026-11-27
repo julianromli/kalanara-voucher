@@ -43,7 +43,9 @@ function isClaimedDelivery(value: unknown): value is ClaimedVoucherDeliveryRow {
   const row = value as Record<string, unknown>;
   return (
     typeof row.id === "string" &&
-    (row.channel === "EMAIL" || row.channel === "WHATSAPP") &&
+    (row.channel === "EMAIL" ||
+      row.channel === "WHATSAPP" ||
+      row.channel === "EMAIL_BUYER_COPY") &&
     typeof row.claim_token === "string"
   );
 }
@@ -95,6 +97,23 @@ export async function claimVoucherDeliveries(
     channel: row.channel,
     claimToken: row.claim_token,
   }));
+}
+
+// Channels that already have an outbox row for this voucher. Used to give a
+// buyer copy only to new deliveries, never to old orders on a replayed webhook.
+export async function listVoucherDeliveryChannels(
+  voucherId: string
+): Promise<VoucherDeliveryChannel[]> {
+  const { data, error } = await getAdminClient()
+    .from("voucher_delivery_outbox")
+    .select("channel")
+    .eq("voucher_id", voucherId);
+
+  if (error) {
+    throw persistenceError("lookup", error);
+  }
+
+  return (data ?? []).map((row) => row.channel as VoucherDeliveryChannel);
 }
 
 export async function markVoucherDeliverySent(

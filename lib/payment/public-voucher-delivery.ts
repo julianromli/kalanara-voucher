@@ -5,8 +5,11 @@ import { getPublicOrderDetailsWithItems } from "@/lib/payment/order-capability-r
 export interface AuthorizedVoucherDelivery {
   orderId: string;
   token: string;
+  voucherId: string;
+  sendTo: string | null;
   voucherCode: string;
   recipientEmail: string | null;
+  buyerEmail: string | null;
   recipientPhone: string | null;
   recipientName: string;
   senderName: string;
@@ -42,13 +45,17 @@ function mapAuthorizedVoucherDelivery(
   order: PublicOrderWithItems,
   voucher: DeliveryVoucher,
   service: DeliveryService,
-  recipientPhone: string | null
+  recipientPhone: string | null,
+  sendTo: string | null
 ): AuthorizedVoucherDelivery {
   return {
     orderId: order.payment_order_id || order.id,
     token: order.public_access_token,
+    voucherId: voucher.id,
+    sendTo,
     voucherCode: voucher.code,
     recipientEmail: voucher.recipient_email,
+    buyerEmail: order.customer_email ?? null,
     recipientPhone,
     recipientName: voucher.recipient_name,
     senderName: voucher.sender_name,
@@ -72,7 +79,8 @@ function toDelivery(
     order,
     item.vouchers,
     item.services,
-    getRecipientPhone(order, item)
+    getRecipientPhone(order, item),
+    item.send_to ?? null
   );
 }
 
@@ -91,7 +99,8 @@ function toLegacyDelivery(
     service,
     order.send_to === "RECIPIENT"
       ? order.recipient_phone
-      : order.customer_phone
+      : order.customer_phone,
+    order.send_to ?? null
   );
 }
 
@@ -138,12 +147,15 @@ async function postVoucherDelivery(
   path: "/api/email/send-voucher" | "/api/whatsapp/send-voucher",
   orderId: string,
   token: string,
-  orderItemId?: string
+  orderItemId?: string,
+  audience?: "buyer"
 ) {
   const response = await fetch(`${getServerAppUrl()}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ orderId, token, orderItemId }),
+    body: JSON.stringify(
+      audience ? { orderId, token, orderItemId, audience } : { orderId, token, orderItemId }
+    ),
   });
 
   if (!response.ok) {
@@ -159,9 +171,10 @@ async function postVoucherDelivery(
 export async function sendVoucherEmail(
   orderId: string,
   token: string,
-  orderItemId?: string
+  orderItemId?: string,
+  audience?: "buyer"
 ) {
-  await postVoucherDelivery("/api/email/send-voucher", orderId, token, orderItemId);
+  await postVoucherDelivery("/api/email/send-voucher", orderId, token, orderItemId, audience);
 }
 
 export async function sendVoucherWhatsApp(
