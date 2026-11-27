@@ -4,15 +4,15 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const {
   reconcilePublicOrderStatusByInternalOrderId,
   resolveActiveOrderStatusSession,
-  withWhatsAppHandoffLinks,
+  withVoucherDeliveryState,
 } = vi.hoisted(() => ({
   reconcilePublicOrderStatusByInternalOrderId: vi.fn(),
   resolveActiveOrderStatusSession: vi.fn(),
-  withWhatsAppHandoffLinks: vi.fn(async (_orderId: string, payload: unknown) => payload),
+  withVoucherDeliveryState: vi.fn(async (_orderId: string, payload: unknown) => payload),
 }));
 
 vi.mock("@/lib/payment/whatsapp-handoff", () => ({
-  withWhatsAppHandoffLinks,
+  withVoucherDeliveryState,
 }));
 
 vi.mock("@/lib/scalev/reconcile", () => ({
@@ -151,7 +151,7 @@ describe("POST /api/orders/public-status", () => {
     });
   });
 
-  test("adds saved WhatsApp links using the session's internal order id", async () => {
+  test("adds the delivery state using the session's internal order id", async () => {
     resolveActiveOrderStatusSession.mockResolvedValue({
       id: sessionId,
       orderId: "internal-order-1",
@@ -159,7 +159,7 @@ describe("POST /api/orders/public-status", () => {
     });
     const completed = { status: "completed", orderId: "KSP-123", paymentStatus: "COMPLETED" };
     reconcilePublicOrderStatusByInternalOrderId.mockResolvedValue(completed);
-    withWhatsAppHandoffLinks.mockResolvedValueOnce({
+    withVoucherDeliveryState.mockResolvedValueOnce({
       ...completed,
       vouchers: [{ voucherCode: "V-1", whatsappLink: "https://wa.me/628123?text=x" }],
     });
@@ -176,7 +176,7 @@ describe("POST /api/orders/public-status", () => {
       })
     );
 
-    expect(withWhatsAppHandoffLinks).toHaveBeenCalledWith("internal-order-1", completed);
+    expect(withVoucherDeliveryState).toHaveBeenCalledWith("internal-order-1", completed);
     await expect(response.json()).resolves.toMatchObject({
       vouchers: [{ whatsappLink: "https://wa.me/628123?text=x" }],
     });

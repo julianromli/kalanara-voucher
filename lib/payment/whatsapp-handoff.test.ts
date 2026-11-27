@@ -10,7 +10,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/admin", () => ({
   getAdminClient: () => {
     const builder: Record<string, unknown> = {};
-    for (const method of ["from", "select", "eq", "not"]) {
+    for (const method of ["from", "select", "eq", "not", "in"]) {
       builder[method] = (...args: unknown[]) => {
         calls.push([method, ...args]);
         return builder;
@@ -53,36 +53,51 @@ describe("WhatsApp handoff links", () => {
 
   test("attaches the saved wa.me link to the matching voucher only", async () => {
     queryResult.data = [
-      { handoff_url: "https://wa.me/6281234567890?text=A", vouchers: { code: "V-1" } },
-      { handoff_url: "https://evil.example/6281234567890", vouchers: { code: "V-2" } },
+      { channel: "WHATSAPP", status: "HANDOFF_REQUIRED", handoff_url: "https://wa.me/6281234567890?text=A", vouchers: { code: "V-1" } },
+      { channel: "EMAIL", status: "SENT", handoff_url: null, vouchers: { code: "V-1" } },
+      { channel: "WHATSAPP", status: "HANDOFF_REQUIRED", handoff_url: "https://evil.example/6281234567890", vouchers: { code: "V-2" } },
+      { channel: "EMAIL", status: "PROCESSING", handoff_url: null, vouchers: [{ code: "V-2" }] },
     ];
-    const { withWhatsAppHandoffLinks } = await import("@/lib/payment/whatsapp-handoff");
+    const { withVoucherDeliveryState } = await import("@/lib/payment/whatsapp-handoff");
 
-    const result = await withWhatsAppHandoffLinks("order-1", payload([voucher("V-1"), voucher("V-2")]));
+    const result = await withVoucherDeliveryState("order-1", payload([voucher("V-1"), voucher("V-2")]));
 
     expect(result.vouchers?.[0].whatsappLink).toBe("https://wa.me/6281234567890?text=A");
     expect(result.voucher?.whatsappLink).toBe("https://wa.me/6281234567890?text=A");
     expect(result.vouchers?.[1].whatsappLink).toBeUndefined();
+    expect(result.vouchers?.[0].emailStatus).toBe("SENT");
+    expect(result.vouchers?.[1].emailStatus).toBe("PENDING");
     expect(calls).toContainEqual(["eq", "order_id", "order-1"]);
-    expect(calls).toContainEqual(["eq", "channel", "WHATSAPP"]);
+    expect(calls).toContainEqual(["in", "channel", ["EMAIL", "WHATSAPP"]]);
   });
 
-  test("skips the lookup for pending orders and email-only vouchers", async () => {
-    const { withWhatsAppHandoffLinks } = await import("@/lib/payment/whatsapp-handoff");
+  test("skips the lookup for orders that are not completed", async () => {
+    const { withVoucherDeliveryState } = await import("@/lib/payment/whatsapp-handoff");
 
-    await withWhatsAppHandoffLinks("order-1", payload([voucher("V-1")], "pending"));
-    await withWhatsAppHandoffLinks("order-1", payload([voucher("V-1", "EMAIL")]));
+    await withVoucherDeliveryState("order-1", payload([voucher("V-1")], "pending"));
 
     expect(calls).toHaveLength(0);
   });
 
-  test("a read error leaves the payload as it was", async () => {
+  test("a failed email row is reported as FAILED", async () => {
+    queryResult.data = [{ channel: "EMAIL", status: "FAILED", handoff_url: null, vouchers: { code: "V-1" } }];
+    const { withVoucherDeliveryState } = await import("@/lib/payment/whatsapp-handoff");
+
+    const result = await withVoucherDeliveryState("order-1", payload([voucher("V-1", "EMAIL")]));
+
+    expect(result.vouchers?.[0].emailStatus).toBe("FAILED");
+  });
+
+  test("a read error is logged and leaves the payload as it was", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     queryResult.data = null;
     queryResult.error = { message: "boom" };
-    const { withWhatsAppHandoffLinks } = await import("@/lib/payment/whatsapp-handoff");
+    const { withVoucherDeliveryState } = await import("@/lib/payment/whatsapp-handoff");
     const original = payload([voucher("V-1")]);
 
-    await expect(withWhatsAppHandoffLinks("order-1", original)).resolves.toBe(original);
+    await expect(withVoucherDeliveryState("order-1", original)).resolves.toBe(original);
+    expect(consoleError).toHaveBeenCalledWith("Voucher delivery state read failed.");
+    consoleError.mockRestore();
   });
 
   test("only real wa.me phone links pass", async () => {

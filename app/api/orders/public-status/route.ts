@@ -5,7 +5,7 @@ import {
   isValidOrderStatusSessionId,
   resolveActiveOrderStatusSession,
 } from "@/lib/payment/order-status-sessions";
-import { withWhatsAppHandoffLinks } from "@/lib/payment/whatsapp-handoff";
+import { withVoucherDeliveryState } from "@/lib/payment/whatsapp-handoff";
 
 interface PublicStatusRequest {
   orderId?: string;
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(await withWhatsAppHandoffLinks(session.orderId, payload), {
+    return NextResponse.json(await withVoucherDeliveryState(session.orderId, payload), {
       headers: PRIVATE_NO_STORE_HEADERS,
     });
   } catch {

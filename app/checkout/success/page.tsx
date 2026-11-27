@@ -19,14 +19,19 @@ import { formatCurrency } from "@/lib/constants";
 import { downloadPDF, generateVoucherPDF } from "@/lib/pdf";
 import type { PublicOrderStatusPayload } from "@/lib/scalev/types";
 import { isScalevHostedPublicOrderUrl } from "@/lib/scalev/urls";
-import { DeliveryMethod } from "@/lib/types";
-import { getSuccessDeliveryCopy } from "@/lib/checkout/client";
+import {
+  getSuccessDeliveryCopy,
+  usesEmailDelivery,
+  usesWhatsAppDelivery,
+} from "@/lib/checkout/client";
 import { useCartStore } from "@/store/cart-store";
 
 type PublicVoucher = NonNullable<PublicOrderStatusPayload["vouchers"]>[number];
 const INVALID_LINK_MESSAGE = "Link status pembayaran tidak valid atau sudah kedaluwarsa.";
 
-function waitingForWhatsAppLink(payload: PublicOrderStatusPayload) {
+// deliverVoucher records the email result and the wa.me link a moment after
+// the voucher exists, so the first "completed" poll may not have them yet.
+function waitingForDelivery(payload: PublicOrderStatusPayload) {
   if (payload.status !== "completed") return false;
   const vouchers = payload.vouchers?.length
     ? payload.vouchers
@@ -35,13 +40,14 @@ function waitingForWhatsAppLink(payload: PublicOrderStatusPayload) {
       : [];
   return vouchers.some(
     (voucher) =>
-      (voucher.deliveryMethod === DeliveryMethod.WHATSAPP ||
-        voucher.deliveryMethod === DeliveryMethod.BOTH) &&
-      !voucher.whatsappLink
+      (usesWhatsAppDelivery(voucher.deliveryMethod) && !voucher.whatsappLink) ||
+      (usesEmailDelivery(voucher.deliveryMethod) &&
+        voucher.emailStatus !== "SENT" &&
+        voucher.emailStatus !== "FAILED")
   );
 }
 
-const WHATSAPP_LINK_EXTRA_POLLS = 4;
+const DELIVERY_EXTRA_POLLS = 4;
 
 function SuccessContent() {
   const searchParams = useSearchParams();
@@ -112,11 +118,9 @@ function SuccessContent() {
         setIsLoading(false);
 
         if (result.status === "completed" || result.status === "failed") {
-          // deliverVoucher saves the wa.me link right after the voucher is
-          // created, so give it a few more polls before showing "belum siap".
           if (
-            waitingForWhatsAppLink(result) &&
-            linkAttempts < WHATSAPP_LINK_EXTRA_POLLS
+            waitingForDelivery(result) &&
+            linkAttempts < DELIVERY_EXTRA_POLLS
           ) {
             linkAttempts += 1;
             timeoutId = setTimeout(poll, 2500);
@@ -556,10 +560,7 @@ function VoucherWhatsAppAction({
   voucher: PublicVoucher;
   onCheckAgain: () => void;
 }) {
-  const usesWhatsApp =
-    voucher.deliveryMethod === DeliveryMethod.WHATSAPP ||
-    voucher.deliveryMethod === DeliveryMethod.BOTH;
-  if (!usesWhatsApp) return null;
+  if (!usesWhatsAppDelivery(voucher.deliveryMethod)) return null;
 
   if (voucher.whatsappLink) {
     return (

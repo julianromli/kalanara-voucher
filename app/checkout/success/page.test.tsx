@@ -207,6 +207,7 @@ describe("CheckoutSuccessPage", () => {
       expiryDate: "2027-03-12T04:05:55.854402Z",
       deliveryMethod: "BOTH",
       sendTo: "RECIPIENT",
+      emailStatus: "SENT",
     };
     const completed = (voucher: Record<string, unknown>) => ({
       ok: true,
@@ -293,6 +294,28 @@ describe("CheckoutSuccessPage", () => {
       expect(screen.queryByRole("link", { name: "Kirim lewat WhatsApp" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Cek lagi" })).not.toBeInTheDocument();
       expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    test("does not claim the email went out until the outbox says so", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          completed({ ...giftVoucher, deliveryMethod: "EMAIL", emailStatus: "FAILED" })
+        )
+      );
+
+      render(
+        <ToastProvider>
+          <CheckoutSuccessPage />
+        </ToastProvider>
+      );
+
+      expect(
+        await screen.findByText(
+          "Voucher belum terkirim ke email dias@example.com. Download PDF-nya di bawah dulu."
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Voucher dikirim ke email/)).not.toBeInTheDocument();
     });
   });
 });
