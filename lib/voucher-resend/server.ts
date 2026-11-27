@@ -234,6 +234,7 @@ export async function resendVoucherEmailForAdmin(input: {
     });
   } catch (error) {
     threw = true;
+    console.error("Voucher resend failed before sending.", error);
     sendResult = {
       ok: false,
       reason: "provider",

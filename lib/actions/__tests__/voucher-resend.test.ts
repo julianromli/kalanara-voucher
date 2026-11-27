@@ -5,11 +5,13 @@ const {
   logAdminAuditMock,
   getAdminClientMock,
   sendVoucherEmailMessageMock,
+  renderVoucherEmailHtmlMock,
 } = vi.hoisted(() => ({
   requireAdminPermissionMock: vi.fn(),
   logAdminAuditMock: vi.fn(),
   getAdminClientMock: vi.fn(),
   sendVoucherEmailMessageMock: vi.fn(),
+  renderVoucherEmailHtmlMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/admin-rbac-server", () => ({
@@ -22,7 +24,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 vi.mock("@/lib/email/voucher-email", () => ({
-  renderVoucherEmailHtml: () => "<html>voucher</html>",
+  renderVoucherEmailHtml: renderVoucherEmailHtmlMock,
   voucherGiftSubject: () => "gift subject",
   sendVoucherEmailMessage: sendVoucherEmailMessageMock,
 }));
@@ -122,6 +124,7 @@ describe("voucher resend actions", () => {
     vi.clearAllMocks();
     requireAdminPermissionMock.mockResolvedValue(access);
     sendVoucherEmailMessageMock.mockResolvedValue({ ok: true, messageId: "email-1" });
+    renderVoucherEmailHtmlMock.mockReturnValue("<html>voucher</html>");
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://voucher.kalanaraspa.com");
   });
 
@@ -267,8 +270,11 @@ describe("voucher resend actions", () => {
     );
   });
 
-  test("a render or setup bug is a server error, not a provider rejection", async () => {
-    sendVoucherEmailMessageMock.mockRejectedValue(new Error("template blew up"));
+  test("a render bug is a logged server error, not a provider rejection", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    renderVoucherEmailHtmlMock.mockImplementation(() => {
+      throw new Error("template blew up");
+    });
     const { rpc } = mockClient(baseTables(), rpcFor({ status: "ok", resend_id: RESEND_ID }));
     const result = await resendVoucherEmail({
       orderId: ORDER_ID,
@@ -280,6 +286,17 @@ describe("voucher resend actions", () => {
       "voucher_resend_finish",
       expect.objectContaining({ p_sent: false, p_error: "internal: template blew up" })
     );
+    expect(sendVoucherEmailMessageMock).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith("Voucher resend failed before sending.", expect.any(Error));
+  });
+
+  test("an unexpected throw from the send helper is a server error too", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    sendVoucherEmailMessageMock.mockRejectedValue(new Error("setup broke"));
+    mockClient(baseTables(), rpcFor({ status: "ok", resend_id: RESEND_ID }));
+    await expect(
+      resendVoucherEmail({ orderId: ORDER_ID, voucherId: VOUCHER_ID, target: "RECIPIENT" })
+    ).resolves.toEqual({ status: "error" });
   });
 
   test("says the email went out when only the audit finish fails", async () => {
