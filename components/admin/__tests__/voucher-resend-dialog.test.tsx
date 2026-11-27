@@ -149,7 +149,7 @@ describe("ResendVoucherDialog", () => {
     const input = screen.getByLabelText("Email tujuan");
     expect(input).toHaveAttribute("type", "email");
     expect(input).toHaveClass("text-base");
-    await user.type(input, "dias@gmail");
+    await user.type(input, "dias@kantor");
     await user.tab();
     expect(await screen.findByText("Format email belum benar. Contoh: nama@gmail.com")).toBeInTheDocument();
     expect(input).toHaveAttribute("aria-invalid", "true");
@@ -224,5 +224,28 @@ describe("ResendVoucherDialog", () => {
     expect(writeText).toHaveBeenCalledWith("https://wa.me/6281211112222?text=hi");
     expect(props.onWhatsAppCopied).toHaveBeenCalled();
     expect(resendVoucherEmailMock).not.toHaveBeenCalled();
+  });
+
+  test("offers the fix for a typo domain before sending", async () => {
+    const user = userEvent.setup();
+    resendVoucherEmailMock.mockResolvedValue({ status: "sent", to: "dias@gmail.com", recipientEmailUpdated: false });
+    renderDialog();
+
+    await user.click(screen.getByRole("combobox", { name: "Kirim ke" }));
+    await user.click(await screen.findByRole("option", { name: /Email lain/ }));
+    const input = screen.getByLabelText("Email tujuan");
+    await user.type(input, "dias@gmail.con");
+    await user.tab();
+
+    expect(await screen.findByText("Cek lagi emailnya. Maksudnya dias@gmail.com?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Kirim email" }));
+    expect(resendVoucherEmailMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Pakai dias@gmail.com" }));
+    expect(input).toHaveValue("dias@gmail.com");
+    await user.click(screen.getByRole("button", { name: "Kirim email" }));
+    expect(resendVoucherEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({ target: "CUSTOM", email: "dias@gmail.com" })
+    );
   });
 });

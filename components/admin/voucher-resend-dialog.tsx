@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { getVoucherWhatsAppLink } from "@/lib/actions/voucher-resend";
 import { requestVoucherResend } from "@/lib/voucher-resend/client";
-import { isValidEmailAddress, sameEmailAddress } from "@/lib/email-address";
+import { isValidEmailAddress, sameEmailAddress, suggestEmailFix } from "@/lib/email-address";
 import { cn } from "@/lib/utils";
 import {
   deliveryStatusLine,
@@ -173,6 +173,8 @@ export function ResendVoucherDialog({
 
   function validateEmail(value: string): string | null {
     if (!value.trim()) return "Isi email tujuan dulu.";
+    const fix = suggestEmailFix(value);
+    if (fix) return `Cek lagi emailnya. Maksudnya ${fix}?`;
     return isValidEmailAddress(value) ? null : resendFailureMessage("invalid_email");
   }
 
@@ -349,6 +351,19 @@ export function ResendVoucherDialog({
                     <p id="voucher-resend-email-error" role="alert" className="text-sm text-destructive">
                       {emailError}
                     </p>
+                  ) : null}
+                  {emailError && suggestEmailFix(email) ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-11 w-full justify-start sm:w-auto"
+                      onClick={() => {
+                        setEmail(suggestEmailFix(email) ?? email);
+                        setEmailError(null);
+                      }}
+                    >
+                      Pakai {suggestEmailFix(email)}
+                    </Button>
                   ) : null}
                 </div>
                 <label
