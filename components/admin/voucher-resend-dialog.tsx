@@ -131,8 +131,9 @@ export function ResendVoucherDialog({
   const [pending, setPending] = useState<"email" | "whatsapp" | null>(null);
   const [syncKey, setSyncKey] = useState("");
   const mountedRef = useRef(true);
-  // One id per submission. Kept only when the connection dropped, so a retry
-  // of that same send is deduplicated by the email provider.
+  // The id of the current send. It survives answers that leave the outcome
+  // open (network, cooldown, rate_limited, error), so a retry of that same
+  // send is deduplicated by the email provider; any other answer clears it.
   const requestIdRef = useRef<string | null>(null);
 
   const key = `${open}-${overview?.voucherId ?? "none"}`;
