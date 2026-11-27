@@ -786,6 +786,94 @@ export type Database = {
           }
         ];
       };
+      voucher_delivery_resends: {
+        Row: {
+          id: string;
+          voucher_id: string;
+          order_id: string;
+          order_item_id: string | null;
+          channel: "EMAIL" | "WHATSAPP_LINK";
+          target_kind: "RECIPIENT" | "BUYER" | "CUSTOM";
+          target_email: string | null;
+          target_phone: string | null;
+          save_as_recipient: boolean;
+          previous_recipient_email: string | null;
+          recipient_email_updated: boolean;
+          status: "PENDING" | "SENT" | "FAILED" | "COPIED";
+          provider_message_id: string | null;
+          error: string | null;
+          requested_by: string | null;
+          requested_by_email: string | null;
+          requested_by_role: string | null;
+          created_at: string;
+          finished_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          voucher_id: string;
+          order_id: string;
+          order_item_id?: string | null;
+          channel: "EMAIL" | "WHATSAPP_LINK";
+          target_kind: "RECIPIENT" | "BUYER" | "CUSTOM";
+          target_email?: string | null;
+          target_phone?: string | null;
+          save_as_recipient?: boolean;
+          previous_recipient_email?: string | null;
+          recipient_email_updated?: boolean;
+          status?: "PENDING" | "SENT" | "FAILED" | "COPIED";
+          provider_message_id?: string | null;
+          error?: string | null;
+          requested_by?: string | null;
+          requested_by_email?: string | null;
+          requested_by_role?: string | null;
+          created_at?: string;
+          finished_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          voucher_id?: string;
+          order_id?: string;
+          order_item_id?: string | null;
+          channel?: "EMAIL" | "WHATSAPP_LINK";
+          target_kind?: "RECIPIENT" | "BUYER" | "CUSTOM";
+          target_email?: string | null;
+          target_phone?: string | null;
+          save_as_recipient?: boolean;
+          previous_recipient_email?: string | null;
+          recipient_email_updated?: boolean;
+          status?: "PENDING" | "SENT" | "FAILED" | "COPIED";
+          provider_message_id?: string | null;
+          error?: string | null;
+          requested_by?: string | null;
+          requested_by_email?: string | null;
+          requested_by_role?: string | null;
+          created_at?: string;
+          finished_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "voucher_delivery_resends_voucher_id_fkey";
+            columns: ["voucher_id"];
+            isOneToOne: false;
+            referencedRelation: "vouchers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "voucher_delivery_resends_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "voucher_delivery_resends_order_item_id_fkey";
+            columns: ["order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "order_items";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       member_stamp_audit: {
         Row: {
           id: string;
@@ -1416,6 +1504,30 @@ export type Database = {
       };
       get_member_summary: {
         Args: { p_member_id: string };
+        Returns: Json;
+      };
+      voucher_resend_begin: {
+        Args: {
+          p_voucher_id: string;
+          p_order_id: string;
+          p_channel: "EMAIL" | "WHATSAPP_LINK";
+          p_target_kind: "RECIPIENT" | "BUYER" | "CUSTOM";
+          p_target_email: string | null;
+          p_target_phone: string | null;
+          p_save_as_recipient: boolean;
+          p_requested_by: string;
+          p_requested_by_email: string | null;
+          p_requested_by_role: string | null;
+        };
+        Returns: Json;
+      };
+      voucher_resend_finish: {
+        Args: {
+          p_resend_id: string;
+          p_sent: boolean;
+          p_provider_message_id: string | null;
+          p_error: string | null;
+        };
         Returns: Json;
       };
       member_correct_void_stamp: {

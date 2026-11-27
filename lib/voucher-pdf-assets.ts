@@ -15,6 +15,7 @@ export const VOUCHER_PDF_SERVER_ASSETS = [
 ];
 
 export const VOUCHER_PDF_SERVER_ROUTES = [
+  "/api/admin/vouchers/resend",
   "/api/email/send-voucher",
   "/api/vouchers/pdf",
 ];
