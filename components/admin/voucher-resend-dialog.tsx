@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getVoucherWhatsAppLink } from "@/lib/actions/voucher-resend";
+import { getVoucherWhatsAppLink, recordVoucherWhatsAppLinkCopied } from "@/lib/actions/voucher-resend";
 import { requestVoucherResend } from "@/lib/voucher-resend/client";
 import { isValidEmailAddress, sameEmailAddress } from "@/lib/email-address";
 import { cn } from "@/lib/utils";
@@ -127,6 +127,9 @@ export function ResendVoucherDialog({
   const [pending, setPending] = useState<"email" | "whatsapp" | null>(null);
   const [syncKey, setSyncKey] = useState("");
   const mountedRef = useRef(true);
+  // One id per submission. Kept only when the connection dropped, so a retry
+  // of that same send is deduplicated by the email provider.
+  const requestIdRef = useRef<string | null>(null);
 
   const key = `${open}-${overview?.voucherId ?? "none"}`;
   if (key !== syncKey) {
@@ -140,6 +143,11 @@ export function ResendVoucherDialog({
       setPending(null);
     }
   }
+
+  const voucherKey = overview?.voucherId;
+  useEffect(() => {
+    if (open) requestIdRef.current = null;
+  }, [open, voucherKey]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -185,8 +193,11 @@ export function ResendVoucherDialog({
     }
     setPending("email");
     setError(null);
+    const requestId = requestIdRef.current ?? crypto.randomUUID();
+    requestIdRef.current = null;
     try {
       const result = await requestVoucherResend({
+        requestId,
         orderId,
         voucherId: overview.voucherId,
         target,
@@ -213,11 +224,15 @@ export function ResendVoucherDialog({
         setEmailError(resendFailureMessage("invalid_email"));
         return;
       }
+      // The email provider dropped the connection: the email may have gone out.
+      if (result.status === "network") requestIdRef.current = requestId;
       setError(resendFailureMessage(result.status, result.retryAfterSeconds));
     } catch (caught) {
       if (!mountedRef.current) return;
       setPending(null);
-      setError(resendFailureMessage(isNetworkFailure(caught) ? "network" : "error"));
+      const network = isNetworkFailure(caught);
+      if (network) requestIdRef.current = requestId;
+      setError(resendFailureMessage(network ? "network" : "error"));
     }
   }
 
@@ -241,6 +256,16 @@ export function ResendVoucherDialog({
         await navigator.clipboard.writeText(result.url);
       } catch {
         setError("Link WhatsApp gagal disalin. Izinkan akses clipboard di browser, lalu coba lagi.");
+        return;
+      }
+      const logged = await recordVoucherWhatsAppLinkCopied({
+        orderId,
+        voucherId: overview.voucherId,
+        target: wa.kind,
+      }).catch(() => null);
+      if (!mountedRef.current) return;
+      if (logged?.status !== "ok") {
+        setError("Link WhatsApp sudah disalin, tapi catatannya gagal disimpan.");
         return;
       }
       onWhatsAppCopied(
@@ -286,6 +311,7 @@ export function ResendVoucherDialog({
                 value={target}
                 onValueChange={(value) => {
                   setTarget(value as ResendTarget);
+                  requestIdRef.current = null;
                   setEmailError(null);
                   setError(null);
                 }}
@@ -339,6 +365,7 @@ export function ResendVoucherDialog({
                     aria-describedby={emailError ? "voucher-resend-email-error" : undefined}
                     onChange={(event) => {
                       setEmail(event.target.value);
+                      requestIdRef.current = null;
                       if (emailError) setEmailError(validateEmail(event.target.value));
                     }}
                     onBlur={() => {

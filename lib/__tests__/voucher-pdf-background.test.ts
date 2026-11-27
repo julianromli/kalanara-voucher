@@ -52,8 +52,9 @@ function findRoutesThatRenderVoucherPdf(): string[] {
       } else if (entry.name === "route.ts") {
         const source = fs.readFileSync(entryPath, "utf8");
         // Direct users of lib/pdf, plus routes that render it through the
-        // voucher email helpers.
-        if (/from\s+["']@\/lib\/(?:pdf|email\/voucher-email|voucher-resend\/server)["']/.test(source)) {
+        // voucher email helpers. Only direct imports are checked: add any new
+        // module that wraps these to this list.
+        if (/from\s+["']@\/lib\/(?:pdf|email\/voucher-email|voucher-resend\/server|actions\/voucher-resend)["']/.test(source)) {
           const routeDir = path.relative(path.join(process.cwd(), "app"), dir);
           routes.push(`/${routeDir.split(path.sep).join("/")}`);
         }

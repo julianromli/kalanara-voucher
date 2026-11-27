@@ -6,8 +6,10 @@ export type ResendVoucherEmailResponse =
   | { status: ResendFailureStatus | "forbidden"; retryAfterSeconds?: number | null };
 
 // Throws only when the request itself fails (offline, DNS, CORS), so the
-// dialog can say "Koneksi putus" for that case alone.
+// dialog can say "Koneksi putus" for that case alone. The body is read for
+// every HTTP status: refusals come back as 4xx/5xx with a status field.
 export async function requestVoucherResend(input: {
+  requestId?: string;
   orderId: string;
   voucherId: string;
   target: ResendTarget;

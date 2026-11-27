@@ -46,6 +46,7 @@ describe("POST /api/admin/vouchers/resend", () => {
           target: "CUSTOM",
           email: "dias@gmail.com",
           saveAsRecipient: true,
+          requestId: "r-1",
         })
       )
     );
@@ -61,6 +62,7 @@ describe("POST /api/admin/vouchers/resend", () => {
       target: "CUSTOM",
       email: "dias@gmail.com",
       saveAsRecipient: true,
+      requestId: "r-1",
     });
   });
 
@@ -88,5 +90,36 @@ describe("POST /api/admin/vouchers/resend", () => {
     const response = await POST(request("{}"));
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({ status: "forbidden" });
+  });
+
+  test("returns 403 for a signed-in admin without the permission", async () => {
+    resendMock.mockRejectedValue(new AdminPermissionError("Forbidden", 403));
+    const response = await POST(request(JSON.stringify({})));
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ status: "forbidden" });
+  });
+
+  test("returns 500 error for an unexpected throw", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    resendMock.mockRejectedValue(new Error("db down"));
+    const response = await POST(request(JSON.stringify({})));
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ status: "error" });
+    consoleError.mockRestore();
+  });
+
+  test.each([
+    ["cooldown", 429],
+    ["rate_limited", 429],
+    ["redeemed", 409],
+    ["not_found", 404],
+    ["provider_error", 502],
+    ["network", 504],
+    ["sent_not_logged", 200],
+  ])("maps %s to HTTP %i and keeps the body", async (status, http) => {
+    resendMock.mockResolvedValue({ status, retryAfterSeconds: 30 });
+    const response = await POST(request(JSON.stringify({})));
+    expect(response.status).toBe(http);
+    await expect(response.json()).resolves.toMatchObject({ status });
   });
 });

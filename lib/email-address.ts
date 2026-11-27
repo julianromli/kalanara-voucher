@@ -1,5 +1,6 @@
-// Shared email checks for checkout and admin forms. Stricter than /\S+@\S+/:
-// the domain needs a dot and a 2+ letter ending, so "nama@gmail" fails.
+// Email checks for the admin resend dialog and its route. Stricter than
+// /\S+@\S+/: the domain needs a dot and a 2+ letter ending, so "nama@gmail"
+// fails. Checkout switches to these in the buyer-copy PR (#54).
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)*\.[A-Za-z]{2,}$/;
 
 export const EMAIL_MAX_LENGTH = 254;

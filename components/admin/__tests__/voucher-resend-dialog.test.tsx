@@ -2,13 +2,15 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-const { resendVoucherEmailMock, getVoucherWhatsAppLinkMock } = vi.hoisted(() => ({
+const { resendVoucherEmailMock, getVoucherWhatsAppLinkMock, recordCopiedMock } = vi.hoisted(() => ({
   resendVoucherEmailMock: vi.fn(),
   getVoucherWhatsAppLinkMock: vi.fn(),
+  recordCopiedMock: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/voucher-resend", () => ({
   getVoucherWhatsAppLink: getVoucherWhatsAppLinkMock,
+  recordVoucherWhatsAppLinkCopied: recordCopiedMock,
 }));
 
 vi.mock("@/lib/voucher-resend/client", () => ({
@@ -124,6 +126,7 @@ describe("ResendVoucherDialog", () => {
     await user.click(screen.getByRole("button", { name: "Kirim email" }));
 
     expect(resendVoucherEmailMock).toHaveBeenCalledWith({
+      requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
       orderId: ORDER_ID,
       voucherId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
       target: "RECIPIENT",
@@ -209,11 +212,12 @@ describe("ResendVoucherDialog", () => {
     expect(screen.getByLabelText("Email tujuan")).toBeInTheDocument();
   });
 
-  test("copies the WhatsApp link without sending anything", async () => {
+  test("copies the WhatsApp link, then logs it, without sending anything", async () => {
     const user = userEvent.setup();
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     getVoucherWhatsAppLinkMock.mockResolvedValue({ status: "ok", url: "https://wa.me/6281211112222?text=hi" });
+    recordCopiedMock.mockResolvedValue({ status: "ok" });
     const props = renderDialog();
 
     await user.click(screen.getByRole("button", { name: "Salin link WhatsApp" }));
@@ -222,7 +226,57 @@ describe("ResendVoucherDialog", () => {
       expect.objectContaining({ target: "RECIPIENT" })
     );
     expect(writeText).toHaveBeenCalledWith("https://wa.me/6281211112222?text=hi");
+    expect(recordCopiedMock).toHaveBeenCalledWith(expect.objectContaining({ target: "RECIPIENT" }));
+    expect(writeText.mock.invocationCallOrder[0]).toBeLessThan(recordCopiedMock.mock.invocationCallOrder[0]);
     expect(props.onWhatsAppCopied).toHaveBeenCalled();
     expect(resendVoucherEmailMock).not.toHaveBeenCalled();
+  });
+
+  test("does not log a WhatsApp copy when the clipboard write fails", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockRejectedValue(new Error("denied"));
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    getVoucherWhatsAppLinkMock.mockResolvedValue({ status: "ok", url: "https://wa.me/6281211112222?text=hi" });
+    const props = renderDialog();
+
+    await user.click(screen.getByRole("button", { name: "Salin link WhatsApp" }));
+
+    expect(await screen.findByText(/Link WhatsApp gagal disalin/)).toBeInTheDocument();
+    expect(recordCopiedMock).not.toHaveBeenCalled();
+    expect(props.onWhatsAppCopied).not.toHaveBeenCalled();
+  });
+
+  test("sent but not logged closes the dialog and says not to resend", async () => {
+    const user = userEvent.setup();
+    resendVoucherEmailMock.mockResolvedValue({ status: "sent_not_logged", to: "dias@gmail.com" });
+    const props = renderDialog();
+
+    await user.click(screen.getByRole("button", { name: "Kirim email" }));
+
+    await waitFor(() =>
+      expect(props.onSent).toHaveBeenCalledWith(
+        "Voucher terkirim ke dias@gmail.com, tapi catatannya gagal disimpan. Jangan kirim ulang lagi."
+      )
+    );
+    expect(props.onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  test("a retry after a dropped connection reuses the request id", async () => {
+    const user = userEvent.setup();
+    resendVoucherEmailMock
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce({ status: "provider_error" })
+      .mockResolvedValueOnce({ status: "sent", to: "dias@gmail.com", recipientEmailUpdated: false });
+    renderDialog();
+
+    await user.click(screen.getByRole("button", { name: "Kirim email" }));
+    expect(await screen.findByText(/Koneksi putus/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Kirim email" }));
+    await screen.findByText(/ditolak penyedia email/);
+    await user.click(screen.getByRole("button", { name: "Kirim email" }));
+
+    const ids = resendVoucherEmailMock.mock.calls.map(([input]) => input.requestId);
+    expect(ids[1]).toBe(ids[0]);
+    expect(ids[2]).not.toBe(ids[1]);
   });
 });

@@ -65,8 +65,24 @@ describe("voucher resends migration contract", () => {
     expect(body).toMatch(/v_order\.voucher_id IS DISTINCT FROM v_voucher\.id/);
     expect(body).toMatch(/pg_advisory_xact_lock/);
     expect(body).toMatch(/interval '1 hour'/);
-    expect(body).toMatch(/interval '60 seconds'/);
-    expect(body).toMatch(/v_recent >= 3/);
+    expect(body).toMatch(/v_last > now\(\) - interval '60 seconds' THEN/);
+    expect(body).toMatch(/IF v_recent >= 3 THEN/);
+    // The lock comes before the count, and both before the insert.
+    const lock = body.indexOf("pg_advisory_xact_lock");
+    const count = body.indexOf("count(*)");
+    const insert = body.indexOf("INSERT INTO public.voucher_delivery_resends");
+    expect(lock).toBeGreaterThan(0);
+    expect(lock).toBeLessThan(count);
+    expect(count).toBeLessThan(insert);
+  });
+
+  test("finish records the address it replaced, read under the voucher lock", () => {
+    const body = functionBody("voucher_resend_finish");
+    const read = body.search(/SELECT voucher\.recipient_email INTO v_replaced[\s\S]*?FOR UPDATE;/);
+    const update = body.indexOf("UPDATE public.vouchers");
+    expect(read).toBeGreaterThan(0);
+    expect(read).toBeLessThan(update);
+    expect(body).toMatch(/previous_recipient_email = CASE WHEN v_updated THEN v_replaced ELSE previous_recipient_email END/);
   });
 
   test("finish updates the recipient email only after a send that asked for it", () => {

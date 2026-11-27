@@ -212,7 +212,8 @@ END;
 $$;
 
 -- Marks a PENDING email row SENT or FAILED. On SENT with save_as_recipient,
--- updates vouchers.recipient_email. Returns jsonb with status ok or not_found,
+-- updates vouchers.recipient_email and records the address it replaced. A
+-- failed send leaves the voucher alone. Returns jsonb with status ok or not_found,
 -- and recipient_email_updated.
 CREATE FUNCTION public.voucher_resend_finish(
   p_resend_id uuid,
@@ -229,6 +230,7 @@ AS $$
 DECLARE
   v_row public.voucher_delivery_resends;
   v_updated boolean := false;
+  v_replaced text;
 BEGIN
   SELECT * INTO v_row
   FROM public.voucher_delivery_resends
@@ -242,6 +244,13 @@ BEGIN
   END IF;
 
   IF p_sent AND v_row.save_as_recipient THEN
+    -- Read the address being replaced under the voucher lock: another resend
+    -- may have changed it since this one began.
+    SELECT voucher.recipient_email INTO v_replaced
+    FROM public.vouchers AS voucher
+    WHERE voucher.id = v_row.voucher_id
+    FOR UPDATE;
+
     UPDATE public.vouchers
     SET recipient_email = v_row.target_email
     WHERE id = v_row.voucher_id;
@@ -253,6 +262,7 @@ BEGIN
       provider_message_id = left(p_provider_message_id, 200),
       error = CASE WHEN p_sent THEN NULL ELSE left(COALESCE(p_error, 'Unknown error'), 1000) END,
       recipient_email_updated = v_updated,
+      previous_recipient_email = CASE WHEN v_updated THEN v_replaced ELSE previous_recipient_email END,
       finished_at = now()
   WHERE id = v_row.id;
 

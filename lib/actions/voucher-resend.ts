@@ -6,7 +6,8 @@ import {
   requireAdminPermission,
 } from "@/lib/auth/admin-rbac-server";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { generateWhatsAppUrl } from "@/lib/utils/whatsapp";
+import { appBaseUrl } from "@/lib/membership/urls";
+import { formatPhoneNumber, generateWhatsAppUrl } from "@/lib/utils/whatsapp";
 import {
   asRecord,
   beginFailure,
@@ -66,7 +67,7 @@ export async function getVoucherDeliveryOverview(
       .order("created_at", { ascending: false }),
   ]);
   if (vouchersResult.error || outboxResult.error || resendsResult.error) {
-    return { status: "error" };
+    throw vouchersResult.error ?? outboxResult.error ?? resendsResult.error;
   }
 
   const vouchers = new Map(
@@ -142,30 +143,34 @@ export async function getVoucherDeliveryOverview(
 
 export type VoucherWhatsAppLinkResult = { status: "ok"; url: string } | Failure;
 
-// Builds a wa.me link for the admin to send from their own WhatsApp. Nothing is
-// sent from the server; the copy is logged as COPIED.
-export async function getVoucherWhatsAppLink(input: {
+type WhatsAppLinkInput = {
   orderId: string;
   voucherId: string;
   target: "RECIPIENT" | "BUYER";
-}): Promise<VoucherWhatsAppLinkResult> {
-  const access = await requireAdminPermission(AdminPermission.ORDERS_RESEND_VOUCHER);
+};
+
+async function resolveWhatsAppShare(input: WhatsAppLinkInput) {
   const target = whatsAppTargetSchema.safeParse(input.target);
   if (
     !idSchema.safeParse(input.orderId).success ||
     !idSchema.safeParse(input.voucherId).success ||
     !target.success
   ) {
-    return { status: "invalid" };
+    return { status: "invalid" } as const;
   }
 
   const context = await loadOrderContext(input.orderId);
-  if (context.status !== "ok") return { status: context.status };
+  if (context.status !== "ok") return { status: context.status } as const;
   const loaded = await loadVoucher(input.voucherId);
-  if (loaded.status !== "ok") return { status: loaded.status };
+  if (loaded.status !== "ok") return { status: loaded.status } as const;
   const { order, items } = context;
   const { voucher } = loaded;
   const item = items.find((entry) => entry.voucher_id === voucher.id) ?? null;
+  if (!item && order.voucher_id !== voucher.id) return { status: "not_found" } as const;
+  if (order.payment_status !== "COMPLETED") return { status: "not_paid" } as const;
+  if (voucher.is_redeemed) return { status: "redeemed" } as const;
+  if (isExpired(voucher)) return { status: "expired" } as const;
+
   const resolved = whatsAppTargetFor(order, item);
   const phone =
     target.data === "BUYER"
@@ -173,25 +178,22 @@ export async function getVoucherWhatsAppLink(input: {
       : resolved?.kind === "RECIPIENT"
         ? resolved.phone
         : null;
-  if (!phone) return { status: "no_phone" };
+  if (!phone) return { status: "no_phone" } as const;
 
-  const { data: begun, error } = await getAdminClient().rpc("voucher_resend_begin", {
-    p_voucher_id: voucher.id,
-    p_order_id: order.id,
-    p_channel: "WHATSAPP_LINK",
-    p_target_kind: target.data,
-    p_target_email: null,
-    p_target_phone: phone,
-    p_save_as_recipient: false,
-    p_requested_by: access.userId,
-    p_requested_by_email: access.email,
-    p_requested_by_role: access.role,
-  });
-  if (error) return { status: "error" };
-  const body = asRecord(begun);
-  if (body?.status !== "ok") return beginFailure(body);
+  return { status: "ok", order, voucher, target: target.data, phone } as const;
+}
 
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://voucher.kalanaraspa.com").replace(/\/+$/, "");
+// Builds a wa.me link for the admin to send from their own WhatsApp. Nothing is
+// sent from the server. The dialog logs it with recordVoucherWhatsAppLinkCopied
+// only after the clipboard write succeeds.
+export async function getVoucherWhatsAppLink(
+  input: WhatsAppLinkInput
+): Promise<VoucherWhatsAppLinkResult> {
+  await requireAdminPermission(AdminPermission.ORDERS_RESEND_VOUCHER);
+  const share = await resolveWhatsAppShare(input);
+  if (share.status !== "ok") return { status: share.status };
+  const { voucher, phone } = share;
+
   const url = generateWhatsAppUrl({
     recipientPhone: phone,
     recipientName: voucher.recipient_name,
@@ -202,14 +204,44 @@ export async function getVoucherWhatsAppLink(input: {
     serviceDuration: voucher.services?.duration ?? 0,
     amount: voucher.amount,
     expiryDate: voucher.expiry_date,
-    verifyUrl: `${appUrl}/verify?code=${encodeURIComponent(voucher.code)}`,
+    verifyUrl: `${appBaseUrl()}/verify?code=${encodeURIComponent(voucher.code)}`,
   });
+
+  return { status: "ok", url };
+}
+
+export type RecordWhatsAppCopyResult = { status: "ok" } | Failure;
+
+// Logs a copied WhatsApp link as a COPIED resend row plus an admin audit entry.
+export async function recordVoucherWhatsAppLinkCopied(
+  input: WhatsAppLinkInput
+): Promise<RecordWhatsAppCopyResult> {
+  const access = await requireAdminPermission(AdminPermission.ORDERS_RESEND_VOUCHER);
+  const share = await resolveWhatsAppShare(input);
+  if (share.status !== "ok") return { status: share.status };
+  const { order, voucher, target, phone } = share;
+
+  const { data: begun, error } = await getAdminClient().rpc("voucher_resend_begin", {
+    p_voucher_id: voucher.id,
+    p_order_id: order.id,
+    p_channel: "WHATSAPP_LINK",
+    p_target_kind: target,
+    p_target_email: null,
+    p_target_phone: formatPhoneNumber(phone),
+    p_save_as_recipient: false,
+    p_requested_by: access.userId,
+    p_requested_by_email: access.email,
+    p_requested_by_role: access.role,
+  });
+  if (error) throw error;
+  const body = asRecord(begun);
+  if (body?.status !== "ok") return beginFailure(body);
 
   logAdminAudit(access, {
     action: "orders.voucher_whatsapp_link",
     target: voucher.id,
-    details: { orderId: order.id, targetKind: target.data },
+    details: { orderId: order.id, targetKind: target },
   });
 
-  return { status: "ok", url };
+  return { status: "ok" };
 }
