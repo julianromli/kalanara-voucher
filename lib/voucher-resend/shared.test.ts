@@ -68,6 +68,34 @@ describe("delivery status line", () => {
     expect(line.text).toBe("Kirim ulang ke dias@gmail.con gagal · 27 Nov 20.00");
   });
 
+  test("an older resend loses to a newer order email", () => {
+    const line = deliveryStatusLine(
+      overview({
+        lastResend: { status: "SENT", to: "old@gmail.com", at: "2026-11-27T08:00:00.000Z", by: null },
+      }),
+    );
+    expect(line).toEqual({ tone: "ok", text: "Email terkirim ke dias@gmail.com · 27 Nov 16.51" });
+  });
+
+  test.each([
+    ["SENT", "ok", "Dikirim ulang ke dias@gmail.com · 27 Nov 20.00"],
+    ["PENDING", "muted", "Kirim ulang ke dias@gmail.com belum selesai · 27 Nov 20.00"],
+  ] as const)("shows a %s resend", (status, tone, text) => {
+    const line = deliveryStatusLine(
+      overview({ lastResend: { status, to: "dias@gmail.com", at: "2026-11-27T13:00:00.000Z", by: null } }),
+    );
+    expect(line.tone).toBe(tone);
+    expect(line.text).toBe(text);
+  });
+
+  test.each([
+    ["FAILED", "error", "Email gagal dikirim · 27 Nov 16.51"],
+    ["PENDING", "muted", "Email sedang diproses"],
+  ] as const)("shows a %s order email", (state, tone, text) => {
+    const line = deliveryStatusLine(overview({ email: { state, at: "2026-11-27T09:51:41.000Z" } }));
+    expect(line).toEqual({ tone, text });
+  });
+
   test("blocks redeemed and expired vouchers with a reason", () => {
     expect(resendBlockedReason(overview({ isRedeemed: true }))).toBe("Voucher sudah dipakai.");
     expect(resendBlockedReason(overview({ isExpired: true }))).toBe("Voucher sudah kedaluwarsa.");

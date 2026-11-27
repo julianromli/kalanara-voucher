@@ -27,6 +27,7 @@ import type {
 // Postgres accepts any 8-4-4-4-12 hex id; seeded rows fail the RFC version
 // check of z.string().uuid() (see #50), so use z.guid().
 export const idSchema = z.guid();
+export const requestIdSchema = z.guid();
 export const targetSchema = z.enum(["RECIPIENT", "BUYER", "CUSTOM"]);
 export const whatsAppTargetSchema = z.enum(["RECIPIENT", "BUYER"]);
 
@@ -86,7 +87,8 @@ export async function loadOrderContext(orderId: string) {
     supabase.from("orders").select(ORDER_SELECT).eq("id", orderId).maybeSingle(),
     supabase.from("order_items").select(ITEM_SELECT).eq("order_id", orderId),
   ]);
-  if (orderResult.error || itemsResult.error) return { status: "error" as const };
+  if (orderResult.error) throw orderResult.error;
+  if (itemsResult.error) throw itemsResult.error;
   const order = orderResult.data as OrderRow | null;
   if (!order) return { status: "not_found" as const };
   const items = ((itemsResult.data ?? []) as ItemRow[])
@@ -117,7 +119,7 @@ export async function loadVoucher(voucherId: string) {
     .select(VOUCHER_SELECT)
     .eq("id", voucherId)
     .maybeSingle();
-  if (error) return { status: "error" as const };
+  if (error) throw error;
   if (!data) return { status: "not_found" as const };
   return { status: "ok" as const, voucher: data as unknown as VoucherRow };
 }
@@ -167,13 +169,15 @@ export async function resendVoucherEmailForAdmin(input: {
   target: "RECIPIENT" | "BUYER" | "CUSTOM";
   email?: string;
   saveAsRecipient?: boolean;
+  requestId?: string;
 }): Promise<ResendVoucherEmailResult> {
   const access = await requireAdminPermission(AdminPermission.ORDERS_RESEND_VOUCHER);
   const target = targetSchema.safeParse(input.target);
   if (
     !idSchema.safeParse(input.orderId).success ||
     !idSchema.safeParse(input.voucherId).success ||
-    !target.success
+    !target.success ||
+    (input.requestId !== undefined && !requestIdSchema.safeParse(input.requestId).success)
   ) {
     return { status: "invalid" };
   }
@@ -190,12 +194,13 @@ export async function resendVoucherEmailForAdmin(input: {
   const { order } = context;
   const { voucher } = loaded;
 
-  const to =
+  const rawTo =
     target.data === "CUSTOM"
       ? customEmail
       : target.data === "BUYER"
         ? order.customer_email
         : voucher.recipient_email;
+  const to = rawTo ? normalizeEmailAddress(rawTo) : "";
   if (!to) return { status: "no_address" };
   if (!isValidEmailAddress(to)) return { status: "invalid_email" };
 
@@ -212,7 +217,7 @@ export async function resendVoucherEmailForAdmin(input: {
     p_requested_by_email: access.email,
     p_requested_by_role: access.role,
   });
-  if (beginError) return { status: "error" };
+  if (beginError) throw beginError;
   const beginBody = asRecord(begun);
   const resendId = typeof beginBody?.resend_id === "string" ? beginBody.resend_id : null;
   if (beginBody?.status !== "ok" || !resendId) return beginFailure(beginBody);
@@ -236,12 +241,14 @@ export async function resendVoucherEmailForAdmin(input: {
             recipientEmail: voucher.recipient_email,
           })
         : renderVoucherEmailHtml(content),
-      idempotencyKey: `voucher-resend-${resendId}`,
+      // A retry of the same dialog submission (after a dropped connection)
+      // reuses the request id, so Resend drops the duplicate.
+      idempotencyKey: `voucher-resend-${input.requestId ?? resendId}`,
     });
   } catch (error) {
     sendResult = {
       ok: false,
-      reason: "provider",
+      reason: "network",
       message: error instanceof Error ? error.message : "Unknown send error",
     };
   }
@@ -261,7 +268,14 @@ export async function resendVoucherEmailForAdmin(input: {
   });
 
   if (!sendResult.ok) {
-    return { status: sendResult.reason === "pdf" ? "pdf_error" : "provider_error" };
+    return {
+      status:
+        sendResult.reason === "pdf"
+          ? "pdf_error"
+          : sendResult.reason === "network"
+            ? "network"
+            : "provider_error",
+    };
   }
   if (finishError || finishBody?.status !== "ok") {
     return { status: "sent_not_logged", to };

@@ -32,6 +32,7 @@ vi.mock("@/lib/email/voucher-email", () => ({
 import {
   getVoucherDeliveryOverview,
   getVoucherWhatsAppLink,
+  recordVoucherWhatsAppLinkCopied,
 } from "@/lib/actions/voucher-resend";
 import { resendVoucherEmailForAdmin as resendVoucherEmail } from "@/lib/voucher-resend/server";
 import { AdminPermission } from "@/lib/auth/admin-rbac";
@@ -366,7 +367,7 @@ describe("voucher resend actions", () => {
     });
   });
 
-  test("WhatsApp link goes to the recipient phone, sends nothing, and is logged as COPIED", async () => {
+  test("building the WhatsApp link sends nothing and logs nothing", async () => {
     const { rpc } = mockClient(baseTables(), rpcFor({ status: "ok", resend_id: RESEND_ID }));
     const result = await getVoucherWhatsAppLink({
       orderId: ORDER_ID,
@@ -376,10 +377,114 @@ describe("voucher resend actions", () => {
     expect(result.status).toBe("ok");
     if (result.status !== "ok") return;
     expect(result.url.startsWith("https://wa.me/6281211112222?text=")).toBe(true);
+    expect(decodeURIComponent(result.url)).toContain("https://voucher.kalanaraspa.com/verify?code=KSP-2026-TEST0001");
     expect(sendVoucherEmailMessageMock).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+    expect(logAdminAuditMock).not.toHaveBeenCalled();
+  });
+
+  test("the WhatsApp link needs NEXT_PUBLIC_APP_URL instead of falling back to production", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
+    mockClient(baseTables());
+    await expect(
+      getVoucherWhatsAppLink({ orderId: ORDER_ID, voucherId: VOUCHER_ID, target: "RECIPIENT" })
+    ).rejects.toThrow("NEXT_PUBLIC_APP_URL");
+  });
+
+  test("the WhatsApp link refuses a redeemed voucher or one from another order", async () => {
+    mockClient(baseTables({ vouchers: { data: { ...voucher, is_redeemed: true }, error: null } }));
+    await expect(
+      getVoucherWhatsAppLink({ orderId: ORDER_ID, voucherId: VOUCHER_ID, target: "RECIPIENT" })
+    ).resolves.toEqual({ status: "redeemed" });
+
+    mockClient(
+      baseTables({
+        orders: { data: { ...order, voucher_id: null }, error: null },
+        order_items: { data: [], error: null },
+      })
+    );
+    await expect(
+      getVoucherWhatsAppLink({ orderId: ORDER_ID, voucherId: VOUCHER_ID, target: "RECIPIENT" })
+    ).resolves.toEqual({ status: "not_found" });
+  });
+
+  test("a copied WhatsApp link is logged as COPIED with the normalized phone", async () => {
+    const { rpc } = mockClient(baseTables(), rpcFor({ status: "ok", resend_id: RESEND_ID }));
+    const result = await recordVoucherWhatsAppLinkCopied({
+      orderId: ORDER_ID,
+      voucherId: VOUCHER_ID,
+      target: "RECIPIENT",
+    });
+    expect(result).toEqual({ status: "ok" });
     expect(rpc).toHaveBeenCalledWith(
       "voucher_resend_begin",
-      expect.objectContaining({ p_channel: "WHATSAPP_LINK", p_target_phone: "+62 812 1111 2222" })
+      expect.objectContaining({ p_channel: "WHATSAPP_LINK", p_target_phone: "6281211112222" })
+    );
+    expect(logAdminAuditMock).toHaveBeenCalledWith(
+      access,
+      expect.objectContaining({ action: "orders.voucher_whatsapp_link", target: VOUCHER_ID })
+    );
+    expect(sendVoucherEmailMessageMock).not.toHaveBeenCalled();
+  });
+
+  test("refuses a voucher that does not belong to the order", async () => {
+    mockClient(baseTables(), rpcFor({ status: "not_found" }));
+    await expect(
+      resendVoucherEmail({ orderId: ORDER_ID, voucherId: VOUCHER_ID, target: "RECIPIENT" })
+    ).resolves.toEqual({ status: "not_found", retryAfterSeconds: null });
+    expect(sendVoucherEmailMessageMock).not.toHaveBeenCalled();
+  });
+
+  test("returns pdf_error and marks the row FAILED when the PDF cannot be made", async () => {
+    const rpc = rpcFor({ status: "ok", resend_id: RESEND_ID });
+    mockClient(baseTables(), rpc);
+    sendVoucherEmailMessageMock.mockResolvedValue({ ok: false, reason: "pdf", message: "Failed to generate voucher PDF" });
+    await expect(
+      resendVoucherEmail({ orderId: ORDER_ID, voucherId: VOUCHER_ID, target: "RECIPIENT" })
+    ).resolves.toEqual({ status: "pdf_error" });
+    expect(rpc).toHaveBeenCalledWith(
+      "voucher_resend_finish",
+      expect.objectContaining({ p_resend_id: RESEND_ID, p_sent: false })
+    );
+  });
+
+  test("returns network when the email provider cannot be reached", async () => {
+    mockClient(baseTables(), rpcFor({ status: "ok", resend_id: RESEND_ID }));
+    sendVoucherEmailMessageMock.mockRejectedValue(new TypeError("fetch failed"));
+    await expect(
+      resendVoucherEmail({ orderId: ORDER_ID, voucherId: VOUCHER_ID, target: "RECIPIENT" })
+    ).resolves.toEqual({ status: "network" });
+  });
+
+  test("throws the database error when the begin RPC fails, before any send", async () => {
+    const rpc = vi.fn(async () => ({ data: null, error: { message: "function does not exist" } }));
+    mockClient(baseTables(), rpc);
+    await expect(
+      resendVoucherEmail({ orderId: ORDER_ID, voucherId: VOUCHER_ID, target: "RECIPIENT" })
+    ).rejects.toEqual({ message: "function does not exist" });
+    expect(sendVoucherEmailMessageMock).not.toHaveBeenCalled();
+  });
+
+  test("a request id becomes the provider idempotency key", async () => {
+    mockClient(baseTables(), rpcFor({ status: "ok", resend_id: RESEND_ID }));
+    const requestId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+    await resendVoucherEmail({ orderId: ORDER_ID, voucherId: VOUCHER_ID, target: "RECIPIENT", requestId });
+    expect(sendVoucherEmailMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ idempotencyKey: `voucher-resend-${requestId}` })
+    );
+    await expect(
+      resendVoucherEmail({ orderId: ORDER_ID, voucherId: VOUCHER_ID, target: "RECIPIENT", requestId: "nope" })
+    ).resolves.toEqual({ status: "invalid" });
+  });
+
+  test("sends to the trimmed stored address", async () => {
+    mockClient(
+      baseTables({ vouchers: { data: { ...voucher, recipient_email: "  dias@gmail.com " }, error: null } }),
+      rpcFor({ status: "ok", resend_id: RESEND_ID })
+    );
+    await resendVoucherEmail({ orderId: ORDER_ID, voucherId: VOUCHER_ID, target: "RECIPIENT" });
+    expect(sendVoucherEmailMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "dias@gmail.com" })
     );
   });
 });
