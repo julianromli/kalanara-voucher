@@ -72,6 +72,7 @@ const order = {
   public_access_token: "public-token",
   delivery_method: "WHATSAPP",
   send_to: "PURCHASER",
+  created_at: "2026-11-28T03:00:00.000Z",
 } as unknown as OrderWithService;
 
 const item = {
@@ -482,6 +483,33 @@ describe("buyer copy of a gift voucher", () => {
     );
     expect(sendVoucherEmailMock).toHaveBeenCalledTimes(1);
     expect(sendVoucherEmailMock).toHaveBeenCalledWith("KSP-123", "public-token", "item-1", "buyer");
+  });
+
+  test("an order placed before the buyer copy cutoff gets no copy", async () => {
+    const { createVoucherOnPaymentSuccess, BUYER_COPY_CUTOFF } = await import("@/lib/payment/voucher-service");
+    claimVoucherDeliveriesMock.mockResolvedValue([]);
+    const justBefore = new Date(Date.parse(BUYER_COPY_CUTOFF) - 1000).toISOString();
+
+    for (const created_at of ["2026-11-01T02:00:00.000Z", justBefore, null, "not a date"]) {
+      claimVoucherDeliveriesMock.mockClear();
+      await createVoucherOnPaymentSuccess({ ...order, created_at } as unknown as OrderWithService);
+      expect(claimVoucherDeliveriesMock).toHaveBeenCalledWith(
+        expect.objectContaining({ channels: ["EMAIL", "WHATSAPP"] })
+      );
+    }
+    expect(listVoucherDeliveryChannelsMock).not.toHaveBeenCalled();
+    expect(sendVoucherEmailMock).not.toHaveBeenCalledWith("KSP-123", "public-token", "item-1", "buyer");
+  });
+
+  test("an order placed at the cutoff gets the copy", async () => {
+    const { createVoucherOnPaymentSuccess, BUYER_COPY_CUTOFF } = await import("@/lib/payment/voucher-service");
+    claimVoucherDeliveriesMock.mockResolvedValue([]);
+
+    await createVoucherOnPaymentSuccess({ ...order, created_at: BUYER_COPY_CUTOFF } as unknown as OrderWithService);
+
+    expect(claimVoucherDeliveriesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ channels: ["EMAIL", "WHATSAPP", "EMAIL_BUYER_COPY"] })
+    );
   });
 
   test("a voucher for the buyer gets no copy", async () => {

@@ -154,6 +154,17 @@ function getDeliveryChannels(
   return [];
 }
 
+// Buyer copies started with the 040 deploy (21:58 WIB, 27 Nov 2026). Orders
+// placed before it never get one, even when a replayed Scalev webhook delivers
+// a voucher that was never emailed. An order without a created_at counts as old.
+export const BUYER_COPY_CUTOFF = "2026-11-27T14:58:10Z";
+const BUYER_COPY_CUTOFF_MS = Date.parse(BUYER_COPY_CUTOFF);
+
+function placedAfterBuyerCopyCutoff(order: OrderWithService): boolean {
+  const createdAt = order.created_at ? Date.parse(order.created_at) : Number.NaN;
+  return Number.isFinite(createdAt) && createdAt >= BUYER_COPY_CUTOFF_MS;
+}
+
 // A voucher bought for someone else also goes to the buyer, unless both
 // addresses are the same.
 function wantsBuyerCopy(
@@ -166,6 +177,7 @@ function wantsBuyerCopy(
   return (
     sendTo === "RECIPIENT" &&
     channels.includes("EMAIL") &&
+    placedAfterBuyerCopyCutoff(order) &&
     Boolean(order.customer_email?.trim()) &&
     Boolean(voucher.recipient_email?.trim()) &&
     !sameEmailAddress(order.customer_email, voucher.recipient_email)
