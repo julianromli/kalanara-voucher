@@ -175,7 +175,7 @@ export function VoucherDeliveryFields({
           checked={includeWhatsApp}
           onChange={(event) => onIncludeWhatsAppChange(event.target.checked)}
         />
-        Kirim juga lewat WhatsApp
+        Siapkan juga pesan WhatsApp
       </label>
 
       <p className="text-sm text-foreground">{getDeliveryPreview(sendTo, deliveryMethod)}</p>

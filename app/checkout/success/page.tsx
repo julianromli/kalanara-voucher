@@ -10,6 +10,7 @@ import {
   Store,
   RefreshCcw,
   Copy,
+  MessageCircle,
 } from "lucide-react";
 import QRCode from "react-qr-code";
 import { Button } from "@/components/ui/button";
@@ -18,36 +19,41 @@ import { formatCurrency } from "@/lib/constants";
 import { downloadPDF, generateVoucherPDF } from "@/lib/pdf";
 import type { PublicOrderStatusPayload } from "@/lib/scalev/types";
 import { isScalevHostedPublicOrderUrl } from "@/lib/scalev/urls";
-import { DeliveryMethod, SendTo } from "@/lib/types";
+import {
+  getSuccessDeliveryCopy,
+  usesEmailDelivery,
+  usesWhatsAppDelivery,
+} from "@/lib/checkout/client";
 import { useCartStore } from "@/store/cart-store";
 
 type PublicVoucher = NonNullable<PublicOrderStatusPayload["vouchers"]>[number];
 const INVALID_LINK_MESSAGE = "Link status pembayaran tidak valid atau sudah kedaluwarsa.";
 
-function getDeliverySummary(
-  sendTo: SendTo,
-  deliveryMethod: DeliveryMethod
-): string {
-  if (sendTo === SendTo.PURCHASER) {
-    switch (deliveryMethod) {
-      case DeliveryMethod.WHATSAPP:
-        return "Voucher dikirim ke WhatsApp kamu";
-      case DeliveryMethod.EMAIL:
-        return "Voucher dikirim ke email kamu";
-      case DeliveryMethod.BOTH:
-        return "Voucher dikirim ke email dan WhatsApp kamu";
-    }
-  }
-
-  switch (deliveryMethod) {
-    case DeliveryMethod.WHATSAPP:
-      return "Voucher dikirim ke WhatsApp penerima";
-    case DeliveryMethod.EMAIL:
-      return "Voucher dikirim ke email penerima";
-    case DeliveryMethod.BOTH:
-      return "Voucher dikirim ke email dan WhatsApp penerima";
-  }
+// deliverVoucher records the email result and the wa.me link a moment after
+// the voucher exists, so the first "completed" poll may not have them yet.
+function whatsappLinkPending(voucher: PublicVoucher) {
+  return usesWhatsAppDelivery(voucher.deliveryMethod) && !voucher.whatsappLink;
 }
+
+function emailPending(voucher: PublicVoucher) {
+  return (
+    usesEmailDelivery(voucher.deliveryMethod) &&
+    voucher.emailStatus !== "SENT" &&
+    voucher.emailStatus !== "FAILED"
+  );
+}
+
+function waitingForDelivery(payload: PublicOrderStatusPayload) {
+  if (payload.status !== "completed") return false;
+  const vouchers = payload.vouchers?.length
+    ? payload.vouchers
+    : payload.voucher
+      ? [payload.voucher]
+      : [];
+  return vouchers.some((voucher) => whatsappLinkPending(voucher) || emailPending(voucher));
+}
+
+const DELIVERY_EXTRA_POLLS = 4;
 
 function SuccessContent() {
   const searchParams = useSearchParams();
@@ -105,6 +111,7 @@ function SuccessContent() {
     let cancelled = false;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     let attempts = 0;
+    let linkAttempts = 0;
     const maxAttempts = 12;
 
     const poll = async () => {
@@ -117,6 +124,13 @@ function SuccessContent() {
         setIsLoading(false);
 
         if (result.status === "completed" || result.status === "failed") {
+          if (
+            waitingForDelivery(result) &&
+            linkAttempts < DELIVERY_EXTRA_POLLS
+          ) {
+            linkAttempts += 1;
+            timeoutId = setTimeout(poll, 2500);
+          }
           return;
         }
 
@@ -472,11 +486,12 @@ function SuccessContent() {
                         <p className="mt-1 text-sm text-muted-foreground">
                           Untuk {voucher.recipientName} • {voucher.serviceDuration} menit
                         </p>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {getDeliverySummary(voucher.sendTo, voucher.deliveryMethod)}
-                        </p>
+                        <VoucherDeliveryCopy
+                          voucher={voucher}
+                          customerEmail={payload?.orderDetails?.customerEmail}
+                        />
                       </div>
-                      <div className="rounded-xl bg-primary px-4 py-3 text-center text-primary-foreground">
+                      <div className="shrink-0 rounded-xl bg-primary px-4 py-3 text-center text-primary-foreground">
                         <p className="text-xs uppercase tracking-[0.16em] opacity-80">
                           Kode
                         </p>
@@ -499,11 +514,15 @@ function SuccessContent() {
                           {new Date(voucher.expiryDate).toLocaleDateString("id-ID")}
                         </p>
                       </div>
-                      <div className="sm:text-right">
+                      <div className="flex flex-col gap-2 sm:items-end">
+                        <VoucherDeliveryActions
+                          voucher={voucher}
+                          onCheckAgain={handleCheckStatusAgain}
+                        />
                         <Button
                           type="button"
                           variant="outline"
-                          size="sm"
+                          className="min-h-11 w-full sm:w-auto"
                           onClick={() => handleDownloadPDF(voucher)}
                         >
                           <Download className="mr-2 size-4" />
@@ -520,6 +539,60 @@ function SuccessContent() {
         </div>
       </div>
     </div>
+  );
+}
+
+function VoucherDeliveryCopy({
+  voucher,
+  customerEmail,
+}: {
+  voucher: PublicVoucher;
+  customerEmail?: string | null;
+}) {
+  const copy = getSuccessDeliveryCopy(voucher, customerEmail);
+
+  return (
+    <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+      {copy.email ? <p>{copy.email}</p> : null}
+      {copy.whatsapp ? <p>{copy.whatsapp}</p> : null}
+    </div>
+  );
+}
+
+// The WhatsApp button once the link is saved, and "Cek lagi" while the link
+// or the email result is still missing, so a page that stopped polling can
+// still catch up.
+function VoucherDeliveryActions({
+  voucher,
+  onCheckAgain,
+}: {
+  voucher: PublicVoucher;
+  onCheckAgain: () => void;
+}) {
+  const showCheckAgain = whatsappLinkPending(voucher) || emailPending(voucher);
+
+  return (
+    <>
+      {usesWhatsAppDelivery(voucher.deliveryMethod) && voucher.whatsappLink ? (
+        <Button asChild className="min-h-11 w-full sm:w-auto">
+          <a href={voucher.whatsappLink} target="_blank" rel="noopener noreferrer">
+            <MessageCircle className="mr-2 size-4" aria-hidden="true" />
+            Kirim lewat WhatsApp
+          </a>
+        </Button>
+      ) : null}
+      {showCheckAgain ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11 w-full sm:w-auto"
+          onClick={onCheckAgain}
+        >
+          <RefreshCcw className="mr-2 size-4" aria-hidden="true" />
+          Cek lagi
+        </Button>
+      ) : null}
+    </>
   );
 }
 

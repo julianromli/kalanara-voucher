@@ -173,7 +173,7 @@ describe("CheckoutPageClient", () => {
     expect(document.querySelector('img[src="/payment/qris.svg"]')).not.toBeNull();
 
     expect(
-      screen.getByRole("checkbox", { name: "Kirim juga lewat WhatsApp" })
+      screen.getByRole("checkbox", { name: "Siapkan juga pesan WhatsApp" })
     ).not.toBeChecked();
     expect(
       screen.getByText(
@@ -187,7 +187,7 @@ describe("CheckoutPageClient", () => {
     expect(screen.queryByText("WhatsApp penerima")).not.toBeInTheDocument();
 
     fireEvent.click(
-      screen.getByRole("checkbox", { name: "Kirim juga lewat WhatsApp" })
+      screen.getByRole("checkbox", { name: "Siapkan juga pesan WhatsApp" })
     );
 
     expect(await screen.findByText("WhatsApp penerima")).toBeInTheDocument();
@@ -200,7 +200,7 @@ describe("CheckoutPageClient", () => {
       expect(screen.queryByText("WhatsApp penerima")).not.toBeInTheDocument();
       expect(
         screen.getByText(
-          "Voucher akan dikirim ke email dan WhatsApp kamu setelah pembayaran berhasil."
+          "Voucher akan dikirim ke email kamu setelah pembayaran berhasil. Setelah bayar, kamu bisa kirim pesan WhatsApp-nya dengan satu tap."
         )
       ).toBeInTheDocument();
     });
@@ -289,7 +289,7 @@ describe("CheckoutPageClient", () => {
     expect(sendToRecipient).toBeChecked();
 
     const includeWhatsApp = screen.getByRole("checkbox", {
-      name: "Kirim juga lewat WhatsApp",
+      name: "Siapkan juga pesan WhatsApp",
     });
     includeWhatsApp.focus();
     await user.keyboard("[Space]");

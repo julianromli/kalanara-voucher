@@ -386,6 +386,10 @@ export interface PublicOrderVoucherPayload {
   expiryDate: string;
   deliveryMethod: DeliveryMethod;
   sendTo: SendTo;
+  /** wa.me link saved at delivery; the buyer taps it to send the voucher. */
+  whatsappLink?: string | null;
+  /** Voucher email state from the delivery outbox, when there is a row. */
+  emailStatus?: "SENT" | "PENDING" | "FAILED";
 }
 
 export interface PublicOrderDetailsPayload {
