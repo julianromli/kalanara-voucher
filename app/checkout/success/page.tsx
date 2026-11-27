@@ -479,10 +479,9 @@ function SuccessContent() {
                         <VoucherDeliveryCopy
                           voucher={voucher}
                           customerEmail={payload?.orderDetails?.customerEmail}
-                          onCheckAgain={handleCheckStatusAgain}
                         />
                       </div>
-                      <div className="rounded-xl bg-primary px-4 py-3 text-center text-primary-foreground">
+                      <div className="shrink-0 rounded-xl bg-primary px-4 py-3 text-center text-primary-foreground">
                         <p className="text-xs uppercase tracking-[0.16em] opacity-80">
                           Kode
                         </p>
@@ -505,7 +504,11 @@ function SuccessContent() {
                           {new Date(voucher.expiryDate).toLocaleDateString("id-ID")}
                         </p>
                       </div>
-                      <div className="sm:text-right">
+                      <div className="flex flex-col gap-2 sm:items-end">
+                        <VoucherWhatsAppAction
+                          voucher={voucher}
+                          onCheckAgain={handleCheckStatusAgain}
+                        />
                         <Button
                           type="button"
                           variant="outline"
@@ -532,37 +535,53 @@ function SuccessContent() {
 function VoucherDeliveryCopy({
   voucher,
   customerEmail,
-  onCheckAgain,
 }: {
   voucher: PublicVoucher;
   customerEmail?: string | null;
-  onCheckAgain: () => void;
 }) {
   const copy = getSuccessDeliveryCopy(voucher, customerEmail);
 
   return (
-    <div className="mt-2 space-y-2 text-sm text-muted-foreground">
+    <div className="mt-2 space-y-1 text-sm text-muted-foreground">
       {copy.email ? <p>{copy.email}</p> : null}
       {copy.whatsapp ? <p>{copy.whatsapp}</p> : null}
-      {voucher.whatsappLink ? (
-        <Button asChild className="min-h-11 w-full sm:w-auto">
-          <a href={voucher.whatsappLink} target="_blank" rel="noopener noreferrer">
-            <MessageCircle className="mr-2 size-4" aria-hidden="true" />
-            Kirim lewat WhatsApp
-          </a>
-        </Button>
-      ) : copy.whatsapp ? (
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11 w-full sm:w-auto"
-          onClick={onCheckAgain}
-        >
-          <RefreshCcw className="mr-2 size-4" aria-hidden="true" />
-          Cek lagi
-        </Button>
-      ) : null}
     </div>
+  );
+}
+
+function VoucherWhatsAppAction({
+  voucher,
+  onCheckAgain,
+}: {
+  voucher: PublicVoucher;
+  onCheckAgain: () => void;
+}) {
+  const usesWhatsApp =
+    voucher.deliveryMethod === DeliveryMethod.WHATSAPP ||
+    voucher.deliveryMethod === DeliveryMethod.BOTH;
+  if (!usesWhatsApp) return null;
+
+  if (voucher.whatsappLink) {
+    return (
+      <Button asChild className="min-h-11 w-full sm:w-auto">
+        <a href={voucher.whatsappLink} target="_blank" rel="noopener noreferrer">
+          <MessageCircle className="mr-2 size-4" aria-hidden="true" />
+          Kirim lewat WhatsApp
+        </a>
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className="min-h-11 w-full sm:w-auto"
+      onClick={onCheckAgain}
+    >
+      <RefreshCcw className="mr-2 size-4" aria-hidden="true" />
+      Cek lagi
+    </Button>
   );
 }
 
