@@ -451,6 +451,13 @@ describe("CheckoutPageClient", () => {
     ).toBeInTheDocument();
 
     await user.clear(email);
+    await user.type(email, "tri@kantor.co.id");
+    await user.tab();
+    await waitFor(() =>
+      expect(screen.queryByText(/Cek lagi emailnya/)).not.toBeInTheDocument()
+    );
+
+    await user.clear(email);
     await user.type(email, "tri@gmail");
     await user.tab();
     expect(

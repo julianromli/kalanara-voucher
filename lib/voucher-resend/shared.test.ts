@@ -127,6 +127,7 @@ describe("email typo suggestions", () => {
     ["dias@yahooo.com", "dias@yahoo.com"],
     ["dias@yahoo.co.di", "dias@yahoo.co.id"],
     ["Dias@GMAIL.CON", "Dias@gmail.com"],
+    ["nama@ymail", "nama@ymail.com"],
   ])("suggests %s -> %s", async (input, expected) => {
     const { suggestEmailFix } = await import("@/lib/email-address");
     expect(suggestEmailFix(input)).toBe(expected);
@@ -139,6 +140,12 @@ describe("email typo suggestions", () => {
       expect(suggestEmailFix(input)).toBeNull();
     },
   );
+
+  test("never suggests an address that would still be invalid", async () => {
+    const { suggestEmailFix, emailFieldProblem } = await import("@/lib/email-address");
+    expect(suggestEmailFix("bad space@gmail.con")).toBeNull();
+    expect(emailFieldProblem("bad space@gmail.con")).toBe("Format email tidak valid");
+  });
 
   test("field message: typo first, then format, empty passes", async () => {
     const { emailFieldProblem } = await import("@/lib/email-address");

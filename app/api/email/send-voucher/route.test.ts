@@ -1,9 +1,14 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-const { getAuthorizedVoucherDeliveryMock, resendSendMock, generateVoucherPdfMock } = vi.hoisted(() => ({
+const { getAuthorizedVoucherDeliveryMock, resendSendMock, generateVoucherPdfMock, listChannelsMock } = vi.hoisted(() => ({
   getAuthorizedVoucherDeliveryMock: vi.fn(),
   resendSendMock: vi.fn(),
   generateVoucherPdfMock: vi.fn(),
+  listChannelsMock: vi.fn(),
+}));
+
+vi.mock("@/lib/payment/voucherDeliveryOutbox", () => ({
+  listVoucherDeliveryChannels: listChannelsMock,
 }));
 
 const voucherPdfBytes = Buffer.from("%PDF-1.3 voucher");
@@ -37,6 +42,8 @@ describe("POST /api/email/send-voucher", () => {
     getAuthorizedVoucherDeliveryMock.mockResolvedValue({
       orderId: "server-order-1",
       token: "server-token",
+      voucherId: "voucher-1",
+      sendTo: "RECIPIENT",
       voucherCode: "KSPV-001",
       recipientEmail: "recipient@example.com",
       buyerEmail: "buyer@example.com",
@@ -125,6 +132,8 @@ describe("POST /api/email/send-voucher", () => {
     getAuthorizedVoucherDeliveryMock.mockResolvedValueOnce({
       orderId: "server-order-1",
       token: "server-token",
+      voucherId: "voucher-1",
+      sendTo: "RECIPIENT",
       voucherCode: "KSPV-001",
       recipientEmail: "recipient@example.com",
       recipientName: "Penerima",
@@ -289,6 +298,10 @@ describe("POST /api/email/send-voucher", () => {
   });
 
   describe("buyer copy", () => {
+    beforeEach(() => {
+      listChannelsMock.mockResolvedValue(["EMAIL", "EMAIL_BUYER_COPY"]);
+    });
+
     const buyerRequest = (ip: string) =>
       new Request("http://localhost/api/email/send-voucher", {
         method: "POST",
@@ -319,6 +332,7 @@ describe("POST /api/email/send-voucher", () => {
       expect(copyPayload.html).toContain("recipient@example.com");
       expect(giftPayload.html).not.toContain("This is your copy.");
       expect(copyPayload.attachments).toHaveLength(1);
+      expect(copyPayload.attachments).toEqual(giftPayload.attachments);
       expect(copyOptions.idempotencyKey).toMatch(/^voucher-email-[a-f0-9]{64}$/);
       expect(copyOptions.idempotencyKey).not.toBe(giftOptions.idempotencyKey);
     });
@@ -327,6 +341,8 @@ describe("POST /api/email/send-voucher", () => {
       getAuthorizedVoucherDeliveryMock.mockResolvedValueOnce({
         orderId: "server-order-1",
         token: "server-token",
+        voucherId: "voucher-1",
+        sendTo: "RECIPIENT",
         voucherCode: "KSPV-001",
         recipientEmail: "Buyer@Example.com",
         buyerEmail: "buyer@example.com",
@@ -351,6 +367,8 @@ describe("POST /api/email/send-voucher", () => {
       getAuthorizedVoucherDeliveryMock.mockResolvedValueOnce({
         orderId: "server-order-1",
         token: "server-token",
+        voucherId: "voucher-1",
+        sendTo: "RECIPIENT",
         voucherCode: "KSPV-001",
         recipientEmail: "recipient@example.com",
         buyerEmail: null,
@@ -367,6 +385,42 @@ describe("POST /api/email/send-voucher", () => {
       const response = await POST(buyerRequest("203.0.113.73"));
 
       expect(response.status).toBe(400);
+      expect(resendSendMock).not.toHaveBeenCalled();
+    });
+
+    test("refuses a copy that deliverVoucher never reserved", async () => {
+      listChannelsMock.mockResolvedValue(["EMAIL"]);
+      const { POST } = await import("@/app/api/email/send-voucher/route");
+
+      const response = await POST(buyerRequest("203.0.113.74"));
+
+      expect(response.status).toBe(409);
+      expect(listChannelsMock).toHaveBeenCalledWith("voucher-1");
+      expect(resendSendMock).not.toHaveBeenCalled();
+    });
+
+    test("refuses a copy for a voucher bought for the buyer", async () => {
+      getAuthorizedVoucherDeliveryMock.mockResolvedValueOnce({
+        orderId: "server-order-1",
+        token: "server-token",
+        voucherId: "voucher-1",
+        sendTo: "PURCHASER",
+        voucherCode: "KSPV-001",
+        recipientEmail: "recipient@example.com",
+        buyerEmail: "buyer@example.com",
+        recipientName: "Penerima",
+        senderName: "Pengirim",
+        senderMessage: null,
+        serviceName: "Balinese Massage",
+        serviceDuration: 60,
+        amount: 450000,
+        expiryDate: "2027-01-01T00:00:00.000Z",
+      });
+      const { POST } = await import("@/app/api/email/send-voucher/route");
+
+      const response = await POST(buyerRequest("203.0.113.75"));
+
+      expect(response.status).toBe(409);
       expect(resendSendMock).not.toHaveBeenCalled();
     });
   });

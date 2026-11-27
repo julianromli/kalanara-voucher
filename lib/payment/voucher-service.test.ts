@@ -423,6 +423,46 @@ describe("buyer copy of a gift voucher", () => {
     expect(sendVoucherEmailMock).not.toHaveBeenCalled();
   });
 
+  test("a failing copy is recorded for retry and does not fail the recipient delivery", async () => {
+    const { createVoucherOnPaymentSuccess } = await import("@/lib/payment/voucher-service");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    claimVoucherDeliveriesMock.mockResolvedValue([
+      { id: "delivery-email", channel: "EMAIL", claimToken: "claim-email" },
+      { id: "delivery-copy", channel: "EMAIL_BUYER_COPY", claimToken: "claim-copy" },
+    ]);
+    const copyError = new Error("Resend down for the copy");
+    sendVoucherEmailMock.mockImplementation(async (...args: unknown[]) => {
+      if (args[3] === "buyer") throw copyError;
+    });
+    markVoucherDeliveryFailedMock.mockResolvedValue(undefined);
+
+    const result = await createVoucherOnPaymentSuccess(order);
+
+    expect(result.success).toBe(true);
+    expect(markVoucherDeliverySentMock).toHaveBeenCalledWith("delivery-email", "claim-email");
+    expect(markVoucherDeliveryFailedMock).toHaveBeenCalledWith("delivery-copy", "claim-copy", copyError);
+    expect(markVoucherDeliverySentMock).not.toHaveBeenCalledWith("delivery-copy", "claim-copy");
+    consoleError.mockRestore();
+  });
+
+  test("a failed channel lookup skips the copy and still delivers to the recipient", async () => {
+    const { createVoucherOnPaymentSuccess } = await import("@/lib/payment/voucher-service");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    listVoucherDeliveryChannelsMock.mockRejectedValue(new Error("outbox read failed"));
+    claimVoucherDeliveriesMock.mockResolvedValue([
+      { id: "delivery-email", channel: "EMAIL", claimToken: "claim-email" },
+    ]);
+
+    const result = await createVoucherOnPaymentSuccess(order);
+
+    expect(result.success).toBe(true);
+    expect(claimVoucherDeliveriesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ channels: ["EMAIL", "WHATSAPP"] })
+    );
+    expect(sendVoucherEmailMock).toHaveBeenCalledWith("KSP-123", "public-token", "item-1");
+    consoleError.mockRestore();
+  });
+
   test("a failed copy with its own row is retried", async () => {
     const { createVoucherOnPaymentSuccess } = await import("@/lib/payment/voucher-service");
     listVoucherDeliveryChannelsMock.mockResolvedValue(["EMAIL", "WHATSAPP", "EMAIL_BUYER_COPY"]);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { listVoucherDeliveryChannels } from "@/lib/payment/voucherDeliveryOutbox";
 import { createRateLimiter, getClientIp } from "@/lib/rate-limit";
 import { getAuthorizedVoucherDelivery } from "@/lib/payment/public-voucher-delivery";
 import {
@@ -53,6 +54,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (audience === "buyer") {
+      // Only deliverVoucher decides who gets a copy: it reserves an
+      // EMAIL_BUYER_COPY outbox row first. Without that row (orders emailed
+      // before copies existed, vouchers bought for the buyer) nothing is sent,
+      // even to a caller holding the order token.
+      const reserved =
+        delivery.sendTo === "RECIPIENT" &&
+        (await listVoucherDeliveryChannels(delivery.voucherId)).includes("EMAIL_BUYER_COPY");
+      if (!reserved) {
+        return NextResponse.json(
+          { error: "Salinan untuk pembeli tidak dijadwalkan untuk voucher ini." },
+          { status: 409 }
+        );
+      }
       const buyerEmail = delivery.buyerEmail?.trim() ?? "";
       if (!buyerEmail || !isValidEmailAddress(buyerEmail)) {
         return NextResponse.json(

@@ -89,15 +89,19 @@ export function suggestEmailFix(value: string): string | null {
     return null;
   }
 
+  let match: string | undefined;
   if (!domain.includes(".")) {
-    const match = COMMON_EMAIL_DOMAINS.find(
-      (known) => known.split(".")[0] === domain || editDistanceAtMostOne(known.split(".")[0], domain)
-    );
-    return match ? `${local}@${match}` : null;
+    // An exact name wins over a one-letter fix: "ymail" is ymail.com, not gmail.com.
+    match =
+      COMMON_EMAIL_DOMAINS.find((known) => known.split(".")[0] === domain) ??
+      COMMON_EMAIL_DOMAINS.find((known) => editDistanceAtMostOne(known.split(".")[0], domain));
+  } else {
+    match = COMMON_EMAIL_DOMAINS.find((known) => editDistanceAtMostOne(known, domain));
   }
-
-  const match = COMMON_EMAIL_DOMAINS.find((known) => editDistanceAtMostOne(known, domain));
-  return match ? `${local}@${match}` : null;
+  if (!match) return null;
+  // Only the domain is fixed, so the rest must already be a valid address.
+  const candidate = `${local}@${match}`;
+  return isValidEmailAddress(candidate) ? candidate : null;
 }
 
 // One message for an email field: a likely typo first, then the format.

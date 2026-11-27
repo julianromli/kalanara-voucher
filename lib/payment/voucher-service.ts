@@ -184,8 +184,12 @@ async function deliverVoucher(
     // Only a new delivery gets a copy, or a copy that already has a row to
     // retry. Replayed webhooks for orders emailed before this change must
     // not email those buyers now.
-    const existing = await listVoucherDeliveryChannels(voucher.id);
-    if (!existing.includes("EMAIL") || existing.includes("EMAIL_BUYER_COPY")) {
+    // A failed lookup only skips the copy; the recipient still gets theirs.
+    const existing = await listVoucherDeliveryChannels(voucher.id).catch((error) => {
+      console.error("[VoucherService] Buyer copy lookup failed, skipping copy:", error);
+      return null;
+    });
+    if (existing && (!existing.includes("EMAIL") || existing.includes("EMAIL_BUYER_COPY"))) {
       channels.push("EMAIL_BUYER_COPY");
     }
   }
@@ -254,6 +258,15 @@ async function deliverVoucher(
           );
         }
       } catch (error) {
+        if (delivery.channel === "EMAIL_BUYER_COPY") {
+          // The copy is extra: a failure is recorded for retry but does not
+          // fail the order's delivery.
+          console.error("[VoucherService] Buyer copy failed:", error);
+          await markVoucherDeliveryFailed(delivery.id, delivery.claimToken, error).catch(
+            (persistError) => console.error("[VoucherService] Could not record buyer copy failure:", persistError)
+          );
+          return;
+        }
         await markVoucherDeliveryFailed(delivery.id, delivery.claimToken, error);
         throw error;
       }

@@ -5,6 +5,8 @@ import { getPublicOrderDetailsWithItems } from "@/lib/payment/order-capability-r
 export interface AuthorizedVoucherDelivery {
   orderId: string;
   token: string;
+  voucherId: string;
+  sendTo: string | null;
   voucherCode: string;
   recipientEmail: string | null;
   buyerEmail: string | null;
@@ -43,11 +45,14 @@ function mapAuthorizedVoucherDelivery(
   order: PublicOrderWithItems,
   voucher: DeliveryVoucher,
   service: DeliveryService,
-  recipientPhone: string | null
+  recipientPhone: string | null,
+  sendTo: string | null
 ): AuthorizedVoucherDelivery {
   return {
     orderId: order.payment_order_id || order.id,
     token: order.public_access_token,
+    voucherId: voucher.id,
+    sendTo,
     voucherCode: voucher.code,
     recipientEmail: voucher.recipient_email,
     buyerEmail: order.customer_email ?? null,
@@ -74,7 +79,8 @@ function toDelivery(
     order,
     item.vouchers,
     item.services,
-    getRecipientPhone(order, item)
+    getRecipientPhone(order, item),
+    item.send_to ?? null
   );
 }
 
@@ -93,7 +99,8 @@ function toLegacyDelivery(
     service,
     order.send_to === "RECIPIENT"
       ? order.recipient_phone
-      : order.customer_phone
+      : order.customer_phone,
+    order.send_to ?? null
   );
 }
 

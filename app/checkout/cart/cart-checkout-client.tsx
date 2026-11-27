@@ -338,7 +338,7 @@ export function CartCheckoutClient({ initialPaymentConfig }: CartCheckoutClientP
             <div className="space-y-6">
               <CustomerFields
                 idPrefix="cart"
-                description="Voucher atau salinannya dikirim ke email ini. Nomor WhatsApp dipakai kalau ada kendala pembayaran."
+                description="Voucher atau salinannya dikirim ke email ini. Nomor WhatsApp untuk kabar soal pesanan ini."
                 nameRegistration={register("customerName", {
                   required: "Nama lengkap wajib diisi",
                   setValueAs: (value: unknown) => (typeof value === "string" ? value.trim() : value),

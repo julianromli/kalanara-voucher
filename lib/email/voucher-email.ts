@@ -148,6 +148,15 @@ export function renderVoucherEmailHtml(
   }
   const fontStack = "'Outfit', 'Avenir Next', Avenir, 'Helvetica Neue', Arial, sans-serif";
 
+  const buyerCopy = variant === "buyer_copy";
+  const stripLabel = buyerCopy ? "Your copy" : "A gift for you";
+  const heading = buyerCopy
+    ? "A copy of the voucher you gave"
+    : "You&rsquo;ve got a treatment gift voucher";
+  const greeting = buyerCopy
+    ? `Hi ${senderName}, here is a copy of the Kalanara Spa voucher you gave ${recipientName}. They book with the code below. If they can&rsquo;t find their email, you can forward this one.`
+    : `Dear ${recipientName}, ${senderName} has gifted you a luxurious spa experience at Kalanara Spa. Your treatment is waiting for you.`;
+
   const emailHtml = `
 <!DOCTYPE html>
 <html>
@@ -166,7 +175,7 @@ export function renderVoucherEmailHtml(
           <!-- Top strip -->
           <tr>
             <td style="background-color: #243a3e; height: 36px; text-align: center; color: #fde6a9; font-size: 11px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase;">
-              A gift for you&nbsp;&nbsp;<span style="color: #e6bf6d;">&bull;</span>&nbsp;&nbsp;Harmony in every touch&nbsp;&nbsp;<span style="color: #e6bf6d;">&bull;</span>&nbsp;&nbsp;A gift for you
+              ${stripLabel}&nbsp;&nbsp;<span style="color: #e6bf6d;">&bull;</span>&nbsp;&nbsp;Harmony in every touch&nbsp;&nbsp;<span style="color: #e6bf6d;">&bull;</span>&nbsp;&nbsp;${stripLabel}
             </td>
           </tr>
 ${
@@ -186,10 +195,10 @@ ${
           <tr>
             <td style="padding: 40px 40px 48px; text-align: center;">
               <p style="margin: 0; color: #8e734a; font-size: 13px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase;">For ${recipientName}</p>
-              <h1 style="margin: 12px auto 0; max-width: 460px; color: #243a3e; font-size: 44px; font-weight: 300; line-height: 1.08; letter-spacing: -1px;">You&rsquo;ve got a treatment gift voucher</h1>
+              <h1 style="margin: 12px auto 0; max-width: 460px; color: #243a3e; font-size: 44px; font-weight: 300; line-height: 1.08; letter-spacing: -1px;">${heading}</h1>
               <img src="${emailAsset("voucher-hero.jpg")}" width="520" height="340" alt="Kalanara Spa" style="display: block; margin: 32px auto 0; width: 520px; max-width: 100%; height: auto; border: 0;">
               <p style="margin: 32px auto 0; max-width: 440px; color: #243a3e; font-size: 16px; line-height: 1.6;">
-                Dear ${recipientName}, ${senderName} has gifted you a luxurious spa experience at Kalanara Spa. Your treatment is waiting for you.
+                ${greeting}
               </p>
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 28px auto 0;">
                 <tr>

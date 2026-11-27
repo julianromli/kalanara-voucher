@@ -26,6 +26,7 @@ describe("authorized voucher delivery", () => {
       recipient_phone: "62813",
       send_to: "RECIPIENT",
       vouchers: {
+        id: "voucher-1",
         code: "KSPV-1",
         recipient_email: "recipient@example.com",
         recipient_name: "Penerima",
@@ -50,6 +51,8 @@ describe("authorized voucher delivery", () => {
         voucherCode: "KSPV-1",
         recipientEmail: "recipient@example.com",
         buyerEmail: "buyer@example.com",
+        voucherId: "voucher-1",
+        sendTo: "RECIPIENT",
         recipientPhone: "62813",
         recipientName: "Penerima",
         senderName: "Pengirim",
@@ -76,6 +79,7 @@ describe("authorized voucher delivery", () => {
           send_to: "PURCHASER",
           recipient_phone: "62813",
           vouchers: {
+            id: "voucher-1",
             code: "KSPV-2",
             recipient_email: "recipient@example.com",
             recipient_name: "Penerima",
@@ -101,6 +105,8 @@ describe("authorized voucher delivery", () => {
         voucherCode: "KSPV-2",
         recipientEmail: "recipient@example.com",
         buyerEmail: "buyer@example.com",
+        voucherId: "voucher-1",
+        sendTo: "PURCHASER",
         recipientPhone: "62812",
         recipientName: "Penerima",
         senderName: "Pengirim",

@@ -22,7 +22,26 @@ describe("checkout email validation", () => {
   });
 
   test("rejects a recipient email without a domain ending", () => {
-    const result = validateCheckoutRequest({ ...base, recipientEmail: "dias@gmail" });
-    expect(result?.lineItems ?? []).toHaveLength(0);
+    expect(validateCheckoutRequest({ ...base, recipientEmail: "dias@gmail" })).toBeNull();
+  });
+
+  test("one bad recipient email in a cart rejects the whole checkout", () => {
+    const item = {
+      serviceId: "service-1",
+      recipientName: "Dias",
+      recipientEmail: "dias@gmail.com",
+      deliveryMethod: "EMAIL",
+      sendTo: "RECIPIENT",
+    };
+    const cart = {
+      customerName: base.customerName,
+      customerEmail: base.customerEmail,
+      customerPhone: base.customerPhone,
+      lineItems: [item, { ...item, recipientEmail: "rani@yahoo" }],
+    };
+    expect(validateCheckoutRequest(cart)).toBeNull();
+    expect(
+      validateCheckoutRequest({ ...cart, lineItems: [item, { ...item, recipientEmail: "rani@yahoo.com" }] })?.lineItems
+    ).toHaveLength(2);
   });
 });

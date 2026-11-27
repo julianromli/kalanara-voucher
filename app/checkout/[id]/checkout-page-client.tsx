@@ -283,7 +283,7 @@ export function CheckoutPageClient({
               <CustomerFields
                 idPrefix="checkout"
                 className="animate-fade-slide-up animate-stagger-3"
-                description="Voucher atau salinannya dikirim ke email ini. Nomor WhatsApp dipakai kalau ada kendala pembayaran."
+                description="Voucher atau salinannya dikirim ke email ini. Nomor WhatsApp untuk kabar soal pesanan ini."
                 nameRegistration={register("customerName", {
                   required: "Nama lengkap wajib diisi",
                   setValueAs: (value: unknown) =>
