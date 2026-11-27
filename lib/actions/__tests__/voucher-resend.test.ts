@@ -133,6 +133,7 @@ describe("voucher resend actions", () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   test("refuses when the admin lacks the resend permission", async () => {
