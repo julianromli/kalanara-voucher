@@ -67,6 +67,19 @@ function findRoutesThatRenderVoucherPdf(): string[] {
 }
 
 describe("voucher PDF background", () => {
+  it("renders the same bytes for the same voucher, so idempotent email retries match", async () => {
+    const first = await renderPdfSource();
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    const second = await renderPdfSource();
+    expect(second).toBe(first);
+    const other = Buffer.from(
+      await (await generateVoucherPDF({ ...SAMPLE_VOUCHER, code: "KSP-2026-OTHER" })).arrayBuffer()
+    ).toString("latin1");
+    const fileId = (source: string) => /\/ID \[ <([0-9A-F]{32})>/.exec(source)?.[1];
+    expect(fileId(other)).toMatch(/^[0-9A-F]{32}$/);
+    expect(fileId(other)).not.toBe(fileId(first));
+  }, 20_000);
+
   afterEach(() => {
     vi.restoreAllMocks();
   });

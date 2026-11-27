@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { getEmailIdempotencyKey, renderVoucherEmailHtml } from "@/lib/email/voucher-email";
 
 const delivery = {
@@ -17,6 +17,17 @@ const delivery = {
 
 describe("voucher email template", () => {
   afterEach(() => vi.unstubAllEnvs());
+
+  // The expiry date is formatted in the host time zone; pin it so the hash
+  // holds on any machine (production output is unchanged).
+  const originalTz = process.env.TZ;
+  beforeAll(() => {
+    process.env.TZ = "Asia/Jakarta";
+  });
+  afterAll(() => {
+    if (originalTz === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTz;
+  });
 
   // The order flow keys Resend's 24h idempotency on a hash of this HTML. If
   // the bytes change, a retry right after deploy goes out as a second email.

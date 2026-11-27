@@ -284,6 +284,31 @@ function drawTextInBox(
   }
 }
 
+const FIXED_PDF_CREATION_DATE = new Date(Date.UTC(2025, 0, 1));
+
+// 32 hex chars from the voucher fields (FNV-1a, four seeds). Not a security
+// value: it only has to be stable per voucher and work in the browser too.
+function voucherPdfFileId(data: VoucherPDFData): string {
+  const input = [
+    data.code,
+    data.serviceName,
+    data.recipientName,
+    data.senderName,
+    data.senderMessage ?? "",
+    data.expiryDate,
+  ].join("\u0000");
+  let id = "";
+  for (const seed of [0x811c9dc5, 0x01000193, 0x9e3779b9, 0x85ebca6b]) {
+    let hash = seed >>> 0;
+    for (let index = 0; index < input.length; index += 1) {
+      hash ^= input.charCodeAt(index);
+      hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    id += hash.toString(16).padStart(8, "0");
+  }
+  return id.toUpperCase();
+}
+
 function fitInlineText(
   doc: jsPDF,
   options: InlineTextOptions,
@@ -314,6 +339,11 @@ export async function generateVoucherPDF(data: VoucherPDFData): Promise<Blob> {
     unit: "px",
     format: [PAGE_WIDTH, PAGE_HEIGHT],
   });
+  // jsPDF stamps the current time and a random file ID by default. Emails
+  // attach this PDF under a Resend idempotency key, and Resend refuses a retry
+  // whose body differs, so the same voucher must always give the same bytes.
+  doc.setCreationDate(FIXED_PDF_CREATION_DATE);
+  doc.setFileId(voucherPdfFileId(data));
 
   const registeredFonts = await registerCustomFonts(doc);
 
