@@ -219,6 +219,9 @@ export async function resendVoucherEmailForAdmin(input: {
 
   const content = emailContent(order, voucher);
   let sendResult: Awaited<ReturnType<typeof sendVoucherEmailMessage>>;
+  // A throw means the provider was never reached (render or setup bug), so
+  // the admin sees a server error, not "rejected by the email provider".
+  let threw = false;
   try {
     sendResult = await sendVoucherEmailMessage({
       delivery: content,
@@ -230,8 +233,7 @@ export async function resendVoucherEmailForAdmin(input: {
       idempotencyKey: `voucher-resend-${input.requestId ?? resendId}`,
     });
   } catch (error) {
-    // sendVoucherEmailMessage reports transport failures itself; anything
-    // thrown here is a bug in rendering or setup, not a dropped connection.
+    threw = true;
     sendResult = {
       ok: false,
       reason: "provider",
@@ -243,7 +245,7 @@ export async function resendVoucherEmailForAdmin(input: {
     p_resend_id: resendId,
     p_sent: sendResult.ok,
     p_provider_message_id: sendResult.ok ? sendResult.messageId : null,
-    p_error: sendResult.ok ? null : `${sendResult.reason}: ${sendResult.message}`,
+    p_error: sendResult.ok ? null : `${threw ? "internal" : sendResult.reason}: ${sendResult.message}`,
   });
   const finishBody = asRecord(finished);
 
@@ -255,8 +257,9 @@ export async function resendVoucherEmailForAdmin(input: {
 
   if (!sendResult.ok) {
     return {
-      status:
-        sendResult.reason === "pdf"
+      status: threw
+        ? "error"
+        : sendResult.reason === "pdf"
           ? "pdf_error"
           : sendResult.reason === "network"
             ? "network"
