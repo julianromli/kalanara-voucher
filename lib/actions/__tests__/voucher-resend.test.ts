@@ -26,6 +26,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 vi.mock("@/lib/email/voucher-email", () => ({
   renderVoucherEmailHtml: renderVoucherEmailHtmlMock,
   voucherGiftSubject: () => "gift subject",
+  voucherBuyerCopySubject: () => "buyer copy subject",
   sendVoucherEmailMessage: sendVoucherEmailMessageMock,
 }));
 
@@ -124,7 +125,9 @@ describe("voucher resend actions", () => {
     vi.clearAllMocks();
     requireAdminPermissionMock.mockResolvedValue(access);
     sendVoucherEmailMessageMock.mockResolvedValue({ ok: true, messageId: "email-1" });
-    renderVoucherEmailHtmlMock.mockReturnValue("<html>voucher</html>");
+    renderVoucherEmailHtmlMock.mockImplementation((_content: unknown, options?: { variant?: string }) =>
+      options?.variant === "buyer_copy" ? "<html>copy</html>" : "<html>voucher</html>"
+    );
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://voucher.kalanaraspa.com");
   });
 
@@ -192,6 +195,10 @@ describe("voucher resend actions", () => {
       target: "BUYER",
     });
     expect(result).toMatchObject({ status: "sent", to: "buyer@gmail.com" });
+    // The voucher is for Dias, so the buyer gets the buyer copy, not the gift email.
+    expect(sendVoucherEmailMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: "buyer copy subject", html: "<html>copy</html>" })
+    );
   });
 
   test("rejects a typo custom address before touching the database", async () => {

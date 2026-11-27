@@ -6,6 +6,7 @@ import {
   type ScalevPaymentMethod,
   type ScalevVABankCode,
 } from "@/lib/scalev/types";
+import { isValidEmailAddress } from "@/lib/email-address";
 import { DeliveryMethod, SendTo } from "@/lib/types";
 
 export interface ValidatedCheckoutLineItem extends ScalevCheckoutLineItem {
@@ -72,16 +73,27 @@ function normalizeLineItem(
     return null;
   }
 
+  const recipientEmail = getOptionalString(data.recipientEmail);
+  if (recipientEmail && !isValidEmailAddress(recipientEmail)) {
+    return null;
+  }
+
   return {
     ...customer,
     serviceId,
     recipientName,
-    recipientEmail: getOptionalString(data.recipientEmail),
+    recipientEmail,
     recipientPhone: getOptionalString(data.recipientPhone),
     senderMessage: getOptionalString(data.senderMessage),
     deliveryMethod,
     sendTo,
   };
+}
+
+function hasInvalidRecipientEmail(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  const recipientEmail = getOptionalString((value as Record<string, unknown>).recipientEmail);
+  return Boolean(recipientEmail) && !isValidEmailAddress(recipientEmail!);
 }
 
 function hasRequiredDeliveryTarget(lineItem: ValidatedCheckoutLineItem) {
@@ -115,6 +127,7 @@ export function validateCheckoutRequest(
   if (
     !customerName ||
     !customerEmail ||
+    !isValidEmailAddress(customerEmail) ||
     !customerPhone ||
     (paymentMethodValue !== undefined &&
       !isScalevPaymentMethod(paymentMethodValue))
@@ -128,6 +141,11 @@ export function validateCheckoutRequest(
     customerEmail,
     customerPhone: normalizeCustomerPhone(customerPhone),
   };
+  // A bad recipient email rejects the whole checkout, never just its item.
+  const rawLineItems = Array.isArray(data.lineItems) ? data.lineItems : [data];
+  if (rawLineItems.some(hasInvalidRecipientEmail)) {
+    return null;
+  }
   const lineItems = Array.isArray(data.lineItems)
     ? data.lineItems
         .map((item) => normalizeLineItem(item, customer))

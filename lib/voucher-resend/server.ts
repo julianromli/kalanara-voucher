@@ -9,10 +9,15 @@ import {
 import {
   renderVoucherEmailHtml,
   sendVoucherEmailMessage,
+  voucherBuyerCopySubject,
   voucherGiftSubject,
   type VoucherEmailContent,
 } from "@/lib/email/voucher-email";
-import { isValidEmailAddress, normalizeEmailAddress } from "@/lib/email-address";
+import {
+  isValidEmailAddress,
+  normalizeEmailAddress,
+  sameEmailAddress,
+} from "@/lib/email-address";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type {
   ResendFailureStatus,
@@ -218,6 +223,12 @@ export async function resendVoucherEmailForAdmin(input: {
   if (beginBody?.status !== "ok" || !resendId) return beginFailure(beginBody);
 
   const content = emailContent(order, voucher);
+  // A buyer who bought for someone else gets the buyer copy (own subject,
+  // heading and greeting), not the gift email addressed to the recipient.
+  const buyerCopy =
+    target.data === "BUYER" &&
+    Boolean(voucher.recipient_email?.trim()) &&
+    !sameEmailAddress(voucher.recipient_email, order.customer_email);
   let sendResult: Awaited<ReturnType<typeof sendVoucherEmailMessage>>;
   // A throw means the provider was never reached (render or setup bug), so
   // the admin sees a server error, not "rejected by the email provider".
@@ -226,8 +237,13 @@ export async function resendVoucherEmailForAdmin(input: {
     sendResult = await sendVoucherEmailMessage({
       delivery: content,
       to,
-      subject: voucherGiftSubject(content),
-      html: renderVoucherEmailHtml(content),
+      subject: buyerCopy ? voucherBuyerCopySubject(content) : voucherGiftSubject(content),
+      html: buyerCopy
+        ? renderVoucherEmailHtml(content, {
+            variant: "buyer_copy",
+            recipientEmail: voucher.recipient_email,
+          })
+        : renderVoucherEmailHtml(content),
       // A retry of the same dialog submission (after a dropped connection)
       // reuses the request id, so Resend drops the duplicate.
       idempotencyKey: `voucher-resend-${input.requestId ?? resendId}`,

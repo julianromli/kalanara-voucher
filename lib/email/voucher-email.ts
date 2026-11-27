@@ -78,10 +78,11 @@ export async function createVoucherPdfAttachment(
 // they are not deterministic.
 export function getEmailIdempotencyKey(
   delivery: VoucherEmailContent,
-  emailHtml: string
+  emailHtml: string,
+  channel: "EMAIL" | "EMAIL_BUYER_COPY" = "EMAIL"
 ): string {
   const deliveryIdentity = JSON.stringify({
-    channel: "EMAIL",
+    channel,
     attachment: "voucher-pdf-v1",
     html: createHash("sha256").update(emailHtml).digest("hex"),
     orderId: delivery.orderId,
@@ -103,7 +104,20 @@ export function voucherGiftSubject(delivery: Pick<VoucherEmailContent, "senderNa
   return `🎁 ${sanitizeHeaderValue(delivery.senderName)} sent you a gift from Kalanara Spa!`;
 }
 
-export function renderVoucherEmailHtml(delivery: VoucherEmailContent): string {
+export type VoucherEmailVariant = "gift" | "buyer_copy";
+
+// Subject for the buyer's copy of a voucher bought for someone else.
+export function voucherBuyerCopySubject(
+  delivery: Pick<VoucherEmailContent, "recipientName">
+): string {
+  return `Your copy: Kalanara Spa voucher for ${sanitizeHeaderValue(delivery.recipientName)}`;
+}
+
+export function renderVoucherEmailHtml(
+  delivery: VoucherEmailContent,
+  options: { variant?: VoucherEmailVariant; recipientEmail?: string | null } = {}
+): string {
+  const variant = options.variant ?? "gift";
   const recipientName = escapeHtml(delivery.recipientName);
   const senderName = escapeHtml(delivery.senderName);
   const senderMessage = delivery.senderMessage ? escapeHtml(delivery.senderMessage) : null;
@@ -134,6 +148,15 @@ export function renderVoucherEmailHtml(delivery: VoucherEmailContent): string {
   }
   const fontStack = "'Outfit', 'Avenir Next', Avenir, 'Helvetica Neue', Arial, sans-serif";
 
+  const buyerCopy = variant === "buyer_copy";
+  const stripLabel = buyerCopy ? "Your copy" : "A gift for you";
+  const heading = buyerCopy
+    ? "A copy of the voucher you gave"
+    : "You&rsquo;ve got a treatment gift voucher";
+  const greeting = buyerCopy
+    ? `Hi ${senderName}, here is a copy of the Kalanara Spa voucher you gave ${recipientName}. They book with the code below. If they can&rsquo;t find their email, you can forward this one.`
+    : `Dear ${recipientName}, ${senderName} has gifted you a luxurious spa experience at Kalanara Spa. Your treatment is waiting for you.`;
+
   const emailHtml = `
 <!DOCTYPE html>
 <html>
@@ -152,18 +175,30 @@ export function renderVoucherEmailHtml(delivery: VoucherEmailContent): string {
           <!-- Top strip -->
           <tr>
             <td style="background-color: #243a3e; height: 36px; text-align: center; color: #fde6a9; font-size: 11px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase;">
-              A gift for you&nbsp;&nbsp;<span style="color: #e6bf6d;">&bull;</span>&nbsp;&nbsp;Harmony in every touch&nbsp;&nbsp;<span style="color: #e6bf6d;">&bull;</span>&nbsp;&nbsp;A gift for you
+              ${stripLabel}&nbsp;&nbsp;<span style="color: #e6bf6d;">&bull;</span>&nbsp;&nbsp;Harmony in every touch&nbsp;&nbsp;<span style="color: #e6bf6d;">&bull;</span>&nbsp;&nbsp;${stripLabel}
             </td>
           </tr>
-
+${
+  variant === "buyer_copy"
+    ? `
+          <!-- Buyer copy note -->
+          <tr>
+            <td style="padding: 20px 40px; background-color: #f4efe6; color: #243a3e; font-size: 15px; line-height: 1.5; text-align: center;">
+              This is your copy. The same voucher was sent to <strong style="font-weight: 600;">${recipientName}</strong>${
+                options.recipientEmail ? ` at ${escapeHtml(options.recipientEmail)}` : ""
+              }. Keep it in case they need the code.
+            </td>
+          </tr>`
+    : ""
+}
           <!-- Hero -->
           <tr>
             <td style="padding: 40px 40px 48px; text-align: center;">
               <p style="margin: 0; color: #8e734a; font-size: 13px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase;">For ${recipientName}</p>
-              <h1 style="margin: 12px auto 0; max-width: 460px; color: #243a3e; font-size: 44px; font-weight: 300; line-height: 1.08; letter-spacing: -1px;">You&rsquo;ve got a treatment gift voucher</h1>
+              <h1 style="margin: 12px auto 0; max-width: 460px; color: #243a3e; font-size: 44px; font-weight: 300; line-height: 1.08; letter-spacing: -1px;">${heading}</h1>
               <img src="${emailAsset("voucher-hero.jpg")}" width="520" height="340" alt="Kalanara Spa" style="display: block; margin: 32px auto 0; width: 520px; max-width: 100%; height: auto; border: 0;">
               <p style="margin: 32px auto 0; max-width: 440px; color: #243a3e; font-size: 16px; line-height: 1.6;">
-                Dear ${recipientName}, ${senderName} has gifted you a luxurious spa experience at Kalanara Spa. Your treatment is waiting for you.
+                ${greeting}
               </p>
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 28px auto 0;">
                 <tr>

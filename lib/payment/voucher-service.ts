@@ -17,6 +17,7 @@ import {
 } from "@/lib/payment/voucher-writes";
 import {
   claimVoucherDeliveries,
+  listVoucherDeliveryChannels,
   markVoucherDeliveryFailed,
   markVoucherDeliveryHandoffRequired,
   markVoucherDeliverySent,
@@ -28,6 +29,7 @@ import type {
   OrderWithService,
   Voucher,
 } from "@/lib/database.types";
+import { sameEmailAddress } from "@/lib/email-address";
 
 export interface VoucherCreationResult {
   success: boolean;
@@ -152,6 +154,24 @@ function getDeliveryChannels(
   return [];
 }
 
+// A voucher bought for someone else also goes to the buyer, unless both
+// addresses are the same.
+function wantsBuyerCopy(
+  order: OrderWithService,
+  voucher: Voucher,
+  channels: VoucherDeliveryChannel[],
+  item?: OrderItemWithService
+): boolean {
+  const sendTo = item?.send_to ?? order.send_to;
+  return (
+    sendTo === "RECIPIENT" &&
+    channels.includes("EMAIL") &&
+    Boolean(order.customer_email?.trim()) &&
+    Boolean(voucher.recipient_email?.trim()) &&
+    !sameEmailAddress(order.customer_email, voucher.recipient_email)
+  );
+}
+
 async function deliverVoucher(
   order: OrderWithService,
   voucher: Voucher,
@@ -160,6 +180,19 @@ async function deliverVoucher(
   const channels = getDeliveryChannels(
     item?.delivery_method ?? order.delivery_method
   );
+  if (wantsBuyerCopy(order, voucher, channels, item)) {
+    // Only a new delivery gets a copy, or a copy that already has a row to
+    // retry. Replayed webhooks for orders emailed before this change must
+    // not email those buyers now.
+    // A failed lookup only skips the copy; the recipient still gets theirs.
+    const existing = await listVoucherDeliveryChannels(voucher.id).catch((error) => {
+      console.error("[VoucherService] Buyer copy lookup failed, skipping copy:", error);
+      return null;
+    });
+    if (existing && (!existing.includes("EMAIL") || existing.includes("EMAIL_BUYER_COPY"))) {
+      channels.push("EMAIL_BUYER_COPY");
+    }
+  }
   const itemId = item?.id;
   const claimed = await claimVoucherDeliveries({
     orderId: order.id,
@@ -204,6 +237,14 @@ async function deliverVoucher(
             itemId
           );
           await markVoucherDeliverySent(delivery.id, delivery.claimToken);
+        } else if (delivery.channel === "EMAIL_BUYER_COPY") {
+          await sendVoucherEmail(
+            order.payment_order_id!,
+            order.public_access_token!,
+            itemId,
+            "buyer"
+          );
+          await markVoucherDeliverySent(delivery.id, delivery.claimToken);
         } else {
           const handoffUrl = await sendVoucherWhatsApp(
             order.payment_order_id!,
@@ -217,6 +258,15 @@ async function deliverVoucher(
           );
         }
       } catch (error) {
+        if (delivery.channel === "EMAIL_BUYER_COPY") {
+          // The copy is extra: a failure is recorded for retry but does not
+          // fail the order's delivery.
+          console.error("[VoucherService] Buyer copy failed:", error);
+          await markVoucherDeliveryFailed(delivery.id, delivery.claimToken, error).catch(
+            (persistError) => console.error("[VoucherService] Could not record buyer copy failure:", persistError)
+          );
+          return;
+        }
         await markVoucherDeliveryFailed(delivery.id, delivery.claimToken, error);
         throw error;
       }

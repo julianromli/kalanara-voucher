@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type {
   OrderItemWithService,
   OrderWithService,
@@ -15,6 +15,7 @@ const {
   sendVoucherWhatsAppMock,
   updateOrderVoucherIdMock,
   getOrderItemsByOrderIdMock,
+  listVoucherDeliveryChannelsMock,
 } = vi.hoisted(() => ({
   claimVoucherDeliveriesMock: vi.fn(),
   createVoucherForPaidOrderMock: vi.fn(),
@@ -26,6 +27,7 @@ const {
   sendVoucherWhatsAppMock: vi.fn(),
   updateOrderVoucherIdMock: vi.fn(),
   getOrderItemsByOrderIdMock: vi.fn(),
+  listVoucherDeliveryChannelsMock: vi.fn(),
 }));
 
 vi.mock("@/lib/payment/voucher-writes", () => ({
@@ -43,6 +45,7 @@ vi.mock("@/lib/payment/order-writes", () => ({
 
 vi.mock("@/lib/payment/voucherDeliveryOutbox", () => ({
   claimVoucherDeliveries: claimVoucherDeliveriesMock,
+  listVoucherDeliveryChannels: listVoucherDeliveryChannelsMock,
   markVoucherDeliveryFailed: markVoucherDeliveryFailedMock,
   markVoucherDeliveryHandoffRequired: markVoucherDeliveryHandoffRequiredMock,
   markVoucherDeliverySent: markVoucherDeliverySentMock,
@@ -351,5 +354,146 @@ describe("createVoucherOnPaymentSuccess", () => {
     expect(markVoucherDeliveryFailedMock).not.toHaveBeenCalled();
     expect(sendVoucherEmailMock).not.toHaveBeenCalled();
     expect(sendVoucherWhatsAppMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("buyer copy of a gift voucher", () => {
+  const giftVoucher = {
+    id: "voucher-1",
+    code: "KSPV-001",
+    recipient_email: "recipient@example.com",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    createVoucherForPaidOrderItemMock.mockResolvedValue(giftVoucher);
+    getOrderItemsByOrderIdMock.mockResolvedValue([item]);
+    listVoucherDeliveryChannelsMock.mockResolvedValue([]);
+    markVoucherDeliverySentMock.mockResolvedValue(undefined);
+    markVoucherDeliveryHandoffRequiredMock.mockResolvedValue(undefined);
+    sendVoucherEmailMock.mockResolvedValue(undefined);
+    sendVoucherWhatsAppMock.mockResolvedValue("https://wa.me/628111111111?text=Voucher");
+    updateOrderVoucherIdMock.mockResolvedValue(true);
+  });
+
+  test("a new gift delivery claims and sends the buyer copy", async () => {
+    const { createVoucherOnPaymentSuccess } = await import("@/lib/payment/voucher-service");
+    claimVoucherDeliveriesMock.mockResolvedValue([
+      { id: "delivery-email", channel: "EMAIL", claimToken: "claim-email" },
+      { id: "delivery-copy", channel: "EMAIL_BUYER_COPY", claimToken: "claim-copy" },
+    ]);
+
+    const result = await createVoucherOnPaymentSuccess(order);
+
+    expect(result.success).toBe(true);
+    expect(claimVoucherDeliveriesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ channels: ["EMAIL", "WHATSAPP", "EMAIL_BUYER_COPY"] })
+    );
+    expect(sendVoucherEmailMock).toHaveBeenCalledWith("KSP-123", "public-token", "item-1");
+    expect(sendVoucherEmailMock).toHaveBeenCalledWith("KSP-123", "public-token", "item-1", "buyer");
+    expect(markVoucherDeliverySentMock).toHaveBeenCalledWith("delivery-copy", "claim-copy");
+  });
+
+  test("no copy when the recipient email is the buyer's", async () => {
+    const { createVoucherOnPaymentSuccess } = await import("@/lib/payment/voucher-service");
+    createVoucherForPaidOrderItemMock.mockResolvedValue({
+      ...giftVoucher,
+      recipient_email: "Buyer@Example.com",
+    });
+    claimVoucherDeliveriesMock.mockResolvedValue([]);
+
+    await createVoucherOnPaymentSuccess(order);
+
+    expect(claimVoucherDeliveriesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ channels: ["EMAIL", "WHATSAPP"] })
+    );
+    expect(listVoucherDeliveryChannelsMock).not.toHaveBeenCalled();
+  });
+
+  test("a replayed webhook for an order emailed before this change sends no copy", async () => {
+    const { createVoucherOnPaymentSuccess } = await import("@/lib/payment/voucher-service");
+    listVoucherDeliveryChannelsMock.mockResolvedValue(["EMAIL", "WHATSAPP"]);
+    claimVoucherDeliveriesMock.mockResolvedValue([]);
+
+    await createVoucherOnPaymentSuccess(order);
+
+    expect(claimVoucherDeliveriesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ channels: ["EMAIL", "WHATSAPP"] })
+    );
+    expect(sendVoucherEmailMock).not.toHaveBeenCalled();
+  });
+
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn> | null = null;
+
+  afterEach(() => {
+    consoleErrorSpy?.mockRestore();
+    consoleErrorSpy = null;
+  });
+
+  test("a failing copy is recorded for retry and does not fail the recipient delivery", async () => {
+    const { createVoucherOnPaymentSuccess } = await import("@/lib/payment/voucher-service");
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    claimVoucherDeliveriesMock.mockResolvedValue([
+      { id: "delivery-email", channel: "EMAIL", claimToken: "claim-email" },
+      { id: "delivery-copy", channel: "EMAIL_BUYER_COPY", claimToken: "claim-copy" },
+    ]);
+    const copyError = new Error("Resend down for the copy");
+    sendVoucherEmailMock.mockImplementation(async (...args: unknown[]) => {
+      if (args[3] === "buyer") throw copyError;
+    });
+    markVoucherDeliveryFailedMock.mockResolvedValue(undefined);
+
+    const result = await createVoucherOnPaymentSuccess(order);
+
+    expect(result.success).toBe(true);
+    expect(markVoucherDeliverySentMock).toHaveBeenCalledWith("delivery-email", "claim-email");
+    expect(markVoucherDeliveryFailedMock).toHaveBeenCalledWith("delivery-copy", "claim-copy", copyError);
+    expect(markVoucherDeliverySentMock).not.toHaveBeenCalledWith("delivery-copy", "claim-copy");
+  });
+
+  test("a failed channel lookup skips the copy and still delivers to the recipient", async () => {
+    const { createVoucherOnPaymentSuccess } = await import("@/lib/payment/voucher-service");
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    listVoucherDeliveryChannelsMock.mockRejectedValue(new Error("outbox read failed"));
+    claimVoucherDeliveriesMock.mockResolvedValue([
+      { id: "delivery-email", channel: "EMAIL", claimToken: "claim-email" },
+    ]);
+
+    const result = await createVoucherOnPaymentSuccess(order);
+
+    expect(result.success).toBe(true);
+    expect(claimVoucherDeliveriesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ channels: ["EMAIL", "WHATSAPP"] })
+    );
+    expect(sendVoucherEmailMock).toHaveBeenCalledWith("KSP-123", "public-token", "item-1");
+  });
+
+  test("a failed copy with its own row is retried", async () => {
+    const { createVoucherOnPaymentSuccess } = await import("@/lib/payment/voucher-service");
+    listVoucherDeliveryChannelsMock.mockResolvedValue(["EMAIL", "WHATSAPP", "EMAIL_BUYER_COPY"]);
+    claimVoucherDeliveriesMock.mockResolvedValue([
+      { id: "delivery-copy", channel: "EMAIL_BUYER_COPY", claimToken: "claim-copy" },
+    ]);
+
+    await createVoucherOnPaymentSuccess(order);
+
+    expect(claimVoucherDeliveriesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ channels: ["EMAIL", "WHATSAPP", "EMAIL_BUYER_COPY"] })
+    );
+    expect(sendVoucherEmailMock).toHaveBeenCalledTimes(1);
+    expect(sendVoucherEmailMock).toHaveBeenCalledWith("KSP-123", "public-token", "item-1", "buyer");
+  });
+
+  test("a voucher for the buyer gets no copy", async () => {
+    const { createVoucherOnPaymentSuccess } = await import("@/lib/payment/voucher-service");
+    getOrderItemsByOrderIdMock.mockResolvedValue([{ ...item, send_to: "PURCHASER" }]);
+    claimVoucherDeliveriesMock.mockResolvedValue([]);
+
+    await createVoucherOnPaymentSuccess(order);
+
+    expect(claimVoucherDeliveriesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ channels: ["EMAIL", "WHATSAPP"] })
+    );
+    expect(listVoucherDeliveryChannelsMock).not.toHaveBeenCalled();
   });
 });
