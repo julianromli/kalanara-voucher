@@ -284,7 +284,10 @@ function drawTextInBox(
   }
 }
 
-const FIXED_PDF_CREATION_DATE = new Date(Date.UTC(2025, 0, 1));
+// A PDF date string, not a Date: jsPDF formats a Date in the runtime's local
+// time zone, so browser and server renders would differ. Every voucher PDF
+// carries this placeholder; the real issue and expiry dates are on the page.
+const FIXED_PDF_CREATION_DATE = "D:20250101000000+00'00'";
 
 // 32 hex chars from the voucher fields (FNV-1a, four seeds). Not a security
 // value: it only has to be stable per voucher and work in the browser too.
@@ -342,6 +345,8 @@ export async function generateVoucherPDF(data: VoucherPDFData): Promise<Blob> {
   // jsPDF stamps the current time and a random file ID by default. Emails
   // attach this PDF under a Resend idempotency key, and Resend refuses a retry
   // whose body differs, so the same voucher must always give the same bytes.
+  // This holds while the logo and fonts load: if one fails, the fallback gives
+  // different bytes, and Resend refuses that retry instead of sending twice.
   doc.setCreationDate(FIXED_PDF_CREATION_DATE);
   doc.setFileId(voucherPdfFileId(data));
 

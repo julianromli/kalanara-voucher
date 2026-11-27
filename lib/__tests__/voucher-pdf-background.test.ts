@@ -68,10 +68,19 @@ function findRoutesThatRenderVoucherPdf(): string[] {
 
 describe("voucher PDF background", () => {
   it("renders the same bytes for the same voucher, so idempotent email retries match", async () => {
-    const first = await renderPdfSource();
-    await new Promise((resolve) => setTimeout(resolve, 1100));
-    const second = await renderPdfSource();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    let first: string;
+    let second: string;
+    try {
+      vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+      first = await renderPdfSource();
+      vi.setSystemTime(new Date("2026-06-30T12:34:56Z"));
+      second = await renderPdfSource();
+    } finally {
+      vi.useRealTimers();
+    }
     expect(second).toBe(first);
+    expect(first).toContain("/CreationDate (D:20250101000000+00'00')");
     const other = Buffer.from(
       await (await generateVoucherPDF({ ...SAMPLE_VOUCHER, code: "KSP-2026-OTHER" })).arrayBuffer()
     ).toString("latin1");
